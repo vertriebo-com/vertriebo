@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Settings, Users, Shield, Zap, UserPlus, Trash2, RefreshCw, Crown } from "lucide-react";
+import { Users, Zap, UserPlus, RefreshCw, Crown, Eye } from "lucide-react";
+import LeadAssignmentSection from "../components/LeadAssignmentSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,18 +14,21 @@ export default function SettingsPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("user");
   const [inviting, setInviting] = useState(false);
+  const [leadsVisibility, setLeadsVisibility] = useState("assigned"); // "all" or "assigned"
 
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
-    const [me, allUsers] = await Promise.all([
+    const [me, allUsers, settings] = await Promise.all([
       base44.auth.me(),
       base44.entities.User.list("-created_date", 100),
+      base44.entities.AppSettings.filter({ key: "leads_visibility" }),
     ]);
     setCurrentUser(me);
     setUsers(allUsers);
+    if (settings[0]) setLeadsVisibility(settings[0].value);
     setLoading(false);
   };
 
@@ -51,6 +55,17 @@ export default function SettingsPage() {
     loadData();
   };
 
+  const handleVisibilityChange = async (val) => {
+    setLeadsVisibility(val);
+    const existing = await base44.entities.AppSettings.filter({ key: "leads_visibility" });
+    if (existing[0]) {
+      await base44.entities.AppSettings.update(existing[0].id, { value: val });
+    } else {
+      await base44.entities.AppSettings.create({ key: "leads_visibility", value: val });
+    }
+    toast.success(val === "all" ? "Vertriebler sehen jetzt alle Leads." : "Vertriebler sehen nur zugewiesene Leads.");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -66,42 +81,43 @@ export default function SettingsPage() {
         <p className="text-sm text-muted-foreground">Admin-Bereich · Benutzerverwaltung</p>
       </div>
 
-      {/* Neuen Benutzer einladen */}
+      {/* Sichtbarkeit */}
       <div className="bg-card border border-border rounded-xl">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-          <UserPlus className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold">Vertriebler einladen</h3>
+          <Eye className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold">Lead-Sichtbarkeit für Vertriebler</h3>
         </div>
-        <div className="px-5 py-4">
-          <p className="text-sm text-muted-foreground mb-4">
-            Der Vertriebler erhält eine E-Mail mit einem Login-Link. Er kann sich dann mit seiner E-Mail-Adresse anmelden.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Input
-              placeholder="E-Mail-Adresse des Vertrieblers"
-              value={inviteEmail}
-              onChange={e => setInviteEmail(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleInvite()}
-              className="flex-1"
-            />
-            <Select value={inviteRole} onValueChange={setInviteRole}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="user">Vertriebler</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={handleInvite} disabled={inviting} className="gap-2 whitespace-nowrap">
-              <UserPlus className="w-4 h-4" />
-              {inviting ? "Sende..." : "Einladen"}
-            </Button>
-          </div>
+        <div className="px-5 py-4 flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => handleVisibilityChange("all")}
+            className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${
+              leadsVisibility === "all"
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:border-primary/40"
+            }`}
+          >
+            <p className="font-semibold">Alle Leads sichtbar</p>
+            <p className="text-xs mt-0.5 font-normal">Jeder Vertriebler sieht alle Leads im System</p>
+          </button>
+          <button
+            onClick={() => handleVisibilityChange("assigned")}
+            className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all ${
+              leadsVisibility === "assigned"
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:border-primary/40"
+            }`}
+          >
+            <p className="font-semibold">Nur zugewiesene Leads</p>
+            <p className="text-xs mt-0.5 font-normal">Vertriebler sieht nur seine zugewiesenen Leads</p>
+          </button>
         </div>
       </div>
 
-      {/* Benutzer verwalten */}
+      {/* Lead-Zuweisung */}
+      <LeadAssignmentSection users={users} />
+
+      {/* Neuen Benutzer einladen */}
+
       <div className="bg-card border border-border rounded-xl">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -25,9 +25,11 @@ export default function Leads() {
   const [companies, setCompanies] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [leadsVisibility, setLeadsVisibility] = useState("assigned");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Alle");
   const [showAdd, setShowAdd] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -35,12 +37,14 @@ export default function Leads() {
 
   const loadData = async () => {
     try {
-      const [me, comps] = await Promise.all([
+      const [me, comps, settings] = await Promise.all([
         base44.auth.me(),
         base44.entities.Company.list("-created_date", 200),
+        base44.entities.AppSettings.filter({ key: "leads_visibility" }),
       ]);
       setUser(me);
       setCompanies(comps);
+      if (settings[0]) setLeadsVisibility(settings[0].value);
     } catch (e) {
       console.error("loadData error", e);
     } finally {
@@ -58,9 +62,14 @@ export default function Leads() {
     setCompanies(prev => prev.filter(c => c.id !== companyId));
   };
 
+  const ARCHIVED_STATUSES = ["Gewonnen", "Verloren"];
+
   const filtered = companies
     .filter(c => {
-      if (!isAdmin && c.assigned_to && c.assigned_to !== user?.email) return false;
+      if (!isAdmin && leadsVisibility === "assigned" && c.assigned_to && c.assigned_to !== user?.email) return false;
+      if (!isAdmin && leadsVisibility === "assigned" && !c.assigned_to) return false;
+      // Archiv: Gewonnen/Verloren standardmäßig ausblenden
+      if (!showArchived && ARCHIVED_STATUSES.includes(c.status)) return false;
       if (statusFilter !== "Alle" && c.status !== statusFilter) return false;
       if (search) {
         const s = search.toLowerCase();
@@ -113,7 +122,14 @@ export default function Leads() {
           <h1 className="text-xl font-bold">Leads</h1>
           <p className="text-sm text-muted-foreground">{filtered.length} Firmen</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant={showArchived ? "secondary" : "outline"}
+            onClick={() => setShowArchived(v => !v)}
+            className="gap-2"
+          >
+            {showArchived ? "Archiv ausblenden" : "Archiv anzeigen"}
+          </Button>
           <Button variant="outline" onClick={handleCsvExport} className="gap-2">
             <Download className="w-4 h-4" /> CSV
           </Button>
