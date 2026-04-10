@@ -116,7 +116,40 @@ export default function SettingsPage() {
       {/* Lead-Zuweisung */}
       <LeadAssignmentSection users={users} />
 
-      {/* Neuen Benutzer einladen */}
+      {/* Benutzer einladen + verwalten */}
+      <div className="bg-card border border-border rounded-xl">
+        <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+          <UserPlus className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold">Vertriebler einladen</h3>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-sm text-muted-foreground mb-4">
+            Der Vertriebler erhält eine E-Mail mit einem Login-Link.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              placeholder="E-Mail-Adresse des Vertrieblers"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleInvite()}
+              className="flex-1"
+            />
+            <Select value={inviteRole} onValueChange={setInviteRole}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">Vertriebler</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={handleInvite} disabled={inviting} className="gap-2 whitespace-nowrap">
+              <UserPlus className="w-4 h-4" />
+              {inviting ? "Sende..." : "Einladen"}
+            </Button>
+          </div>
+        </div>
+      </div>
 
       <div className="bg-card border border-border rounded-xl">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
@@ -147,14 +180,14 @@ export default function SettingsPage() {
                   </span>
                 ) : (
                   <Select
-                    value={u.role || "vertriebler"}
+                    value={u.role || "user"}
                     onValueChange={val => handleRoleChange(u.id, val)}
                   >
                     <SelectTrigger className="w-36 h-7 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="vertriebler">Vertriebler</SelectItem>
+                      <SelectItem value="user">Vertriebler</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
