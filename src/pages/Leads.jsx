@@ -60,7 +60,7 @@ export default function Leads() {
 
   const filtered = companies
     .filter(c => {
-      if (!isAdmin && c.assigned_to !== user?.email) return false;
+      if (!isAdmin && c.assigned_to && c.assigned_to !== user?.email) return false;
       if (statusFilter !== "Alle" && c.status !== statusFilter) return false;
       if (search) {
         const s = search.toLowerCase();
