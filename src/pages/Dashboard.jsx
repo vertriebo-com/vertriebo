@@ -30,17 +30,22 @@ export default function Dashboard() {
   }, []);
 
   const loadData = async () => {
-    const [me, comps, allTasks, logs] = await Promise.all([
-      base44.auth.me(),
-      base44.entities.Company.list("-created_date", 100),
-      base44.entities.Task.list("-faellig_am", 50),
-      base44.entities.ContactLog.list("-created_date", 50),
-    ]);
-    setUser(me);
-    setCompanies(comps);
-    setTasks(allTasks);
-    setContactLogs(logs);
-    setLoading(false);
+    try {
+      const [me, comps, allTasks, logs] = await Promise.all([
+        base44.auth.me(),
+        base44.entities.Company.list("-created_date", 100),
+        base44.entities.Task.list("-faellig_am", 50),
+        base44.entities.ContactLog.list("-created_date", 50),
+      ]);
+      setUser(me);
+      setCompanies(comps);
+      setTasks(allTasks);
+      setContactLogs(logs);
+    } catch (e) {
+      console.error("loadData error", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {

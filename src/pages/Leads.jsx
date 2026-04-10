@@ -34,13 +34,18 @@ export default function Leads() {
   }, []);
 
   const loadData = async () => {
-    const [me, comps] = await Promise.all([
-      base44.auth.me(),
-      base44.entities.Company.list("-created_date", 200),
-    ]);
-    setUser(me);
-    setCompanies(comps);
-    setLoading(false);
+    try {
+      const [me, comps] = await Promise.all([
+        base44.auth.me(),
+        base44.entities.Company.list("-created_date", 200),
+      ]);
+      setUser(me);
+      setCompanies(comps);
+    } catch (e) {
+      console.error("loadData error", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const isAdmin = user?.role === "admin";
