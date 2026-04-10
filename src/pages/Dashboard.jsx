@@ -14,6 +14,7 @@ import StatCard from "../components/StatCard";
 import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
 import WeekProgress from "../components/WeekProgress";
+import WeeklyGoal from "../components/WeeklyGoal";
 import { Button } from "@/components/ui/button";
 import moment from "moment";
 
@@ -74,8 +75,11 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Week Progress */}
-      <WeekProgress user={user} />
+      {/* Week Progress + Goal */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <WeekProgress user={user} />
+        <WeeklyGoal user={user} />
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

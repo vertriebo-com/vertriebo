@@ -14,6 +14,7 @@ import Statistics from './pages/Statistics';
 import Import from './pages/Import';
 import BlacklistPage from './pages/BlacklistPage';
 import SettingsPage from './pages/SettingsPage';
+import MapView from './pages/MapView';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -50,6 +51,7 @@ const AuthenticatedApp = () => {
         <Route path="/import" element={<Import />} />
         <Route path="/blacklist" element={<BlacklistPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/map" element={<MapView />} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
     </Routes>

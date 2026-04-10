@@ -68,6 +68,10 @@
       "type": "string",
       "title": "Notizen"
     },
+    "aktueller_dienstleister": {
+      "type": "string",
+      "title": "Aktueller Dienstleister (Konkurrenz)"
+    },
     "assigned_to": {
       "type": "string",
       "title": "Zugewiesen an"

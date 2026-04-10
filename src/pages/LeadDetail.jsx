@@ -164,6 +164,12 @@ export default function LeadDetail() {
                 <MapPin className="w-3.5 h-3.5" /> {company.entfernung_km} km Entfernung
               </div>
             )}
+            {company.aktueller_dienstleister && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">🏢 Aktueller Dienstleister</p>
+                <p className="text-sm font-medium text-amber-700 bg-amber-50 px-2 py-1 rounded">{company.aktueller_dienstleister}</p>
+              </div>
+            )}
           </div>
         </div>
 

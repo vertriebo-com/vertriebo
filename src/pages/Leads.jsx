@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "../components/StatusBadge";
 import AddCompanyDialog from "../components/AddCompanyDialog";
-import { Flame } from "lucide-react";
+import LeadScoreBadge from "../components/LeadScoreBadge";
+import { Flame, Download } from "lucide-react";
 
 const STATUSES = ["Alle", "Neu", "Kontakt", "Rückruf", "Termin", "Angebot", "Gewonnen", "Verloren"];
 
@@ -69,6 +70,20 @@ export default function Leads() {
       return (b.priority_score || 0) - (a.priority_score || 0);
     });
 
+  const handleCsvExport = () => {
+    const headers = ["Name","Branche","Adresse","PLZ","Ort","Telefon","E-Mail","Website","Ansprechpartner","Status","Entfernung (km)","Aktueller Dienstleister","Quelle","Notizen"];
+    const rows = filtered.map(c => [
+      c.name, c.branche, c.adresse, c.plz, c.ort, c.telefon, c.email, c.website,
+      c.ansprechpartner, c.status, c.entfernung_km, c.aktueller_dienstleister, c.quelle,
+      (c.notizen || "").replace(/\n/g, " ")
+    ].map(v => `"${v || ""}"`).join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "leads.csv"; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -84,9 +99,14 @@ export default function Leads() {
           <h1 className="text-xl font-bold">Leads</h1>
           <p className="text-sm text-muted-foreground">{filtered.length} Firmen</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="gap-2">
-          <Plus className="w-4 h-4" /> Firma hinzufügen
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleCsvExport} className="gap-2">
+            <Download className="w-4 h-4" /> CSV
+          </Button>
+          <Button onClick={() => setShowAdd(true)} className="gap-2">
+            <Plus className="w-4 h-4" /> Firma hinzufügen
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -150,9 +170,12 @@ export default function Leads() {
                   </div>
                 </div>
               </div>
-              <StatusBadge status={company.status} />
-            </div>
-          </Link>
+              <div className="flex items-center gap-1.5">
+                <StatusBadge status={company.status} />
+                <LeadScoreBadge score={company.priority_score} isHot={company.is_hot} />
+              </div>
+              </div>
+              </Link>
         ))}
         {filtered.length === 0 && (
           <div className="text-center py-16 text-muted-foreground">
