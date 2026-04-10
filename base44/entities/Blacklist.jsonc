@@ -1,0 +1,25 @@
+{
+  "name": "Blacklist",
+  "type": "object",
+  "properties": {
+    "firmenname": {
+      "type": "string",
+      "title": "Firmenname"
+    },
+    "grund": {
+      "type": "string",
+      "title": "Grund"
+    },
+    "telefon": {
+      "type": "string",
+      "title": "Telefon"
+    },
+    "email": {
+      "type": "string",
+      "title": "E-Mail"
+    }
+  },
+  "required": [
+    "firmenname"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "title": "Rolle",
+      "enum": [
+        "admin",
+        "vertriebler"
+      ],
+      "default": "vertriebler"
+    }
+  }
+}

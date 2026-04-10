@@ -1,0 +1,99 @@
+{
+  "name": "Company",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Firmenname"
+    },
+    "branche": {
+      "type": "string",
+      "title": "Branche"
+    },
+    "adresse": {
+      "type": "string",
+      "title": "Adresse"
+    },
+    "plz": {
+      "type": "string",
+      "title": "PLZ"
+    },
+    "ort": {
+      "type": "string",
+      "title": "Ort"
+    },
+    "telefon": {
+      "type": "string",
+      "title": "Telefonnummer"
+    },
+    "email": {
+      "type": "string",
+      "title": "E-Mail"
+    },
+    "website": {
+      "type": "string",
+      "title": "Website"
+    },
+    "ansprechpartner": {
+      "type": "string",
+      "title": "Ansprechpartner"
+    },
+    "latitude": {
+      "type": "number",
+      "title": "Latitude"
+    },
+    "longitude": {
+      "type": "number",
+      "title": "Longitude"
+    },
+    "entfernung_km": {
+      "type": "number",
+      "title": "Entfernung (km)"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "Neu",
+        "Kontakt",
+        "R\u00fcckruf",
+        "Termin",
+        "Angebot",
+        "Gewonnen",
+        "Verloren"
+      ],
+      "default": "Neu"
+    },
+    "notizen": {
+      "type": "string",
+      "title": "Notizen"
+    },
+    "assigned_to": {
+      "type": "string",
+      "title": "Zugewiesen an"
+    },
+    "weekly_batch_id": {
+      "type": "string",
+      "title": "Wochen-Batch ID"
+    },
+    "is_blacklisted": {
+      "type": "boolean",
+      "title": "Blacklisted",
+      "default": false
+    },
+    "quelle": {
+      "type": "string",
+      "title": "Quelle",
+      "enum": [
+        "Automatisch",
+        "CSV Import",
+        "Manuell",
+        "API"
+      ],
+      "default": "Manuell"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

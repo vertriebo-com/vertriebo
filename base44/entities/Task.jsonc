@@ -1,0 +1,62 @@
+{
+  "name": "Task",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "title": "Firma ID"
+    },
+    "company_name": {
+      "type": "string",
+      "title": "Firmenname"
+    },
+    "titel": {
+      "type": "string",
+      "title": "Titel"
+    },
+    "beschreibung": {
+      "type": "string",
+      "title": "Beschreibung"
+    },
+    "typ": {
+      "type": "string",
+      "title": "Typ",
+      "enum": [
+        "R\u00fcckruf",
+        "Termin",
+        "Angebot erstellen",
+        "Nachfassen",
+        "Sonstiges"
+      ],
+      "default": "R\u00fcckruf"
+    },
+    "prioritaet": {
+      "type": "string",
+      "title": "Priorit\u00e4t",
+      "enum": [
+        "Hoch",
+        "Mittel",
+        "Niedrig"
+      ],
+      "default": "Mittel"
+    },
+    "faellig_am": {
+      "type": "string",
+      "format": "date-time",
+      "title": "F\u00e4llig am"
+    },
+    "erledigt": {
+      "type": "boolean",
+      "title": "Erledigt",
+      "default": false
+    },
+    "assigned_to": {
+      "type": "string",
+      "title": "Zugewiesen an"
+    }
+  },
+  "required": [
+    "titel",
+    "typ"
+  ]
+}

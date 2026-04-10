@@ -1,0 +1,51 @@
+{
+  "name": "ContactLog",
+  "type": "object",
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "title": "Firma ID"
+    },
+    "typ": {
+      "type": "string",
+      "title": "Kontaktart",
+      "enum": [
+        "Anruf",
+        "E-Mail",
+        "Besuch",
+        "Termin",
+        "Angebot",
+        "Sonstiges"
+      ]
+    },
+    "notiz": {
+      "type": "string",
+      "title": "Notiz"
+    },
+    "ergebnis": {
+      "type": "string",
+      "title": "Ergebnis",
+      "enum": [
+        "Erreicht",
+        "Nicht erreicht",
+        "R\u00fcckruf vereinbart",
+        "Termin vereinbart",
+        "Angebot gesendet",
+        "Abgeschlossen",
+        "Kein Interesse"
+      ]
+    },
+    "kontakt_person": {
+      "type": "string",
+      "title": "Kontaktperson"
+    },
+    "user_email": {
+      "type": "string",
+      "title": "Vertriebler"
+    }
+  },
+  "required": [
+    "company_id",
+    "typ"
+  ]
+}

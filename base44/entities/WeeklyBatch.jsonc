@@ -1,0 +1,36 @@
+{
+  "name": "WeeklyBatch",
+  "type": "object",
+  "properties": {
+    "kalenderwoche": {
+      "type": "number",
+      "title": "Kalenderwoche"
+    },
+    "jahr": {
+      "type": "number",
+      "title": "Jahr"
+    },
+    "anzahl_firmen": {
+      "type": "number",
+      "title": "Anzahl Firmen"
+    },
+    "assigned_to": {
+      "type": "string",
+      "title": "Zugewiesen an"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "Offen",
+        "In Bearbeitung",
+        "Abgeschlossen"
+      ],
+      "default": "Offen"
+    }
+  },
+  "required": [
+    "kalenderwoche",
+    "jahr"
+  ]
+}
