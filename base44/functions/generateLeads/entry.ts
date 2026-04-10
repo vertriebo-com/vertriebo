@@ -5,12 +5,19 @@ const NEUWIED_LAT = 50.4265;
 const NEUWIED_LNG = 7.4620;
 const RADIUS_METERS = 25000;
 
-// Business types that are good B2B targets for Gebäudedienste
+// B2B-Ziele für Gebäudereinigung & Hausmeisterdienste
+// Krankenhäuser/Kliniken absichtlich ausgeschlossen – Verträge laufen über Verwaltung, nicht über Google
 const BUSINESS_TYPES = [
-  "hotel", "office", "hospital", "clinic", "bank",
-  "insurance_agency", "car_dealer", "restaurant", "shopping_mall",
-  "school", "university", "gym", "spa", "dentist", "doctor",
-  "real_estate_agency", "lawyer", "accounting"
+  "hotel", "lodging",           // Hotels & Pensionen
+  "office",                      // Bürogebäude
+  "bank", "insurance_agency",   // Finanzdienstleister
+  "car_dealer", "car_rental",   // Autohäuser
+  "shopping_mall", "department_store", // Einkaufszentren
+  "school", "university",       // Schulen & Hochschulen
+  "gym", "stadium",             // Sport & Freizeit
+  "real_estate_agency",         // Immobilien (häufige Auftraggeber)
+  "lawyer", "accounting",       // Kanzleien
+  "supermarket", "storage"      // Lebensmittel & Lager
 ];
 
 function calcDistance(lat1, lng1, lat2, lng2) {
@@ -134,12 +141,15 @@ Deno.serve(async (req) => {
 
       // Determine branche from types
       const typeMap = {
-        hotel: "Hotel", office: "Büro/Gewerbe", hospital: "Krankenhaus",
-        clinic: "Klinik", bank: "Bank", insurance_agency: "Versicherung",
-        car_dealer: "Autohaus", restaurant: "Gastronomie", shopping_mall: "Einkaufszentrum",
-        school: "Schule", university: "Universität/Hochschule", gym: "Fitnessstudio",
-        spa: "Wellness/Spa", dentist: "Zahnarzt", doctor: "Arztpraxis",
-        real_estate_agency: "Immobilien", lawyer: "Kanzlei", accounting: "Steuerberatung"
+        hotel: "Hotel", lodging: "Hotel/Pension", office: "Büro/Gewerbe",
+        bank: "Bank", insurance_agency: "Versicherung",
+        car_dealer: "Autohaus", car_rental: "Autovermietung",
+        shopping_mall: "Einkaufszentrum", department_store: "Kaufhaus",
+        school: "Schule", university: "Universität/Hochschule",
+        gym: "Fitnessstudio", stadium: "Sportstätte",
+        real_estate_agency: "Immobilien",
+        lawyer: "Kanzlei", accounting: "Steuerberatung",
+        supermarket: "Supermarkt", storage: "Lager/Logistik"
       };
       const branche = place.types?.map(t => typeMap[t]).find(Boolean) || "Gewerbe";
 
