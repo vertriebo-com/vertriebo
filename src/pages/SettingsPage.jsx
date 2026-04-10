@@ -1,19 +1,55 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Settings, Users, Shield, Zap } from "lucide-react";
+import { Settings, Users, Shield, Zap, UserPlus, Trash2, RefreshCw, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
   const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("vertriebler");
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
-    base44.entities.User.list("-created_date", 50).then(data => {
-      setUsers(data);
-      setLoading(false);
-    });
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    const [me, allUsers] = await Promise.all([
+      base44.auth.me(),
+      base44.entities.User.list("-created_date", 100),
+    ]);
+    setCurrentUser(me);
+    setUsers(allUsers);
+    setLoading(false);
+  };
+
+  const handleInvite = async () => {
+    if (!inviteEmail || !inviteEmail.includes("@")) {
+      toast.error("Bitte eine gültige E-Mail-Adresse eingeben.");
+      return;
+    }
+    setInviting(true);
+    try {
+      await base44.users.inviteUser(inviteEmail.trim().toLowerCase(), inviteRole);
+      toast.success(`Einladung an ${inviteEmail} gesendet! Der Vertriebler bekommt eine E-Mail mit Login-Link.`);
+      setInviteEmail("");
+      setTimeout(loadData, 1500);
+    } catch (e) {
+      toast.error("Fehler beim Einladen: " + e.message);
+    }
+    setInviting(false);
+  };
+
+  const handleRoleChange = async (userId, newRole) => {
+    await base44.entities.User.update(userId, { role: newRole });
+    toast.success("Rolle aktualisiert.");
+    loadData();
+  };
 
   if (loading) {
     return (
@@ -27,31 +63,94 @@ export default function SettingsPage() {
     <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="text-xl font-bold">Einstellungen</h1>
-        <p className="text-sm text-muted-foreground">Admin-Bereich</p>
+        <p className="text-sm text-muted-foreground">Admin-Bereich · Benutzerverwaltung</p>
       </div>
 
-      {/* Benutzer */}
+      {/* Neuen Benutzer einladen */}
       <div className="bg-card border border-border rounded-xl">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2">
-          <Users className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold">Benutzer</h3>
+          <UserPlus className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold">Vertriebler einladen</h3>
+        </div>
+        <div className="px-5 py-4">
+          <p className="text-sm text-muted-foreground mb-4">
+            Der Vertriebler erhält eine E-Mail mit einem Login-Link. Er kann sich dann mit seiner E-Mail-Adresse anmelden.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Input
+              placeholder="E-Mail-Adresse des Vertrieblers"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleInvite()}
+              className="flex-1"
+            />
+            <Select value={inviteRole} onValueChange={setInviteRole}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="vertriebler">Vertriebler</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={handleInvite} disabled={inviting} className="gap-2 whitespace-nowrap">
+              <UserPlus className="w-4 h-4" />
+              {inviting ? "Sende..." : "Einladen"}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Benutzer verwalten */}
+      <div className="bg-card border border-border rounded-xl">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold">Alle Benutzer ({users.length})</h3>
+          </div>
+          <button onClick={loadData} className="text-muted-foreground hover:text-foreground">
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
         </div>
         <div className="divide-y divide-border">
           {users.map(u => (
-            <div key={u.id} className="px-5 py-3 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium">{u.full_name || u.email}</p>
-                <p className="text-xs text-muted-foreground">{u.email}</p>
+            <div key={u.id} className="px-5 py-3.5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                  {u.full_name?.charAt(0) || u.email?.charAt(0)?.toUpperCase() || "?"}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{u.full_name || "—"}</p>
+                  <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                </div>
               </div>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                u.role === "admin"
-                  ? "bg-primary/10 text-primary"
-                  : "bg-muted text-muted-foreground"
-              }`}>
-                {u.role === "admin" ? "Admin" : "Vertriebler"}
-              </span>
+              <div className="shrink-0">
+                {u.id === currentUser?.id ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                    <Crown className="w-3 h-3" /> Du (Admin)
+                  </span>
+                ) : (
+                  <Select
+                    value={u.role || "vertriebler"}
+                    onValueChange={val => handleRoleChange(u.id, val)}
+                  >
+                    <SelectTrigger className="w-36 h-7 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vertriebler">Vertriebler</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             </div>
           ))}
+          {users.length === 0 && (
+            <div className="px-5 py-8 text-center text-sm text-muted-foreground">
+              Noch keine Benutzer gefunden.
+            </div>
+          )}
         </div>
       </div>
 
@@ -62,10 +161,11 @@ export default function SettingsPage() {
           <h3 className="text-sm font-semibold">System</h3>
         </div>
         <div className="space-y-2 text-sm text-muted-foreground">
-          <p>• Lead Agent: Generiert montags 25 neue Firmen im Umkreis Neuwied (via Backend-Funktion)</p>
+          <p>• Lead-Generierung: Google Places API (25km Umkreis Neuwied)</p>
+          <p>• Tages-Report: täglich 7:30 Uhr per E-Mail</p>
+          <p>• Follow-Up Agent, Priority Agent & Cleanup Agent: täglich/wöchentlich</p>
           <p>• Dublettencheck bei jedem Import und manueller Erstellung</p>
           <p>• Blacklist-Prüfung bei allen Eingängen</p>
-          <p>• Vorbereitet für Google Maps API & externe Firmenquellen</p>
         </div>
       </div>
     </div>

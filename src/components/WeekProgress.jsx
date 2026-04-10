@@ -61,9 +61,9 @@ export default function WeekProgress({ user }) {
   const won = companies.filter(c => c.status === "Gewonnen").length;
   const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
 
-  // Can generate new leads only if >80% of current batch is processed or no batch exists
-  const canGenerate = !batch || (total > 0 && processed / total >= 0.8);
   const isAdmin = user?.role === "admin";
+  // Admins können jederzeit neue Leads generieren, Vertriebler erst ab 80%
+  const canGenerate = isAdmin || !batch || (total > 0 && processed / total >= 0.8);
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -121,7 +121,7 @@ export default function WeekProgress({ user }) {
 
             {!canGenerate && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
-                🔒 Neue Leads erst nach 80% Bearbeitung der aktuellen Woche möglich
+                🔒 Neue Leads erst nach 80% Bearbeitung möglich (nur für Admins jederzeit freigegeben)
               </div>
             )}
           </div>
