@@ -35,6 +35,15 @@
         "Kein Interesse"
       ]
     },
+    "naechster_schritt": {
+      "type": "string",
+      "title": "N\u00e4chster Schritt"
+    },
+    "rueckruf_datum": {
+      "type": "string",
+      "format": "date-time",
+      "title": "R\u00fcckruf am"
+    },
     "kontakt_person": {
       "type": "string",
       "title": "Kontaktperson"
@@ -46,6 +55,8 @@
   },
   "required": [
     "company_id",
-    "typ"
+    "typ",
+    "ergebnis",
+    "naechster_schritt"
   ]
 }

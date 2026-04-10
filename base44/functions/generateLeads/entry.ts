@@ -1,5 +1,43 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
+// Neuwied coordinates
+const NEUWIED_LAT = 50.4265;
+const NEUWIED_LNG = 7.4620;
+const RADIUS_METERS = 25000;
+
+// Business types that are good B2B targets for Gebäudedienste
+const BUSINESS_TYPES = [
+  "hotel", "office", "hospital", "clinic", "bank",
+  "insurance_agency", "car_dealer", "restaurant", "shopping_mall",
+  "school", "university", "gym", "spa", "dentist", "doctor",
+  "real_estate_agency", "lawyer", "accounting"
+];
+
+function calcDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * 10) / 10;
+}
+
+async function fetchPlaces(apiKey, type, pageToken = null) {
+  const url = pageToken
+    ? `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${pageToken}&key=${apiKey}`
+    : `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${NEUWIED_LAT},${NEUWIED_LNG}&radius=${RADIUS_METERS}&type=${type}&key=${apiKey}`;
+  
+  const res = await fetch(url);
+  return res.json();
+}
+
+async function getPlaceDetails(apiKey, placeId) {
+  const fields = "name,formatted_address,formatted_phone_number,website,geometry,types";
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  return data.result || null;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -10,73 +48,50 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const count = body.count || 25;
+    const targetCount = body.count || 25;
     const assignTo = body.assign_to || user.email;
+    const apiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
 
-    // Get existing companies for duplicate check
-    const existingCompanies = await base44.asServiceRole.entities.Company.list('-created_date', 1000);
-    const existingNames = new Set(existingCompanies.map(c => c.name?.toLowerCase()));
+    if (!apiKey) {
+      return Response.json({ error: 'GOOGLE_PLACES_API_KEY not set' }, { status: 500 });
+    }
 
-    // Get blacklist
-    const blacklist = await base44.asServiceRole.entities.Blacklist.list('-created_date', 500);
-    const blacklistNames = new Set(blacklist.map(b => b.firmenname?.toLowerCase()));
+    // Load existing for dedup
+    const [existingCompanies, blacklist] = await Promise.all([
+      base44.asServiceRole.entities.Company.list('-created_date', 2000),
+      base44.asServiceRole.entities.Blacklist.list('-created_date', 500),
+    ]);
+    const existingNames = new Set(existingCompanies.map(c => c.name?.toLowerCase().trim()));
+    const blacklistNames = new Set(blacklist.map(b => b.firmenname?.toLowerCase().trim()));
 
-    // Generate leads using LLM
-    const result = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt: `Generiere ${count} realistische, aber fiktive Firmennamen und Daten für Firmen im Umkreis von 25 km um Neuwied (PLZ 56564), Deutschland. 
-      Die Firmen sollen aus verschiedenen Branchen stammen, die typische Kunden für einen Gebäudedienstleister wären (z.B. Bürogebäude, Hotels, Arztpraxen, Einzelhandel, Restaurants, Banken, Versicherungen, Autohäuser, etc.).
-      
-      Folgende Orte liegen im Umkreis von 25km um Neuwied: Koblenz, Andernach, Bendorf, Bad Hönningen, Linz am Rhein, Dierdorf, Puderbach, Rengsdorf, Asbach, Unkel, Remagen, Sinzig, Bad Breisig, Vallendar, Höhr-Grenzhausen, Ransbach-Baumbach.
-      
-      Für jede Firma generiere:
-      - name: Firmenname (deutsch, realistisch)
-      - branche: Branche
-      - adresse: Straße + Hausnummer
-      - plz: PLZ (reale PLZ aus der Region)
-      - ort: Ortsname aus der Region
-      - telefon: Telefonnummer im Format 02631/XXXXX oder 0261/XXXXX etc.
-      - email: E-Mail Adresse
-      - website: Website URL
-      - ansprechpartner: Vor- und Nachname
-      - latitude: Breitengrad (realistisch für die Region um 50.4-50.6)
-      - longitude: Längengrad (realistisch für die Region um 7.3-7.7)
-      - entfernung_km: geschätzte Entfernung zu Neuwied in km (max 25)`,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          companies: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                branche: { type: "string" },
-                adresse: { type: "string" },
-                plz: { type: "string" },
-                ort: { type: "string" },
-                telefon: { type: "string" },
-                email: { type: "string" },
-                website: { type: "string" },
-                ansprechpartner: { type: "string" },
-                latitude: { type: "number" },
-                longitude: { type: "number" },
-                entfernung_km: { type: "number" }
-              }
-            }
-          }
-        }
+    const candidates = [];
+    const shuffledTypes = BUSINESS_TYPES.sort(() => Math.random() - 0.5);
+
+    // Fetch from multiple types to get enough candidates
+    for (const type of shuffledTypes.slice(0, 6)) {
+      if (candidates.length >= targetCount * 3) break;
+      const data = await fetchPlaces(apiKey, type);
+      if (data.results) {
+        candidates.push(...data.results);
       }
+      // Small delay to respect rate limits
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    // Deduplicate candidates by place_id
+    const seen = new Set();
+    const unique = candidates.filter(p => {
+      if (seen.has(p.place_id)) return false;
+      seen.add(p.place_id);
+      return true;
     });
 
-    const companies = result.companies || [];
-    
     // Get current week number
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     const days = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
     const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7);
 
-    // Create weekly batch
     const batch = await base44.asServiceRole.entities.WeeklyBatch.create({
       kalenderwoche: weekNumber,
       jahr: now.getFullYear(),
@@ -88,38 +103,76 @@ Deno.serve(async (req) => {
     let created = 0;
     let skipped = 0;
 
-    for (const company of companies) {
-      if (!company.name) continue;
-      const nameL = company.name.toLowerCase();
-      
-      if (existingNames.has(nameL) || blacklistNames.has(nameL)) {
+    for (const place of unique) {
+      if (created >= targetCount) break;
+
+      const nameL = place.name?.toLowerCase().trim();
+      if (!nameL || existingNames.has(nameL) || blacklistNames.has(nameL)) {
         skipped++;
         continue;
       }
 
+      // Get place details for phone/website
+      let details = null;
+      try {
+        details = await getPlaceDetails(apiKey, place.place_id);
+        await new Promise(r => setTimeout(r, 150));
+      } catch (_) { /* skip details if fails */ }
+
+      const lat = place.geometry?.location?.lat;
+      const lng = place.geometry?.location?.lng;
+      const distKm = lat && lng ? calcDistance(NEUWIED_LAT, NEUWIED_LNG, lat, lng) : null;
+
+      // Parse address
+      const addr = (details?.formatted_address || place.vicinity || "");
+      const addrParts = addr.split(",");
+      const strasse = addrParts[0]?.trim() || "";
+      const plzOrt = addrParts[1]?.trim() || "";
+      const plzMatch = plzOrt.match(/(\d{5})\s+(.*)/);
+      const plz = plzMatch ? plzMatch[1] : "";
+      const ort = plzMatch ? plzMatch[2] : (addrParts[1]?.trim() || "");
+
+      // Determine branche from types
+      const typeMap = {
+        hotel: "Hotel", office: "Büro/Gewerbe", hospital: "Krankenhaus",
+        clinic: "Klinik", bank: "Bank", insurance_agency: "Versicherung",
+        car_dealer: "Autohaus", restaurant: "Gastronomie", shopping_mall: "Einkaufszentrum",
+        school: "Schule", university: "Universität/Hochschule", gym: "Fitnessstudio",
+        spa: "Wellness/Spa", dentist: "Zahnarzt", doctor: "Arztpraxis",
+        real_estate_agency: "Immobilien", lawyer: "Kanzlei", accounting: "Steuerberatung"
+      };
+      const branche = place.types?.map(t => typeMap[t]).find(Boolean) || "Gewerbe";
+
       await base44.asServiceRole.entities.Company.create({
-        ...company,
+        name: place.name,
+        branche,
+        adresse: strasse,
+        plz,
+        ort,
+        telefon: details?.formatted_phone_number || "",
+        website: details?.website || "",
+        latitude: lat || null,
+        longitude: lng || null,
+        entfernung_km: distKm,
         status: "Neu",
-        quelle: "Automatisch",
+        quelle: "Google Places API",
         assigned_to: assignTo,
         weekly_batch_id: batch.id,
       });
-      
+
       existingNames.add(nameL);
       created++;
     }
 
-    // Update batch count
-    await base44.asServiceRole.entities.WeeklyBatch.update(batch.id, { 
-      anzahl_firmen: created 
-    });
+    await base44.asServiceRole.entities.WeeklyBatch.update(batch.id, { anzahl_firmen: created });
 
     return Response.json({
       success: true,
       batch_id: batch.id,
       created,
       skipped,
-      total_generated: companies.length
+      week: weekNumber,
+      source: "Google Places API"
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

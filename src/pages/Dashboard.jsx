@@ -13,6 +13,7 @@ import {
 import StatCard from "../components/StatCard";
 import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
+import WeekProgress from "../components/WeekProgress";
 import { Button } from "@/components/ui/button";
 import moment from "moment";
 
@@ -73,33 +74,12 @@ export default function Dashboard() {
         </p>
       </div>
 
+      {/* Week Progress */}
+      <WeekProgress user={user} />
+
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Leads gesamt"
-          value={myCompanies.length}
-          icon={Building2}
-          subtitle={`${statusCounts["Neu"] || 0} neue`}
-        />
-        <StatCard
-          title="Anrufe"
-          value={contactLogs.filter(l => l.typ === "Anruf").length}
-          icon={Phone}
-          subtitle="diese Woche"
-        />
-        <StatCard
-          title="Termine"
-          value={statusCounts["Termin"] || 0}
-          icon={CalendarCheck}
-        />
-        <StatCard
-          title="Gewonnen"
-          value={statusCounts["Gewonnen"] || 0}
-          icon={Trophy}
-        />
-      </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
         {/* Überfällige & Heutige Aufgaben */}
         <div className="bg-card border border-border rounded-xl">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
@@ -173,10 +153,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Neueste Leads */}
+      {/* Heiße & Neueste Leads */}
       <div className="bg-card border border-border rounded-xl">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Neueste Leads</h2>
+          <h2 className="text-sm font-semibold">🔥 Heiße Leads & Rückrufe</h2>
           <Link to="/leads">
             <Button variant="ghost" size="sm" className="text-xs gap-1">
               Alle anzeigen <ArrowRight className="w-3 h-3" />

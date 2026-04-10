@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "../components/StatusBadge";
 import AddCompanyDialog from "../components/AddCompanyDialog";
+import { Flame } from "lucide-react";
 
 const STATUSES = ["Alle", "Neu", "Kontakt", "Rückruf", "Termin", "Angebot", "Gewonnen", "Verloren"];
 
@@ -56,6 +57,16 @@ export default function Leads() {
         );
       }
       return true;
+    })
+    .sort((a, b) => {
+      // Hot leads first, then by priority_score, then Rückruf status
+      if (a.is_hot && !b.is_hot) return -1;
+      if (!a.is_hot && b.is_hot) return 1;
+      const statusPrio = { "Rückruf": 0, "Termin": 1, "Angebot": 2, "Kontakt": 3, "Neu": 4, "Gewonnen": 5, "Verloren": 6 };
+      const ap = statusPrio[a.status] ?? 9;
+      const bp = statusPrio[b.status] ?? 9;
+      if (ap !== bp) return ap - bp;
+      return (b.priority_score || 0) - (a.priority_score || 0);
     });
 
   if (loading) {
@@ -111,8 +122,8 @@ export default function Leads() {
           >
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-start gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-5 h-5 text-primary" />
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${company.is_hot ? "bg-orange-100" : "bg-primary/10"}`}>
+                  {company.is_hot ? <Flame className="w-5 h-5 text-orange-500" /> : <Building2 className="w-5 h-5 text-primary" />}
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-sm font-semibold group-hover:text-primary transition-colors truncate">

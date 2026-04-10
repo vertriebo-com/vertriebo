@@ -81,11 +81,26 @@
       "title": "Blacklisted",
       "default": false
     },
+    "is_hot": {
+      "type": "boolean",
+      "title": "Hei\u00dfer Lead",
+      "default": false
+    },
+    "priority_score": {
+      "type": "number",
+      "title": "Priorit\u00e4tswert",
+      "default": 0
+    },
+    "last_contact_date": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Letzter Kontakt"
+    },
     "quelle": {
       "type": "string",
       "title": "Quelle",
       "enum": [
-        "Automatisch",
+        "Google Places API",
         "CSV Import",
         "Manuell",
         "API"
