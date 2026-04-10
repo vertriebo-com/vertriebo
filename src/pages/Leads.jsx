@@ -8,7 +8,8 @@ import {
   Building2,
   MapPin,
   Phone,
-  Mail
+  Mail,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,14 @@ export default function Leads() {
   };
 
   const isAdmin = user?.role === "admin";
+
+  const handleDelete = async (e, companyId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.confirm("Lead wirklich löschen?")) return;
+    await base44.entities.Company.delete(companyId);
+    setCompanies(prev => prev.filter(c => c.id !== companyId));
+  };
 
   const filtered = companies
     .filter(c => {
@@ -170,9 +179,18 @@ export default function Leads() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <StatusBadge status={company.status} />
                 <LeadScoreBadge score={company.priority_score} isHot={company.is_hot} />
+                {isAdmin && (
+                  <button
+                    onClick={(e) => handleDelete(e, company.id)}
+                    className="ml-1 p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Lead löschen"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
               </div>
               </div>
               </Link>
