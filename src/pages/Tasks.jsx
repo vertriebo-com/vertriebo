@@ -11,12 +11,14 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import PriorityBadge from "../components/PriorityBadge";
 import moment from "moment";
+import { toast } from "sonner";
 
 export default function Tasks() {
   const [tasks, setTasks] = useState([]);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("offen");
+  const [pendingDone, setPendingDone] = useState(new Set());
 
   useEffect(() => {
     loadData();
@@ -33,15 +35,25 @@ export default function Tasks() {
   };
 
   const toggleTask = async (task) => {
-    await base44.entities.Task.update(task.id, { erledigt: !task.erledigt });
-    loadData();
+    const nowDone = !task.erledigt;
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, erledigt: nowDone } : t));
+    if (nowDone) {
+      // Keep visible briefly so user sees the strikethrough before it disappears
+      setPendingDone(prev => new Set([...prev, task.id]));
+      setTimeout(() => {
+        setPendingDone(prev => { const n = new Set(prev); n.delete(task.id); return n; });
+      }, 1500);
+      toast.success("Aufgabe erledigt ✓");
+    }
+    await base44.entities.Task.update(task.id, { erledigt: nowDone });
   };
 
   const isAdmin = user?.role === "admin";
   const myTasks = isAdmin ? tasks : tasks.filter(t => t.assigned_to === user?.email);
 
   const filtered = myTasks.filter(t => {
-    if (filter === "offen") return !t.erledigt;
+    if (filter === "offen") return !t.erledigt || pendingDone.has(t.id);
     if (filter === "erledigt") return t.erledigt;
     if (filter === "ueberfaellig") return !t.erledigt && t.faellig_am && moment(t.faellig_am).isBefore(moment());
     if (filter === "heute") return !t.erledigt && t.faellig_am && moment(t.faellig_am).isSame(moment(), "day");

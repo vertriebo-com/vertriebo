@@ -78,8 +78,11 @@ export default function LeadDetail() {
   };
 
   const toggleTask = async (task) => {
-    await base44.entities.Task.update(task.id, { erledigt: !task.erledigt });
-    loadData();
+    const nowDone = !task.erledigt;
+    // Optimistic update
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, erledigt: nowDone } : t));
+    await base44.entities.Task.update(task.id, { erledigt: nowDone });
+    toast.success(nowDone ? "Aufgabe erledigt ✓" : "Aufgabe wieder geöffnet");
   };
 
   if (loading) {
