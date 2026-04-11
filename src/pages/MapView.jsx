@@ -54,14 +54,14 @@ export default function MapView() {
 
   const isAdmin = user?.role === "admin";
   const filtered = companies.filter(c => {
-    if (!isAdmin && c.assigned_to !== user?.email) return false;
+    if (!isAdmin && c.assigned_to && c.assigned_to !== user?.email) return false;
     if (!c.latitude || !c.longitude) return false;
     if (statusFilter !== "Alle" && c.status !== statusFilter) return false;
     return true;
   });
 
   const withCoords = filtered.length;
-  const total = companies.filter(c => !isAdmin ? c.assigned_to === user?.email : true).length;
+  const total = companies.filter(c => !isAdmin ? (!c.assigned_to || c.assigned_to === user?.email) : true).length;
 
   return (
     <div className="space-y-4 flex flex-col">
