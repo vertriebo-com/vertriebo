@@ -164,7 +164,7 @@ export default function Dashboard() {
       {/* Heiße & Neueste Leads */}
       <div className="bg-card border border-border rounded-xl">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <h2 className="text-sm font-semibold">🔥 Heiße Leads & Rückrufe</h2>
+          <h2 className="text-sm font-semibold">🔥 Aktive Leads</h2>
           <Link to="/leads">
             <Button variant="ghost" size="sm" className="text-xs gap-1">
               Alle anzeigen <ArrowRight className="w-3 h-3" />
@@ -182,8 +182,13 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {myCompanies
-                .filter(c => c.is_hot || c.status === "Rückruf" || c.status === "Termin" || c.status === "Angebot")
+              {[...myCompanies]
+                .sort((a, b) => {
+                  if (a.is_hot && !b.is_hot) return -1;
+                  if (!a.is_hot && b.is_hot) return 1;
+                  const prio = { "Rückruf": 0, "Termin": 1, "Angebot": 2, "Kontakt": 3, "Neu": 4 };
+                  return (prio[a.status] ?? 9) - (prio[b.status] ?? 9);
+                })
                 .slice(0, 8)
                 .map(company => (
                 <tr key={company.id} className="hover:bg-muted/30 transition-colors">
