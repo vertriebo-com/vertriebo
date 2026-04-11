@@ -14,6 +14,7 @@ export default function CallScriptDialog({ company }) {
     setLoading(true);
     setScript("");
     const result = await base44.integrations.Core.InvokeLLM({
+      model: "claude_sonnet_4_6",
       prompt: `Du bist ein erfahrener Vertriebsprofi für Huwa Gebäudedienste – ein professionelles Reinigungsunternehmen aus Neuwied.
 
 Huwa bietet folgende Leistungen an:
@@ -34,7 +35,7 @@ Aktueller Dienstleister: ${company.aktueller_dienstleister || "Unbekannt"}
 Ansprechpartner: ${company.ansprechpartner || "Unbekannt"}
 Notizen: ${company.notizen || "Keine"}
 
-Wichtig: Passe den Leitfaden an die Branche an! 
+Wichtig: Passe den Leitfaden an die Branche an!
 - IT/Büro → Büroreinigung, Sanitärreinigung, tägliche Unterhaltsreinigung
 - Produktion/Lager/Halle → maschinelle Hallenreinigung, Hochdruck, Industriereinigung
 - Arzt/Zahnarzt → hygienische Unterhaltsreinigung, Desinfektion, Sanitär
