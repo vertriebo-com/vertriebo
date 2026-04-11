@@ -14,7 +14,16 @@ export default function CallScriptDialog({ company }) {
     setLoading(true);
     setScript("");
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Du bist ein erfahrener Vertriebsprofi für Huwa Gebäudedienste (Gebäudereinigung, Facility Management).
+      prompt: `Du bist ein erfahrener Vertriebsprofi für Huwa Gebäudedienste – ein professionelles Reinigungsunternehmen aus Neuwied.
+
+Huwa bietet folgende Leistungen an:
+- Unterhaltsreinigung (regelmäßige Reinigung von Büros, Praxen, Gewerberäumen)
+- Büroreinigung (tägliche/wöchentliche Reinigung inkl. Sanitär, Küchen, Böden)
+- Hallenreinigung (große Produktions- und Lagerhallen, maschinell oder manuell)
+- Maschinelle Reinigung (Scheuersaugmaschinen, Hochdruckreinigung, Kehrmaschinen)
+- Sonderreinigungen (Grundreinigung, Fensterreinigung, Bauendreinigung)
+- Wir machen ALLES – von kleinen Büros bis zu großen Industriehallen
+
 Erstelle einen kurzen, natürlichen Gesprächsleitfaden für einen Kaltakquise-Anruf bei folgender Firma:
 
 Firma: ${company.name}
@@ -25,12 +34,19 @@ Aktueller Dienstleister: ${company.aktueller_dienstleister || "Unbekannt"}
 Ansprechpartner: ${company.ansprechpartner || "Unbekannt"}
 Notizen: ${company.notizen || "Keine"}
 
+Wichtig: Passe den Leitfaden an die Branche an! 
+- IT/Büro → Büroreinigung, Sanitärreinigung, tägliche Unterhaltsreinigung
+- Produktion/Lager/Halle → maschinelle Hallenreinigung, Hochdruck, Industriereinigung
+- Arzt/Zahnarzt → hygienische Unterhaltsreinigung, Desinfektion, Sanitär
+- Autohaus/Werkstatt → Hallenreinigung, Werkstattreinigung, Hochdruck
+- Allgemein → Unterhaltsreinigung, flexible Zeiten, faire Preise
+
 Strukturiere den Leitfaden mit:
-1. **Einstieg** (Begrüßung & Vorstellung, 2 Sätze)
-2. **Aufhänger** (warum rufst du genau jetzt an, 1-2 Sätze)  
-3. **Nutzen** (was bringt Huwa dieser Branche konkret, 2-3 Punkte)
-4. **Einwand-Antworten** (2 typische Einwände mit kurzer Antwort)
-5. **Abschluss** (Terminvereinbarung, 1-2 Sätze)
+1. **Einstieg** (Begrüßung & Vorstellung als Huwa Gebäudedienste, 2 Sätze)
+2. **Aufhänger** (warum rufst du genau diese Firma an – branchenbezogen, 1-2 Sätze)
+3. **Unser Angebot** (welche Huwa-Leistungen passen konkret zu dieser Firma, 2-3 Punkte)
+4. **Einwand-Antworten** (2 typische Einwände z.B. "Haben schon jemanden" oder "Zu teuer" mit kurzer Huwa-Antwort)
+5. **Abschluss** (Terminvereinbarung für ein kostenloses Angebot vor Ort, 1-2 Sätze)
 
 Halte es praxisnah, locker und überzeugend. Auf Deutsch.`,
     });
