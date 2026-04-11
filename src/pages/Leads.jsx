@@ -31,6 +31,7 @@ export default function Leads() {
   const [statusFilter, setStatusFilter] = useState("Alle");
   const [showAdd, setShowAdd] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [showNewOnly, setShowNewOnly] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
 
@@ -84,6 +85,7 @@ export default function Leads() {
       // Archiv: Gewonnen/Verloren standardmäßig ausblenden
       if (!showArchived && ARCHIVED_STATUSES.includes(c.status)) return false;
       if (statusFilter !== "Alle" && c.status !== statusFilter) return false;
+      if (showNewOnly && !c.notizen?.startsWith("⚡")) return false;
       if (search) {
         const s = search.toLowerCase();
         return (
@@ -150,6 +152,14 @@ export default function Leads() {
               <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setSelected(new Set())}>✕</button>
             </div>
           )}
+          <Button
+            variant={showNewOnly ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => setShowNewOnly(v => !v)}
+            className="gap-2 text-xs"
+          >
+            ⚡ Neue Standorte
+          </Button>
           <Button
             variant={showArchived ? "secondary" : "outline"}
             size="sm"

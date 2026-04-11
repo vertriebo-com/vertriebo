@@ -6,20 +6,23 @@ const RADIUS_METERS = 40000; // 40km Radius
 
 // Google Places types für mittelständische B2B-Kunden
 const BUSINESS_TYPES = [
-  "real_estate_agency",    // Immobilienverwaltungen
-  "doctor",               // Arztpraxen
-  "dentist",              // Zahnarztpraxen
-  "lawyer",               // Anwaltskanzleien / Architekten
-  "accounting",           // Steuerberatung / Büros
-  "general_contractor",   // Baufirmen
-  "storage",              // Lager & Logistik / Speditionen
-  "car_dealer",           // Autohäuser / Kfz-Betriebe
-  "insurance_agency",     // Versicherungen / Bürogebäude
-  "bank",                 // Banken & Finanzdienstleister
-  "office",               // Allgemeine Bürogebäude
-  "moving_company",       // Speditionen & Logistik
-  "electrician",          // Handwerksbetriebe / Metallverarbeitung
-  "plumber"               // Handwerksbetriebe
+  "real_estate_agency",
+  "doctor",
+  "dentist",
+  "lawyer",
+  "accounting",
+  "general_contractor",
+  "storage",
+  "car_dealer",
+  "insurance_agency",
+  "bank",
+  "office",
+  "moving_company",
+  "electrician",
+  "plumber",
+  "software",
+  "computer_store",
+  "electronics_store",
 ];
 
 // Keyword-Suchen für spezifische Branchen die Google Places nicht direkt hat
@@ -33,6 +36,11 @@ const KEYWORD_SEARCHES = [
   "Architekturbüro",
   "Steuerberatung",
   "Lagerhaus",
+  "IT Unternehmen",
+  "Softwareunternehmen",
+  "IT Dienstleister",
+  "Systemhaus",
+  "Webdesign Agentur",
 ];
 
 function calcDistance(lat1, lng1, lat2, lng2) {
@@ -55,7 +63,7 @@ async function fetchPlaces(apiKey, type, keyword = null) {
 }
 
 async function getPlaceDetails(apiKey, placeId) {
-  const fields = "name,formatted_address,formatted_phone_number,website,geometry,types";
+  const fields = "name,formatted_address,formatted_phone_number,website,geometry,types,user_ratings_total,rating";
   const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&key=${apiKey}`;
   const res = await fetch(url);
   const data = await res.json();
@@ -145,7 +153,10 @@ Deno.serve(async (req) => {
       office: "Bürogebäude",
       moving_company: "Spedition / Logistik",
       electrician: "Handwerksbetrieb",
-      plumber: "Handwerksbetrieb"
+      plumber: "Handwerksbetrieb",
+      software: "IT / Software",
+      computer_store: "IT / Software",
+      electronics_store: "IT / Elektronik",
     };
 
     let created = 0;
@@ -178,7 +189,18 @@ Deno.serve(async (req) => {
       const plz = plzMatch ? plzMatch[1] : "";
       const ort = plzMatch ? plzMatch[2] : (addrParts[1]?.trim() || "");
 
-      const branche = place.types?.map(t => typeMap[t]).find(Boolean) || "Gewerbe";
+      let branche = place.types?.map(t => typeMap[t]).find(Boolean) || "Gewerbe";
+      const nameLower = (place.name || "").toLowerCase();
+      if (nameLower.includes("software") || nameLower.includes("systeme") ||
+        nameLower.includes("digital") || nameLower.includes("tech") ||
+        nameLower.includes("web") || nameLower.includes("data") ||
+        nameLower.includes("cyber") || nameLower.includes("cloud") ||
+        nameLower.includes("it-") || nameLower.startsWith("it ")) {
+        branche = "IT / Software";
+      }
+
+      const ratingsCount = details?.user_ratings_total ?? place.user_ratings_total ?? null;
+      const isNewLocation = ratingsCount !== null && ratingsCount < 10;
 
       await base44.asServiceRole.entities.Company.create({
         name: place.name,
@@ -195,6 +217,7 @@ Deno.serve(async (req) => {
         quelle: "Google Places API",
         assigned_to: assignTo,
         weekly_batch_id: batch.id,
+        notizen: isNewLocation ? `⚡ Neuer Standort (nur ${ratingsCount} Bewertungen) – jetzt anrufen!` : "",
       });
 
       existingNames.add(nameL);
