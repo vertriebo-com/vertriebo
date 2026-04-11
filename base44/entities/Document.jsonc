@@ -1,0 +1,38 @@
+{
+  "name": "Document",
+  "type": "object",
+  "properties": {
+    "titel": {
+      "type": "string",
+      "title": "Titel"
+    },
+    "beschreibung": {
+      "type": "string",
+      "title": "Beschreibung"
+    },
+    "file_url": {
+      "type": "string",
+      "title": "Datei URL"
+    },
+    "dateiname": {
+      "type": "string",
+      "title": "Dateiname"
+    },
+    "kategorie": {
+      "type": "string",
+      "title": "Kategorie",
+      "enum": [
+        "Preisliste",
+        "Pr\u00e4sentation",
+        "Vertrag",
+        "Angebot",
+        "Sonstiges"
+      ],
+      "default": "Sonstiges"
+    }
+  },
+  "required": [
+    "titel",
+    "file_url"
+  ]
+}

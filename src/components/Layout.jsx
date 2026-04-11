@@ -15,7 +15,8 @@ import {
   Building2,
   LogOut,
   ChevronRight,
-  Map
+  Map,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { path: "/leads", label: "Leads", icon: Building2 },
   { path: "/map", label: "Karte", icon: Map },
   { path: "/tasks", label: "Aufgaben", icon: ListTodo },
+  { path: "/documents", label: "Dokumente", icon: FileText },
   { path: "/statistics", label: "Statistiken", icon: BarChart3, adminOnly: true },
   { path: "/import", label: "Import", icon: Upload, adminOnly: true },
   { path: "/blacklist", label: "Blacklist", icon: Ban, adminOnly: true },
