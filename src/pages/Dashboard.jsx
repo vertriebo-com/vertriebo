@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [companies, setCompanies] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [contactLogs, setContactLogs] = useState([]);
+  const [leadsVisibility, setLeadsVisibility] = useState("assigned");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,16 +32,18 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [me, comps, allTasks, logs] = await Promise.all([
+      const [me, comps, allTasks, logs, settings] = await Promise.all([
         base44.auth.me(),
-        base44.entities.Company.list("-created_date", 100),
-        base44.entities.Task.list("-faellig_am", 50),
+        base44.entities.Company.list("-created_date", 500),
+        base44.entities.Task.list("-faellig_am", 100),
         base44.entities.ContactLog.list("-created_date", 50),
+        base44.entities.AppSettings.filter({ key: "leads_visibility" }),
       ]);
       setUser(me);
       setCompanies(comps);
       setTasks(allTasks);
       setContactLogs(logs);
+      if (settings[0]) setLeadsVisibility(settings[0].value);
     } catch (e) {
       console.error("loadData error", e);
     } finally {
@@ -57,7 +60,11 @@ export default function Dashboard() {
   }
 
   const isAdmin = user?.role === "admin";
-  const myCompanies = isAdmin ? companies : companies.filter(c => c.assigned_to === user?.email);
+  const myCompanies = isAdmin
+    ? companies
+    : leadsVisibility === "all"
+      ? companies
+      : companies.filter(c => c.assigned_to === user?.email);
   const myTasks = isAdmin ? tasks : tasks.filter(t => t.assigned_to === user?.email);
   const openTasks = myTasks.filter(t => !t.erledigt);
   const overdueTasks = openTasks.filter(t => t.faellig_am && moment(t.faellig_am).isBefore(moment()));
