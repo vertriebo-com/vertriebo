@@ -125,16 +125,17 @@ export default function Leads() {
         <div className="flex gap-2 flex-wrap">
           <Button
             variant={showArchived ? "secondary" : "outline"}
+            size="sm"
             onClick={() => setShowArchived(v => !v)}
-            className="gap-2"
+            className="gap-2 text-xs"
           >
             {showArchived ? "Archiv ausblenden" : "Archiv anzeigen"}
           </Button>
-          <Button variant="outline" onClick={handleCsvExport} className="gap-2">
+          <Button variant="outline" size="sm" onClick={handleCsvExport} className="gap-2 text-xs">
             <Download className="w-4 h-4" /> CSV
           </Button>
-          <Button onClick={() => setShowAdd(true)} className="gap-2">
-            <Plus className="w-4 h-4" /> Firma hinzufügen
+          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-2 text-xs">
+            <Plus className="w-4 h-4" /> Hinzufügen
           </Button>
         </div>
       </div>
@@ -168,53 +169,49 @@ export default function Leads() {
           <Link
             key={company.id}
             to={`/leads/${company.id}`}
-            className="bg-card border border-border rounded-xl p-4 hover:shadow-md transition-all hover:border-primary/30 group"
+            className="bg-card border border-border rounded-xl p-4 hover:shadow-md transition-all hover:border-primary/30 group block"
           >
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-3 min-w-0">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${company.is_hot ? "bg-orange-100" : "bg-primary/10"}`}>
-                  {company.is_hot ? <Flame className="w-5 h-5 text-orange-500" /> : <Building2 className="w-5 h-5 text-primary" />}
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${company.is_hot ? "bg-orange-100" : "bg-primary/10"}`}>
+                  {company.is_hot ? <Flame className="w-4 h-4 text-orange-500" /> : <Building2 className="w-4 h-4 text-primary" />}
                 </div>
                 <div className="min-w-0">
                   <h3 className="text-sm font-semibold group-hover:text-primary transition-colors truncate">
                     {company.name}
                   </h3>
                   <p className="text-xs text-muted-foreground">{company.branche || "Keine Branche"}</p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2">
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
                     {company.ort && (
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="w-3 h-3" /> {company.ort}
+                        <MapPin className="w-3 h-3 flex-shrink-0" /> {company.ort}
                         {company.entfernung_km ? ` (${company.entfernung_km} km)` : ""}
                       </span>
                     )}
                     {company.telefon && (
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Phone className="w-3 h-3" /> {company.telefon}
-                      </span>
-                    )}
-                    {company.email && (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Mail className="w-3 h-3" /> {company.email}
+                        <Phone className="w-3 h-3 flex-shrink-0" />
+                        <span className="truncate max-w-[120px]">{company.telefon}</span>
                       </span>
                     )}
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
                 <StatusBadge status={company.status} />
                 <LeadScoreBadge score={company.priority_score} isHot={company.is_hot} />
                 {isAdmin && (
                   <button
                     onClick={(e) => handleDelete(e, company.id)}
-                    className="ml-1 p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                    className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
                     title="Lead löschen"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
-              </div>
-              </Link>
+            </div>
+          </Link>
         ))}
         {filtered.length === 0 && (
           <div className="text-center py-16 text-muted-foreground">

@@ -101,7 +101,7 @@ export default function LeadDetail() {
   return (
     <div className="space-y-6 max-w-4xl">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="flex items-start gap-3">
           <Link to="/leads">
             <Button variant="ghost" size="icon" className="mt-0.5">
@@ -113,7 +113,7 @@ export default function LeadDetail() {
             <p className="text-sm text-muted-foreground">{company.branche || "Keine Branche"}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pl-12 sm:pl-0">
           <Select value={company.status} onValueChange={handleStatusChange}>
             <SelectTrigger className="w-36">
               <SelectValue />

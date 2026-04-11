@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
+import MobileBottomNav from "./MobileBottomNav";
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import {
@@ -136,10 +137,12 @@ export default function Layout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:pb-6 lg:p-6">
           <Outlet />
         </main>
       </div>
+
+      <MobileBottomNav />
     </div>
   );
 }

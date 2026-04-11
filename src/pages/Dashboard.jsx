@@ -87,7 +87,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid sm:grid-cols-2 gap-4">
 
         {/* Überfällige & Heutige Aufgaben */}
         <div className="bg-card border border-border rounded-xl">
@@ -183,7 +183,10 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {myCompanies.slice(0, 5).map(company => (
+              {myCompanies
+                .filter(c => c.is_hot || c.status === "Rückruf" || c.status === "Termin" || c.status === "Angebot")
+                .slice(0, 8)
+                .map(company => (
                 <tr key={company.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-5 py-3">
                     <Link to={`/leads/${company.id}`} className="text-sm font-medium hover:text-primary transition-colors">
@@ -195,6 +198,9 @@ export default function Dashboard() {
                   <td className="px-5 py-3"><StatusBadge status={company.status} /></td>
                 </tr>
               ))}
+              {myCompanies.filter(c => c.is_hot || c.status === "Rückruf" || c.status === "Termin" || c.status === "Angebot").length === 0 && (
+                <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-muted-foreground">Keine aktiven Leads</td></tr>
+              )}
             </tbody>
           </table>
         </div>
