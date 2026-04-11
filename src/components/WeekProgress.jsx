@@ -62,8 +62,9 @@ export default function WeekProgress({ user }) {
   const progress = total > 0 ? Math.round((processed / total) * 100) : 0;
 
   const isAdmin = user?.role === "admin";
-  // Admins können jederzeit neue Leads generieren, Vertriebler erst ab 80%
-  const canGenerate = isAdmin || !batch || (total > 0 && processed / total >= 0.8);
+  // Admins jederzeit, Vertriebler ab 80% Bearbeitung
+  const allDone = total > 0 && processed / total >= 0.8;
+  const canGenerate = isAdmin || !batch || allDone;
 
   return (
     <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -72,17 +73,14 @@ export default function WeekProgress({ user }) {
           <Flame className="w-4 h-4 text-orange-500" />
           <h2 className="text-sm font-semibold">Wochenfortschritt</h2>
         </div>
-        {isAdmin && (
+        {(isAdmin || canGenerate) && (
           <Button
             size="sm"
             onClick={handleGenerate}
-            disabled={generating || !canGenerate}
+            disabled={generating}
             className="text-xs gap-1"
-            variant={canGenerate ? "default" : "outline"}
           >
-            {generating ? "Generiert..." : !canGenerate ? (
-              <><Lock className="w-3 h-3" /> Gesperrt</>
-            ) : "25 neue Leads"}
+            {generating ? "Generiert..." : "25 neue Leads"}
           </Button>
         )}
       </div>
@@ -121,7 +119,7 @@ export default function WeekProgress({ user }) {
 
             {!canGenerate && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
-                🔒 Neue Leads erst nach 80% Bearbeitung möglich (nur für Admins jederzeit freigegeben)
+                🔒 Neue Leads werden freigeschaltet sobald 80% der aktuellen Leads bearbeitet sind.
               </div>
             )}
           </div>
