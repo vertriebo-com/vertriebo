@@ -64,7 +64,7 @@ export default function MapView() {
   const total = companies.filter(c => !isAdmin ? c.assigned_to === user?.email : true).length;
 
   return (
-    <div className="space-y-4 h-full flex flex-col">
+    <div className="space-y-4 flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Karte</h1>
@@ -92,9 +92,9 @@ export default function MapView() {
         </div>
       </div>
 
-      <div className="flex-1 rounded-xl overflow-hidden border border-border" style={{ minHeight: "500px" }}>
+      <div className="rounded-xl overflow-hidden border border-border" style={{ height: "600px" }}>
         {!loading && (
-          <MapContainer center={NEUWIED} zoom={11} style={{ height: "100%", width: "100%", minHeight: "500px" }}>
+          <MapContainer center={NEUWIED} zoom={11} style={{ height: "600px", width: "100%" }}>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -105,7 +105,7 @@ export default function MapView() {
               html: `<div style="width:20px;height:20px;background:#1e40af;border:3px solid white;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:10px;">⭐</div>`,
               iconSize: [20, 20], iconAnchor: [10, 10],
             })}>
-              <Popup><strong>Neuwied</strong><br />Zentrum (25 km Radius)</Popup>
+              <Popup><strong>Neuwied</strong><br />Zentrum (40 km Radius)</Popup>
             </Marker>
 
             {filtered.map(company => (
