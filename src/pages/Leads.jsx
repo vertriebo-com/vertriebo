@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import {
   Search,
@@ -30,6 +31,8 @@ export default function Leads() {
   const [statusFilter, setStatusFilter] = useState("Alle");
   const [showAdd, setShowAdd] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [bulkStatus, setBulkStatus] = useState("");
 
   useEffect(() => {
     loadData();
@@ -47,6 +50,24 @@ export default function Leads() {
   };
 
   const isAdmin = user?.role === "admin";
+
+  const toggleSelect = (id, e) => {
+    e.preventDefault(); e.stopPropagation();
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkStatus = async () => {
+    if (!bulkStatus || selected.size === 0) return;
+    await Promise.all([...selected].map(id => base44.entities.Company.update(id, { status: bulkStatus })));
+    toast.success(`${selected.size} Leads auf "${bulkStatus}" gesetzt`);
+    setSelected(new Set());
+    setBulkStatus("");
+    loadData();
+  };
 
   const handleDelete = async (e, companyId) => {
     e.preventDefault();
@@ -114,6 +135,21 @@ export default function Leads() {
           <p className="text-sm text-muted-foreground">{filtered.length} Firmen</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          {selected.size > 0 && (
+            <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5">
+              <span className="text-xs font-medium text-primary">{selected.size} ausgewählt</span>
+              <Select value={bulkStatus} onValueChange={setBulkStatus}>
+                <SelectTrigger className="h-7 w-32 text-xs">
+                  <SelectValue placeholder="Status..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUSES.filter(s => s !== "Alle").map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button size="sm" className="h-7 text-xs" onClick={handleBulkStatus} disabled={!bulkStatus}>Anwenden</Button>
+              <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setSelected(new Set())}>✕</button>
+            </div>
+          )}
           <Button
             variant={showArchived ? "secondary" : "outline"}
             size="sm"
@@ -157,10 +193,18 @@ export default function Leads() {
       {/* Lead Cards */}
       <div className="grid gap-3">
         {filtered.map(company => (
-          <Link
-            key={company.id}
+          <div key={company.id} className={`bg-card border rounded-xl p-4 hover:shadow-md transition-all group flex items-start gap-2 ${selected.has(company.id) ? "border-primary bg-primary/5" : "border-border hover:border-primary/30"}`}>
+            <div className="pt-1 shrink-0">
+              <input
+                type="checkbox"
+                checked={selected.has(company.id)}
+                onChange={(e) => toggleSelect(company.id, e)}
+                className="w-4 h-4 rounded accent-primary cursor-pointer"
+              />
+            </div>
+            <Link
             to={`/leads/${company.id}`}
-            className="bg-card border border-border rounded-xl p-4 hover:shadow-md transition-all hover:border-primary/30 group block"
+            className="flex-1 block"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-3 min-w-0">
@@ -203,6 +247,7 @@ export default function Leads() {
               </div>
             </div>
           </Link>
+          </div>
         ))}
         {filtered.length === 0 && (
           <div className="text-center py-16 text-muted-foreground">

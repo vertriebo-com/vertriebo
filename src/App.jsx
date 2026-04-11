@@ -17,6 +17,7 @@ import BlacklistPage from './pages/BlacklistPage';
 import SettingsPage from './pages/SettingsPage';
 import MapView from './pages/MapView';
 import Documents from './pages/Documents';
+import CalendarView from './pages/CalendarView';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -55,6 +56,7 @@ const AuthenticatedApp = () => {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/map" element={<MapView />} />
         <Route path="/documents" element={<Documents />} />
+        <Route path="/calendar" element={<CalendarView />} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
     </Routes>

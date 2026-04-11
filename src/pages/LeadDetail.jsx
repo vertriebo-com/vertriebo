@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "../components/StatusBadge";
+import EmailTemplates from "../components/EmailTemplates";
 import AddContactLogDialog from "../components/AddContactLogDialog";
 import AddTaskDialog from "../components/AddTaskDialog";
 import PriorityBadge from "../components/PriorityBadge";
@@ -178,7 +179,8 @@ export default function LeadDetail() {
           <p className="text-sm text-muted-foreground whitespace-pre-wrap">
             {company.notizen || "Keine Notizen"}
           </p>
-          <div className="flex gap-2 pt-2">
+          <div className="flex flex-wrap gap-2 pt-2">
+            <EmailTemplates company={company} />
             <Button variant="outline" size="sm" className="text-xs gap-1" onClick={handleBlacklist}>
               <Ban className="w-3 h-3" /> Blacklist
             </Button>

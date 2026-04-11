@@ -35,13 +35,24 @@ function createColoredIcon(color, isHot) {
   });
 }
 
-const NEUWIED = [50.4265, 7.4620];
+const NEUWIED_LAT = 50.4265;
+const NEUWIED_LNG = 7.4620;
+const NEUWIED = [NEUWIED_LAT, NEUWIED_LNG];
 const STATUSES = ["Alle", "Neu", "Kontakt", "Rückruf", "Termin", "Angebot", "Gewonnen", "Verloren"];
+
+function calcDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 
 export default function MapView() {
   const { user, filterCompanies, loading: filterLoading } = useLeadsFilter();
   const [companies, setCompanies] = useState([]);
   const [statusFilter, setStatusFilter] = useState("Alle");
+  const [radiusKm, setRadiusKm] = useState(40);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -55,6 +66,8 @@ export default function MapView() {
   const filtered = allCompanies.filter(c => {
     if (!c.latitude || !c.longitude) return false;
     if (statusFilter !== "Alle" && c.status !== statusFilter) return false;
+    const dist = calcDistance(NEUWIED_LAT, NEUWIED_LNG, c.latitude, c.longitude);
+    if (dist > radiusKm) return false;
     return true;
   });
 
@@ -68,12 +81,23 @@ export default function MapView() {
           <h1 className="text-xl font-bold">Karte</h1>
           <p className="text-sm text-muted-foreground">{withCoords} von {total} Leads mit Koordinaten</p>
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">Radius: {radiusKm} km</span>
+            <input
+              type="range" min={5} max={40} step={5}
+              value={radiusKm}
+              onChange={e => setRadiusKm(Number(e.target.value))}
+              className="w-28 accent-primary"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Legend */}
