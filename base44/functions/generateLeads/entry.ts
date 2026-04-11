@@ -5,19 +5,24 @@ const NEUWIED_LAT = 50.4265;
 const NEUWIED_LNG = 7.4620;
 const RADIUS_METERS = 25000;
 
-// B2B-Ziele für Gebäudereinigung & Hausmeisterdienste
-// Krankenhäuser/Kliniken absichtlich ausgeschlossen – Verträge laufen über Verwaltung, nicht über Google
+// Ziel: Mittelständige B2B-Kunden für Gebäudereinigung
+// Ausgeschlossen: Hausmeisterdienste, Entrümpler, Krankenhäuser
 const BUSINESS_TYPES = [
-  "hotel", "lodging",           // Hotels & Pensionen
-  "office",                      // Bürogebäude
-  "bank", "insurance_agency",   // Finanzdienstleister
-  "car_dealer", "car_rental",   // Autohäuser
-  "shopping_mall", "department_store", // Einkaufszentren
-  "school", "university",       // Schulen & Hochschulen
-  "gym", "stadium",             // Sport & Freizeit
-  "real_estate_agency",         // Immobilien (häufige Auftraggeber)
-  "lawyer", "accounting",       // Kanzleien
-  "supermarket", "storage"      // Lebensmittel & Lager
+  "real_estate_agency",    // Immobilienverwaltungen
+  "doctor",               // Arztpraxen
+  "dentist",              // Zahnarztpraxen
+  "lawyer",               // Anwaltskanzleien / Architekten
+  "accounting",           // Steuerberatung / Büros
+  "general_contractor",   // Baufirmen
+  "storage",              // Lager & Logistik / Speditionen
+  "car_dealer",           // Autohäuser / Kfz-Betriebe
+  "insurance_agency",     // Versicherungen / Bürogebäude
+  "bank",                 // Banken & Finanzdienstleister
+  "office",               // Allgemeine Bürogebäude
+  "moving_company",       // Speditionen & Logistik
+  "post_office",          // Logistik / Paketdienste
+  "electrician",          // Handwerksbetriebe / Metallverarbeitung
+  "plumber"               // Handwerksbetriebe
 ];
 
 function calcDistance(lat1, lng1, lat2, lng2) {
@@ -141,15 +146,21 @@ Deno.serve(async (req) => {
 
       // Determine branche from types
       const typeMap = {
-        hotel: "Hotel", lodging: "Hotel/Pension", office: "Büro/Gewerbe",
-        bank: "Bank", insurance_agency: "Versicherung",
-        car_dealer: "Autohaus", car_rental: "Autovermietung",
-        shopping_mall: "Einkaufszentrum", department_store: "Kaufhaus",
-        school: "Schule", university: "Universität/Hochschule",
-        gym: "Fitnessstudio", stadium: "Sportstätte",
-        real_estate_agency: "Immobilien",
-        lawyer: "Kanzlei", accounting: "Steuerberatung",
-        supermarket: "Supermarkt", storage: "Lager/Logistik"
+        real_estate_agency: "Immobilienverwaltung",
+        doctor: "Arztpraxis",
+        dentist: "Zahnarztpraxis",
+        lawyer: "Kanzlei / Architekt",
+        accounting: "Steuerberatung / Büro",
+        general_contractor: "Baufirma",
+        storage: "Lager / Logistik",
+        car_dealer: "Autohaus / Kfz-Betrieb",
+        insurance_agency: "Versicherung / Büro",
+        bank: "Bank / Finanzdienstleister",
+        office: "Bürogebäude",
+        moving_company: "Spedition / Logistik",
+        post_office: "Logistik / Paketdienst",
+        electrician: "Handwerksbetrieb",
+        plumber: "Handwerksbetrieb"
       };
       const branche = place.types?.map(t => typeMap[t]).find(Boolean) || "Gewerbe";
 
