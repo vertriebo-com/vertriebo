@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
+import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -38,29 +39,27 @@ const NEUWIED = [50.4265, 7.4620];
 const STATUSES = ["Alle", "Neu", "Kontakt", "Rückruf", "Termin", "Angebot", "Gewonnen", "Verloren"];
 
 export default function MapView() {
+  const { user, filterCompanies, loading: filterLoading } = useLeadsFilter();
   const [companies, setCompanies] = useState([]);
-  const [user, setUser] = useState(null);
   const [statusFilter, setStatusFilter] = useState("Alle");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([base44.auth.me(), base44.entities.Company.list("-created_date", 500)])
-      .then(([me, comps]) => {
-        setUser(me);
-        setCompanies(comps);
-        setLoading(false);
-      });
+    base44.entities.Company.list("-created_date", 1000).then(comps => {
+      setCompanies(comps);
+      setLoading(false);
+    });
   }, []);
 
-  const isAdmin = user?.role === "admin";
-  const filtered = companies.filter(c => {
+  const allCompanies = filterCompanies(companies);
+  const filtered = allCompanies.filter(c => {
     if (!c.latitude || !c.longitude) return false;
     if (statusFilter !== "Alle" && c.status !== statusFilter) return false;
     return true;
   });
 
   const withCoords = filtered.length;
-  const total = companies.length;
+  const total = allCompanies.length;
 
   return (
     <div className="space-y-4 flex flex-col">
@@ -91,8 +90,14 @@ export default function MapView() {
         </div>
       </div>
 
+      {total === 0 && !loading && !filterLoading && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+          ⚠️ Keine Leads gefunden. Leads werden geladen von: {companies.length} gesamt.
+        </div>
+      )}
+
       <div className="rounded-xl overflow-hidden border border-border" style={{ height: "600px" }}>
-        {!loading && (
+        {!loading && !filterLoading && (
           <MapContainer center={NEUWIED} zoom={11} style={{ height: "600px", width: "100%" }}>
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
