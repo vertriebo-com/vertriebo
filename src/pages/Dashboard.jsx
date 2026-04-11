@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
+import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import {
   Building2,
   Phone,
@@ -19,11 +20,10 @@ import { Button } from "@/components/ui/button";
 import moment from "moment";
 
 export default function Dashboard() {
-  const [user, setUser] = useState(null);
+  const { user, filterCompanies, loading: filterLoading } = useLeadsFilter();
   const [companies, setCompanies] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [contactLogs, setContactLogs] = useState([]);
-  const [leadsVisibility, setLeadsVisibility] = useState("assigned");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -32,18 +32,14 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [me, comps, allTasks, logs, settings] = await Promise.all([
-        base44.auth.me(),
+      const [comps, allTasks, logs] = await Promise.all([
         base44.entities.Company.list("-created_date", 500),
         base44.entities.Task.list("-faellig_am", 100),
         base44.entities.ContactLog.list("-created_date", 50),
-        base44.entities.AppSettings.filter({ key: "leads_visibility" }),
       ]);
-      setUser(me);
       setCompanies(comps);
       setTasks(allTasks);
       setContactLogs(logs);
-      if (settings[0]) setLeadsVisibility(settings[0].value);
     } catch (e) {
       console.error("loadData error", e);
     } finally {
@@ -51,7 +47,7 @@ export default function Dashboard() {
     }
   };
 
-  if (loading) {
+  if (loading || filterLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -60,11 +56,7 @@ export default function Dashboard() {
   }
 
   const isAdmin = user?.role === "admin";
-  const myCompanies = isAdmin
-    ? companies
-    : leadsVisibility === "all"
-      ? companies
-      : companies.filter(c => c.assigned_to === user?.email);
+  const myCompanies = filterCompanies(companies);
   const myTasks = isAdmin ? tasks : tasks.filter(t => t.assigned_to === user?.email);
   const openTasks = myTasks.filter(t => !t.erledigt);
   const overdueTasks = openTasks.filter(t => t.faellig_am && moment(t.faellig_am).isBefore(moment()));

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
+import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import {
   Search,
   Plus,
@@ -22,10 +23,9 @@ import { Flame, Download } from "lucide-react";
 const STATUSES = ["Alle", "Neu", "Kontakt", "Rückruf", "Termin", "Angebot", "Gewonnen", "Verloren"];
 
 export default function Leads() {
+  const { user, filterCompanies, loading: filterLoading } = useLeadsFilter();
   const [companies, setCompanies] = useState([]);
-  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [leadsVisibility, setLeadsVisibility] = useState("assigned");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Alle");
   const [showAdd, setShowAdd] = useState(false);
@@ -37,14 +37,8 @@ export default function Leads() {
 
   const loadData = async () => {
     try {
-      const [me, comps, settings] = await Promise.all([
-        base44.auth.me(),
-        base44.entities.Company.list("-created_date", 200),
-        base44.entities.AppSettings.filter({ key: "leads_visibility" }),
-      ]);
-      setUser(me);
+      const comps = await base44.entities.Company.list("-created_date", 500);
       setCompanies(comps);
-      if (settings[0]) setLeadsVisibility(settings[0].value);
     } catch (e) {
       console.error("loadData error", e);
     } finally {
@@ -64,10 +58,8 @@ export default function Leads() {
 
   const ARCHIVED_STATUSES = ["Gewonnen", "Verloren"];
 
-  const filtered = companies
+  const filtered = filterCompanies(companies)
     .filter(c => {
-      if (!isAdmin && leadsVisibility === "assigned" && c.assigned_to && c.assigned_to !== user?.email) return false;
-      if (!isAdmin && leadsVisibility === "assigned" && !c.assigned_to) return false;
       // Archiv: Gewonnen/Verloren standardmäßig ausblenden
       if (!showArchived && ARCHIVED_STATUSES.includes(c.status)) return false;
       if (statusFilter !== "Alle" && c.status !== statusFilter) return false;
@@ -83,7 +75,6 @@ export default function Leads() {
       return true;
     })
     .sort((a, b) => {
-      // Hot leads first, then by priority_score, then Rückruf status
       if (a.is_hot && !b.is_hot) return -1;
       if (!a.is_hot && b.is_hot) return 1;
       const statusPrio = { "Rückruf": 0, "Termin": 1, "Angebot": 2, "Kontakt": 3, "Neu": 4, "Gewonnen": 5, "Verloren": 6 };
@@ -107,7 +98,7 @@ export default function Leads() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) {
+  if (loading || filterLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
