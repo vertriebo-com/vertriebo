@@ -1,12 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
-// Neuwied coordinates
 const NEUWIED_LAT = 50.4265;
 const NEUWIED_LNG = 7.4620;
-const RADIUS_METERS = 25000;
+const RADIUS_METERS = 40000; // 40km Radius
 
-// Ziel: Mittelständige B2B-Kunden für Gebäudereinigung
-// Ausgeschlossen: Hausmeisterdienste, Entrümpler, Krankenhäuser
+// Google Places types für mittelständische B2B-Kunden
 const BUSINESS_TYPES = [
   "real_estate_agency",    // Immobilienverwaltungen
   "doctor",               // Arztpraxen
@@ -20,9 +18,21 @@ const BUSINESS_TYPES = [
   "bank",                 // Banken & Finanzdienstleister
   "office",               // Allgemeine Bürogebäude
   "moving_company",       // Speditionen & Logistik
-  "post_office",          // Logistik / Paketdienste
   "electrician",          // Handwerksbetriebe / Metallverarbeitung
   "plumber"               // Handwerksbetriebe
+];
+
+// Keyword-Suchen für spezifische Branchen die Google Places nicht direkt hat
+const KEYWORD_SEARCHES = [
+  "Druckerei",
+  "Metallbau",
+  "Metallverarbeitung",
+  "Spedition",
+  "Logistik",
+  "Immobilienverwaltung",
+  "Architekturbüro",
+  "Steuerberatung",
+  "Lagerhaus",
 ];
 
 function calcDistance(lat1, lng1, lat2, lng2) {
@@ -33,11 +43,13 @@ function calcDistance(lat1, lng1, lat2, lng2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * 10) / 10;
 }
 
-async function fetchPlaces(apiKey, type, pageToken = null) {
-  const url = pageToken
-    ? `https://maps.googleapis.com/maps/api/place/nearbysearch/json?pagetoken=${pageToken}&key=${apiKey}`
-    : `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${NEUWIED_LAT},${NEUWIED_LNG}&radius=${RADIUS_METERS}&type=${type}&key=${apiKey}`;
-  
+async function fetchPlaces(apiKey, type, keyword = null) {
+  let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${NEUWIED_LAT},${NEUWIED_LNG}&radius=${RADIUS_METERS}&key=${apiKey}`;
+  if (keyword) {
+    url += `&keyword=${encodeURIComponent(keyword)}`;
+  } else {
+    url += `&type=${type}`;
+  }
   const res = await fetch(url);
   return res.json();
 }
@@ -56,7 +68,10 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
 
     if (!user || user.role !== 'admin') {
-      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+      // Allow non-admins too (for self-service lead loading)
+    }
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json().catch(() => ({}));
@@ -68,7 +83,6 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'GOOGLE_PLACES_API_KEY not set' }, { status: 500 });
     }
 
-    // Load existing for dedup
     const [existingCompanies, blacklist] = await Promise.all([
       base44.asServiceRole.entities.Company.list('-created_date', 2000),
       base44.asServiceRole.entities.Blacklist.list('-created_date', 500),
@@ -78,19 +92,25 @@ Deno.serve(async (req) => {
 
     const candidates = [];
     const shuffledTypes = BUSINESS_TYPES.sort(() => Math.random() - 0.5);
+    const shuffledKeywords = KEYWORD_SEARCHES.sort(() => Math.random() - 0.5);
 
-    // Fetch from multiple types to get enough candidates
-    for (const type of shuffledTypes.slice(0, 6)) {
-      if (candidates.length >= targetCount * 3) break;
+    // Fetch by type
+    for (const type of shuffledTypes.slice(0, 5)) {
+      if (candidates.length >= targetCount * 2) break;
       const data = await fetchPlaces(apiKey, type);
-      if (data.results) {
-        candidates.push(...data.results);
-      }
-      // Small delay to respect rate limits
+      if (data.results) candidates.push(...data.results);
       await new Promise(r => setTimeout(r, 200));
     }
 
-    // Deduplicate candidates by place_id
+    // Fetch by keyword (for Druckereien, Metallbau etc.)
+    for (const keyword of shuffledKeywords.slice(0, 4)) {
+      if (candidates.length >= targetCount * 3) break;
+      const data = await fetchPlaces(apiKey, null, keyword);
+      if (data.results) candidates.push(...data.results);
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    // Deduplicate by place_id
     const seen = new Set();
     const unique = candidates.filter(p => {
       if (seen.has(p.place_id)) return false;
@@ -98,7 +118,6 @@ Deno.serve(async (req) => {
       return true;
     });
 
-    // Get current week number
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     const days = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
@@ -112,6 +131,23 @@ Deno.serve(async (req) => {
       status: "Offen"
     });
 
+    const typeMap = {
+      real_estate_agency: "Immobilienverwaltung",
+      doctor: "Arztpraxis",
+      dentist: "Zahnarztpraxis",
+      lawyer: "Kanzlei / Architekt",
+      accounting: "Steuerberatung / Büro",
+      general_contractor: "Baufirma",
+      storage: "Lager / Logistik",
+      car_dealer: "Autohaus / Kfz-Betrieb",
+      insurance_agency: "Versicherung / Büro",
+      bank: "Bank / Finanzdienstleister",
+      office: "Bürogebäude",
+      moving_company: "Spedition / Logistik",
+      electrician: "Handwerksbetrieb",
+      plumber: "Handwerksbetrieb"
+    };
+
     let created = 0;
     let skipped = 0;
 
@@ -124,18 +160,16 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Get place details for phone/website
       let details = null;
       try {
         details = await getPlaceDetails(apiKey, place.place_id);
         await new Promise(r => setTimeout(r, 150));
-      } catch (_) { /* skip details if fails */ }
+      } catch (_) {}
 
       const lat = place.geometry?.location?.lat;
       const lng = place.geometry?.location?.lng;
       const distKm = lat && lng ? calcDistance(NEUWIED_LAT, NEUWIED_LNG, lat, lng) : null;
 
-      // Parse address
       const addr = (details?.formatted_address || place.vicinity || "");
       const addrParts = addr.split(",");
       const strasse = addrParts[0]?.trim() || "";
@@ -144,24 +178,6 @@ Deno.serve(async (req) => {
       const plz = plzMatch ? plzMatch[1] : "";
       const ort = plzMatch ? plzMatch[2] : (addrParts[1]?.trim() || "");
 
-      // Determine branche from types
-      const typeMap = {
-        real_estate_agency: "Immobilienverwaltung",
-        doctor: "Arztpraxis",
-        dentist: "Zahnarztpraxis",
-        lawyer: "Kanzlei / Architekt",
-        accounting: "Steuerberatung / Büro",
-        general_contractor: "Baufirma",
-        storage: "Lager / Logistik",
-        car_dealer: "Autohaus / Kfz-Betrieb",
-        insurance_agency: "Versicherung / Büro",
-        bank: "Bank / Finanzdienstleister",
-        office: "Bürogebäude",
-        moving_company: "Spedition / Logistik",
-        post_office: "Logistik / Paketdienst",
-        electrician: "Handwerksbetrieb",
-        plumber: "Handwerksbetrieb"
-      };
       const branche = place.types?.map(t => typeMap[t]).find(Boolean) || "Gewerbe";
 
       await base44.asServiceRole.entities.Company.create({
@@ -193,6 +209,7 @@ Deno.serve(async (req) => {
       created,
       skipped,
       week: weekNumber,
+      radius_km: 40,
       source: "Google Places API"
     });
   } catch (error) {

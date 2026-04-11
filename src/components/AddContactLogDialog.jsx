@@ -154,10 +154,24 @@ export default function AddContactLogDialog({ open, onClose, companyId, companyN
             <Label className="flex items-center gap-1">
               Nächster Schritt <span className="text-destructive">*</span>
             </Label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {["Erneut anrufen", "Angebot senden", "Termin bestätigen", "Kein Interesse – kein Nachfassen", "In 3 Monaten nochmal"].map(v => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => { setForm(p => ({ ...p, naechster_schritt: v })); setErrors(p => ({...p, naechster_schritt: null})); }}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                    form.naechster_schritt === v
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-muted text-muted-foreground border-border hover:border-primary/50"
+                  }`}
+                >{v}</button>
+              ))}
+            </div>
             <Input
               value={form.naechster_schritt}
               onChange={e => { setForm(p => ({ ...p, naechster_schritt: e.target.value })); setErrors(p => ({...p, naechster_schritt: null})); }}
-              placeholder="z.B. Angebot senden, Termin bestätigen..."
+              placeholder="Oder eigenen Text eingeben..."
               className={errors.naechster_schritt ? "border-destructive" : ""}
             />
             {fieldError("naechster_schritt")}

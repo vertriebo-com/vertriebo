@@ -59,6 +59,20 @@ export default function Statistics() {
   const gewonnen = companies.filter(c => c.status === "Gewonnen").length;
   const conversionRate = total > 0 ? ((gewonnen / total) * 100).toFixed(1) : 0;
 
+  // Conversion per Branche
+  const brancheMap = {};
+  for (const c of companies) {
+    const b = c.branche || "Unbekannt";
+    if (!brancheMap[b]) brancheMap[b] = { total: 0, gewonnen: 0 };
+    brancheMap[b].total++;
+    if (c.status === "Gewonnen") brancheMap[b].gewonnen++;
+  }
+  const brancheData = Object.entries(brancheMap)
+    .filter(([, v]) => v.total >= 2)
+    .map(([name, v]) => ({ name, rate: Math.round((v.gewonnen / v.total) * 100), total: v.total, gewonnen: v.gewonnen }))
+    .sort((a, b) => b.rate - a.rate)
+    .slice(0, 10);
+
   return (
     <div className="space-y-6">
       <div>
@@ -105,6 +119,28 @@ export default function Statistics() {
             </ResponsiveContainer>
           </div>
         </div>
+      </div>
+
+      {/* Conversion per Branche */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h3 className="text-sm font-semibold mb-1">Conversion-Rate nach Branche</h3>
+        <p className="text-xs text-muted-foreground mb-4">Nur Branchen mit mind. 2 Leads</p>
+        {brancheData.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Noch nicht genug Daten</p>
+        ) : (
+          <div className="space-y-2">
+            {brancheData.map(b => (
+              <div key={b.name} className="flex items-center gap-3">
+                <span className="text-xs text-muted-foreground w-44 truncate shrink-0">{b.name}</span>
+                <div className="flex-1 bg-muted rounded-full h-2">
+                  <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${b.rate}%` }} />
+                </div>
+                <span className="text-xs font-semibold w-12 text-right">{b.rate}%</span>
+                <span className="text-xs text-muted-foreground w-16 text-right">{b.gewonnen}/{b.total}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
