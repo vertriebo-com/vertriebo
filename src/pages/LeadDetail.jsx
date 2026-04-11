@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import StatusBadge from "../components/StatusBadge";
 import EmailTemplates from "../components/EmailTemplates";
+import CallScriptDialog from "../components/CallScriptDialog";
 import AddContactLogDialog from "../components/AddContactLogDialog";
 import AddTaskDialog from "../components/AddTaskDialog";
 import PriorityBadge from "../components/PriorityBadge";
@@ -183,6 +184,7 @@ export default function LeadDetail() {
             {company.notizen || "Keine Notizen"}
           </p>
           <div className="flex flex-wrap gap-2 pt-2">
+            <CallScriptDialog company={company} />
             <EmailTemplates company={company} />
             <Button variant="outline" size="sm" className="text-xs gap-1" onClick={handleBlacklist}>
               <Ban className="w-3 h-3" /> Blacklist
