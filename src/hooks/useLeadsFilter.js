@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 
-// Shared hook: loads user + leadsVisibility setting, returns filtered companies
 export function useLeadsFilter() {
   const [user, setUser] = useState(null);
   const [leadsVisibility, setLeadsVisibility] = useState("all");
@@ -14,15 +13,17 @@ export function useLeadsFilter() {
     ]).then(([me, settings]) => {
       setUser(me);
       setLeadsVisibility(settings[0]?.value || "all");
-      setLoading(false);
-    });
+    }).finally(() => setLoading(false));
   }, []);
 
   const filterCompanies = (companies) => {
-    if (!user) return [];
+    // While loading or no user data, return all (show something rather than nothing)
+    if (!user) return companies;
+    // Admin always sees everything
     if (user.role === "admin") return companies;
+    // Setting "all": every salesperson sees all leads
     if (leadsVisibility === "all") return companies;
-    // "assigned": only show companies assigned to this user
+    // Setting "assigned": only show leads assigned to this user
     return companies.filter(c => c.assigned_to === user.email);
   };
 
