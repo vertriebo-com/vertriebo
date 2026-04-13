@@ -58,8 +58,11 @@ Darf ich Sie kurz zurückrufen, um einen passenden Termin abzustimmen?
 
 Mit freundlichen Grüßen,
 [Ihr Name]
-Huwa Gebäudedienste
-Tel: [Ihre Nummer]
+
+Huwa Gebäudereinigung & Hausmeisterdienste
+Mittelweg 24 · 56566 Neuwied
+Tel: 02601/9131820
+info@huwa-gebaeudedienste.de
 www.huwa-gebaeudedienste.de`;
 
   const subject = encodeURIComponent(template.betreff);

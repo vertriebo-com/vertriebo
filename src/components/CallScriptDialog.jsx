@@ -24,7 +24,7 @@ export default function CallScriptDialog({ company }) {
       : 'Kein bisheriger Kontakt';
     const result = await base44.integrations.Core.InvokeLLM({
       model: "claude_sonnet_4_6",
-      prompt: `Du bist ein erfahrener Vertriebsprofi für Huwa Gebäudedienste – ein professionelles Reinigungsunternehmen aus Neuwied.
+      prompt: `Du bist ein erfahrener Vertriebsprofi für Huwa Gebäudereinigung & Hausmeisterdienste – ein professionelles Reinigungsunternehmen aus Neuwied (Mittelweg 24, 56566 Neuwied, Tel: 02601/9131820, www.huwa-gebaeudedienste.de).
 
 Huwa bietet folgende Leistungen an:
 - Unterhaltsreinigung (regelmäßige Reinigung von Büros, Praxen, Gewerberäumen)
