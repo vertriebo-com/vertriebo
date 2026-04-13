@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Mail, Loader2 } from "lucide-react";
+import { Mail } from "lucide-react";
 import { toast } from "sonner";
 
 const BRANCHE_TEMPLATES = {
@@ -72,9 +70,13 @@ www.huwa-gebaeudedienste.de`;
 }
 
 export default function SendEmailButton({ company }) {
-  if (!company?.email) return null;
+  const hasEmail = !!company?.email;
 
   const handleClick = () => {
+    if (!hasEmail) {
+      toast.error("Keine Email-Adresse hinterlegt");
+      return;
+    }
     const mailto = buildMailto(company);
     window.location.href = mailto;
     toast.success("Email-Programm wird geöffnet...");
@@ -86,6 +88,7 @@ export default function SendEmailButton({ company }) {
       size="sm"
       className="text-xs gap-1.5 text-blue-700 border-blue-200 hover:bg-blue-50"
       onClick={handleClick}
+      title={hasEmail ? company.email : "Keine Email-Adresse vorhanden"}
     >
       <Mail className="w-3 h-3" />
       Email senden
