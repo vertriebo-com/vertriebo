@@ -37,12 +37,6 @@ export default function Leads() {
   const [selected, setSelected] = useState(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
 
-  const { containerRef, isRefreshing } = usePullToRefresh(loadData);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     try {
       const comps = await base44.entities.Company.list("-created_date", 500);
@@ -53,6 +47,12 @@ export default function Leads() {
       setLoading(false);
     }
   };
+
+  const { containerRef, isRefreshing } = usePullToRefresh(loadData);
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const isAdmin = user?.role === "admin";
 
