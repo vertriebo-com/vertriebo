@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import {
   ListTodo,
   CheckCircle2,
@@ -19,6 +20,8 @@ export default function Tasks() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("offen");
   const [pendingDone, setPendingDone] = useState(new Set());
+
+  const { containerRef, isRefreshing } = usePullToRefresh(loadData);
 
   useEffect(() => {
     loadData();
@@ -77,7 +80,13 @@ export default function Tasks() {
   const overdueCount = myTasks.filter(t => !t.erledigt && t.faellig_am && moment(t.faellig_am).isBefore(moment())).length;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" ref={containerRef}>
+      {isRefreshing && (
+        <div className="flex items-center justify-center py-2 text-xs text-muted-foreground gap-2">
+          <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          Aktualisieren...
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Aufgaben</h1>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
+import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { toast } from "sonner";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import {
@@ -35,6 +36,8 @@ export default function Leads() {
   const [showNewOnly, setShowNewOnly] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
+
+  const { containerRef, isRefreshing } = usePullToRefresh(loadData);
 
   useEffect(() => {
     loadData();
@@ -131,7 +134,13 @@ export default function Leads() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" ref={containerRef}>
+      {isRefreshing && (
+        <div className="flex items-center justify-center py-2 text-xs text-muted-foreground gap-2">
+          <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          Aktualisieren...
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">Leads</h1>

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import MobileSelect from "@/components/MobileSelect";
 import { AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -127,26 +127,25 @@ export default function AddContactLogDialog({ open, onClose, companyId, companyN
         <div className="space-y-4">
           <div>
             <Label>Kontaktart</Label>
-            <Select value={form.typ} onValueChange={v => setForm(p => ({ ...p, typ: v }))}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <MobileSelect
+              value={form.typ}
+              onValueChange={v => setForm(p => ({ ...p, typ: v }))}
+              options={TYPES.map(t => ({ value: t, label: t }))}
+              placeholder="Kontaktart"
+            />
           </div>
 
           <div>
             <Label className="flex items-center gap-1">
               Ergebnis <span className="text-destructive">*</span>
             </Label>
-            <Select value={form.ergebnis} onValueChange={v => { setForm(p => ({ ...p, ergebnis: v })); setErrors(p => ({...p, ergebnis: null})); }}>
-              <SelectTrigger className={errors.ergebnis ? "border-destructive" : ""}>
-                <SelectValue placeholder="Ergebnis wählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                {RESULTS.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <MobileSelect
+              value={form.ergebnis}
+              onValueChange={v => { setForm(p => ({ ...p, ergebnis: v })); setErrors(p => ({...p, ergebnis: null})); }}
+              options={RESULTS.map(r => ({ value: r, label: r }))}
+              placeholder="Ergebnis wählen..."
+              triggerClassName={errors.ergebnis ? "border-destructive" : ""}
+            />
             {fieldError("ergebnis")}
           </div>
 

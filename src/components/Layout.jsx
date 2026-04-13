@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import MobileBottomNav from "./MobileBottomNav";
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
@@ -36,10 +36,16 @@ const NAV_ITEMS = [
   { path: "/settings", label: "Einstellungen", icon: Settings, adminOnly: true },
 ];
 
+// Sub-pages that should show a back button on mobile
+const SUB_PAGES = ["/leads/", "/tasks/", "/documents/"];
+
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
+
+  const isSubPage = SUB_PAGES.some(p => location.pathname.startsWith(p));
 
   useEffect(() => {
     base44.auth.me().then(setUser);
@@ -133,13 +139,15 @@ export default function Layout() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar Mobile */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-card border-b border-border">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
+          {isSubPage ? (
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ChevronRight className="w-5 h-5 rotate-180" />
+            </Button>
+          ) : (
+            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
+              <Menu className="w-5 h-5" />
+            </Button>
+          )}
           <div className="flex items-center gap-2">
             <img
               src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/7fe9f4d4d_Logo1HUWA.png"

@@ -17,6 +17,7 @@ export default function SettingsPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteUserId, setDeleteUserId] = useState(null);
   const [deleteUserName, setDeleteUserName] = useState("");
+  const [selfDeleteOpen, setSelfDeleteOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -68,6 +69,12 @@ export default function SettingsPage() {
     setDeleteUserId(null);
     setDeleteUserName("");
     loadData();
+  };
+
+  const handleSelfDelete = async () => {
+    await base44.entities.User.delete(currentUser.id);
+    toast.success("Konto wurde gelöscht.");
+    base44.auth.logout();
   };
 
 
@@ -199,6 +206,33 @@ export default function SettingsPage() {
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Abbrechen</Button>
             <Button variant="destructive" onClick={handleDeleteUser}>Ja, löschen</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Eigenes Konto löschen */}
+      <div className="bg-card border border-destructive/30 rounded-xl p-5">
+        <h3 className="text-sm font-semibold text-destructive mb-1">Gefahrenzone</h3>
+        <p className="text-sm text-muted-foreground mb-3">Dein eigenes Konto dauerhaft löschen. Diese Aktion kann nicht rückgängig gemacht werden.</p>
+        <Button variant="destructive" size="sm" onClick={() => setSelfDeleteOpen(true)} className="gap-2">
+          <Trash2 className="w-4 h-4" /> Mein Konto löschen
+        </Button>
+      </div>
+
+      {/* Self-delete Bestätigungsdialog */}
+      <Dialog open={selfDeleteOpen} onOpenChange={setSelfDeleteOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-4 h-4" /> Konto wirklich löschen?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Dein Konto <span className="font-semibold text-foreground">({currentUser?.email})</span> wird dauerhaft gelöscht. Du wirst anschließend abgemeldet.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setSelfDeleteOpen(false)}>Abbrechen</Button>
+            <Button variant="destructive" onClick={handleSelfDelete}>Ja, Konto löschen</Button>
           </div>
         </DialogContent>
       </Dialog>

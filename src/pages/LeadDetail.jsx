@@ -17,7 +17,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import MobileSelect from "@/components/MobileSelect";
 import StatusBadge from "../components/StatusBadge";
 import EmailTemplates from "../components/EmailTemplates";
 import CallScriptDialog from "../components/CallScriptDialog";
@@ -135,16 +135,13 @@ export default function LeadDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2 pl-12 sm:pl-0">
-          <Select value={company.status} onValueChange={handleStatusChange}>
-            <SelectTrigger className="w-36">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUSES.map(s => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MobileSelect
+            value={company.status}
+            onValueChange={handleStatusChange}
+            options={STATUSES.map(s => ({ value: s, label: s }))}
+            placeholder="Status"
+            triggerClassName="w-36"
+          />
         </div>
       </div>
 
