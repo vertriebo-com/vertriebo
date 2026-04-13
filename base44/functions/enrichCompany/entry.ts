@@ -12,16 +12,13 @@ Deno.serve(async (req) => {
     if (!company) return Response.json({ error: 'Firma nicht gefunden' }, { status: 404 });
 
     const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Recherchiere folgende Firma und gib mir fehlende Kontaktdaten zurück.
+      prompt: `Recherchiere folgende Firma im Internet und gib mir die offiziellen Kontaktdaten zurück.
 
 Firmenname: ${company.name}
 Ort: ${company.ort || 'Neuwied'} ${company.plz || ''}
 Branche: ${company.branche || 'Unbekannt'}
-Bekannte Website: ${company.website || 'unbekannt'}
-Bekannte Telefon: ${company.telefon || 'unbekannt'}
-Bekannte E-Mail: ${company.email || 'unbekannt'}
 
-Suche die offiziellen Kontaktdaten dieser Firma. Gib nur Daten zurück die du mit hoher Sicherheit gefunden hast, keine Vermutungen. Wenn du etwas nicht findest, gib null zurück.`,
+WICHTIG: Gib nur Felder zurück, die du mit Sicherheit gefunden hast. Wenn du ein Feld nicht findest, lasse es komplett weg (leerer String). Schreibe NIEMALS das Wort "null" in ein Feld. Nur echte, verifizierte Daten.`,
       add_context_from_internet: true,
       response_json_schema: {
         type: "object",
@@ -35,13 +32,15 @@ Suche die offiziellen Kontaktdaten dieser Firma. Gib nur Daten zurück die du mi
       }
     });
 
-    // Only update fields that were empty and now have data
+    // Only update fields that were empty and now have a real string value (not null, "null", "N/A" etc.)
+    const isValid = (v) => v && typeof v === "string" && v.trim().length > 0 && !["null", "n/a", "unbekannt", "keine", "nicht gefunden"].includes(v.trim().toLowerCase());
+
     const updates = {};
-    if (!company.website && result.website) updates.website = result.website;
-    if (!company.telefon && result.telefon) updates.telefon = result.telefon;
-    if (!company.email && result.email) updates.email = result.email;
-    if (!company.ansprechpartner && result.ansprechpartner) updates.ansprechpartner = result.ansprechpartner;
-    if (!company.adresse && result.adresse) updates.adresse = result.adresse;
+    if (!company.website && isValid(result.website)) updates.website = result.website.trim();
+    if (!company.telefon && isValid(result.telefon)) updates.telefon = result.telefon.trim();
+    if (!company.email && isValid(result.email)) updates.email = result.email.trim();
+    if (!company.ansprechpartner && isValid(result.ansprechpartner)) updates.ansprechpartner = result.ansprechpartner.trim();
+    if (!company.adresse && isValid(result.adresse)) updates.adresse = result.adresse.trim();
 
     if (Object.keys(updates).length > 0) {
       await base44.entities.Company.update(companyId, updates);
