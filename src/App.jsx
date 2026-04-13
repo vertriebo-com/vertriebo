@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -19,6 +20,24 @@ import MapView from './pages/MapView';
 import Documents from './pages/Documents';
 import CalendarView from './pages/CalendarView';
 import DuplicatesPage from './pages/DuplicatesPage';
+
+const AnimatedRoutes = ({ children }) => {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={location.pathname}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.18 }}
+        className="contents"
+      >
+        {children}
+      </motion.div>
+    </AnimatePresence>
+  );
+};
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -47,18 +66,18 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/leads" element={<Leads />} />
-        <Route path="/leads/:id" element={<LeadDetail />} />
-        <Route path="/tasks" element={<Tasks />} />
-        <Route path="/statistics" element={<Statistics />} />
-        <Route path="/import" element={<Import />} />
-        <Route path="/blacklist" element={<BlacklistPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/map" element={<MapView />} />
-        <Route path="/documents" element={<Documents />} />
-        <Route path="/calendar" element={<CalendarView />} />
-        <Route path="/duplicates" element={<DuplicatesPage />} />
+        <Route path="/" element={<AnimatedRoutes><Dashboard /></AnimatedRoutes>} />
+        <Route path="/leads" element={<AnimatedRoutes><Leads /></AnimatedRoutes>} />
+        <Route path="/leads/:id" element={<AnimatedRoutes><LeadDetail /></AnimatedRoutes>} />
+        <Route path="/tasks" element={<AnimatedRoutes><Tasks /></AnimatedRoutes>} />
+        <Route path="/statistics" element={<AnimatedRoutes><Statistics /></AnimatedRoutes>} />
+        <Route path="/import" element={<AnimatedRoutes><Import /></AnimatedRoutes>} />
+        <Route path="/blacklist" element={<AnimatedRoutes><BlacklistPage /></AnimatedRoutes>} />
+        <Route path="/settings" element={<AnimatedRoutes><SettingsPage /></AnimatedRoutes>} />
+        <Route path="/map" element={<AnimatedRoutes><MapView /></AnimatedRoutes>} />
+        <Route path="/documents" element={<AnimatedRoutes><Documents /></AnimatedRoutes>} />
+        <Route path="/calendar" element={<AnimatedRoutes><CalendarView /></AnimatedRoutes>} />
+        <Route path="/duplicates" element={<AnimatedRoutes><DuplicatesPage /></AnimatedRoutes>} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
     </Routes>

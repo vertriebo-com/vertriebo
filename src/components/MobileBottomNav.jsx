@@ -12,7 +12,7 @@ export default function MobileBottomNav() {
   const location = useLocation();
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 flex">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 flex" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {NAV.map(({ path, label, icon: Icon }) => {
         const isActive = location.pathname === path;
         return (

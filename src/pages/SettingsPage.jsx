@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Users, Zap, UserPlus, RefreshCw, Crown } from "lucide-react";
+import { Users, Zap, UserPlus, RefreshCw, Crown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
@@ -13,6 +14,9 @@ export default function SettingsPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("user");
   const [inviting, setInviting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteUserId, setDeleteUserId] = useState(null);
+  const [deleteUserName, setDeleteUserName] = useState("");
 
   useEffect(() => {
     loadData();
@@ -48,6 +52,21 @@ export default function SettingsPage() {
   const handleRoleChange = async (userId, newRole) => {
     await base44.entities.User.update(userId, { role: newRole });
     toast.success("Rolle aktualisiert.");
+    loadData();
+  };
+
+  const openDeleteDialog = (userId, userName) => {
+    setDeleteUserId(userId);
+    setDeleteUserName(userName);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    await base44.entities.User.delete(deleteUserId);
+    toast.success(`Benutzer "${deleteUserName}" wurde gelöscht.`);
+    setDeleteConfirmOpen(false);
+    setDeleteUserId(null);
+    setDeleteUserName("");
     loadData();
   };
 
@@ -127,24 +146,33 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                 </div>
               </div>
-              <div className="shrink-0">
+              <div className="shrink-0 flex items-center gap-2">
                 {u.id === currentUser?.id ? (
                   <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                     <Crown className="w-3 h-3" /> Du (Admin)
                   </span>
                 ) : (
-                  <Select
-                    value={u.role || "user"}
-                    onValueChange={val => handleRoleChange(u.id, val)}
-                  >
-                    <SelectTrigger className="w-36 h-7 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="user">Vertriebler</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <>
+                    <Select
+                      value={u.role || "user"}
+                      onValueChange={val => handleRoleChange(u.id, val)}
+                    >
+                      <SelectTrigger className="w-36 h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="user">Vertriebler</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <button
+                      onClick={() => openDeleteDialog(u.id, u.full_name || u.email)}
+                      className="text-destructive/50 hover:text-destructive transition-colors p-1"
+                      title="Benutzer löschen"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -156,6 +184,24 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* Konto löschen Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-4 h-4" /> Benutzer löschen
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Soll <span className="font-semibold text-foreground">„{deleteUserName}"</span> wirklich gelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Abbrechen</Button>
+            <Button variant="destructive" onClick={handleDeleteUser}>Ja, löschen</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* System Info */}
       <div className="bg-card border border-border rounded-xl p-5">

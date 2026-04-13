@@ -200,17 +200,17 @@ export default function LeadDetail() {
             {company.notizen || "Keine Notizen"}
           </p>
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button variant="outline" size="sm" className="text-xs gap-1 text-purple-700 border-purple-200 hover:bg-purple-50" onClick={handleEnrich} disabled={enriching}>
+            <Button variant="outline" size="sm" className="text-xs gap-1 text-purple-700 border-purple-200 hover:bg-purple-50 min-h-[44px]" onClick={handleEnrich} disabled={enriching}>
               {enriching ? <span className="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin inline-block" /> : <Sparkles className="w-3 h-3" />}
               Daten anreichern
             </Button>
             <CallScriptDialog company={company} />
             <SendEmailButton company={company} />
             <EmailTemplates company={company} />
-            <Button variant="outline" size="sm" className="text-xs gap-1" onClick={handleBlacklist}>
+            <Button variant="outline" size="sm" className="text-xs gap-1 min-h-[44px]" onClick={handleBlacklist}>
               <Ban className="w-3 h-3" /> Blacklist
             </Button>
-            <Button variant="outline" size="sm" className="text-xs gap-1 text-destructive hover:text-destructive" onClick={handleDelete}>
+            <Button variant="outline" size="sm" className="text-xs gap-1 text-destructive hover:text-destructive min-h-[44px]" onClick={handleDelete}>
               <Trash2 className="w-3 h-3" /> Löschen
             </Button>
           </div>
