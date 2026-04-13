@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import StatusBadge from "../components/StatusBadge";
 import AddCompanyDialog from "../components/AddCompanyDialog";
 import LeadScoreBadge from "../components/LeadScoreBadge";
+import QuickLogButton from "../components/QuickLogButton";
 import { Flame, Download } from "lucide-react";
 
 const STATUSES = ["Alle", "Neu", "Kontakt", "Rückruf", "Termin", "Angebot", "Gewonnen", "Verloren"];
@@ -245,6 +246,7 @@ export default function Leads() {
               <div className="flex flex-col items-end gap-1.5 shrink-0">
                 <StatusBadge status={company.status} />
                 <LeadScoreBadge score={company.priority_score} isHot={company.is_hot} />
+                <QuickLogButton companyId={company.id} companyName={company.name} onLogged={loadData} />
                 {isAdmin && (
                   <button
                     onClick={(e) => handleDelete(e, company.id)}

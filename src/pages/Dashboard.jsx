@@ -141,17 +141,32 @@ export default function Dashboard() {
             </Link>
           </div>
           <div className="divide-y divide-border">
-            {myCompanies.filter(c => c.status === "Rückruf").slice(0, 5).map(company => (
-              <Link key={company.id} to={`/leads/${company.id}`} className="block px-5 py-3 hover:bg-muted/50 transition-colors">
+            {myCompanies
+              .filter(c => c.status === "Rückruf")
+              .sort((a, b) => {
+                // Abgelaufene Rückrufe zuerst
+                const aOverdue = a.last_contact_date && new Date(a.last_contact_date) < new Date();
+                const bOverdue = b.last_contact_date && new Date(b.last_contact_date) < new Date();
+                if (aOverdue && !bOverdue) return -1;
+                if (!aOverdue && bOverdue) return 1;
+                return 0;
+              })
+              .slice(0, 5)
+              .map(company => {
+                const isOverdue = company.last_contact_date && new Date(company.last_contact_date) < new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+                return (
+              <Link key={company.id} to={`/leads/${company.id}`} className={`block px-5 py-3 hover:bg-muted/50 transition-colors ${isOverdue ? 'bg-red-50/50 border-l-2 border-red-400' : ''}`}>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium">{company.name}</p>
+                    <p className={`text-sm font-medium ${isOverdue ? 'text-red-700' : ''}`}>{company.name}</p>
                     <p className="text-xs text-muted-foreground">{company.telefon}</p>
+                    {isOverdue && <p className="text-[10px] text-red-500 font-medium">⚠️ Seit 2+ Tagen kein Kontakt</p>}
                   </div>
                   <StatusBadge status={company.status} />
                 </div>
               </Link>
-            ))}
+                );
+              })}
             {myCompanies.filter(c => c.status === "Rückruf").length === 0 && (
               <div className="px-5 py-8 text-center text-sm text-muted-foreground">
                 Keine Rückrufe offen

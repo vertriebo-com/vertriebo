@@ -9,29 +9,28 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
+const EMPTY_FORM = {
+  name: "", branche: "", adresse: "", plz: "", ort: "",
+  telefon: "", email: "", website: "", ansprechpartner: "",
+  notizen: "", status: "Neu", quelle: "Manuell",
+};
+
 export default function AddCompanyDialog({ open, onClose, onCreated }) {
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    branche: "",
-    adresse: "",
-    plz: "",
-    ort: "",
-    telefon: "",
-    email: "",
-    website: "",
-    ansprechpartner: "",
-    notizen: "",
-    status: "Neu",
-    quelle: "Manuell",
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [duplicateWarning, setDuplicateWarning] = useState("");
 
-  const handleChange = (field, value) => {
+  const handleChange = async (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
+    if (field === "name" && value.trim().length >= 3) {
+      const existing = await base44.entities.Company.filter({ name: value.trim() });
+      setDuplicateWarning(existing.length > 0 ? `⚠️ "${value.trim()}" existiert bereits!` : "");
+    } else if (field === "name") {
+      setDuplicateWarning("");
+    }
   };
 
   const handleSubmit = async () => {
@@ -39,7 +38,6 @@ export default function AddCompanyDialog({ open, onClose, onCreated }) {
       toast.error("Bitte Firmennamen eingeben");
       return;
     }
-
     setLoading(true);
 
     // Dublettencheck
@@ -59,17 +57,11 @@ export default function AddCompanyDialog({ open, onClose, onCreated }) {
     }
 
     const me = await base44.auth.me();
-    await base44.entities.Company.create({
-      ...form,
-      assigned_to: me.email,
-    });
+    await base44.entities.Company.create({ ...form, assigned_to: me.email });
 
     toast.success("Firma erstellt");
-    setForm({
-      name: "", branche: "", adresse: "", plz: "", ort: "",
-      telefon: "", email: "", website: "", ansprechpartner: "",
-      notizen: "", status: "Neu", quelle: "Manuell",
-    });
+    setForm(EMPTY_FORM);
+    setDuplicateWarning("");
     setLoading(false);
     onClose();
     onCreated?.();
@@ -84,7 +76,13 @@ export default function AddCompanyDialog({ open, onClose, onCreated }) {
         <div className="space-y-4 mt-2">
           <div>
             <Label>Firmenname *</Label>
-            <Input value={form.name} onChange={e => handleChange("name", e.target.value)} placeholder="Firma GmbH" />
+            <Input
+              value={form.name}
+              onChange={e => handleChange("name", e.target.value)}
+              placeholder="Firma GmbH"
+              className={duplicateWarning ? "border-red-400" : ""}
+            />
+            {duplicateWarning && <p className="text-xs text-red-600 mt-1">{duplicateWarning}</p>}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

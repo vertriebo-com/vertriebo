@@ -9,10 +9,19 @@ export default function CallScriptDialog({ company }) {
   const [open, setOpen] = useState(false);
   const [script, setScript] = useState("");
   const [loading, setLoading] = useState(false);
+  const [contactLogs, setContactLogs] = useState([]);
 
   const generateScript = async () => {
     setLoading(true);
     setScript("");
+    const logs = await base44.entities.ContactLog.filter({ company_id: company.id });
+    const recentLogs = logs
+      .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+      .slice(0, 3);
+    setContactLogs(recentLogs);
+    const logContext = recentLogs.length > 0
+      ? recentLogs.map(l => `- ${l.typ} (${new Date(l.created_date).toLocaleDateString('de-DE')}): ${l.ergebnis}${l.notiz ? ' – ' + l.notiz : ''}`).join('\n')
+      : 'Kein bisheriger Kontakt';
     const result = await base44.integrations.Core.InvokeLLM({
       model: "claude_sonnet_4_6",
       prompt: `Du bist ein erfahrener Vertriebsprofi für Huwa Gebäudedienste – ein professionelles Reinigungsunternehmen aus Neuwied.
@@ -34,8 +43,10 @@ Status: ${company.status}
 Aktueller Dienstleister: ${company.aktueller_dienstleister || "Unbekannt"}
 Ansprechpartner: ${company.ansprechpartner || "Unbekannt"}
 Notizen: ${company.notizen || "Keine"}
+Bisherige Kontakte:
+${logContext}
 
-Wichtig: Passe den Leitfaden an die Branche an!
+Wichtig: Passe den Leitfaden an die Branche an! Wenn es bereits Kontakte gab, passe den Einstieg entsprechend an (z.B. bei "Nicht erreicht" mehrfach: andere Ansprache wählen, bei "Rückruf vereinbart": darauf Bezug nehmen).
 - IT/Büro → Büroreinigung, Sanitärreinigung, tägliche Unterhaltsreinigung
 - Produktion/Lager/Halle → maschinelle Hallenreinigung, Hochdruck, Industriereinigung
 - Arzt/Zahnarzt → hygienische Unterhaltsreinigung, Desinfektion, Sanitär
