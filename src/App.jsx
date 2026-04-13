@@ -18,6 +18,7 @@ import SettingsPage from './pages/SettingsPage';
 import MapView from './pages/MapView';
 import Documents from './pages/Documents';
 import CalendarView from './pages/CalendarView';
+import DuplicatesPage from './pages/DuplicatesPage';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
         <Route path="/map" element={<MapView />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/calendar" element={<CalendarView />} />
+        <Route path="/duplicates" element={<DuplicatesPage />} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
     </Routes>

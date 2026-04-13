@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Map,
   FileText,
-  CalendarCheck
+  CalendarCheck,
+  GitMerge
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { path: "/statistics", label: "Statistiken", icon: BarChart3, adminOnly: true },
   { path: "/import", label: "Import", icon: Upload, adminOnly: true },
   { path: "/blacklist", label: "Blacklist", icon: Ban, adminOnly: true },
+  { path: "/duplicates", label: "Duplikate", icon: GitMerge, adminOnly: true },
   { path: "/settings", label: "Einstellungen", icon: Settings, adminOnly: true },
 ];
 

@@ -13,7 +13,8 @@ import {
   History,
   ListTodo,
   Trash2,
-  Ban
+  Ban,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,6 +38,7 @@ export default function LeadDetail() {
   const [loading, setLoading] = useState(true);
   const [showAddLog, setShowAddLog] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [enriching, setEnriching] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -76,6 +78,19 @@ export default function LeadDetail() {
     await base44.entities.Company.delete(id);
     toast.success("Firma gelöscht");
     navigate("/leads");
+  };
+
+  const handleEnrich = async () => {
+    setEnriching(true);
+    const res = await base44.functions.invoke("enrichCompany", { companyId: id });
+    const { found } = res.data;
+    if (found > 0) {
+      toast.success(`${found} Felder automatisch ergänzt!`);
+      loadData();
+    } else {
+      toast.info("Keine neuen Daten gefunden.");
+    }
+    setEnriching(false);
   };
 
   const toggleTask = async (task) => {
@@ -184,6 +199,10 @@ export default function LeadDetail() {
             {company.notizen || "Keine Notizen"}
           </p>
           <div className="flex flex-wrap gap-2 pt-2">
+            <Button variant="outline" size="sm" className="text-xs gap-1 text-purple-700 border-purple-200 hover:bg-purple-50" onClick={handleEnrich} disabled={enriching}>
+              {enriching ? <span className="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin inline-block" /> : <Sparkles className="w-3 h-3" />}
+              Daten anreichern
+            </Button>
             <CallScriptDialog company={company} />
             <EmailTemplates company={company} />
             <Button variant="outline" size="sm" className="text-xs gap-1" onClick={handleBlacklist}>
