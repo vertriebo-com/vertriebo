@@ -72,11 +72,13 @@ export default function Layout() {
         }`}
       >
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-sidebar-border">
+        <div className="px-5 py-4 border-b border-sidebar-border">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-sidebar-primary rounded-lg flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-sidebar-primary-foreground" />
-            </div>
+            <img
+              src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/7fe9f4d4d_Logo1HUWA.png"
+              alt="Huwa Logo"
+              className="w-10 h-10 object-contain rounded-lg bg-white p-0.5"
+            />
             <div>
               <h1 className="text-sm font-bold tracking-tight">Huwa Vertrieb</h1>
               <p className="text-[11px] text-sidebar-foreground/60">Gebäudedienste CRM</p>
@@ -138,7 +140,14 @@ export default function Layout() {
           >
             <Menu className="w-5 h-5" />
           </Button>
-          <span className="text-sm font-semibold">Huwa Vertrieb</span>
+          <div className="flex items-center gap-2">
+            <img
+              src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/7fe9f4d4d_Logo1HUWA.png"
+              alt="Huwa Logo"
+              className="w-7 h-7 object-contain"
+            />
+            <span className="text-sm font-semibold">Huwa Vertrieb</span>
+          </div>
           <div className="w-9" />
         </header>
 
