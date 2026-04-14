@@ -3,268 +3,243 @@ import { FileText, Loader2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 
-// ── Umlaut-Safe ──────────────────────────────────────────
-function tx(str) {
+// jsPDF v2+ unterstuetzt UTF-8 direkt mit den Standard-Fonts wenn
+// wir die Sonderzeichen-Zeichen manuell mappen
+function s(str) {
   if (!str) return "";
   return String(str)
-    .replace(/ä/g, "ae").replace(/Ä/g, "Ae")
-    .replace(/ö/g, "oe").replace(/Ö/g, "Oe")
-    .replace(/ü/g, "ue").replace(/Ü/g, "Ue")
-    .replace(/ß/g, "ss")
-    .replace(/–/g, "-").replace(/—/g, "-")
-    .replace(/„/g, '"').replace(/"/g, '"').replace(/"/g, '"');
+    .replace(/ä/g, "\xe4").replace(/Ä/g, "\xc4")
+    .replace(/ö/g, "\xf6").replace(/Ö/g, "\xd6")
+    .replace(/ü/g, "\xfc").replace(/Ü/g, "\xdc")
+    .replace(/ß/g, "\xdf")
+    .replace(/\u2013/g, "-").replace(/\u2014/g, "-");
 }
 
-// ── Huwa Brand Colors ────────────────────────────────────
-const HUWA_BLUE   = [15,  76, 179];   // primary
-const HUWA_DARK   = [10,  30,  70];   // dark header
-const HUWA_LIGHT  = [235, 242, 255];  // bg tint
-const HUWA_ACCENT = [255, 185,   0];  // gold accent
+const HUWA_BLUE   = [15,  76, 179];
+const HUWA_DARK   = [10,  30,  70];
+const HUWA_LIGHT  = [235, 242, 255];
+const HUWA_ACCENT = [255, 185,   0];
 
-// ── Branchen ─────────────────────────────────────────────
 const BRANCHEN = [
   {
     key: "buero",
-    label: "Buero & Verwaltung",
-    labelRaw: "Büro & Verwaltung",
+    label: "Büro & Verwaltung",
     tagline: "Sauberkeit, die Ihre Mitarbeiter motiviert",
-    subline: "Professionelle Bueroreinigung - taeglich zuverlaessig",
-    intro: "Ein sauberes Buero steigert die Produktivitaet und hinterlaesst bei Kunden einen professionellen Eindruck. Huwa sorgt dafuer, dass Ihr Buero taeglich frisch und hygienisch gereinigt ist.",
+    subline: "Professionelle Büroreinigung – täglich zuverlässig",
+    intro: "Ein sauberes Büro steigert die Produktivität und hinterlässt bei Kunden einen professionellen Eindruck. Huwa sorgt dafür, dass Ihr Büro täglich frisch und hygienisch gereinigt ist.",
     leistungen: [
-      { title: "Taegl. Unterhaltsreinigung", desc: "Boeden, Oberflaechen, Schreibtische - zuverlaessig vor Arbeitsbeginn oder am Abend." },
-      { title: "Sanitaer- & Kuechemreinigung", desc: "Hygienische Reinigung aller WCs, Waschbecken, Kuechen und Pausenraeume." },
-      { title: "Fenster- & Glasreinigung", desc: "Kristallklare Fenster und Glasfronten fuer ein helles, einladendes Ambiente." },
-      { title: "Grundreinigung", desc: "Intensive Tiefenreinigung - ideal fuer Umzuege, Jahresabschluesse oder nach Renovierungen." },
-      { title: "Treppenhausreinigung", desc: "Regelmaessige Pflege von Treppenhaeusern, Aufzuegen und Eingangsbereichen." },
+      { title: "Tägliche Unterhaltsreinigung", desc: "Böden, Oberflächen, Schreibtische – zuverlässig vor Arbeitsbeginn oder am Abend." },
+      { title: "Sanitär- & Küchenreinigung", desc: "Hygienische Reinigung aller WCs, Waschbecken, Küchen und Pausenräume." },
+      { title: "Fenster- & Glasreinigung", desc: "Kristallklare Fenster und Glasfronten für ein helles, einladendes Ambiente." },
+      { title: "Grundreinigung", desc: "Intensive Tiefenreinigung – ideal für Umzüge, Jahresabschlüsse oder nach Renovierungen." },
+      { title: "Treppenhausreinigung", desc: "Regelmäßige Pflege von Treppenhäusern, Aufzügen und Eingangsbereichen." },
     ],
-    vorteile: ["Reinigung ausserhalb Ihrer Arbeitszeiten", "Feste Ansprechpartner", "Kein Eigenaufwand fuer Reinigungsmittel", "Flexible Intervalle: taeglich bis monatlich"],
-    cta: "Kostenloses Angebot fuer Ihr Buero anfordern!",
+    vorteile: ["Reinigung außerhalb Ihrer Arbeitszeiten", "Feste Ansprechpartner", "Kein Eigenaufwand für Reinigungsmittel", "Flexible Intervalle: täglich bis monatlich"],
+    cta: "Kostenloses Angebot für Ihr Büro anfordern!",
   },
   {
     key: "arzt",
     label: "Arzt- & Zahnarztpraxis",
-    labelRaw: "Arzt- & Zahnarztpraxis",
-    tagline: "Hygiene auf die Sie sich verlassen koennen",
-    subline: "Reinigung nach hoechsten Hygienestandards",
-    intro: "In Arzt- und Zahnarztpraxen ist Hygiene keine Option - sie ist Pflicht. Huwa reinigt Ihre Praxis nach hoechsten Standards und stellt sicher, dass Patienten und Personal jederzeit in einem sicheren Umfeld sind.",
+    tagline: "Hygiene, auf die Sie sich verlassen können",
+    subline: "Reinigung nach höchsten Hygienestandards",
+    intro: "In Arzt- und Zahnarztpraxen ist Hygiene keine Option – sie ist Pflicht. Huwa reinigt Ihre Praxis nach höchsten Standards und stellt sicher, dass Patienten und Personal jederzeit in einem sicheren Umfeld sind.",
     leistungen: [
-      { title: "Hygienische Unterhaltsreinigung", desc: "Taegliche Desinfektion aller Kontaktflaechen, Tuergriffe, Wartebereich und Behandlungsraeume." },
-      { title: "Sanitaerdesinfektion", desc: "Gruendliche Reinigung und Desinfektion aller Sanitaeanlagen nach RKI-Empfehlungen." },
-      { title: "Bodenreinigung & Desinfektion", desc: "Wischdesinfektion mit geeigneten, zugelassenen Mitteln auf allen Boeden." },
-      { title: "Abfallentsorgung", desc: "Fachgerechte Entsorgung und Reinigung von Abfallbehaeltern in allen Praxisraeumen." },
-      { title: "Wartezimmer & Empfang", desc: "Taeglich frisch gereinigter Empfangsbereich fuer einen positiven ersten Eindruck." },
+      { title: "Hygienische Unterhaltsreinigung", desc: "Tägliche Desinfektion aller Kontaktflächen, Türgriffe, Wartebereich und Behandlungsräume." },
+      { title: "Sanitärdesinfektion", desc: "Gründliche Reinigung und Desinfektion aller Sanitäranlagen nach RKI-Empfehlungen." },
+      { title: "Bodenreinigung & Desinfektion", desc: "Wischdesinfektion mit geeigneten, zugelassenen Mitteln auf allen Böden." },
+      { title: "Abfallentsorgung", desc: "Fachgerechte Entsorgung und Reinigung von Abfallbehältern in allen Praxisräumen." },
+      { title: "Wartezimmer & Empfang", desc: "Täglich frisch gereinigter Empfangsbereich für einen positiven ersten Eindruck." },
     ],
-    vorteile: ["Reinigung vor Praxisoeffnung oder nach Feierabend", "Zugelassene Desinfektionsmittel", "Geschultes Personal fuer med. Umgebungen", "Diskret & zuverlaessig"],
-    cta: "Jetzt Praxisreinigung anfragen - kostenlos & unverbindlich!",
+    vorteile: ["Reinigung vor Praxisöffnung oder nach Feierabend", "Zugelassene Desinfektionsmittel", "Geschultes Personal für med. Umgebungen", "Diskret & zuverlässig"],
+    cta: "Jetzt Praxisreinigung anfragen – kostenlos & unverbindlich!",
   },
   {
     key: "halle",
     label: "Produktions- & Lagerhalle",
-    labelRaw: "Produktions- & Lagerhalle",
-    tagline: "Starke Reinigung fuer starke Betriebe",
-    subline: "Maschinelle Hallenreinigung fuer Industrie & Logistik",
-    intro: "Produktions- und Lagerhallen stellen besondere Anforderungen: grosse Flaechen, schwere Verschmutzungen und enge Zeitfenster. Huwa setzt modernste Reinigungsmaschinen ein und sorgt fuer sichere Arbeitsbedingungen.",
+    tagline: "Starke Reinigung für starke Betriebe",
+    subline: "Maschinelle Hallenreinigung für Industrie & Logistik",
+    intro: "Produktions- und Lagerhallen stellen besondere Anforderungen: große Flächen, schwere Verschmutzungen und enge Zeitfenster. Huwa setzt modernste Reinigungsmaschinen ein und sorgt für sichere Arbeitsbedingungen.",
     leistungen: [
-      { title: "Maschinelle Hallenreinigung", desc: "Scheuersaugmaschinen und Kehrmaschinen fuer schnelle Reinigung grosser Flaechen." },
-      { title: "Hochdruckreinigung", desc: "Entfernung hartnackiger Oel-, Fett- und Schmutzrueckstaende von Boeden und Waenden." },
+      { title: "Maschinelle Hallenreinigung", desc: "Scheuersaugmaschinen und Kehrmaschinen für schnelle Reinigung großer Flächen." },
+      { title: "Hochdruckreinigung", desc: "Entfernung hartnäckiger Öl-, Fett- und Schmutzrückstände von Böden und Wänden." },
       { title: "Lager- & Regalbodenpflege", desc: "Reinigung von Lagerregalen, Rollcontainern und Lagerbereichen." },
-      { title: "Industrieboden-Pflege", desc: "Schutz und Pflege von Epoxid-, Beton- und Industrieboeden." },
-      { title: "Sonderreinigung nach Schicht", desc: "Intensive Reinigung am Wochenende - minimale Betriebsunterbrechung." },
+      { title: "Industrieboden-Pflege", desc: "Schutz und Pflege von Epoxid-, Beton- und Industrieböden." },
+      { title: "Sonderreinigung nach Schicht", desc: "Intensive Reinigung am Wochenende – minimale Betriebsunterbrechung." },
     ],
-    vorteile: ["Modernste Reinigungsmaschinen", "Auch fuer schwere Industrieverschmutzungen", "Nachts / am Wochenende moeglich", "Schnelle Reaktionszeiten"],
-    cta: "Hallenpflege anfragen - kostenlose Besichtigung vor Ort!",
+    vorteile: ["Modernste Reinigungsmaschinen", "Auch für schwere Industrieverschmutzungen", "Nachts / am Wochenende möglich", "Schnelle Reaktionszeiten"],
+    cta: "Hallenpflege anfragen – kostenlose Besichtigung vor Ort!",
   },
   {
     key: "autohaus",
     label: "Autohaus & Kfz-Betrieb",
-    labelRaw: "Autohaus & Kfz-Betrieb",
-    tagline: "Glaenzende Sauberkeit fuer Ihren Betrieb",
+    tagline: "Glänzende Sauberkeit für Ihren Betrieb",
     subline: "Werkstatt-, Hallen- und Showroomreinigung aus einer Hand",
-    intro: "Ob Werkstatthalle, Ausstellungsraum oder Kundensanitaer - in Autohaeusern entstehen taeglich starke Verschmutzungen durch Oel, Reifen und Werkzeug. Huwa sorgt fuer Ordnung und Sauberkeit.",
+    intro: "Ob Werkstatthalle, Ausstellungsraum oder Kundensanitär – in Autohäusern entstehen täglich starke Verschmutzungen durch Öl, Reifen und Werkzeug. Huwa sorgt für Ordnung und Sauberkeit.",
     leistungen: [
-      { title: "Werkstattreinigung", desc: "Entfernung von Oel-, Fett- und Reifenspuren auf Werkstattboeden - maschinell oder manuell." },
-      { title: "Showroom & Ausstellung", desc: "Taegl. Pflege des Ausstellungsraums: Boeden, Glasfronten, Empfang und Kundenbereiche." },
-      { title: "Hochdruck Aussenbereich", desc: "Reinigung von Einfahrten, Parkflaechen, Rampen und Aussenbereichen." },
-      { title: "Sanitaer & Aufenthaltsraeume", desc: "Hygienische Reinigung aller Mitarbeiter- und Kundensanitaer sowie Pausenraeume." },
-      { title: "Glasreinigung Schaufenster", desc: "Blitzsaubere Schaufenster und Glasfassaden fuer einen professionellen Auftritt." },
+      { title: "Werkstattreinigung", desc: "Entfernung von Öl-, Fett- und Reifenspuren auf Werkstattböden – maschinell oder manuell." },
+      { title: "Showroom & Ausstellung", desc: "Tägliche Pflege des Ausstellungsraums: Böden, Glasfronten, Empfang und Kundenbereiche." },
+      { title: "Hochdruck Außenbereich", desc: "Reinigung von Einfahrten, Parkflächen, Rampen und Außenbereichen." },
+      { title: "Sanitär & Aufenthaltsräume", desc: "Hygienische Reinigung aller Mitarbeiter- und Kundensanitär sowie Pausenräume." },
+      { title: "Schaufensterreinigung", desc: "Blitzsaubere Schaufenster und Glasfassaden für einen professionellen Auftritt." },
     ],
-    vorteile: ["Erfahrung mit Industrie-Verschmutzungen", "Reinigung ausserhalb der Oeffnungszeiten", "Taeglich oder woechentlich", "Komplett-Service vom Profi"],
-    cta: "Jetzt Betriebsreinigung anfragen - unverbindlich & kostenlos!",
+    vorteile: ["Erfahrung mit Industrie-Verschmutzungen", "Reinigung außerhalb der Öffnungszeiten", "Täglich oder wöchentlich", "Komplett-Service vom Profi"],
+    cta: "Jetzt Betriebsreinigung anfragen – unverbindlich & kostenlos!",
   },
   {
     key: "kanzlei",
-    label: "Kanzlei & Architekturburo",
-    labelRaw: "Kanzlei & Architekturbüro",
-    tagline: "Diskretion & Sauberkeit fuer anspruchsvolle Umgebungen",
-    subline: "Reinigung fuer Kanzleien, Notariate und Planungsbueros",
-    intro: "In Kanzleien und Architekturbueros ist ein gepflegtes Erscheinungsbild essenziell. Ihre Mandanten erwarten ein serioeses Umfeld. Huwa reinigt diskret, zuverlaessig und nach Ihren Wuenschen.",
+    label: "Kanzlei & Architekturbüro",
+    tagline: "Diskretion & Sauberkeit für anspruchsvolle Umgebungen",
+    subline: "Reinigung für Kanzleien, Notariate und Planungsbüros",
+    intro: "In Kanzleien und Architekturbüros ist ein gepflegtes Erscheinungsbild essenziell. Ihre Mandanten erwarten ein seriöses Umfeld. Huwa reinigt diskret, zuverlässig und nach Ihren Wünschen.",
     leistungen: [
-      { title: "Diskrete Unterhaltsreinigung", desc: "Reinigung aller Bueroaraeume, Besprechungszimmer und Empfangsbereiche ausserhalb der Kanzleizeiten." },
-      { title: "Aktenschrank & Regalpflege", desc: "Staubfreie Reinigung von Regalen und Arbeitsflaechen ohne Umsortierung." },
-      { title: "Sanitaer & Kueche", desc: "Hygienische Reinigung aller Sanitaeanlagen und der Bueroekueche." },
-      { title: "Glasreinigung", desc: "Reinigung von Trennwaenden, Glasfronten und Fenstern fuer ein hochwertiges Bild." },
-      { title: "Empfangsbereich", desc: "Taeglich frischer Empfang - der erste Eindruck entscheidet." },
+      { title: "Diskrete Unterhaltsreinigung", desc: "Reinigung aller Büroräume, Besprechungszimmer und Empfangsbereiche außerhalb der Kanzleizeiten." },
+      { title: "Aktenschrank & Regalpflege", desc: "Staubfreie Reinigung von Regalen und Arbeitsflächen ohne Umsortierung." },
+      { title: "Sanitär & Küche", desc: "Hygienische Reinigung aller Sanitäranlagen und der Büroküche." },
+      { title: "Glasreinigung", desc: "Reinigung von Trennwänden, Glasfronten und Fenstern für ein hochwertiges Bild." },
+      { title: "Empfangsbereich", desc: "Täglich frischer Empfang – der erste Eindruck entscheidet." },
     ],
-    vorteile: ["100% diskrete Durchfuehrung", "Reinigung vor/nach Kanzleioeffnung", "Fester Mitarbeiter - kein Wechsel", "Auf Wunsch auch samstags"],
-    cta: "Kanzleipflege anfragen - kostenlos & unverbindlich!",
+    vorteile: ["100 % diskrete Durchführung", "Reinigung vor/nach Kanzleiöffnung", "Fester Mitarbeiter – kein Wechsel", "Auf Wunsch auch samstags"],
+    cta: "Kanzleipflege anfragen – kostenlos & unverbindlich!",
   },
   {
     key: "gastronomie",
     label: "Gastronomie & Lebensmittel",
-    labelRaw: "Gastronomie & Lebensmittel",
     tagline: "Sauber, hygienisch, HACCP-konform",
-    subline: "Gewerbliche Reinigung fuer Restaurants, Cafes und Betriebe",
-    intro: "In der Gastronomie sind Hygiene und Sauberkeit gesetzlich vorgeschrieben. Huwa reinigt Ihre Kueche, Gastraum und Lager nach HACCP-Grundsaetzen - damit Sie sich auf Ihre Gaeste konzentrieren koennen.",
+    subline: "Gewerbliche Reinigung für Restaurants, Cafés und Betriebe",
+    intro: "In der Gastronomie sind Hygiene und Sauberkeit gesetzlich vorgeschrieben. Huwa reinigt Ihre Küche, den Gastraum und das Lager nach HACCP-Grundsätzen – damit Sie sich auf Ihre Gäste konzentrieren können.",
     leistungen: [
-      { title: "Kuechemreinigung & Entfettung", desc: "Gruendliche Reinigung von Kuechemgeraten, Abzugshauben, Grills und Friteusen." },
-      { title: "Gastraum & Theke", desc: "Taegl. Reinigung von Tischen, Stuehlen, Boeden, Tresen und Fensterflaechen." },
-      { title: "Kuehlraum & Lager", desc: "Regelmaessige Reinigung und Desinfektion von Kuehlraeumen und Lagerbereichen." },
-      { title: "Sanitaeanlagen", desc: "Hygienische Reinigung und Desinfektion aller Gaeste- und Personaltoiletten." },
-      { title: "Sonderreinigung nach Events", desc: "Schnelle Grundreinigung nach Veranstaltungen und Grossveranstaltungen." },
+      { title: "Küchenreinigung & Entfettung", desc: "Gründliche Reinigung von Küchengeräten, Abzugshauben, Grills und Friteusen." },
+      { title: "Gastraum & Theke", desc: "Tägliche Reinigung von Tischen, Stühlen, Böden, Tresen und Fensterflächen." },
+      { title: "Kühlraum & Lager", desc: "Regelmäßige Reinigung und Desinfektion von Kühlräumen und Lagerbereichen." },
+      { title: "Sanitäranlagen", desc: "Hygienische Reinigung und Desinfektion aller Gäste- und Personaltoiletten." },
+      { title: "Sonderreinigung nach Events", desc: "Schnelle Grundreinigung nach Veranstaltungen und Großevents." },
     ],
     vorteile: ["HACCP-konforme Reinigungsverfahren", "Reinigung nach Betriebsschluss", "Lebensmittel-zugelassene Mittel", "Sonderreinigungen nach Events"],
-    cta: "Jetzt Gastro-Reinigung anfragen - kostenlos & schnell!",
+    cta: "Jetzt Gastro-Reinigung anfragen – kostenlos & schnell!",
   },
   {
     key: "einzelhandel",
     label: "Einzelhandel & Supermarkt",
-    labelRaw: "Einzelhandel & Supermarkt",
-    tagline: "Einladende Sauberkeit fuer mehr Umsatz",
-    subline: "Verkaufsflaechen- und Schaufensterreinigung",
-    intro: "Sauberkeit im Einzelhandel steigert das Einkaufserlebnis und erhoht die Verweildauer der Kunden. Huwa haelt Ihre Verkaufsflaechen, Regale und Eingangsbereiche stets in bestem Zustand.",
+    tagline: "Einladende Sauberkeit für mehr Umsatz",
+    subline: "Verkaufsflächen- und Schaufensterreinigung",
+    intro: "Sauberkeit im Einzelhandel steigert das Einkaufserlebnis und erhöht die Verweildauer der Kunden. Huwa hält Ihre Verkaufsflächen, Regale und Eingangsbereiche stets in bestem Zustand.",
     leistungen: [
-      { title: "Verkaufsflaechenreinigung", desc: "Taegl. Reinigung aller Verkaufsflaechen, Regale und Auslagen - vor Ladeoeffnung." },
-      { title: "Schaufensterreinigung", desc: "Blitzsaubere Schaufenster und Eingangstuer - der erste Eindruck zaehlt." },
-      { title: "Kassenbereich & Kundenlaufzonen", desc: "Intensive Pflege stark frequentierter Bereiche fuer Hygiene und Sauberkeit." },
-      { title: "Sanitaeanlagen", desc: "Regelmaessige Reinigung und Desinfektion der Kundensanitaeanlagen." },
-      { title: "Lager & Backoffice", desc: "Ordentliche und saubere Lagerbereiche fuer effizientes Arbeiten." },
+      { title: "Verkaufsflächenreinigung", desc: "Tägliche Reinigung aller Verkaufsflächen, Regale und Auslagen – vor Ladenöffnung." },
+      { title: "Schaufensterreinigung", desc: "Blitzsaubere Schaufenster und Eingangstür – der erste Eindruck zählt." },
+      { title: "Kassenbereich & Kundenlaufzonen", desc: "Intensive Pflege stark frequentierter Bereiche für Hygiene und Sauberkeit." },
+      { title: "Sanitäranlagen", desc: "Regelmäßige Reinigung und Desinfektion der Kundensanitäranlagen." },
+      { title: "Lager & Backoffice", desc: "Ordentliche und saubere Lagerbereiche für effizientes Arbeiten." },
     ],
-    vorteile: ["Reinigung vor Ladeoeffnung", "Schaufenster immer blitzsauber", "Erfahrung in Grossflaechen", "Flexible Wochentag-Planung"],
-    cta: "Jetzt Reinigungsangebot anfordern - kostenlos!",
+    vorteile: ["Reinigung vor Ladenöffnung", "Schaufenster immer blitzsauber", "Erfahrung mit Großflächen", "Flexible Wochentag-Planung"],
+    cta: "Jetzt Reinigungsangebot anfordern – kostenlos!",
   },
   {
     key: "hotel",
     label: "Hotel & Pension",
-    labelRaw: "Hotel & Pension",
-    tagline: "Erstklassige Sauberkeit fuer erstklassige Gaeste",
-    subline: "Zimmer-, Lobby- und Allgemeinflaechemreinigung",
-    intro: "In der Hotellerie entscheidet Sauberkeit ueber Bewertungen und Wiederbuchungen. Huwa bietet professionelle Reinigung auf hoechstem Niveau - schnell, zuverlaessig und nach Ihrem Standard.",
+    tagline: "Erstklassige Sauberkeit für erstklassige Gäste",
+    subline: "Zimmer-, Lobby- und Gemeinschaftsflächenreinigung",
+    intro: "In der Hotellerie entscheidet Sauberkeit über Bewertungen und Wiederbuchungen. Huwa bietet professionelle Reinigung auf höchstem Niveau – schnell, zuverlässig und nach Ihrem Standard.",
     leistungen: [
-      { title: "Zimmerreinigung", desc: "Professionelle Zimmerreinigung nach Ihrem Hausstandard - schnell und gruendlich." },
-      { title: "Lobby & Empfangsbereich", desc: "Taegl. Pflege des Eingangsbereichs, der Lobby und der Gemeinschaftsflaechen." },
-      { title: "Fruehstuecksraum & Restaurant", desc: "Reinigung nach dem Fruehstueck und vor der Abendbewirtung." },
-      { title: "Sanitaer & Wellness", desc: "Hygienische Reinigung von Badern, Saunen und Wellnessbereichen." },
-      { title: "Aussenanlage", desc: "Eingangsbereich, Parkflaechen und Terrassen stets sauber und einladend." },
+      { title: "Zimmerreinigung", desc: "Professionelle Zimmerreinigung nach Ihrem Hausstandard – schnell und gründlich." },
+      { title: "Lobby & Empfangsbereich", desc: "Tägliche Pflege des Eingangsbereichs, der Lobby und der Gemeinschaftsflächen." },
+      { title: "Frühstücksraum & Restaurant", desc: "Reinigung nach dem Frühstück und vor der Abendbewirtung." },
+      { title: "Sanitär & Wellness", desc: "Hygienische Reinigung von Bädern, Saunen und Wellnessbereichen." },
+      { title: "Außenanlage", desc: "Eingangsbereich, Parkflächen und Terrassen stets sauber und einladend." },
     ],
-    vorteile: ["Erfahrung im Hospitality-Bereich", "Schnelle Zimmerumruestung", "Diskretion gegenueber Gaesten", "Flexible Zeiten - auch an Wochenenden"],
-    cta: "Hotelangebot anfordern - unverbindlich & kostenlos!",
+    vorteile: ["Erfahrung im Hospitality-Bereich", "Schnelle Zimmerumrüstung", "Diskretion gegenüber Gästen", "Flexible Zeiten – auch an Wochenenden"],
+    cta: "Hotelangebot anfordern – unverbindlich & kostenlos!",
   },
   {
     key: "schule",
     label: "Schule & Bildungseinrichtung",
-    labelRaw: "Schule & Bildungseinrichtung",
-    tagline: "Saubere Lernumgebung fuer beste Ergebnisse",
-    subline: "Reinigung fuer Schulen, Kitas und Bildungseinrichtungen",
-    intro: "Kinder und Jugendliche verbringen viel Zeit in Bildungseinrichtungen. Eine saubere, hygienische Umgebung ist entscheidend fuer Gesundheit und Wohlbefinden. Huwa sorgt fuer optimale Lernbedingungen.",
+    tagline: "Saubere Lernumgebung für beste Ergebnisse",
+    subline: "Reinigung für Schulen, Kitas und Bildungseinrichtungen",
+    intro: "Kinder und Jugendliche verbringen viel Zeit in Bildungseinrichtungen. Eine saubere, hygienische Umgebung ist entscheidend für Gesundheit und Wohlbefinden. Huwa sorgt für optimale Lernbedingungen.",
     leistungen: [
-      { title: "Klassenzimmerreinigung", desc: "Taegl. Reinigung aller Unterrichtsraeume, Tafeln, Tische und Boeden." },
-      { title: "Sanitaeanlagen", desc: "Besonders gruendliche Hygiene in Schueler- und Lehrersanitaeanlagen." },
-      { title: "Flure & Treppenhaeuser", desc: "Saubere Laufwege und Gemeinschaftsflaechen fuer einen positiven Schulalltag." },
-      { title: "Turnhalle & Sportanlagen", desc: "Regelmaessige Desinfektion und Reinigung von Sportboeden und Umkleiden." },
-      { title: "Kita & Krippe", desc: "Kindgerechte, schadstofffreie Reinigung fuer die Kleinsten." },
+      { title: "Klassenzimmerreinigung", desc: "Tägliche Reinigung aller Unterrichtsräume, Tafeln, Tische und Böden." },
+      { title: "Sanitäranlagen", desc: "Besonders gründliche Hygiene in Schüler- und Lehrersanitäranlagen." },
+      { title: "Flure & Treppenhäuser", desc: "Saubere Laufwege und Gemeinschaftsflächen für einen positiven Schulalltag." },
+      { title: "Turnhalle & Sportanlagen", desc: "Regelmäßige Desinfektion und Reinigung von Sportböden und Umkleiden." },
+      { title: "Kita & Krippe", desc: "Kindgerechte, schadstofffreie Reinigung für die Kleinsten." },
     ],
-    vorteile: ["Reinigung ausserhalb der Unterrichtszeiten", "Schadstofffreie Reinigungsmittel", "Erfahrung mit Bildungseinrichtungen", "Langjaehrige Partnerschaften"],
-    cta: "Jetzt Schulreinigung anfragen - kostenlos!",
+    vorteile: ["Reinigung außerhalb der Unterrichtszeiten", "Schadstofffreie Reinigungsmittel", "Erfahrung mit Bildungseinrichtungen", "Langjährige Partnerschaften"],
+    cta: "Jetzt Schulreinigung anfragen – kostenlos!",
   },
   {
     key: "pflege",
     label: "Pflege & Seniorenheim",
-    labelRaw: "Pflege & Seniorenheim",
-    tagline: "Wuerdevoll sauber - fuer Ihre Bewohner",
-    subline: "Reinigung fuer Pflegeeinrichtungen und Seniorenheime",
-    intro: "Pflegeeinrichtungen stellen hoechste Ansprueche an Hygiene und Sauberkeit. Huwa reinigt mit Sensibilitaet und Fachkenntnis - fuer das Wohlbefinden Ihrer Bewohner und die Sicherheit Ihrer Mitarbeiter.",
+    tagline: "Würdevoll sauber – für Ihre Bewohner",
+    subline: "Reinigung für Pflegeeinrichtungen und Seniorenheime",
+    intro: "Pflegeeinrichtungen stellen höchste Ansprüche an Hygiene und Sauberkeit. Huwa reinigt mit Sensibilität und Fachkenntnis – für das Wohlbefinden Ihrer Bewohner und die Sicherheit Ihrer Mitarbeiter.",
     leistungen: [
-      { title: "Bewohnerzimmerreinigung", desc: "Diskrete, regelmaessige Reinigung aller Zimmer - respektvoll und gruendlich." },
-      { title: "Gemeinschafts- & Aufenthaltsraeume", desc: "Taegl. Pflege von Aufenthalt, Speisesaal und Flurbereichen." },
-      { title: "Kueche & Speisesaal", desc: "Hygienische Reinigung nach HACCP-Standard in allen Kuechen- und Essbereichen." },
+      { title: "Bewohnerzimmerreinigung", desc: "Diskrete, regelmäßige Reinigung aller Zimmer – respektvoll und gründlich." },
+      { title: "Gemeinschafts- & Aufenthaltsräume", desc: "Tägliche Pflege von Aufenthaltsräumen, Speisesaal und Flurbereichen." },
+      { title: "Küche & Speisesaal", desc: "Hygienische Reinigung nach HACCP-Standard in allen Küchen- und Essbereichen." },
       { title: "Desinfektionsreinigung", desc: "Gezielte Desinfektion bei Infektionsrisiken und nach medizinischen Eingriffen." },
-      { title: "Aussenanlage & Terrassen", desc: "Gepflegte Aussenanlagen als Wohlfulhoase fuer Bewohner und Besucher." },
+      { title: "Außenanlage & Terrassen", desc: "Gepflegte Außenanlagen als Wohlfühloase für Bewohner und Besucher." },
     ],
-    vorteile: ["Empathischer Umgang mit Bewohnern", "Zertifizierte Desinfektionsmittel", "Erfahrung in Pflegeeinrichtungen", "Diskret & verlaesslich"],
-    cta: "Pflegeheim-Reinigung anfragen - unverbindlich!",
+    vorteile: ["Empathischer Umgang mit Bewohnern", "Zertifizierte Desinfektionsmittel", "Erfahrung in Pflegeeinrichtungen", "Diskret & verlässlich"],
+    cta: "Pflegeheim-Reinigung anfragen – unverbindlich!",
   },
 ];
 
-// ── PDF Generator ─────────────────────────────────────────
-function drawHuwaHeader(doc, W, branche) {
-  // Dark top bar
+function drawHeader(doc, W, branche) {
   doc.setFillColor(...HUWA_DARK);
   doc.rect(0, 0, W, 14, "F");
 
-  // HUWA Logo Text
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text("HUWA", 8, 9.5);
 
-  // Separator dot
   doc.setFillColor(...HUWA_ACCENT);
   doc.circle(30, 7, 1, "F");
 
-  // Subtext
   doc.setFontSize(6.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(180, 200, 230);
-  doc.text("Gebaeudereinigung & Hausmeisterdienste", 34, 9.5);
+  doc.text(s("Gebäudereinigung & Hausmeisterdienste"), 34, 9.5);
 
-  // Contact right
   doc.setFontSize(6);
   doc.setTextColor(160, 185, 220);
   doc.text("02601/9131820  |  www.huwa-gebaeudedienste.de", W - 8, 9.5, { align: "right" });
 
-  // Blue hero banner
   doc.setFillColor(...HUWA_BLUE);
   doc.rect(0, 14, W, 42, "F");
-
-  // Gold accent line
   doc.setFillColor(...HUWA_ACCENT);
   doc.rect(0, 14, 4, 42, "F");
 
-  // Branch label pill
-  doc.setFillColor(255, 255, 255, 0.15);
   doc.setDrawColor(255, 255, 255);
   doc.setLineWidth(0.3);
-  doc.roundedRect(W - 58, 18, 52, 8, 2, 2, "FD");
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(W - 58, 18, 52, 8, 2, 2, "D");
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text(tx(branche.labelRaw), W - 32, 23.5, { align: "center" });
+  doc.text(s(branche.label), W - 32, 23.5, { align: "center" });
 
-  // Headline
   doc.setFontSize(17);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  const hl = doc.splitTextToSize(tx(branche.tagline), W - 25);
+  const hl = doc.splitTextToSize(s(branche.tagline), W - 25);
   doc.text(hl, 10, 30);
 
-  // Subline
   doc.setFontSize(8.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(190, 215, 255);
-  doc.text(tx(branche.subline), 10, 30 + hl.length * 7 + 2);
+  doc.text(s(branche.subline), 10, 30 + hl.length * 7 + 2);
 }
 
-function drawHuwaFooter(doc, W, H, cta) {
+function drawFooter(doc, W, H, cta) {
   doc.setFillColor(...HUWA_DARK);
   doc.rect(0, H - 30, W, 30, "F");
-
   doc.setFillColor(...HUWA_ACCENT);
   doc.rect(0, H - 30, W, 1.5, "F");
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text(tx(cta), W / 2, H - 19, { align: "center" });
+  doc.text(s(cta), W / 2, H - 19, { align: "center" });
 
   doc.setFontSize(7.5);
   doc.setFont("helvetica", "normal");
@@ -273,24 +248,7 @@ function drawHuwaFooter(doc, W, H, cta) {
   doc.text("Mittelweg 24  -  56566 Neuwied", W / 2, H - 5, { align: "center" });
 }
 
-function generatePDF(branche) {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const W = 210;
-  const H = 297;
-
-  drawHuwaHeader(doc, W, branche);
-
-  let y = 64;
-
-  // ── Intro ──
-  doc.setFontSize(8.5);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(50, 60, 80);
-  const introLines = doc.splitTextToSize(tx(branche.intro), W - 20);
-  doc.text(introLines, 10, y);
-  y += introLines.length * 4.8 + 8;
-
-  // ── Leistungen Section ──
+function sectionBar(doc, W, y, title) {
   doc.setFillColor(...HUWA_BLUE);
   doc.rect(0, y - 1, W, 9, "F");
   doc.setFillColor(...HUWA_ACCENT);
@@ -298,11 +256,31 @@ function generatePDF(branche) {
   doc.setFontSize(9);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(255, 255, 255);
-  doc.text("Unsere Leistungen fuer Sie", 10, y + 5);
+  doc.text(s(title), 10, y + 5);
+}
+
+function generatePDF(branche) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210;
+  const H = 297;
+
+  drawHeader(doc, W, branche);
+
+  let y = 64;
+
+  // Intro
+  doc.setFontSize(8.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(50, 60, 80);
+  const introLines = doc.splitTextToSize(s(branche.intro), W - 20);
+  doc.text(introLines, 10, y);
+  y += introLines.length * 4.8 + 8;
+
+  // Leistungen
+  sectionBar(doc, W, y, "Unsere Leistungen für Sie");
   y += 13;
 
   branche.leistungen.forEach((l, i) => {
-    // Number badge
     doc.setFillColor(...HUWA_BLUE);
     doc.circle(14, y + 1.5, 3.2, "F");
     doc.setFontSize(7);
@@ -313,27 +291,20 @@ function generatePDF(branche) {
     doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...HUWA_BLUE);
-    doc.text(tx(l.title), 20, y + 2);
+    doc.text(s(l.title), 20, y + 2);
 
     doc.setFontSize(7.8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(60, 70, 90);
-    const descLines = doc.splitTextToSize(tx(l.desc), W - 28);
+    const descLines = doc.splitTextToSize(s(l.desc), W - 28);
     doc.text(descLines, 20, y + 7);
     y += 7 + descLines.length * 4.2 + 3;
   });
 
   y += 4;
 
-  // ── Vorteile ──
-  doc.setFillColor(...HUWA_BLUE);
-  doc.rect(0, y - 1, W, 9, "F");
-  doc.setFillColor(...HUWA_ACCENT);
-  doc.rect(0, y - 1, 4, 9, "F");
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(255, 255, 255);
-  doc.text("Ihre Vorteile auf einen Blick", 10, y + 5);
+  // Vorteile
+  sectionBar(doc, W, y, "Ihre Vorteile auf einen Blick");
   y += 13;
 
   const colW = (W - 22) / 2;
@@ -347,16 +318,15 @@ function generatePDF(branche) {
     doc.roundedRect(bx, by - 1, colW, 8.5, 1.5, 1.5, "F");
     doc.setFillColor(...HUWA_BLUE);
     doc.roundedRect(bx, by - 1, 2.5, 8.5, 1, 1, "F");
-
     doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(20, 30, 60);
-    doc.text(tx(v), bx + 5.5, by + 4.5);
+    doc.text(s(v), bx + 5.5, by + 4.5);
   });
 
   y += Math.ceil(branche.vorteile.length / 2) * 10 + 8;
 
-  // ── About Box ──
+  // Über uns Box
   doc.setFillColor(...HUWA_LIGHT);
   doc.setDrawColor(...HUWA_BLUE);
   doc.setLineWidth(0.4);
@@ -367,23 +337,20 @@ function generatePDF(branche) {
   doc.setFontSize(8.5);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...HUWA_BLUE);
-  doc.text("Ueber Huwa Gebaeudereinigung & Hausmeisterdienste", 17, y + 7);
+  doc.text(s("Über Huwa Gebäudereinigung & Hausmeisterdienste"), 17, y + 7);
   doc.setFontSize(7.8);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(50, 60, 80);
   const about = doc.splitTextToSize(
-    "Ihr regionaler Partner aus Neuwied. Seit Jahren zuverlaessig, fair und professionell - fuer kleine Bueros und grosse Industriebetriebe gleichermassen. Sprechen Sie uns an - wir erstellen Ihnen gerne ein kostenloses Angebot!",
+    s("Ihr regionaler Partner aus Neuwied. Seit Jahren zuverlässig, fair und professionell – für kleine Büros und große Industriebetriebe gleichermaßen. Sprechen Sie uns an – wir erstellen Ihnen gerne ein kostenloses Angebot!"),
     W - 28
   );
   doc.text(about, 17, y + 13);
 
-  drawHuwaFooter(doc, W, H, branche.cta);
-
-  const filename = "Huwa_Flyer_" + branche.key + ".pdf";
-  doc.save(filename);
+  drawFooter(doc, W, H, branche.cta);
+  doc.save("Huwa_Flyer_" + branche.key + ".pdf");
 }
 
-// ── Component ─────────────────────────────────────────────
 export default function BranchenFlyerGenerator() {
   const [loadingKey, setLoadingKey] = useState(null);
 
@@ -392,7 +359,7 @@ export default function BranchenFlyerGenerator() {
     setTimeout(() => {
       try {
         generatePDF(branche);
-        toast.success("Flyer fuer " + branche.labelRaw + " erstellt!");
+        toast.success("Flyer für " + branche.label + " erstellt!");
       } catch (e) {
         toast.error("Fehler beim Erstellen.");
         console.error(e);
@@ -428,7 +395,7 @@ export default function BranchenFlyerGenerator() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                {branche.labelRaw}
+                {branche.label}
               </p>
               <p className="text-[11px] text-muted-foreground">
                 {loadingKey === branche.key ? "Erstelle PDF..." : "PDF herunterladen"}
