@@ -4,177 +4,228 @@ import { FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { jsPDF } from "jspdf";
 
-// Replace all German special characters for jsPDF compatibility
-function t(str) {
-  return str
+function tx(str) {
+  if (!str) return "";
+  return String(str)
     .replace(/ä/g, "ae").replace(/Ä/g, "Ae")
     .replace(/ö/g, "oe").replace(/Ö/g, "Oe")
     .replace(/ü/g, "ue").replace(/Ü/g, "Ue")
     .replace(/ß/g, "ss")
-    .replace(/é/g, "e").replace(/è/g, "e")
-    .replace(/–/g, "-").replace(/—/g, "-")
-    .replace(/·/g, "·");
+    .replace(/–/g, "-").replace(/—/g, "-");
 }
+
+const HUWA_BLUE  = [15,  76, 179];
+const HUWA_DARK  = [10,  30,  70];
+const HUWA_LIGHT = [235, 242, 255];
+const HUWA_GOLD  = [255, 185,   0];
 
 export default function HuwaBroschuereGenerator() {
   const [loading, setLoading] = useState(false);
 
   const generatePDF = () => {
     setLoading(true);
-    try {
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-      const W = 210;
-      const H = 297;
+    setTimeout(() => {
+      try {
+        const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+        const W = 210;
+        const H = 297;
 
-      // ── Header Banner ──
-      doc.setFillColor(15, 76, 179);
-      doc.rect(0, 0, W, 45, "F");
+        // ── Top dark bar ──
+        doc.setFillColor(...HUWA_DARK);
+        doc.rect(0, 0, W, 14, "F");
 
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(22);
-      doc.setFont("helvetica", "bold");
-      doc.text("HUWA", 15, 20);
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "normal");
-      doc.text(t("Gebäudereinigung & Hausmeisterdienste"), 15, 29);
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("HUWA", 8, 9.5);
 
-      doc.setFontSize(9);
-      doc.setTextColor(180, 210, 255);
-      doc.text(t("Ihr professioneller Partner für Sauberkeit & Service"), 15, 38);
+        doc.setFillColor(...HUWA_GOLD);
+        doc.circle(30, 7, 1, "F");
 
-      doc.setFontSize(8);
-      doc.setTextColor(220, 235, 255);
-      doc.text("02601 / 9131820", W - 15, 20, { align: "right" });
-      doc.text("info@huwa-gebaeudedienste.de", W - 15, 27, { align: "right" });
-      doc.text("www.huwa-gebaeudedienste.de", W - 15, 34, { align: "right" });
+        doc.setFontSize(6.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(180, 200, 230);
+        doc.text("Gebaeudereinigung & Hausmeisterdienste", 34, 9.5);
 
-      // ── Intro ──
-      let y = 58;
-      doc.setTextColor(30, 40, 60);
-      doc.setFontSize(13);
-      doc.setFont("helvetica", "bold");
-      doc.text(t("Warum Huwa?"), 15, y);
-      y += 8;
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(70, 80, 100);
-      const intro = doc.splitTextToSize(
-        t("Seit Jahren steht Huwa Gebäudereinigung & Hausmeisterdienste für zuverlässige, professionelle und faire Reinigungsdienstleistungen im Raum Neuwied und Umgebung. Wir reinigen alles – vom kleinen Büro bis zur großen Produktionshalle."),
-        W - 30
-      );
-      doc.text(intro, 15, y);
-      y += intro.length * 5 + 8;
+        doc.setFontSize(6);
+        doc.setTextColor(160, 185, 220);
+        doc.text("02601/9131820  |  www.huwa-gebaeudedienste.de", W - 8, 9.5, { align: "right" });
 
-      // ── Leistungen ──
-      doc.setFillColor(240, 245, 255);
-      doc.roundedRect(12, y - 4, W - 24, 98, 3, 3, "F");
+        // ── Blue hero ──
+        doc.setFillColor(...HUWA_BLUE);
+        doc.rect(0, 14, W, 48, "F");
 
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(15, 76, 179);
-      doc.text(t("Unsere Leistungen"), 18, y + 5);
-      y += 14;
+        doc.setFillColor(...HUWA_GOLD);
+        doc.rect(0, 14, 4, 48, "F");
 
-      const leistungen = [
-        { title: t("Unterhaltsreinigung"), desc: t("Regelmäßige Reinigung von Büros, Praxen und Gewerberäumen – täglich, wöchentlich oder nach Bedarf.") },
-        { title: t("Büro- & Praxisreinigung"), desc: t("Zuverlässige Reinigung aller Geschäftsräume inkl. Sanitäranlagen, Küchen und Böden.") },
-        { title: t("Hallenreinigung"), desc: t("Professionelle Reinigung großer Produktions- und Lagerhallen – maschinell oder manuell.") },
-        { title: t("Maschinelle Reinigung"), desc: t("Hochleistungsgeräte: Scheuersaugmaschinen, Hochdruckreiniger, Kehrmaschinen.") },
-        { title: t("Grundreinigung & Sonderreinigung"), desc: t("Tiefenreinigung, Bauendreinigung, Fensterreinigung – einmalig oder als Jahresservice.") },
-      ];
+        doc.setFontSize(20);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text("Professionelle Gebaeudereinigung", 10, 32);
+        doc.text("aus Neuwied", 10, 42);
 
-      leistungen.forEach(l => {
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(190, 215, 255);
+        doc.text("Ihr zuverlaessiger Partner fuer Sauberkeit & Service seit Jahren", 10, 52);
+
+        doc.setFontSize(7.5);
+        doc.setTextColor(200, 220, 255);
+        doc.text("Mittelweg 24  -  56566 Neuwied", W - 10, 46, { align: "right" });
+        doc.text("info@huwa-gebaeudedienste.de", W - 10, 52, { align: "right" });
+
+        // ── Intro ──
+        let y = 72;
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...HUWA_DARK);
+        doc.text("Warum Huwa?", 10, y);
+
+        doc.setFillColor(...HUWA_GOLD);
+        doc.rect(10, y + 2, 30, 1, "F");
+        y += 10;
+
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(50, 60, 80);
+        const intro = doc.splitTextToSize(
+          "Seit Jahren steht Huwa Gebaeudereinigung & Hausmeisterdienste fuer zuverlaessige, professionelle und faire Reinigungsdienstleistungen im Raum Neuwied und Umgebung. Wir reinigen alles - vom kleinen Buero bis zur grossen Produktionshalle. Unser erfahrenes Team steht Ihnen mit modernsten Geraten und umweltfreundlichen Reinigungsmitteln zur Seite.",
+          W - 20
+        );
+        doc.text(intro, 10, y);
+        y += intro.length * 4.8 + 10;
+
+        // ── Leistungen ──
+        doc.setFillColor(...HUWA_BLUE);
+        doc.rect(0, y - 1, W, 9, "F");
+        doc.setFillColor(...HUWA_GOLD);
+        doc.rect(0, y - 1, 4, 9, "F");
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(15, 76, 179);
-        doc.text("*  " + l.title, 20, y);
-        y += 5;
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(70, 80, 100);
-        const lines = doc.splitTextToSize(l.desc, W - 45);
-        doc.text(lines, 28, y);
-        y += lines.length * 4.5 + 3;
-      });
+        doc.setTextColor(255, 255, 255);
+        doc.text("Unsere Leistungen", 10, y + 5);
+        y += 13;
 
-      y += 8;
+        const leistungen = [
+          { n: 1, title: "Unterhaltsreinigung", desc: "Regelmaessige Reinigung von Bueros, Praxen und Gewerberaeumen - taeglich, woechentlich oder nach Bedarf." },
+          { n: 2, title: "Bueroreinigung", desc: "Zuverlaessige Reinigung aller Geschaeftsraeume inkl. Sanitaer, Kuechen und Boeden." },
+          { n: 3, title: "Hallenreinigung", desc: "Professionelle Reinigung grosser Produktions- und Lagerhallen - maschinell oder manuell." },
+          { n: 4, title: "Maschinelle Reinigung", desc: "Scheuersaugmaschinen, Hochdruckreiniger und Kehrmaschinen fuer maximale Effizienz." },
+          { n: 5, title: "Grundreinigung & Sonderreinigung", desc: "Tiefenreinigung, Bauendreinigung, Fensterreinigung - einmalig oder als Jahresservice." },
+          { n: 6, title: "Aussenanlagen", desc: "Reinigung von Einfahrten, Parkflaechen, Gehwegen und Fassaden." },
+        ];
 
-      // ── Vorteile ──
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(30, 40, 60);
-      doc.text(t("Ihre Vorteile auf einen Blick"), 15, y);
-      y += 8;
+        leistungen.forEach(l => {
+          doc.setFillColor(...HUWA_BLUE);
+          doc.circle(14, y + 1.5, 3.2, "F");
+          doc.setFontSize(7);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(255, 255, 255);
+          doc.text(String(l.n), 14, y + 3, { align: "center" });
 
-      const vorteile = [
-        t("Faire & transparente Preise"),
-        t("Flexible Arbeitszeiten"),
-        t("Geschultes & zuverlässiges Personal"),
-        t("Kostenloser Vor-Ort-Termin"),
-        t("Individuelle Reinigungspläne"),
-        t("Kurzfristig verfügbar"),
-      ];
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(...HUWA_BLUE);
+          doc.text(l.title, 20, y + 2);
 
-      const colW = (W - 30) / 2;
-      vorteile.forEach((v, i) => {
-        const col = i % 2;
-        const row = Math.floor(i / 2);
-        const bx = 15 + col * (colW + 6);
-        const by = y + row * 12;
-        doc.setFillColor(230, 240, 255);
-        doc.roundedRect(bx, by - 4, colW, 10, 2, 2, "F");
+          doc.setFontSize(7.8);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(60, 70, 90);
+          const lines = doc.splitTextToSize(l.desc, W - 28);
+          doc.text(lines, 20, y + 7);
+          y += 7 + lines.length * 4.2 + 3;
+        });
+
+        y += 4;
+
+        // ── Vorteile ──
+        doc.setFillColor(...HUWA_BLUE);
+        doc.rect(0, y - 1, W, 9, "F");
+        doc.setFillColor(...HUWA_GOLD);
+        doc.rect(0, y - 1, 4, 9, "F");
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(15, 76, 179);
-        doc.text("V", bx + 3, by + 2);
+        doc.setTextColor(255, 255, 255);
+        doc.text("Ihre Vorteile", 10, y + 5);
+        y += 13;
+
+        const vorteile = [
+          "Faire & transparente Preise",
+          "Flexible Arbeitszeiten",
+          "Geschultes Personal",
+          "Kostenloser Vor-Ort-Termin",
+          "Individuelle Reinigungsplaene",
+          "Kurzfristig verfuegbar",
+        ];
+
+        const colW = (W - 22) / 2;
+        vorteile.forEach((v, i) => {
+          const col = i % 2;
+          const row = Math.floor(i / 2);
+          const bx = 10 + col * (colW + 4);
+          const by = y + row * 10;
+          doc.setFillColor(...HUWA_LIGHT);
+          doc.roundedRect(bx, by - 1, colW, 8.5, 1.5, 1.5, "F");
+          doc.setFillColor(...HUWA_BLUE);
+          doc.roundedRect(bx, by - 1, 2.5, 8.5, 1, 1, "F");
+          doc.setFontSize(8);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(20, 30, 60);
+          doc.text(v, bx + 5.5, by + 4.5);
+        });
+
+        y += Math.ceil(vorteile.length / 2) * 10 + 8;
+
+        // ── Branchen Box ──
+        doc.setFillColor(...HUWA_LIGHT);
+        doc.setDrawColor(...HUWA_BLUE);
+        doc.setLineWidth(0.4);
+        doc.roundedRect(10, y, W - 20, 20, 2, 2, "FD");
+        doc.setFillColor(...HUWA_GOLD);
+        doc.roundedRect(10, y, 3, 20, 1, 1, "F");
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(...HUWA_BLUE);
+        doc.text("Wir reinigen fuer jede Branche", 17, y + 7);
+        doc.setFontSize(7.8);
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(30, 40, 60);
-        doc.text(v, bx + 9, by + 2);
-      });
+        doc.setTextColor(50, 60, 80);
+        doc.text(
+          "Bueros  |  Arztpraxen  |  Autohaeuser  |  Produktionshallen  |  Kanzleien  |  Hotels  |  Schulen  |  Gastro",
+          17, y + 14
+        );
 
-      y += Math.ceil(vorteile.length / 2) * 12 + 12;
+        // ── Footer ──
+        doc.setFillColor(...HUWA_DARK);
+        doc.rect(0, H - 30, W, 30, "F");
+        doc.setFillColor(...HUWA_GOLD);
+        doc.rect(0, H - 30, W, 1.5, "F");
 
-      // ── Branchen ──
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(30, 40, 60);
-      doc.text(t("Wir reinigen für jede Branche"), 15, y);
-      y += 7;
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(70, 80, 100);
-      const branchen = doc.splitTextToSize(
-        t("Büros & Verwaltung  |  Arzt- & Zahnarztpraxen  |  Autohäuser & Werkstätten  |  Produktions- & Lagerhallen  |  Kanzleien & Architekturbüros  |  Einzelhandel & Gastronomie"),
-        W - 30
-      );
-      doc.text(branchen, 15, y);
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text("Jetzt kostenloses Angebot anfordern!", W / 2, H - 19, { align: "center" });
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(160, 185, 220);
+        doc.text("Tel: 02601 / 9131820   |   info@huwa-gebaeudedienste.de   |   www.huwa-gebaeudedienste.de", W / 2, H - 11, { align: "center" });
+        doc.setFontSize(7);
+        doc.text("Mittelweg 24  -  56566 Neuwied", W / 2, H - 5, { align: "center" });
 
-      // ── Footer Banner ──
-      doc.setFillColor(15, 76, 179);
-      doc.rect(0, H - 40, W, 40, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(13);
-      doc.setFont("helvetica", "bold");
-      doc.text(t("Jetzt kostenloses Angebot anfordern!"), W / 2, H - 26, { align: "center" });
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(180, 210, 255);
-      doc.text("Tel: 02601 / 9131820   |   info@huwa-gebaeudedienste.de   |   www.huwa-gebaeudedienste.de", W / 2, H - 16, { align: "center" });
-      doc.setFontSize(8);
-      doc.text("Mittelweg 24 - 56566 Neuwied", W / 2, H - 9, { align: "center" });
-
-      doc.save("Huwa_Unternehmensbroschüre.pdf");
-      toast.success(t("Broschüre erfolgreich erstellt!"));
-    } catch (e) {
-      toast.error("Fehler beim Erstellen der Broschüre.");
-      console.error(e);
-    }
-    setLoading(false);
+        doc.save("Huwa_Unternehmensbroschüre.pdf");
+        toast.success("Broschuere erfolgreich erstellt!");
+      } catch (e) {
+        toast.error("Fehler beim Erstellen.");
+        console.error(e);
+      }
+      setLoading(false);
+    }, 80);
   };
 
   return (
     <Button onClick={generatePDF} disabled={loading} className="gap-2">
       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-      {loading ? "Erstelle PDF..." : t("Broschüre generieren & herunterladen")}
+      {loading ? "Erstelle PDF..." : "Unternehmensbroschüre"}
     </Button>
   );
 }
