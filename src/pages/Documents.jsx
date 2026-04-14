@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { FileText, Upload, Trash2, Download, FolderOpen } from "lucide-react";
 import HuwaBroschuereGenerator from "@/components/HuwaBroschuereGenerator";
+import BranchenFlyerGenerator from "@/components/BranchenFlyerGenerator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -86,6 +87,9 @@ export default function Documents() {
         </div>
         <HuwaBroschuereGenerator />
       </div>
+
+      {/* Branchen Flyer */}
+      <BranchenFlyerGenerator />
 
       {/* Broschüre Info */}
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 flex items-start gap-3">
