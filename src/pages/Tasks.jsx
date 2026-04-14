@@ -21,12 +21,6 @@ export default function Tasks() {
   const [filter, setFilter] = useState("offen");
   const [pendingDone, setPendingDone] = useState(new Set());
 
-  const { containerRef, isRefreshing } = usePullToRefresh(loadData);
-
-  useEffect(() => {
-    loadData();
-  }, []);
-
   const loadData = async () => {
     const [me, allTasks] = await Promise.all([
       base44.auth.me(),
@@ -36,6 +30,12 @@ export default function Tasks() {
     setTasks(allTasks);
     setLoading(false);
   };
+
+  const { containerRef, isRefreshing } = usePullToRefresh(loadData);
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const toggleTask = async (task) => {
     const nowDone = !task.erledigt;
