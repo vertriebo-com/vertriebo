@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { FileText, Upload, Trash2, Download, FolderOpen } from "lucide-react";
+import HuwaBroschuereGenerator from "@/components/HuwaBroschuereGenerator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -78,9 +79,21 @@ export default function Documents() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div>
-        <h1 className="text-xl font-bold">Dokumente</h1>
-        <p className="text-sm text-muted-foreground">Wichtige Unterlagen für das Vertriebsteam</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold">Dokumente</h1>
+          <p className="text-sm text-muted-foreground">Wichtige Unterlagen für das Vertriebsteam</p>
+        </div>
+        <HuwaBroschuereGenerator />
+      </div>
+
+      {/* Broschüre Info */}
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 flex items-start gap-3">
+        <FileText className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-blue-800">Unternehmensbroschüre</p>
+          <p className="text-xs text-blue-600 mt-0.5">Professionelle 1-seitige PDF-Broschüre über Huwa – Leistungen, Vorteile, Kontakt. Einfach generieren und beim Kunden dalassen.</p>
+        </div>
       </div>
 
       {/* Upload (nur Admin) */}
