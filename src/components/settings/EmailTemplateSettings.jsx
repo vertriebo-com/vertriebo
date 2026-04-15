@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Mail, Save, ChevronDown, ChevronUp } from "lucide-react";
+import { Mail, Save, ChevronDown, ChevronUp, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import SettingsSection from "./SettingsSection";
+
+const DEFAULT_REPORT = {
+  greeting: "Guten Morgen, {name}! Hier ist dein Tagesbericht für heute.",
+  signature: "Viele Erfolge heute!\n\nDein Huwa Vertrieb-Team\nMittelweg 24 · 56566 Neuwied · 02601/9131820",
+  accent_color: "#0f4cb3",
+};
 
 const DEFAULT_TEMPLATES = [
   {
@@ -30,6 +36,7 @@ const DEFAULT_TEMPLATES = [
 
 export default function EmailTemplateSettings() {
   const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
+  const [report, setReport] = useState(DEFAULT_REPORT);
   const [expanded, setExpanded] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -47,6 +54,12 @@ export default function EmailTemplateSettings() {
       subject: map[t.key + "_subject"] || t.subject,
       body: map[t.key + "_body"] || t.body,
     })));
+
+    setReport({
+      greeting: map["report_greeting"] || DEFAULT_REPORT.greeting,
+      signature: map["report_signature"] || DEFAULT_REPORT.signature,
+      accent_color: map["report_accent_color"] || DEFAULT_REPORT.accent_color,
+    });
   };
 
   const handleSave = async () => {
@@ -60,6 +73,9 @@ export default function EmailTemplateSettings() {
       toSave[t.key + "_subject"] = t.subject;
       toSave[t.key + "_body"] = t.body;
     });
+    toSave["report_greeting"] = report.greeting;
+    toSave["report_signature"] = report.signature;
+    toSave["report_accent_color"] = report.accent_color;
 
     await Promise.all(
       Object.entries(toSave).map(([key, value]) => {
@@ -82,8 +98,79 @@ export default function EmailTemplateSettings() {
     <SettingsSection
       icon={Mail}
       title="E-Mail-Vorlagen"
-      description="Vorlagen für Erstansprache, Nachfassen und Angebote. {firmenname} wird automatisch ersetzt."
+      description="Vorlagen für Erstansprache, Nachfassen, Angebote und den Tagesbericht."
     >
+      {/* Tagesbericht-Vorlage */}
+      <div className="border border-primary/30 rounded-lg overflow-hidden mb-4">
+        <button
+          onClick={() => setExpanded(expanded === "__report" ? null : "__report")}
+          className="w-full flex items-center justify-between px-4 py-3 bg-primary/5 hover:bg-primary/10 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Sun className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold text-primary">Tagesbericht-Vorlage</span>
+          </div>
+          {expanded === "__report" ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4 text-primary" />}
+        </button>
+        {expanded === "__report" && (
+          <div className="px-4 py-4 space-y-4 border-t border-primary/20 bg-background">
+            <div>
+              <Label className="text-xs mb-1 block">Begrüßungstext <span className="text-muted-foreground font-normal">({"{name}"} = Vorname des Vertrieblars)</span></Label>
+              <textarea
+                value={report.greeting}
+                onChange={e => setReport(r => ({ ...r, greeting: e.target.value }))}
+                rows={2}
+                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Signatur / Abschlusstext</Label>
+              <textarea
+                value={report.signature}
+                onChange={e => setReport(r => ({ ...r, signature: e.target.value }))}
+                rows={4}
+                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Akzentfarbe (Header-Hintergrund)</Label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={report.accent_color}
+                  onChange={e => setReport(r => ({ ...r, accent_color: e.target.value }))}
+                  className="w-10 h-10 rounded cursor-pointer border border-border"
+                />
+                <span className="text-sm text-muted-foreground font-mono">{report.accent_color}</span>
+              </div>
+            </div>
+            {/* Vorschau */}
+            <div>
+              <Label className="text-xs mb-2 block">Vorschau</Label>
+              <div style={{ fontFamily: "Arial, sans-serif", fontSize: 13, maxWidth: 480, border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                <div style={{ background: report.accent_color, color: "white", padding: "16px 20px" }}>
+                  <div style={{ fontWeight: "bold", fontSize: 16 }}>☀️ {report.greeting.replace("{name}", "Max")}</div>
+                  <div style={{ opacity: 0.8, fontSize: 12, marginTop: 4 }}>Mittwoch, 15. April 2026</div>
+                </div>
+                <div style={{ background: "white", padding: "16px 20px" }}>
+                  <div style={{ color: "#dc2626", fontWeight: 600, marginBottom: 6 }}>🔴 Überfällige Aufgaben (2)</div>
+                  <ul style={{ paddingLeft: 18, margin: "0 0 12px", color: "#374151", fontSize: 12 }}>
+                    <li>Rückruf Müller GmbH – (12.04.2026)</li>
+                    <li>Angebot erstellen – Schmidt AG – (13.04.2026)</li>
+                  </ul>
+                  <div style={{ color: "#d97706", fontWeight: 600, marginBottom: 6 }}>🟡 Heute fällig (1)</div>
+                  <ul style={{ paddingLeft: 18, margin: "0 0 12px", color: "#374151", fontSize: 12 }}>
+                    <li>Nachfassen – Becker Logistik</li>
+                  </ul>
+                  <hr style={{ border: "none", borderTop: "1px solid #e2e8f0", margin: "12px 0" }} />
+                  <div style={{ color: "#64748b", fontSize: 11, whiteSpace: "pre-line" }}>{report.signature}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       <div className="space-y-3">
         {templates.map(t => (
           <div key={t.key} className="border border-border rounded-lg overflow-hidden">
