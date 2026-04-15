@@ -162,11 +162,23 @@ Deno.serve(async (req) => {
     let created = 0;
     let skipped = 0;
 
+    // Google Places types to skip
+    const EXCLUDED_TYPES = new Set(["lodging", "hotel", "motel", "hostel", "resort", "guest_house", "bed_and_breakfast"]);
+    const EXCLUDED_NAME_KEYWORDS = ["hotel", "motel", "hostel", "pension ", "gasthof", "gasthaus"];
+
     for (const place of unique) {
       if (created >= targetCount) break;
 
       const nameL = place.name?.toLowerCase().trim();
       if (!nameL || existingNames.has(nameL) || blacklistNames.has(nameL)) {
+        skipped++;
+        continue;
+      }
+
+      // Skip hotels & lodging
+      const hasExcludedType = (place.types || []).some(t => EXCLUDED_TYPES.has(t));
+      const hasExcludedName = EXCLUDED_NAME_KEYWORDS.some(kw => nameL.includes(kw));
+      if (hasExcludedType || hasExcludedName) {
         skipped++;
         continue;
       }
