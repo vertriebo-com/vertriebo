@@ -15,7 +15,7 @@ import Tasks from './pages/Tasks';
 import Statistics from './pages/Statistics';
 import Import from './pages/Import';
 import BlacklistPage from './pages/BlacklistPage';
-import SettingsPage from './pages/SettingsPage.jsx';
+import SettingsPage from './pages/SettingsPage';
 import MapView from './pages/MapView';
 import Documents from './pages/Documents';
 import CalendarView from './pages/CalendarView';
