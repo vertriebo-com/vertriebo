@@ -202,6 +202,27 @@ export default function EmailTemplateSettings() {
                     className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 </div>
+                {/* E-Mail Vorschau */}
+                <div>
+                  <Label className="text-xs mb-2 block">Vorschau</Label>
+                  <div style={{ fontFamily: "Arial, sans-serif", fontSize: 13, maxWidth: 480, border: "1px solid #e2e8f0", borderRadius: 8, overflow: "hidden" }}>
+                    {/* Header */}
+                    <div style={{ background: "#0f4cb3", padding: "20px 24px" }}>
+                      <div style={{ fontWeight: "bold", fontSize: 15, color: "white" }}>✉️ {t.subject.replace("{firmenname}", "Mustermann GmbH")}</div>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 4 }}>An: kontakt@mustermann-gmbh.de</div>
+                    </div>
+                    {/* Body */}
+                    <div style={{ background: "white", padding: "20px 24px" }}>
+                      <div style={{ color: "#374151", fontSize: 13, lineHeight: 1.7, whiteSpace: "pre-line" }}>
+                        {t.body.replace("{firmenname}", "Mustermann GmbH")}
+                      </div>
+                    </div>
+                    {/* Footer */}
+                    <div style={{ background: "#1e293b", padding: "12px 24px" }}>
+                      <div style={{ fontSize: 11, color: "#94a3b8" }}>Huwa Gebäudereinigung & Hausmeisterdienste · Mittelweg 24 · 56566 Neuwied</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
