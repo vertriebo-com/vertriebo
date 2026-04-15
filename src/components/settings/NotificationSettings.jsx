@@ -57,7 +57,7 @@ export default function NotificationSettings({ users }) {
   const handleTestReport = async () => {
     setTestSending(true);
     try {
-      await base44.functions.invoke("morningReport", {});
+      await base44.functions.invoke("morningReport", { testMode: true });
       toast.success("Test-Report gesendet!");
     } catch (e) {
       toast.error("Fehler: " + e.message);
