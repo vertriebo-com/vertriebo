@@ -1,0 +1,27 @@
+{
+  "name": "ActivityLog",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "title": "Benutzer E-Mail"
+    },
+    "user_name": {
+      "type": "string",
+      "title": "Benutzername"
+    },
+    "event": {
+      "type": "string",
+      "title": "Ereignis",
+      "enum": [
+        "login",
+        "logout"
+      ],
+      "default": "login"
+    }
+  },
+  "required": [
+    "user_email",
+    "event"
+  ]
+}

@@ -95,6 +95,12 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
+      // Track login activity (fire and forget)
+      base44.entities.ActivityLog.create({
+        user_email: currentUser.email,
+        user_name: currentUser.full_name || currentUser.email,
+        event: "login"
+      }).catch(() => {});
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);

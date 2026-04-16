@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import SettingsSection from "./SettingsSection";
+import ActivityOverview from "./ActivityOverview";
 
 export default function UserManagement({ users, currentUser, onRefresh }) {
   const [inviteEmail, setInviteEmail] = useState("");
@@ -124,6 +125,8 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
           ))}
         </div>
       </div>
+
+      <ActivityOverview users={users} />
 
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="max-w-sm">
