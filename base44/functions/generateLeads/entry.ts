@@ -1,8 +1,8 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
-const NEUWIED_LAT = 50.4265;
-const NEUWIED_LNG = 7.4620;
-const RADIUS_METERS = 40000; // 40km Radius
+const DEFAULT_LAT = 50.4265;
+const DEFAULT_LNG = 7.4620;
+const DEFAULT_RADIUS_METERS = 40000;
 
 // Google Places types für mittelständische B2B-Kunden
 const BUSINESS_TYPES = [
@@ -44,6 +44,7 @@ const KEYWORD_SEARCHES = [
 ];
 
 function calcDistance(lat1, lng1, lat2, lng2) {
+
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
@@ -51,8 +52,8 @@ function calcDistance(lat1, lng1, lat2, lng2) {
   return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * 10) / 10;
 }
 
-async function fetchPlaces(apiKey, type, keyword = null) {
-  let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${NEUWIED_LAT},${NEUWIED_LNG}&radius=${RADIUS_METERS}&key=${apiKey}`;
+async function fetchPlaces(apiKey, type, keyword = null, lat = DEFAULT_LAT, lng = DEFAULT_LNG, radiusMeters = DEFAULT_RADIUS_METERS) {
+  let url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&key=${apiKey}`;
   if (keyword) {
     url += `&keyword=${encodeURIComponent(keyword)}`;
   } else {
@@ -87,6 +88,15 @@ Deno.serve(async (req) => {
     const assignTo = body.assign_to || user.email;
     const apiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
 
+    // Load center coordinates from settings
+    const settings = await base44.asServiceRole.entities.AppSettings.list();
+    const settingsMap = {};
+    settings.forEach(s => { settingsMap[s.key] = s.value; });
+    const centerLat = parseFloat(settingsMap["lead_lat"]) || DEFAULT_LAT;
+    const centerLng = parseFloat(settingsMap["lead_lng"]) || DEFAULT_LNG;
+    const radiusKm = parseFloat(settingsMap["lead_radius"]) || 40;
+    const radiusMeters = Math.round(radiusKm * 1000);
+
     if (!apiKey) {
       return Response.json({ error: 'GOOGLE_PLACES_API_KEY not set' }, { status: 500 });
     }
@@ -105,7 +115,7 @@ Deno.serve(async (req) => {
     // Fetch by type
     for (const type of shuffledTypes.slice(0, 5)) {
       if (candidates.length >= targetCount * 2) break;
-      const data = await fetchPlaces(apiKey, type);
+      const data = await fetchPlaces(apiKey, type, null, centerLat, centerLng, radiusMeters);
       if (data.results) candidates.push(...data.results);
       await new Promise(r => setTimeout(r, 200));
     }
@@ -113,7 +123,7 @@ Deno.serve(async (req) => {
     // Fetch by keyword (for Druckereien, Metallbau etc.)
     for (const keyword of shuffledKeywords.slice(0, 4)) {
       if (candidates.length >= targetCount * 3) break;
-      const data = await fetchPlaces(apiKey, null, keyword);
+      const data = await fetchPlaces(apiKey, null, keyword, centerLat, centerLng, radiusMeters);
       if (data.results) candidates.push(...data.results);
       await new Promise(r => setTimeout(r, 200));
     }
@@ -191,7 +201,7 @@ Deno.serve(async (req) => {
 
       const lat = place.geometry?.location?.lat;
       const lng = place.geometry?.location?.lng;
-      const distKm = lat && lng ? calcDistance(NEUWIED_LAT, NEUWIED_LNG, lat, lng) : null;
+      const distKm = lat && lng ? calcDistance(centerLat, centerLng, lat, lng) : null;
 
       const addr = (details?.formatted_address || place.vicinity || "");
       const addrParts = addr.split(",");
@@ -244,7 +254,7 @@ Deno.serve(async (req) => {
       created,
       skipped,
       week: weekNumber,
-      radius_km: 40,
+      radius_km: radiusKm,
       source: "Google Places API"
     });
   } catch (error) {

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { MapPin, Save, Plus, X, Play } from "lucide-react";
+import { MapPin, Save, Plus, X, Play, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,9 @@ export default function LeadGenSettings({ users }) {
   const [leadCount, setLeadCount] = useState("25");
   const [centerLat, setCenterLat] = useState("50.4265");
   const [centerLng, setCenterLng] = useState("7.4620");
+  const [plz, setPlz] = useState("");
+  const [plzCity, setPlzCity] = useState("");
+  const [plzLoading, setPlzLoading] = useState(false);
   const [assignTo, setAssignTo] = useState("");
   const [keywords, setKeywords] = useState(DEFAULT_KEYWORDS);
   const [newKeyword, setNewKeyword] = useState("");
@@ -36,6 +39,8 @@ export default function LeadGenSettings({ users }) {
     if (map.lead_count) setLeadCount(map.lead_count);
     if (map.lead_lat) setCenterLat(map.lead_lat);
     if (map.lead_lng) setCenterLng(map.lead_lng);
+    if (map.lead_plz) setPlz(map.lead_plz);
+    if (map.lead_plz_city) setPlzCity(map.lead_plz_city);
     if (map.lead_assign_to) setAssignTo(map.lead_assign_to);
     if (map.lead_keywords) {
       try { setKeywords(JSON.parse(map.lead_keywords)); } catch (_) {}
@@ -53,6 +58,8 @@ export default function LeadGenSettings({ users }) {
       lead_count: leadCount,
       lead_lat: centerLat,
       lead_lng: centerLng,
+      lead_plz: plz,
+      lead_plz_city: plzCity,
       lead_assign_to: assignTo,
       lead_keywords: JSON.stringify(keywords),
     };
@@ -68,6 +75,31 @@ export default function LeadGenSettings({ users }) {
     );
     toast.success("Lead-Einstellungen gespeichert!");
     setSaving(false);
+  };
+
+  const lookupPlz = async () => {
+    if (!plz || plz.length < 4) return;
+    setPlzLoading(true);
+    try {
+      const apiKey = await base44.entities.AppSettings.list().then(s => {
+        // We use the backend to geocode via generateLeads function is not ideal
+        // Instead use a public nominatim endpoint (no key needed)
+        return null;
+      });
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${plz}&country=de&format=json&limit=1`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setCenterLat(parseFloat(data[0].lat).toFixed(4));
+        setCenterLng(parseFloat(data[0].lon).toFixed(4));
+        setPlzCity(data[0].display_name.split(",")[0]);
+        toast.success(`Koordinaten für PLZ ${plz} gefunden: ${data[0].display_name.split(",")[0]}`);
+      } else {
+        toast.error("PLZ nicht gefunden.");
+      }
+    } catch (e) {
+      toast.error("Fehler bei der PLZ-Suche.");
+    }
+    setPlzLoading(false);
   };
 
   const handleGenerate = async () => {
@@ -91,6 +123,29 @@ export default function LeadGenSettings({ users }) {
       description="Google Places API – Einstellungen für automatische Lead-Suche"
     >
       <div className="grid sm:grid-cols-2 gap-3 mb-4">
+        <div className="sm:col-span-2">
+          <Label className="text-xs mb-1 block">Suchgebiet – PLZ eingeben</Label>
+          <div className="flex gap-2">
+            <Input
+              value={plz}
+              onChange={e => setPlz(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && lookupPlz()}
+              placeholder="z.B. 56566"
+              className="w-36"
+              maxLength={5}
+            />
+            <Button variant="outline" onClick={lookupPlz} disabled={plzLoading} className="gap-2">
+              <Search className="w-4 h-4" />
+              {plzLoading ? "Suche..." : "Koordinaten laden"}
+            </Button>
+            {plzCity && (
+              <span className="flex items-center text-sm text-green-600 font-medium gap-1">
+                <MapPin className="w-3.5 h-3.5" /> {plzCity}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Die Koordinaten werden automatisch befüllt. Alternativ manuell unten eintragen.</p>
+        </div>
         <div>
           <Label className="text-xs mb-1 block">Suchradius (km)</Label>
           <Input type="number" value={radius} onChange={e => setRadius(e.target.value)} placeholder="40" />
