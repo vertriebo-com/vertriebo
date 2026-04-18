@@ -95,12 +95,16 @@ export const AuthProvider = ({ children }) => {
       setUser(currentUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
-      // Track login activity (fire and forget)
-      base44.entities.ActivityLog.create({
-        user_email: currentUser.email,
-        user_name: currentUser.full_name || currentUser.email,
-        event: "login"
-      }).catch(() => {});
+      // Track login activity once per browser session (not on every page reload)
+      const sessionKey = `activity_logged_${currentUser.email}`;
+      if (!sessionStorage.getItem(sessionKey)) {
+        sessionStorage.setItem(sessionKey, "1");
+        base44.entities.ActivityLog.create({
+          user_email: currentUser.email,
+          user_name: currentUser.full_name || currentUser.email,
+          event: "login"
+        }).catch(() => {});
+      }
     } catch (error) {
       console.error('User auth check failed:', error);
       setIsLoadingAuth(false);
