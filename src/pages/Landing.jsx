@@ -8,7 +8,7 @@ const PLANS = [
   {
     name: "Starter",
     price: "149",
-    priceId: "price_1TNsvMBInRzoFM7CIzGEL3xT",
+    priceId: "price_1TNtHwBInRzoFM7CwauSnrap",
     description: "Perfekt für Einzelkämpfer",
     color: "border-border",
     features: [
@@ -23,7 +23,7 @@ const PLANS = [
   {
     name: "Team",
     price: "349",
-    priceId: "price_1TNsvMBInRzoFM7CdarnVM6t",
+    priceId: "price_1TNtHwBInRzoFM7C75e1l2JL",
     description: "Für wachsende Teams",
     color: "border-primary",
     popular: true,
@@ -39,7 +39,7 @@ const PLANS = [
   {
     name: "Agentur",
     price: "699",
-    priceId: "price_1TNsvMBInRzoFM7CFBcAMm4g",
+    priceId: "price_1TNtHwBInRzoFM7CaTsLN3In",
     description: "Für professionelle Agenturen",
     color: "border-border",
     features: [
