@@ -7,7 +7,7 @@ export default function Impressum() {
 
         <div className="prose prose-sm max-w-none space-y-6 text-foreground">
           <section>
-            <h2 className="text-lg font-semibold mb-2">Angaben gemäß § 5 TMG</h2>
+            <h2 className="text-lg font-semibold mb-2">Angaben gemäß § 5 DDG</h2>
             <p className="text-muted-foreground">
               Huwa Gebäudereinigung & Hausmeisterdienste<br />
               Mittelweg 24<br />
