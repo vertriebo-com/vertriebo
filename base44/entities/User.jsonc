@@ -7,14 +7,48 @@
       "title": "Rolle",
       "enum": [
         "admin",
-        "vertriebler"
+        "user"
       ],
-      "default": "vertriebler"
+      "default": "user"
     },
-    "wochenziel_anrufe": {
-      "type": "number",
-      "title": "Wochenziel Anrufe",
-      "default": 50
+    "subscription_plan": {
+      "type": "string",
+      "title": "Abonnement-Plan",
+      "enum": [
+        "Starter",
+        "Team",
+        "Agentur"
+      ],
+      "default": "Starter"
+    },
+    "subscription_status": {
+      "type": "string",
+      "title": "Abo-Status",
+      "enum": [
+        "active",
+        "cancelled",
+        "payment_failed",
+        "trial"
+      ],
+      "default": "trial"
+    },
+    "subscription_started_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Abo gestartet am"
+    },
+    "subscription_renewed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Abo verl\u00e4ngert am"
+    },
+    "stripe_customer_id": {
+      "type": "string",
+      "title": "Stripe Kunden-ID"
+    },
+    "stripe_session_id": {
+      "type": "string",
+      "title": "Stripe Session-ID"
     }
   }
 }
