@@ -199,7 +199,7 @@ export default function Landing() {
           <a href="/impressum" className="hover:text-foreground transition-colors">Impressum</a>
           <a href="/datenschutz" className="hover:text-foreground transition-colors">Datenschutz</a>
           <a href="/agb" className="hover:text-foreground transition-colors">AGB</a>
-          <a href="mailto:info@huwa-reinigung.de" className="hover:text-foreground transition-colors">Kontakt</a>
+          <a href="mailto:info@huwa-gebaeudedienste.de" className="hover:text-foreground transition-colors">Kontakt</a>
         </div>
       </div>
     </div>

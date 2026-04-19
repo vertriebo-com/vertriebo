@@ -20,15 +20,14 @@ export default function Impressum() {
             <h2 className="text-lg font-semibold mb-2">Kontakt</h2>
             <p className="text-muted-foreground">
               Telefon: 02601/9131820<br />
-              E-Mail: info@huwa-reinigung.de
+              E-Mail: info@huwa-gebaeudedienste.de
             </p>
           </section>
 
           <section>
             <h2 className="text-lg font-semibold mb-2">Umsatzsteuer-ID</h2>
             <p className="text-muted-foreground">
-              Umsatzsteuer-Identifikationsnummer gemäß § 27a Umsatzsteuergesetz:<br />
-              Wird nach Beantragung ergänzt.
+                Steuernummer: 32/074/56310
             </p>
           </section>
 

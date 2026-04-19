@@ -21,7 +21,7 @@ export default function Datenschutz() {
               Mittelweg 24<br />
               56566 Neuwied<br />
               Telefon: 02601/9131820<br />
-              E-Mail: info@huwa-reinigung.de
+              E-Mail: info@huwa-gebaeudedienste.de
             </p>
           </section>
 

@@ -32,7 +32,7 @@ export default function AGB() {
           <section>
             <h2 className="text-base font-semibold text-foreground mb-2">§ 5 Laufzeit und Kündigung</h2>
             <p>
-              Der Vertrag läuft monatlich und ist jederzeit zum Ende des laufenden Abrechnungsmonats kündbar. Die Kündigung erfolgt durch den Nutzer direkt über das Kundenportal oder per E-Mail an info@huwa-reinigung.de. Bei Kündigung bleibt der Zugang bis zum Ende des bezahlten Zeitraums bestehen.
+              Der Vertrag läuft monatlich und ist jederzeit zum Ende des laufenden Abrechnungsmonats kündbar. Die Kündigung erfolgt durch den Nutzer direkt über das Kundenportal oder per E-Mail an info@huwa-gebaeudedienste.de. Bei Kündigung bleibt der Zugang bis zum Ende des bezahlten Zeitraums bestehen.
             </p>
           </section>
 
