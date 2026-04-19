@@ -22,6 +22,9 @@ import CalendarView from './pages/CalendarView';
 import DuplicatesPage from './pages/DuplicatesPage';
 import Landing from './pages/Landing';
 import Onboarding from './pages/Onboarding';
+import Impressum from './pages/Impressum';
+import Datenschutz from './pages/Datenschutz';
+import AGB from './pages/AGB';
 import { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 
@@ -56,6 +59,9 @@ const PublicApp = () => {
     <Routes>
       <Route path="/landing" element={<Landing />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/impressum" element={<Impressum />} />
+      <Route path="/datenschutz" element={<Datenschutz />} />
+      <Route path="/agb" element={<AGB />} />
       {/* Everything else goes through the authenticated app */}
       <Route path="*" element={<AuthenticatedApp />} />
     </Routes>

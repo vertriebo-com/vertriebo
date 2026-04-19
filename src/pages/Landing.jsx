@@ -194,7 +194,13 @@ export default function Landing() {
 
       {/* Footer */}
       <div className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        © 2026 Huwa Vertrieb System · Alle Rechte vorbehalten
+        <p className="mb-3">© 2026 Huwa Gebäudereinigung & Hausmeisterdienste · Mittelweg 24 · 56566 Neuwied</p>
+        <div className="flex flex-wrap justify-center gap-4">
+          <a href="/impressum" className="hover:text-foreground transition-colors">Impressum</a>
+          <a href="/datenschutz" className="hover:text-foreground transition-colors">Datenschutz</a>
+          <a href="/agb" className="hover:text-foreground transition-colors">AGB</a>
+          <a href="mailto:info@huwa-reinigung.de" className="hover:text-foreground transition-colors">Kontakt</a>
+        </div>
       </div>
     </div>
   );
