@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -22,6 +22,8 @@ import CalendarView from './pages/CalendarView';
 import DuplicatesPage from './pages/DuplicatesPage';
 import Landing from './pages/Landing';
 import Onboarding from './pages/Onboarding';
+import { useEffect, useState } from 'react';
+import { base44 } from '@/api/base44Client';
 
 const AnimatedRoutes = ({ children }) => {
   const location = useLocation();
@@ -41,68 +43,103 @@ const AnimatedRoutes = ({ children }) => {
   );
 };
 
+// Spinner helper
+const Spinner = () => (
+  <div className="fixed inset-0 flex items-center justify-center">
+    <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+  </div>
+);
+
+// Public-only routes: Landing, Onboarding (no auth needed)
+const PublicApp = () => {
+  return (
+    <Routes>
+      <Route path="/landing" element={<Landing />} />
+      <Route path="/onboarding" element={<Onboarding />} />
+      {/* Everything else goes through the authenticated app */}
+      <Route path="*" element={<AuthenticatedApp />} />
+    </Routes>
+  );
+};
+
+// Onboarding guard: after login, check if onboarding was done
+const OnboardingGuard = ({ children }) => {
+  const [checked, setChecked] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    base44.entities.AppSettings.list()
+      .then(settings => {
+        const done = settings?.find(s => s.key === "onboarding_done")?.value === "true";
+        setNeedsOnboarding(!done);
+        setChecked(true);
+      })
+      .catch(() => {
+        // On error, don't block the user
+        setChecked(true);
+      });
+  }, []);
+
+  if (!checked) return <Spinner />;
+
+  // Already on onboarding page – don't redirect (avoid loop)
+  if (needsOnboarding && location.pathname !== "/onboarding") {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return children;
+};
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
-  // Show loading spinner while checking app public settings or auth
-  if (isLoadingPublicSettings || isLoadingAuth) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  if (isLoadingPublicSettings || isLoadingAuth) return <Spinner />;
 
-  // Handle authentication errors
   if (authError) {
-    if (authError.type === 'user_not_registered') {
-      return <UserNotRegisteredError />;
-    } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
+    if (authError.type === 'user_not_registered') return <UserNotRegisteredError />;
+    if (authError.type === 'auth_required') {
       navigateToLogin();
       return null;
     }
   }
 
-  // Render the main app
   return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route path="/" element={<AnimatedRoutes><Dashboard /></AnimatedRoutes>} />
-        <Route path="/leads" element={<AnimatedRoutes><Leads /></AnimatedRoutes>} />
-        <Route path="/leads/:id" element={<AnimatedRoutes><LeadDetail /></AnimatedRoutes>} />
-        <Route path="/tasks" element={<AnimatedRoutes><Tasks /></AnimatedRoutes>} />
-        <Route path="/statistics" element={<AnimatedRoutes><Statistics /></AnimatedRoutes>} />
-        <Route path="/import" element={<AnimatedRoutes><Import /></AnimatedRoutes>} />
-        <Route path="/blacklist" element={<AnimatedRoutes><BlacklistPage /></AnimatedRoutes>} />
-        <Route path="/settings" element={<AnimatedRoutes><SettingsPage /></AnimatedRoutes>} />
-        <Route path="/map" element={<AnimatedRoutes><MapView /></AnimatedRoutes>} />
-        <Route path="/documents" element={<AnimatedRoutes><Documents /></AnimatedRoutes>} />
-        <Route path="/calendar" element={<AnimatedRoutes><CalendarView /></AnimatedRoutes>} />
-        <Route path="/duplicates" element={<AnimatedRoutes><DuplicatesPage /></AnimatedRoutes>} />
-        <Route path="*" element={<PageNotFound />} />
-      </Route>
-      {/* Public pages - outside layout */}
-      <Route path="/landing" element={<Landing />} />
-      <Route path="/onboarding" element={<Onboarding />} />
-    </Routes>
+    <OnboardingGuard>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<AnimatedRoutes><Dashboard /></AnimatedRoutes>} />
+          <Route path="/leads" element={<AnimatedRoutes><Leads /></AnimatedRoutes>} />
+          <Route path="/leads/:id" element={<AnimatedRoutes><LeadDetail /></AnimatedRoutes>} />
+          <Route path="/tasks" element={<AnimatedRoutes><Tasks /></AnimatedRoutes>} />
+          <Route path="/statistics" element={<AnimatedRoutes><Statistics /></AnimatedRoutes>} />
+          <Route path="/import" element={<AnimatedRoutes><Import /></AnimatedRoutes>} />
+          <Route path="/blacklist" element={<AnimatedRoutes><BlacklistPage /></AnimatedRoutes>} />
+          <Route path="/settings" element={<AnimatedRoutes><SettingsPage /></AnimatedRoutes>} />
+          <Route path="/map" element={<AnimatedRoutes><MapView /></AnimatedRoutes>} />
+          <Route path="/documents" element={<AnimatedRoutes><Documents /></AnimatedRoutes>} />
+          <Route path="/calendar" element={<AnimatedRoutes><CalendarView /></AnimatedRoutes>} />
+          <Route path="/duplicates" element={<AnimatedRoutes><DuplicatesPage /></AnimatedRoutes>} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="*" element={<PageNotFound />} />
+        </Route>
+      </Routes>
+    </OnboardingGuard>
   );
 };
 
-
 function App() {
-
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <AuthenticatedApp />
+          <PublicApp />
         </Router>
         <Toaster />
         <SonnerToaster position="top-right" richColors />
       </QueryClientProvider>
     </AuthProvider>
-  )
+  );
 }
 
-export default App
+export default App;
