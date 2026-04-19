@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Check, ArrowRight, Loader2, MapPin, Building2 } from "lucide-react";
@@ -35,6 +35,17 @@ export default function Onboarding() {
   const [plzLoading, setPlzLoading] = useState(false);
   const [plzCity, setPlzCity] = useState("");
   const [saving, setSaving] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  useEffect(() => {
+    base44.auth.isAuthenticated().then(authed => {
+      if (!authed) {
+        base44.auth.redirectToLogin(window.location.href);
+      } else {
+        setAuthChecked(true);
+      }
+    });
+  }, []);
 
   const lookupPlz = async () => {
     if (!plz || plz.length < 4) return;
@@ -108,6 +119,14 @@ export default function Onboarding() {
     }
     setSaving(false);
   };
+
+  if (!authChecked) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

@@ -68,6 +68,7 @@ const PublicApp = () => {
   );
 };
 
+
 // Onboarding guard: after login, check if onboarding was done
 const OnboardingGuard = ({ children }) => {
   const [checked, setChecked] = useState(false);
