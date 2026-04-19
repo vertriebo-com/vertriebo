@@ -20,6 +20,8 @@ import MapView from './pages/MapView';
 import Documents from './pages/Documents';
 import CalendarView from './pages/CalendarView';
 import DuplicatesPage from './pages/DuplicatesPage';
+import Landing from './pages/Landing';
+import Onboarding from './pages/Onboarding';
 
 const AnimatedRoutes = ({ children }) => {
   const location = useLocation();
@@ -80,6 +82,9 @@ const AuthenticatedApp = () => {
         <Route path="/duplicates" element={<AnimatedRoutes><DuplicatesPage /></AnimatedRoutes>} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
+      {/* Public pages - outside layout */}
+      <Route path="/landing" element={<Landing />} />
+      <Route path="/onboarding" element={<Onboarding />} />
     </Routes>
   );
 };
