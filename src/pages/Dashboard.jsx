@@ -16,6 +16,7 @@ import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
 import WeekProgress from "../components/WeekProgress";
 import WeeklyGoal from "../components/WeeklyGoal";
+import TodayCallCard from "../components/TodayCallCard";
 import { Button } from "@/components/ui/button";
 import moment from "moment";
 
@@ -84,6 +85,9 @@ export default function Dashboard() {
         <WeekProgress user={user} />
         <WeeklyGoal user={user} />
       </div>
+
+      {/* Heute anrufen */}
+      <TodayCallCard companies={myCompanies} />
 
       {/* Stats */}
       <div className="grid sm:grid-cols-2 gap-4">
