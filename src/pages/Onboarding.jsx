@@ -97,8 +97,10 @@ export default function Onboarding() {
         })
       );
 
-      // Auto-generate first leads
-      await base44.functions.invoke("generateLeads", { count: 25 });
+      // Auto-generate first leads (non-blocking, user might not be fully logged in yet)
+      base44.functions.invoke("generateLeads", { count: 25 }).catch(() => {
+        // Leads werden beim ersten Dashboard-Besuch nachgeladen
+      });
 
       setStep(2);
     } catch (e) {
