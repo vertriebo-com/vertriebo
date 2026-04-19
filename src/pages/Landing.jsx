@@ -7,13 +7,13 @@ import { toast } from "sonner";
 const PLANS = [
   {
     name: "Starter",
-    price: "49",
+    price: "149",
     priceId: "price_1TNsvMBInRzoFM7CIzGEL3xT",
     description: "Perfekt für Einzelkämpfer",
     color: "border-border",
     features: [
       "1 Vertriebler",
-      "50 Leads pro Monat",
+      "100 Leads pro Monat",
       "CRM & Pipeline",
       "KI-Morgenreport",
       "Google Maps Integration",
@@ -22,14 +22,14 @@ const PLANS = [
   },
   {
     name: "Team",
-    price: "99",
+    price: "349",
     priceId: "price_1TNsvMBInRzoFM7CdarnVM6t",
     description: "Für wachsende Teams",
     color: "border-primary",
     popular: true,
     features: [
       "Bis zu 5 Vertriebler",
-      "200 Leads pro Monat",
+      "500 Leads pro Monat",
       "Alle Starter-Features",
       "Teamziele & Statistiken",
       "Wochenberichte",
@@ -38,13 +38,13 @@ const PLANS = [
   },
   {
     name: "Agentur",
-    price: "249",
+    price: "699",
     priceId: "price_1TNsvMBInRzoFM7CFBcAMm4g",
     description: "Für professionelle Agenturen",
     color: "border-border",
     features: [
       "Unbegrenzte Vertriebler",
-      "500+ Leads pro Monat",
+      "2.000+ Leads pro Monat",
       "Alle Team-Features",
       "Priority Support",
       "Individuelle Anpassungen",
