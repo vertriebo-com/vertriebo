@@ -17,6 +17,11 @@ export default function BlacklistPage() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ firmenname: "", grund: "", telefon: "", email: "" });
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    base44.auth.me().then(u => setIsAdmin(u?.role === "admin"));
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -58,9 +63,11 @@ export default function BlacklistPage() {
           <h1 className="text-xl font-bold">Blacklist</h1>
           <p className="text-sm text-muted-foreground">{entries.length} Einträge</p>
         </div>
-        <Button onClick={() => setShowAdd(true)} className="gap-2">
-          <Plus className="w-4 h-4" /> Hinzufügen
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => setShowAdd(true)} className="gap-2">
+            <Plus className="w-4 h-4" /> Hinzufügen
+          </Button>
+        )}
       </div>
 
       {/* Auftraggeber-Banner */}
@@ -91,9 +98,11 @@ export default function BlacklistPage() {
                   {entry.email && <span className="text-xs text-muted-foreground">{entry.email}</span>}
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => handleRemove(entry.id)} className="text-destructive hover:text-destructive">
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              {isAdmin && (
+                <Button variant="ghost" size="icon" onClick={() => handleRemove(entry.id)} className="text-destructive hover:text-destructive">
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           );
         })}

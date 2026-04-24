@@ -31,7 +31,7 @@ const NAV_ITEMS = [
   { path: "/documents", label: "Dokumente", icon: FileText },
   { path: "/statistics", label: "Statistiken", icon: BarChart3, adminOnly: true },
   { path: "/import", label: "Import", icon: Upload, adminOnly: true },
-  { path: "/blacklist", label: "Blacklist", icon: Ban, adminOnly: true },
+  { path: "/blacklist", label: "Blacklist", icon: Ban },
   { path: "/duplicates", label: "Duplikate", icon: GitMerge, adminOnly: true },
   { path: "/settings", label: "Einstellungen", icon: Settings, adminOnly: true },
 ];
