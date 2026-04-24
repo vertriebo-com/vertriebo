@@ -1,21 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-import { SMTPClient } from "npm:emailjs@4.0.2";
-
-async function sendEmail({ to, subject, body, fromName = "Huwa Vertrieb" }) {
-  const client = new SMTPClient({
-    user: Deno.env.get("IONOS_SMTP_USER"),
-    password: Deno.env.get("IONOS_SMTP_PASS"),
-    host: Deno.env.get("IONOS_SMTP_HOST") || "smtp.ionos.de",
-    port: 587,
-    tls: false,
-  });
-  await client.sendAsync({
-    from: `${fromName} <${Deno.env.get("IONOS_SMTP_USER")}>`,
-    to,
-    subject,
-    attachment: [{ data: body, alternative: true }],
-  });
-}
 
 Deno.serve(async (req) => {
   try {
@@ -206,13 +189,13 @@ Deno.serve(async (req) => {
 </html>
       `;
 
-      await sendEmail({
+      await base44.asServiceRole.integrations.Core.SendEmail({
         to: user.email,
         subject: testMode
           ? `[TEST] ☀️ Tagesbericht – ${dateStr}`
           : `☀️ Dein Tagesbericht – ${totalItems > 0 ? totalItems + ' Aufgaben heute' : 'Alles erledigt!'}`,
         body: emailBody,
-        fromName: "Huwa Vertrieb",
+        from_name: "Huwa Vertrieb",
       });
 
       reports.push({
