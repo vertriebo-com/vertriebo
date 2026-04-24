@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Phone, PhoneOff, PhoneCall, X } from "lucide-react";
+import { Phone, PhoneOff, PhoneCall, X, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
 const QUICK_ACTIONS = [
@@ -12,6 +12,8 @@ const QUICK_ACTIONS = [
 export default function QuickLogButton({ companyId, companyName, onLogged }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showSonstiges, setShowSonstiges] = useState(false);
+  const [sonstigesNotiz, setSonstigesNotiz] = useState("");
 
   const handleQuickLog = async (e, action) => {
     e.preventDefault();
@@ -34,6 +36,30 @@ export default function QuickLogButton({ companyId, companyName, onLogged }) {
     toast.success(`✓ ${action.label} für ${companyName}`);
     setLoading(false);
     setOpen(false);
+    setShowSonstiges(false);
+    setSonstigesNotiz("");
+    onLogged?.();
+  };
+
+  const handleSonstiges = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!sonstigesNotiz.trim()) return;
+    setLoading(true);
+    const me = await base44.auth.me();
+    await base44.entities.ContactLog.create({
+      company_id: companyId,
+      typ: "Sonstiges",
+      ergebnis: "Abgeschlossen",
+      notiz: sonstigesNotiz,
+      naechster_schritt: "Sonstiges",
+      user_email: me.email,
+    });
+    toast.success(`✓ Notiz gespeichert für ${companyName}`);
+    setLoading(false);
+    setOpen(false);
+    setShowSonstiges(false);
+    setSonstigesNotiz("");
     onLogged?.();
   };
 
@@ -41,6 +67,8 @@ export default function QuickLogButton({ companyId, companyName, onLogged }) {
     e.preventDefault();
     e.stopPropagation();
     setOpen(v => !v);
+    setShowSonstiges(false);
+    setSonstigesNotiz("");
   };
 
   return (
@@ -71,6 +99,33 @@ export default function QuickLogButton({ companyId, companyName, onLogged }) {
               {action.label}
             </button>
           ))}
+          {!showSonstiges ? (
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowSonstiges(true); }}
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs font-medium border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <MoreHorizontal className="w-3 h-3" />
+              Sonstiges + Notiz
+            </button>
+          ) : (
+            <div onClick={e => { e.preventDefault(); e.stopPropagation(); }} className="pt-1 border-t border-border">
+              <textarea
+                value={sonstigesNotiz}
+                onChange={e => setSonstigesNotiz(e.target.value)}
+                placeholder="Kurze Notiz..."
+                rows={2}
+                autoFocus
+                className="w-full text-xs rounded border border-input bg-transparent px-2 py-1 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <button
+                onClick={handleSonstiges}
+                disabled={loading || !sonstigesNotiz.trim()}
+                className="mt-1 w-full text-xs px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground font-medium disabled:opacity-40"
+              >
+                {loading ? "Speichert..." : "Speichern"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
