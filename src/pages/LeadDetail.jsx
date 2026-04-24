@@ -24,7 +24,7 @@ import CallScriptDialog from "../components/CallScriptDialog";
 import AddContactLogDialog from "../components/AddContactLogDialog";
 import AddTaskDialog from "../components/AddTaskDialog";
 import PriorityBadge from "../components/PriorityBadge";
-import SendEmailButton from "../components/SendEmailButton";
+import SendEmailDialog from "../components/SendEmailDialog";
 import { toast } from "sonner";
 import moment from "moment";
 
@@ -202,7 +202,7 @@ export default function LeadDetail() {
               Daten anreichern
             </Button>
             <CallScriptDialog company={company} />
-            <SendEmailButton company={company} />
+            <SendEmailDialog company={company} />
             <EmailTemplates company={company} />
             <Button variant="outline" size="sm" className="text-xs gap-1 min-h-[44px]" onClick={handleBlacklist}>
               <Ban className="w-3 h-3" /> Blacklist
@@ -282,7 +282,7 @@ export default function LeadDetail() {
               )}
               {log.ergebnis === "Nicht erreicht" && company?.email && (
                 <div className="mt-2">
-                  <SendEmailButton company={company} />
+                  <SendEmailDialog company={company} />
                 </div>
               )}
             </div>
