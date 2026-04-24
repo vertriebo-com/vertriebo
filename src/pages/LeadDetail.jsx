@@ -204,28 +204,28 @@ export default function LeadDetail() {
         {/* Quick action bar */}
         <div className="px-5 pb-4 flex flex-wrap gap-2">
           {company.telefon && (
-            <a href={`tel:${company.telefon}`} className="inline-flex items-center gap-1.5 text-xs font-medium bg-green-50 text-green-700 border border-green-200 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors">
+            <a href={`tel:${company.telefon}`} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium bg-green-50 text-green-700 border border-green-200 px-3 rounded-md hover:bg-green-100 transition-colors">
               <Phone className="w-3.5 h-3.5" /> {company.telefon}
             </a>
           )}
           {company.email && (
-            <a href={`mailto:${company.email}`} className="inline-flex items-center gap-1.5 text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors">
-              <Mail className="w-3.5 h-3.5" /> E-Mail senden
+            <a href={`mailto:${company.email}`} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium bg-muted text-foreground border border-border px-3 rounded-md hover:bg-muted/80 transition-colors">
+              <Mail className="w-3.5 h-3.5" /> E-Mail
             </a>
           )}
           <CallScriptDialog company={company} />
           <SendEmailDialog company={company} />
           <EmailTemplates company={company} />
-          <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 text-purple-700 border-purple-200 hover:bg-purple-50" onClick={handleEnrich} disabled={enriching}>
-            {enriching ? <span className="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin inline-block" /> : <Sparkles className="w-3 h-3" />}
+          <button onClick={handleEnrich} disabled={enriching} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium border border-border bg-background px-3 rounded-md hover:bg-muted transition-colors disabled:opacity-50">
+            {enriching ? <span className="w-3 h-3 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin inline-block" /> : <Sparkles className="w-3.5 h-3.5" />}
             Anreichern
-          </Button>
-          <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8" onClick={handleBlacklist}>
-            <Ban className="w-3 h-3" /> Blacklist
-          </Button>
-          <Button variant="outline" size="sm" className="text-xs gap-1.5 h-8 text-destructive hover:text-destructive" onClick={handleDelete}>
-            <Trash2 className="w-3 h-3" /> Löschen
-          </Button>
+          </button>
+          <button onClick={handleBlacklist} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium border border-border bg-background px-3 rounded-md hover:bg-muted transition-colors">
+            <Ban className="w-3.5 h-3.5" /> Blacklist
+          </button>
+          <button onClick={handleDelete} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium border border-destructive/30 bg-background text-destructive px-3 rounded-md hover:bg-destructive/5 transition-colors">
+            <Trash2 className="w-3.5 h-3.5" /> Löschen
+          </button>
         </div>
       </div>
 
