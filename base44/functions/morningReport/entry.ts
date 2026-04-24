@@ -189,14 +189,26 @@ Deno.serve(async (req) => {
 </html>
       `;
 
-      await base44.asServiceRole.integrations.Core.SendEmail({
-        to: user.email,
-        subject: testMode
-          ? `[TEST] ☀️ Tagesbericht – ${dateStr}`
-          : `☀️ Dein Tagesbericht – ${totalItems > 0 ? totalItems + ' Aufgaben heute' : 'Alles erledigt!'}`,
-        body: emailBody,
-        from_name: "Huwa Vertrieb",
+      const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": Deno.env.get("BREVO_API_KEY"),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: "Huwa Vertrieb", email: "info@huwa-gebaeudedienste.de" },
+          to: [{ email: user.email }],
+          subject: testMode
+            ? `[TEST] ☀️ Tagesbericht – ${dateStr}`
+            : `☀️ Dein Tagesbericht – ${totalItems > 0 ? totalItems + ' Aufgaben heute' : 'Alles erledigt!'}`,
+          htmlContent: emailBody,
+        }),
       });
+      if (!brevoRes.ok) {
+        const err = await brevoRes.json();
+        throw new Error(`Brevo: ${JSON.stringify(err)}`);
+      }
 
       reports.push({
         user: user.email,

@@ -157,14 +157,26 @@ Deno.serve(async (req) => {
 </html>
       `;
 
-      await base44.asServiceRole.integrations.Core.SendEmail({
-        to: user.email,
-        subject: testMode
-          ? `[TEST] ${motivation.emoji} ${firstName}, noch kein Kontakt heute!`
-          : `${motivation.emoji} ${firstName}, dein Vertriebscoach meldet sich!`,
-        body: emailBody,
-        from_name: "Huwa Vertrieb Coach",
+      const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": Deno.env.get("BREVO_API_KEY"),
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: { name: "Huwa Vertrieb Coach", email: "info@huwa-gebaeudedienste.de" },
+          to: [{ email: user.email }],
+          subject: testMode
+            ? `[TEST] ${motivation.emoji} ${firstName}, noch kein Kontakt heute!`
+            : `${motivation.emoji} ${firstName}, dein Vertriebscoach meldet sich!`,
+          htmlContent: emailBody,
+        }),
       });
+      if (!brevoRes.ok) {
+        const err = await brevoRes.json();
+        throw new Error(`Brevo: ${JSON.stringify(err)}`);
+      }
 
       console.log(`Reminder sent to ${user.email} (week logs: ${weekLogs.length}, open tasks: ${openTasks.length})`);
       results.push({ user: user.email, sent: true, weekLogs: weekLogs.length, openTasks: openTasks.length });
