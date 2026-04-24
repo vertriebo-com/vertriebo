@@ -1,122 +1,98 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-async function sendViaIonosSMTP({ to, subject, htmlBody, fromName }) {
+async function sendViaIonos({ to, subject, htmlBody, fromName }) {
   const host = Deno.env.get("IONOS_SMTP_HOST") || "smtp.ionos.de";
   const user = Deno.env.get("IONOS_SMTP_USER");
   const pass = Deno.env.get("IONOS_SMTP_PASS");
-
-  // Build raw MIME message
-  const boundary = "boundary_" + Date.now();
   const from = `${fromName || "Huwa Vertrieb"} <${user}>`;
-
-  const rawMessage = [
-    `From: ${from}`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    `MIME-Version: 1.0`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    ``,
-    `--${boundary}`,
-    `Content-Type: text/html; charset=UTF-8`,
-    `Content-Transfer-Encoding: 7bit`,
-    ``,
-    htmlBody,
-    ``,
-    `--${boundary}--`,
-  ].join("\r\n");
-
-  // Connect via TCP with STARTTLS on port 587
-  const conn = await Deno.connect({ hostname: host, port: 587 });
 
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
-  async function readLine(conn) {
-    const buf = new Uint8Array(4096);
+  async function readResponse(conn) {
+    const buf = new Uint8Array(8192);
     let result = "";
     while (true) {
       const n = await conn.read(buf);
       if (n === null) break;
       result += decoder.decode(buf.subarray(0, n));
-      if (result.includes("\r\n")) break;
+      // Multi-line responses end when a line starts with "NNN " (space not dash)
+      const lines = result.split("\r\n");
+      const lastFull = lines.filter(l => l.length >= 4 && l[3] === ' ');
+      if (lastFull.length > 0) break;
+      if (result.includes("\r\n") && !result.split("\r\n").some(l => l.length >= 4 && l[3] === '-')) break;
     }
+    console.log("S:", result.trim());
     return result;
   }
 
-  async function send(conn, cmd) {
-    console.log("C:", cmd.trim());
+  async function sendCmd(conn, cmd) {
+    const display = cmd.includes("AUTH") || cmd === btoa(pass) ? "[hidden]" : cmd;
+    console.log("C:", display);
     await conn.write(encoder.encode(cmd + "\r\n"));
-    const res = await readLine(conn);
-    console.log("S:", res.trim());
-    return res;
+    return await readResponse(conn);
   }
 
-  // SMTP handshake
-  let res = await readLine(conn); // 220 greeting
-  console.log("S:", res.trim());
+  // Try SSL on port 465 directly
+  console.log(`Connecting to ${host}:465 (SSL)...`);
+  const conn = await Deno.connectTls({ hostname: host, port: 465 });
+  console.log("TLS connected!");
 
-  res = await send(conn, `EHLO huwa-gebaeudedienste.de`);
+  // Read greeting
+  await readResponse(conn);
 
-  // STARTTLS
-  res = await send(conn, `STARTTLS`);
-  if (!res.startsWith("220")) {
-    conn.close();
-    throw new Error("STARTTLS rejected: " + res);
-  }
-
-  // Upgrade to TLS
-  const tlsConn = await Deno.startTls(conn, { hostname: host });
-
-  async function readLineTls(c) {
-    const buf = new Uint8Array(4096);
-    let result = "";
-    while (true) {
-      const n = await c.read(buf);
-      if (n === null) break;
-      result += decoder.decode(buf.subarray(0, n));
-      if (result.includes("\r\n")) break;
-    }
-    return result;
-  }
-
-  async function sendTls(c, cmd) {
-    console.log("C:", cmd.trim());
-    await c.write(encoder.encode(cmd + "\r\n"));
-    const r = await readLineTls(c);
-    console.log("S:", r.trim());
-    return r;
-  }
-
-  // Re-EHLO after TLS
-  res = await sendTls(tlsConn, `EHLO huwa-gebaeudedienste.de`);
+  // EHLO
+  await sendCmd(conn, `EHLO huwa-gebaeudedienste.de`);
 
   // AUTH LOGIN
-  res = await sendTls(tlsConn, `AUTH LOGIN`);
-  res = await sendTls(tlsConn, btoa(user));
-  res = await sendTls(tlsConn, btoa(pass));
-  if (!res.startsWith("235")) {
-    tlsConn.close();
-    throw new Error("AUTH failed: " + res);
+  await sendCmd(conn, `AUTH LOGIN`);
+  await sendCmd(conn, btoa(user));
+  const authRes = await (async () => {
+    console.log("C: [password]");
+    await conn.write(encoder.encode(btoa(pass) + "\r\n"));
+    return await readResponse(conn);
+  })();
+
+  if (!authRes.startsWith("235")) {
+    conn.close();
+    throw new Error("AUTH fehlgeschlagen: " + authRes.trim());
   }
 
-  // MAIL FROM / RCPT TO / DATA
-  await sendTls(tlsConn, `MAIL FROM:<${user}>`);
-  await sendTls(tlsConn, `RCPT TO:<${to}>`);
-  await sendTls(tlsConn, `DATA`);
+  // MAIL FROM
+  await sendCmd(conn, `MAIL FROM:<${user}>`);
 
-  // Send message body
-  console.log("C: [message body]");
-  await tlsConn.write(encoder.encode(rawMessage + "\r\n.\r\n"));
-  res = await readLineTls(tlsConn);
-  console.log("S:", res.trim());
+  // RCPT TO
+  await sendCmd(conn, `RCPT TO:<${to}>`);
 
-  if (!res.startsWith("250")) {
-    tlsConn.close();
-    throw new Error("Message rejected: " + res);
+  // DATA
+  await sendCmd(conn, `DATA`);
+
+  // Build message
+  const boundary = "b_" + Date.now();
+  const message = [
+    `From: ${from}`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/html; charset=UTF-8`,
+    `Content-Transfer-Encoding: quoted-printable`,
+    ``,
+    htmlBody,
+    ``,
+    `.`,
+  ].join("\r\n");
+
+  console.log("C: [message body + .]");
+  await conn.write(encoder.encode(message + "\r\n"));
+  const dataRes = await readResponse(conn);
+
+  if (!dataRes.startsWith("250")) {
+    conn.close();
+    throw new Error("Nachricht abgelehnt: " + dataRes.trim());
   }
 
-  await sendTls(tlsConn, `QUIT`);
-  tlsConn.close();
+  await sendCmd(conn, `QUIT`);
+  conn.close();
 }
 
 Deno.serve(async (req) => {
@@ -125,13 +101,13 @@ Deno.serve(async (req) => {
     const { to, subject, body, fromName } = await req.json();
 
     if (!to || !subject || !body) {
-      return Response.json({ error: "Missing: to, subject, body" }, { status: 400 });
+      return Response.json({ error: "Fehlende Parameter: to, subject, body" }, { status: 400 });
     }
 
-    await sendViaIonosSMTP({ to, subject, htmlBody: body, fromName });
-    return Response.json({ success: true, to });
+    await sendViaIonos({ to, subject, htmlBody: body, fromName });
+    return Response.json({ success: true, to, from: Deno.env.get("IONOS_SMTP_USER") });
   } catch (error) {
-    console.error("SMTP error:", error.message);
+    console.error("SMTP Fehler:", error.message);
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
