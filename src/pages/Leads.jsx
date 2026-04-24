@@ -1,17 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { toast } from "sonner";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
   Plus,
-  Filter,
   Building2,
   MapPin,
   Phone,
-  Mail,
+  PhoneOff,
   Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,8 +27,7 @@ const STATUSES = ["Alle", "Neu", "Kontakt", "Rückruf", "Termin", "Angebot", "Ge
 
 export default function Leads() {
   const { user, filterCompanies, loading: filterLoading } = useLeadsFilter();
-  const [companies, setCompanies] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Alle");
   const [showAdd, setShowAdd] = useState(false);
@@ -36,22 +35,21 @@ export default function Leads() {
   const [showNewOnly, setShowNewOnly] = useState(false);
   const [selected, setSelected] = useState(new Set());
   const [bulkStatus, setBulkStatus] = useState("");
+  const searchRef = useRef(null);
 
-  const loadData = async () => {
-    try {
-      const comps = await base44.entities.Company.list("-created_date", 500);
-      setCompanies(comps);
-    } catch (e) {
-      console.error("loadData error", e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: companies = [], isLoading: loading, refetch } = useQuery({
+    queryKey: ["companies"],
+    queryFn: () => base44.entities.Company.list("-created_date", 500),
+    staleTime: 60_000,
+  });
+
+  const loadData = () => refetch();
 
   const { containerRef, isRefreshing } = usePullToRefresh(loadData);
 
   useEffect(() => {
-    loadData();
+    // Autofokus Suchfeld auf Desktop
+    if (window.innerWidth >= 1024) searchRef.current?.focus();
   }, []);
 
   const isAdmin = user?.role === "admin";
@@ -79,7 +77,7 @@ export default function Leads() {
     e.stopPropagation();
     if (!window.confirm("Lead wirklich löschen?")) return;
     await base44.entities.Company.delete(companyId);
-    setCompanies(prev => prev.filter(c => c.id !== companyId));
+    loadData();
   };
 
   const ARCHIVED_STATUSES = ["Gewonnen", "Verloren"];
@@ -123,6 +121,26 @@ export default function Leads() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = "leads.csv"; a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleNotReached = async (e, company) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const me = await base44.auth.me();
+    await base44.entities.ContactLog.create({
+      company_id: company.id,
+      typ: "Anruf",
+      ergebnis: "Nicht erreicht",
+      notiz: "",
+      naechster_schritt: "Erneut anrufen",
+      user_email: me.email,
+    });
+    await base44.entities.Company.update(company.id, {
+      status: "Rückruf",
+      last_contact_date: new Date().toISOString(),
+    });
+    toast.success(`${company.name} – Nicht erreicht gespeichert`);
+    loadData();
   };
 
   if (loading || filterLoading) {
@@ -192,6 +210,7 @@ export default function Leads() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
+            ref={searchRef}
             placeholder="Firma, Branche oder Ort suchen..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -255,16 +274,35 @@ export default function Leads() {
               <div className="flex flex-col items-end gap-1.5 shrink-0">
                 <StatusBadge status={company.status} />
                 <LeadScoreBadge score={company.priority_score} isHot={company.is_hot} />
-                <QuickLogButton companyId={company.id} companyName={company.name} onLogged={loadData} />
-                {isAdmin && (
+                <div className="flex items-center gap-1">
+                  {company.telefon && (
+                    <a
+                      href={`tel:${company.telefon}`}
+                      onClick={e => e.stopPropagation()}
+                      className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+                      title="Anrufen"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                    </a>
+                  )}
                   <button
-                    onClick={(e) => handleDelete(e, company.id)}
-                    className="p-1 rounded text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
-                    title="Lead löschen"
+                    onClick={(e) => handleNotReached(e, company)}
+                    className="p-1.5 rounded-lg bg-muted text-muted-foreground hover:bg-amber-50 hover:text-amber-600 transition-colors"
+                    title="Nicht erreicht"
                   >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <PhoneOff className="w-3.5 h-3.5" />
                   </button>
-                )}
+                  {isAdmin && (
+                    <button
+                      onClick={(e) => handleDelete(e, company.id)}
+                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                      title="Lead löschen"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+                <QuickLogButton companyId={company.id} companyName={company.name} onLogged={loadData} />
               </div>
             </div>
           </Link>

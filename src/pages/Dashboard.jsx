@@ -1,54 +1,43 @@
-import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
+import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
   Phone,
-  CalendarCheck,
-  Trophy,
   Clock,
   ArrowRight,
-  AlertCircle
+  AlertCircle,
+  PhoneCall,
+  CheckCircle2
 } from "lucide-react";
-import StatCard from "../components/StatCard";
 import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
 import WeekProgress from "../components/WeekProgress";
 import WeeklyGoal from "../components/WeeklyGoal";
 import TodayCallCard from "../components/TodayCallCard";
+import TagesplanCard from "../components/TagesplanCard";
 import { Button } from "@/components/ui/button";
 import moment from "moment";
 
 export default function Dashboard() {
   const { user, filterCompanies, loading: filterLoading } = useLeadsFilter();
-  const [companies, setCompanies] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [contactLogs, setContactLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const { data: companies = [], isLoading: loadingCompanies } = useQuery({
+    queryKey: ["companies"],
+    queryFn: () => base44.entities.Company.list("-created_date", 500),
+    staleTime: 60_000,
+  });
 
-  const loadData = async () => {
-    try {
-      const [comps, allTasks, logs] = await Promise.all([
-        base44.entities.Company.list("-created_date", 500),
-        base44.entities.Task.list("-faellig_am", 100),
-        base44.entities.ContactLog.list("-created_date", 50),
-      ]);
-      setCompanies(comps);
-      setTasks(allTasks);
-      setContactLogs(logs);
-    } catch (e) {
-      console.error("loadData error", e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: tasks = [], isLoading: loadingTasks } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => base44.entities.Task.list("-faellig_am", 100),
+    staleTime: 60_000,
+  });
 
-  if (loading || filterLoading) {
+  const loading = loadingCompanies || loadingTasks || filterLoading;
+
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -62,11 +51,6 @@ export default function Dashboard() {
   const openTasks = myTasks.filter(t => !t.erledigt);
   const overdueTasks = openTasks.filter(t => t.faellig_am && moment(t.faellig_am).isBefore(moment()));
   const todayTasks = openTasks.filter(t => t.faellig_am && moment(t.faellig_am).isSame(moment(), "day"));
-
-  const statusCounts = {};
-  myCompanies.forEach(c => {
-    statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
-  });
 
   return (
     <div className="space-y-6">
@@ -86,97 +70,49 @@ export default function Dashboard() {
         <WeeklyGoal user={user} />
       </div>
 
-      {/* Heute anrufen */}
-      <TodayCallCard companies={myCompanies} />
+      {/* Tagesplan */}
+      <TagesplanCard companies={myCompanies} tasks={[...overdueTasks, ...todayTasks]} user={user} />
 
-      {/* Stats */}
-      <div className="grid sm:grid-cols-2 gap-4">
-
-        {/* Überfällige & Heutige Aufgaben */}
-        <div className="bg-card border border-border rounded-xl">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-semibold">Heutige Aufgaben</h2>
-              {overdueTasks.length > 0 && (
-                <span className="bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                  {overdueTasks.length} überfällig
-                </span>
-              )}
-            </div>
-            <Link to="/tasks">
-              <Button variant="ghost" size="sm" className="text-xs gap-1">
-                Alle <ArrowRight className="w-3 h-3" />
-              </Button>
-            </Link>
+      {/* Rückrufe */}
+      <div className="bg-card border border-border rounded-xl">
+        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-500" />
+            <h2 className="text-sm font-semibold">Rückrufe</h2>
+            <span className="bg-amber-100 text-amber-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+              {myCompanies.filter(c => c.status === "Rückruf").length}
+            </span>
           </div>
-          <div className="divide-y divide-border">
-            {[...overdueTasks, ...todayTasks].slice(0, 5).map(task => (
-              <div key={task.id} className="px-5 py-3 flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  task.faellig_am && moment(task.faellig_am).isBefore(moment()) ? "bg-red-500" : "bg-amber-500"
-                }`} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{task.titel}</p>
-                  <p className="text-xs text-muted-foreground">{task.company_name}</p>
-                </div>
-                <PriorityBadge priority={task.prioritaet} />
-              </div>
-            ))}
-            {overdueTasks.length === 0 && todayTasks.length === 0 && (
-              <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-                Keine Aufgaben für heute 🎉
-              </div>
-            )}
-          </div>
+          <Link to="/leads?status=Rückruf">
+            <Button variant="ghost" size="sm" className="text-xs gap-1">
+              Alle <ArrowRight className="w-3 h-3" />
+            </Button>
+          </Link>
         </div>
-
-        {/* Rückrufe */}
-        <div className="bg-card border border-border rounded-xl">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-500" />
-              <h2 className="text-sm font-semibold">Rückrufe</h2>
-            </div>
-            <Link to="/leads">
-              <Button variant="ghost" size="sm" className="text-xs gap-1">
-                Alle <ArrowRight className="w-3 h-3" />
-              </Button>
-            </Link>
-          </div>
-          <div className="divide-y divide-border">
-            {myCompanies
-              .filter(c => c.status === "Rückruf")
-              .sort((a, b) => {
-                // Abgelaufene Rückrufe zuerst
-                const aOverdue = a.last_contact_date && new Date(a.last_contact_date) < new Date();
-                const bOverdue = b.last_contact_date && new Date(b.last_contact_date) < new Date();
-                if (aOverdue && !bOverdue) return -1;
-                if (!aOverdue && bOverdue) return 1;
-                return 0;
-              })
-              .slice(0, 5)
-              .map(company => {
-                const isOverdue = company.last_contact_date && new Date(company.last_contact_date) < new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
-                return (
-              <Link key={company.id} to={`/leads/${company.id}`} className={`block px-5 py-3 hover:bg-muted/50 transition-colors ${isOverdue ? 'bg-red-50/50 border-l-2 border-red-400' : ''}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className={`text-sm font-medium ${isOverdue ? 'text-red-700' : ''}`}>{company.name}</p>
-                    <p className="text-xs text-muted-foreground">{company.telefon}</p>
-                    {isOverdue && <p className="text-[10px] text-red-500 font-medium">⚠️ Seit 2+ Tagen kein Kontakt</p>}
-                  </div>
-                  <StatusBadge status={company.status} />
-                </div>
+        <div className="divide-y divide-border">
+          {myCompanies
+            .filter(c => c.status === "Rückruf")
+            .slice(0, 6)
+            .map(company => (
+            <div key={company.id} className="px-5 py-3 flex items-center gap-3">
+              <Link to={`/leads/${company.id}`} className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{company.name}</p>
+                <p className="text-xs text-muted-foreground">{company.telefon || "–"}</p>
               </Link>
-                );
-              })}
-            {myCompanies.filter(c => c.status === "Rückruf").length === 0 && (
-              <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-                Keine Rückrufe offen
+              <div className="flex items-center gap-1.5 shrink-0">
+                {company.telefon && (
+                  <a href={`tel:${company.telefon}`} className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title="Anrufen">
+                    <Phone className="w-3.5 h-3.5" />
+                  </a>
+                )}
               </div>
-            )}
-          </div>
+            </div>
+          ))}
+          {myCompanies.filter(c => c.status === "Rückruf").length === 0 && (
+            <div className="px-5 py-8 text-center text-sm text-muted-foreground">
+              Keine Rückrufe offen 🎉
+            </div>
+          )}
         </div>
       </div>
 
