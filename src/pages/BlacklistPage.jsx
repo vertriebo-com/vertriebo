@@ -65,12 +65,12 @@ export default function BlacklistPage() {
 
       {/* Auftraggeber-Banner */}
       {entries.some(e => e.grund?.includes("AUFTRAGGEBER")) && (
-        <div className="bg-amber-50 border border-amber-300 rounded-xl p-3">
-          <p className="text-xs font-semibold text-amber-800 flex items-center gap-1.5 mb-1">
-            <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+        <div className="bg-primary/10 border border-primary/30 rounded-xl p-3">
+          <p className="text-xs font-semibold text-primary flex items-center gap-1.5 mb-1">
+            <Star className="w-3.5 h-3.5 fill-primary text-primary" />
             AKTUELLE AUFTRAGGEBER – Niemals anrufen oder besuchen!
           </p>
-          <p className="text-xs text-amber-700">Diese Firmen sind bestehende Kunden. Ein Anruf wäre extrem peinlich. Sie werden auch bei der Lead-Suche automatisch ausgeblendet.</p>
+          <p className="text-xs text-muted-foreground">Diese Firmen sind bestehende Kunden. Ein Anruf wäre extrem peinlich. Sie werden bei der Lead-Suche automatisch ausgeblendet.</p>
         </div>
       )}
 
@@ -78,12 +78,12 @@ export default function BlacklistPage() {
         {entries.map(entry => {
           const isAuftraggeber = entry.grund?.includes("AUFTRAGGEBER");
           return (
-            <div key={entry.id} className={`border rounded-xl p-4 flex items-center justify-between ${isAuftraggeber ? "bg-amber-50 border-amber-200" : "bg-card border-border"}`}>
+            <div key={entry.id} className={`border rounded-xl p-4 flex items-center justify-between ${isAuftraggeber ? "bg-primary/5 border-primary/20" : "bg-card border-border"}`}>
               <div>
-                <div className="flex items-center gap-2">
-                  {isAuftraggeber && <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500 shrink-0" />}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {isAuftraggeber && <Star className="w-3.5 h-3.5 fill-primary text-primary shrink-0" />}
                   <p className="text-sm font-medium">{entry.firmenname}</p>
-                  {isAuftraggeber && <span className="text-[10px] font-bold bg-amber-500 text-white px-1.5 py-0.5 rounded-full">AUFTRAGGEBER</span>}
+                  {isAuftraggeber && <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">AUFTRAGGEBER</span>}
                 </div>
                 {entry.grund && !isAuftraggeber && <p className="text-xs text-muted-foreground mt-0.5">Grund: {entry.grund}</p>}
                 <div className="flex gap-4 mt-1">
