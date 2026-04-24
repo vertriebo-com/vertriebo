@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Ban, Plus, Trash2, Star } from "lucide-react";
+import { Ban, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,11 +17,6 @@ export default function BlacklistPage() {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ firmenname: "", grund: "", telefon: "", email: "" });
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    base44.auth.me().then(u => setIsAdmin(u?.role === "admin"));
-  }, []);
 
   useEffect(() => {
     loadData();
@@ -63,49 +58,27 @@ export default function BlacklistPage() {
           <h1 className="text-xl font-bold">Blacklist</h1>
           <p className="text-sm text-muted-foreground">{entries.length} Einträge</p>
         </div>
-        {isAdmin && (
-          <Button onClick={() => setShowAdd(true)} className="gap-2">
-            <Plus className="w-4 h-4" /> Hinzufügen
-          </Button>
-        )}
+        <Button onClick={() => setShowAdd(true)} className="gap-2">
+          <Plus className="w-4 h-4" /> Hinzufügen
+        </Button>
       </div>
 
-      {/* Auftraggeber-Banner */}
-      {entries.some(e => e.grund?.includes("AUFTRAGGEBER")) && (
-        <div className="bg-primary/10 border border-primary/30 rounded-xl p-3">
-          <p className="text-xs font-semibold text-primary flex items-center gap-1.5 mb-1">
-            <Star className="w-3.5 h-3.5 fill-primary text-primary" />
-            AKTUELLE AUFTRAGGEBER – Niemals anrufen oder besuchen!
-          </p>
-          <p className="text-xs text-muted-foreground">Diese Firmen sind bestehende Kunden. Ein Anruf wäre extrem peinlich. Sie werden bei der Lead-Suche automatisch ausgeblendet.</p>
-        </div>
-      )}
-
       <div className="space-y-2">
-        {entries.map(entry => {
-          const isAuftraggeber = entry.grund?.includes("AUFTRAGGEBER");
-          return (
-            <div key={entry.id} className={`border rounded-xl p-4 flex items-center justify-between ${isAuftraggeber ? "bg-primary/5 border-primary/20" : "bg-card border-border"}`}>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {isAuftraggeber && <Star className="w-3.5 h-3.5 fill-primary text-primary shrink-0" />}
-                  <p className="text-sm font-medium">{entry.firmenname}</p>
-                  {isAuftraggeber && <span className="text-[10px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">AUFTRAGGEBER</span>}
-                </div>
-                {entry.grund && !isAuftraggeber && <p className="text-xs text-muted-foreground mt-0.5">Grund: {entry.grund}</p>}
-                <div className="flex gap-4 mt-1">
-                  {entry.telefon && <span className="text-xs text-muted-foreground">{entry.telefon}</span>}
-                  {entry.email && <span className="text-xs text-muted-foreground">{entry.email}</span>}
-                </div>
+        {entries.map(entry => (
+          <div key={entry.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">{entry.firmenname}</p>
+              {entry.grund && <p className="text-xs text-muted-foreground">Grund: {entry.grund}</p>}
+              <div className="flex gap-4 mt-1">
+                {entry.telefon && <span className="text-xs text-muted-foreground">{entry.telefon}</span>}
+                {entry.email && <span className="text-xs text-muted-foreground">{entry.email}</span>}
               </div>
-              {isAdmin && (
-                <Button variant="ghost" size="icon" onClick={() => handleRemove(entry.id)} className="text-destructive hover:text-destructive">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
             </div>
-          );
-        })}
+            <Button variant="ghost" size="icon" onClick={() => handleRemove(entry.id)} className="text-destructive hover:text-destructive">
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        ))}
         {entries.length === 0 && (
           <div className="text-center py-16 text-muted-foreground">
             <Ban className="w-12 h-12 mx-auto mb-3 opacity-30" />
