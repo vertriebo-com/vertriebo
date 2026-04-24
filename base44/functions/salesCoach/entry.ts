@@ -1,4 +1,21 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { SMTPClient } from "npm:emailjs@4.0.2";
+
+async function sendEmail({ to, subject, body, fromName = "Huwa Vertrieb Coach" }) {
+  const client = new SMTPClient({
+    user: Deno.env.get("IONOS_SMTP_USER"),
+    password: Deno.env.get("IONOS_SMTP_PASS"),
+    host: Deno.env.get("IONOS_SMTP_HOST") || "smtp.ionos.de",
+    port: 587,
+    tls: false,
+  });
+  await client.sendAsync({
+    from: `${fromName} <${Deno.env.get("IONOS_SMTP_USER")}>`,
+    to,
+    subject,
+    attachment: [{ data: body, alternative: true }],
+  });
+}
 
 Deno.serve(async (req) => {
   try {
@@ -157,13 +174,13 @@ Deno.serve(async (req) => {
 </html>
       `;
 
-      await base44.asServiceRole.integrations.Core.SendEmail({
+      await sendEmail({
         to: user.email,
         subject: testMode
           ? `[TEST] ${motivation.emoji} ${firstName}, noch kein Kontakt heute!`
           : `${motivation.emoji} ${firstName}, dein Vertriebscoach meldet sich!`,
         body: emailBody,
-        from_name: "Huwa Vertrieb Coach",
+        fromName: "Huwa Vertrieb Coach",
       });
 
       console.log(`Reminder sent to ${user.email} (week logs: ${weekLogs.length}, open tasks: ${openTasks.length})`);
