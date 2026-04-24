@@ -14,8 +14,11 @@ import {
   ListTodo,
   Trash2,
   Ban,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import MobileSelect from "@/components/MobileSelect";
 import StatusBadge from "../components/StatusBadge";
@@ -42,6 +45,9 @@ export default function LeadDetail() {
   const [enriching, setEnriching] = useState(false);
   const [notizen, setNotizen] = useState("");
   const [notizenSaving, setNotizenSaving] = useState(false);
+  const [showSonstigesDialog, setShowSonstigesDialog] = useState(false);
+  const [sonstigesNotiz, setSonstigesNotiz] = useState("");
+  const [sonstigesSaving, setSonstigesSaving] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -61,9 +67,34 @@ export default function LeadDetail() {
   };
 
   const handleStatusChange = async (newStatus) => {
+    if (newStatus === "__sonstiges__") {
+      setSonstigesNotiz("");
+      setShowSonstigesDialog(true);
+      return;
+    }
     await base44.entities.Company.update(id, { status: newStatus });
     setCompany(prev => ({ ...prev, status: newStatus }));
     toast.success(`Status auf "${newStatus}" geändert`);
+  };
+
+  const handleSonstigesSubmit = async () => {
+    setSonstigesSaving(true);
+    const me = await base44.auth.me();
+    await base44.entities.ContactLog.create({
+      company_id: id,
+      typ: "Sonstiges",
+      ergebnis: "Abgeschlossen",
+      notiz: sonstigesNotiz,
+      naechster_schritt: "Kunde meldet sich selbst",
+      user_email: me.email,
+    });
+    // Update last contact date
+    await base44.entities.Company.update(id, { last_contact_date: new Date().toISOString() });
+    toast.success("Notiz gespeichert – Kontakt dokumentiert");
+    setSonstigesSaving(false);
+    setShowSonstigesDialog(false);
+    setSonstigesNotiz("");
+    loadData();
   };
 
   const handleBlacklist = async () => {
@@ -149,7 +180,10 @@ export default function LeadDetail() {
           <MobileSelect
             value={company.status}
             onValueChange={handleStatusChange}
-            options={STATUSES.map(s => ({ value: s, label: s }))}
+            options={[
+              ...STATUSES.map(s => ({ value: s, label: s })),
+              { value: "__sonstiges__", label: "📝 Sonstiges (Notiz)" },
+            ]}
             placeholder="Status"
             triggerClassName="w-36"
           />
@@ -314,6 +348,47 @@ export default function LeadDetail() {
           )}
         </div>
       </div>
+
+      {/* Sonstiges Notiz Dialog */}
+      <Dialog open={showSonstigesDialog} onOpenChange={setShowSonstigesDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-primary" />
+              Sonstiges – Notiz erfassen
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground -mt-1">{company?.name}</p>
+          <div className="space-y-3 pt-1">
+            <div>
+              <Label className="text-xs mb-1 block">Was kam beim Anruf raus?</Label>
+              <textarea
+                value={sonstigesNotiz}
+                onChange={e => setSonstigesNotiz(e.target.value)}
+                placeholder="z.B. Möchten nur eine E-Mail mit Kontaktdaten – melden sich selbst bei Bedarf..."
+                rows={4}
+                autoFocus
+                className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowSonstigesDialog(false)}
+                className="text-sm px-3 py-1.5 rounded-md border border-border hover:bg-muted transition-colors"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleSonstigesSubmit}
+                disabled={sonstigesSaving || !sonstigesNotiz.trim()}
+                className="text-sm px-4 py-1.5 rounded-md bg-primary text-primary-foreground font-medium disabled:opacity-40 transition-colors"
+              >
+                {sonstigesSaving ? "Speichert..." : "Speichern"}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AddContactLogDialog
         open={showAddLog}
