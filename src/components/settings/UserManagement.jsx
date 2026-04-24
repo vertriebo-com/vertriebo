@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { Users, UserPlus, RefreshCw, Crown, Trash2 } from "lucide-react";
+import { Users, UserPlus, RefreshCw, Crown, Trash2, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { toast } from "sonner";
 import SettingsSection from "./SettingsSection";
 import ActivityOverview from "./ActivityOverview";
+import SalesDashboardModal from "@/components/SalesDashboardModal";
 
 export default function UserManagement({ users, currentUser, onRefresh }) {
   const [inviteEmail, setInviteEmail] = useState("");
@@ -16,6 +17,7 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteUserId, setDeleteUserId] = useState(null);
   const [deleteUserName, setDeleteUserName] = useState("");
+  const [dashboardUser, setDashboardUser] = useState(null);
 
   const handleInvite = async () => {
     if (!inviteEmail || !inviteEmail.includes("@")) {
@@ -103,6 +105,13 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
                   </span>
                 ) : (
                   <>
+                    <button
+                      onClick={() => setDashboardUser(u)}
+                      className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                      title="Dashboard anzeigen"
+                    >
+                      <LayoutDashboard className="w-3.5 h-3.5" />
+                    </button>
                     <Select value={u.role || "user"} onValueChange={val => handleRoleChange(u.id, val)}>
                       <SelectTrigger className="w-36 h-7 text-xs">
                         <SelectValue />
@@ -127,6 +136,12 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
       </div>
 
       <ActivityOverview users={users} />
+
+      <SalesDashboardModal
+        user={dashboardUser}
+        open={!!dashboardUser}
+        onClose={() => setDashboardUser(null)}
+      />
 
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="max-w-sm">
