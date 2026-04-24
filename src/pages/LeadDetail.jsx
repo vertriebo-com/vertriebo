@@ -40,6 +40,8 @@ export default function LeadDetail() {
   const [showAddLog, setShowAddLog] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [enriching, setEnriching] = useState(false);
+  const [notizen, setNotizen] = useState("");
+  const [notizenSaving, setNotizenSaving] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -52,6 +54,7 @@ export default function LeadDetail() {
       base44.entities.Task.filter({ company_id: id }),
     ]);
     setCompany(comp[0] || null);
+    setNotizen(comp[0]?.notizen || "");
     setContactLogs(logs.sort((a, b) => new Date(b.created_date) - new Date(a.created_date)));
     setTasks(allTasks.sort((a, b) => new Date(a.faellig_am || 0) - new Date(b.faellig_am || 0)));
     setLoading(false);
@@ -92,6 +95,14 @@ export default function LeadDetail() {
       toast.info("Keine neuen Daten gefunden.");
     }
     setEnriching(false);
+  };
+
+  const handleSaveNotizen = async () => {
+    setNotizenSaving(true);
+    await base44.entities.Company.update(id, { notizen });
+    setCompany(prev => ({ ...prev, notizen }));
+    toast.success("Notizen gespeichert");
+    setNotizenSaving(false);
   };
 
   const toggleTask = async (task) => {
@@ -193,10 +204,19 @@ export default function LeadDetail() {
 
         <div className="bg-card border border-border rounded-xl p-5 space-y-3">
           <h3 className="text-sm font-semibold">Notizen</h3>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {company.notizen || "Keine Notizen"}
-          </p>
-          <div className="flex flex-wrap gap-2 pt-2">
+          <textarea
+            value={notizen}
+            onChange={e => setNotizen(e.target.value)}
+            rows={4}
+            placeholder="Notizen hier eingeben..."
+            className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+          />
+          {notizen !== (company.notizen || "") && (
+            <Button size="sm" onClick={handleSaveNotizen} disabled={notizenSaving} className="text-xs h-8">
+              {notizenSaving ? "Speichert..." : "Speichern"}
+            </Button>
+          )}
+          <div className="flex flex-wrap gap-2 pt-1">
             <Button variant="outline" size="sm" className="text-xs gap-1 text-purple-700 border-purple-200 hover:bg-purple-50 min-h-[44px]" onClick={handleEnrich} disabled={enriching}>
               {enriching ? <span className="w-3 h-3 border-2 border-purple-400 border-t-transparent rounded-full animate-spin inline-block" /> : <Sparkles className="w-3 h-3" />}
               Daten anreichern
