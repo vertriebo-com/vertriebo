@@ -147,16 +147,14 @@ export default function SendEmailDialog({ company }) {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="sm"
-        className="text-xs gap-1.5 text-blue-700 border-blue-200 hover:bg-blue-50 min-h-[44px]"
+      <button
         onClick={() => hasEmail ? setOpen(true) : toast.error("Keine E-Mail-Adresse hinterlegt")}
         title={hasEmail ? company.email : "Keine E-Mail-Adresse vorhanden"}
+        className="inline-flex items-center gap-1.5 h-8 text-xs font-medium border border-border bg-background px-3 rounded-md hover:bg-muted transition-colors"
       >
-        <Mail className="w-3 h-3" />
+        <Mail className="w-3.5 h-3.5" />
         E-Mail senden
-      </Button>
+      </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

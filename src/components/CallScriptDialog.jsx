@@ -73,9 +73,9 @@ Halte es praxisnah, locker und überzeugend. Auf Deutsch.`,
 
   return (
     <>
-      <Button variant="outline" size="sm" className="text-xs gap-1.5 text-purple-700 border-purple-200 hover:bg-purple-50" onClick={handleOpen}>
-        <Sparkles className="w-3 h-3" /> KI-Gesprächsleitfaden
-      </Button>
+      <button onClick={handleOpen} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium border border-border bg-background px-3 rounded-md hover:bg-muted transition-colors">
+        <Sparkles className="w-3.5 h-3.5" /> KI-Gesprächsleitfaden
+      </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">

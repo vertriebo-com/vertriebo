@@ -33,9 +33,9 @@ export default function EmailTemplates({ company }) {
 
   return (
     <div className="relative">
-      <Button variant="outline" size="sm" className="text-xs gap-1.5" onClick={() => setOpen(v => !v)}>
+      <button onClick={() => setOpen(v => !v)} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium border border-border bg-background px-3 rounded-md hover:bg-muted transition-colors">
         <Mail className="w-3.5 h-3.5" /> E-Mail Vorlage <ChevronDown className="w-3 h-3" />
-      </Button>
+      </button>
       {open && (
         <div className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-lg min-w-[180px] py-1">
           {TEMPLATES(company).map(tpl => (
