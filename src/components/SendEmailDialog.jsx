@@ -1,17 +1,20 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Mail, Send, Loader2, FlaskConical, CheckCircle2, ArrowLeft, Paperclip, X } from "lucide-react";
+import { Mail, Send, Loader2, FlaskConical, CheckCircle2, ArrowLeft, Paperclip, X, ImagePlus, Trash2 } from "lucide-react";
 import ReactQuill from "react-quill";
 import { toast } from "sonner";
 
-const LOGO_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Camponotus_flavomarginatus_ant.jpg/320px-Camponotus_flavomarginatus_ant.jpg";
-// Huwa Logo Platzhalter – ersetzt durch echtes Logo sobald vorhanden
-
+// ─── HTML Email Builder ───────────────────────────────────────────────────────
 function buildHtmlEmail({ bodyContent, subject, logoUrl }) {
+  const headerLogo = logoUrl
+    ? `<img src="${logoUrl}" alt="Logo" style="max-height:56px;max-width:180px;object-fit:contain;display:block;" />`
+    : `<div style="font-size:24px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;line-height:1.1;">Huwa Gebäudedienste</div>
+       <div style="font-size:11px;color:#93c5fd;margin-top:4px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;">Gebäudereinigung & Hausmeisterdienste</div>`;
+
   return `<!DOCTYPE html>
 <html lang="de">
 <head>
@@ -25,23 +28,11 @@ function buildHtmlEmail({ bodyContent, subject, logoUrl }) {
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
 
   <!-- HEADER -->
-  <tr><td style="background:linear-gradient(135deg,#1d4ed8 0%,#1e40af 100%);padding:28px 40px;">
-    <table width="100%" cellpadding="0" cellspacing="0"><tr>
-      <td>
-        <div style="font-size:24px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;line-height:1.1;">Huwa Gebäudedienste</div>
-        <div style="font-size:12px;color:#93c5fd;margin-top:5px;font-weight:500;letter-spacing:0.5px;">GEBÄUDEREINIGUNG & HAUSMEISTERDIENSTE</div>
-      </td>
-      <td align="right" style="vertical-align:middle;">
-        <div style="background:rgba(255,255,255,0.15);border-radius:12px;padding:10px 14px;display:inline-block;">
-          <div style="font-size:28px;line-height:1;">🏢</div>
-        </div>
-      </td>
-    </tr></table>
+  <tr><td style="background:linear-gradient(135deg,#1d4ed8 0%,#1e40af 100%);padding:24px 36px;">
+    ${headerLogo}
   </td></tr>
-
-  <!-- BLUE STRIPE -->
-  <tr><td style="background:#1d4ed8;padding:0 40px 0;">
-    <div style="height:4px;background:linear-gradient(90deg,#60a5fa,#a78bfa,#34d399);border-radius:2px;margin-bottom:0;"></div>
+  <tr><td style="background:#1d4ed8;padding:0;">
+    <div style="height:3px;background:linear-gradient(90deg,#60a5fa,#a78bfa,#34d399);"></div>
   </td></tr>
 
   <!-- BODY -->
@@ -53,20 +44,19 @@ function buildHtmlEmail({ bodyContent, subject, logoUrl }) {
   <tr><td style="padding:0 40px;"><div style="height:1px;background:#e5e7eb;"></div></td></tr>
 
   <!-- FOOTER -->
-  <tr><td style="background:#f8fafc;padding:24px 40px;border-top:0;">
+  <tr><td style="background:#f8fafc;padding:22px 40px;">
     <table width="100%" cellpadding="0" cellspacing="0"><tr>
       <td style="vertical-align:top;">
-        <div style="font-size:13px;font-weight:800;color:#1d4ed8;letter-spacing:-0.3px;">Huwa Gebäudedienste</div>
-        <div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.8;">
+        <div style="font-size:13px;font-weight:800;color:#1d4ed8;">Huwa Gebäudedienste GmbH</div>
+        <div style="font-size:12px;color:#6b7280;margin-top:5px;line-height:1.9;">
           Mittelweg 24 · 56566 Neuwied<br/>
           📞 <a href="tel:026019131820" style="color:#1d4ed8;text-decoration:none;font-weight:600;">02601 / 9131820</a><br/>
           ✉️ <a href="mailto:info@huwa-gebaeudedienste.de" style="color:#1d4ed8;text-decoration:none;">info@huwa-gebaeudedienste.de</a>
         </div>
       </td>
-      <td align="right" style="vertical-align:top;">
-        <div style="font-size:10px;color:#9ca3af;line-height:1.5;">
-          Versendet über<br/>
-          <span style="color:#1d4ed8;font-weight:700;">Huwa Vertrieb CRM</span>
+      <td align="right" style="vertical-align:middle;">
+        <div style="font-size:10px;color:#9ca3af;text-align:right;line-height:1.6;">
+          Versendet über<br/><span style="color:#1d4ed8;font-weight:700;">Huwa CRM</span>
         </div>
       </td>
     </tr></table>
@@ -87,7 +77,7 @@ const TEMPLATES = [
     id: "dienstleistungen",
     label: "📋 Unsere Dienstleistungen",
     description: "Wenn jemand sagt: 'Schicken Sie uns Infos'",
-    betreff: (c) => `Unsere Dienstleistungen – Huwa Gebäudedienste`,
+    betreff: () => `Unsere Dienstleistungen – Huwa Gebäudedienste`,
     body: (c, extra) => `
 <p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte/r ${c.ansprechpartner || "Damen und Herren"},</p>
 <p style="margin:0 0 16px;font-size:14px;color:#4b5563;">vielen Dank für Ihr Interesse! Gerne stellen wir Ihnen unsere Leistungen vor:</p>
@@ -110,7 +100,7 @@ ${SIGNATURE}`,
     id: "erstkontakt",
     label: "👋 Erstkontakt Follow-up",
     description: "Nach erfolglosem Anruf – schriftliche Vorstellung",
-    betreff: (c) => `Professionelle Gebäudereinigung – Huwa Gebäudedienste Neuwied`,
+    betreff: () => `Professionelle Gebäudereinigung – Huwa Gebäudedienste Neuwied`,
     body: (c, extra) => `
 <p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte/r ${c.ansprechpartner || "Damen und Herren"},</p>
 <p style="margin:0 0 14px;font-size:14px;color:#4b5563;">wir haben versucht Sie telefonisch zu erreichen – daher melden wir uns auf diesem Weg.</p>
@@ -132,7 +122,7 @@ ${SIGNATURE}`,
     label: "📅 Terminbestätigung",
     description: "Vereinbarten Termin schriftlich bestätigen",
     hasDatum: true, hasUhrzeit: true,
-    betreff: (c) => `Terminbestätigung – Huwa Gebäudedienste`,
+    betreff: () => `Terminbestätigung – Huwa Gebäudedienste`,
     body: (c, extra) => `
 <p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte/r ${c.ansprechpartner || "Damen und Herren"},</p>
 <p style="margin:0 0 20px;font-size:14px;color:#4b5563;">vielen Dank für Ihr Interesse! Hiermit bestätigen wir unseren Termin:</p>
@@ -169,7 +159,7 @@ ${SIGNATURE}`,
     label: "📞 Rückruf-Bestätigung",
     description: "Vereinbarten Rückruf bestätigen",
     hasDatum: true, hasUhrzeit: true,
-    betreff: (c) => `Rückruf-Bestätigung – Huwa Gebäudedienste`,
+    betreff: () => `Rückruf-Bestätigung – Huwa Gebäudedienste`,
     body: (c, extra) => `
 <p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte/r ${c.ansprechpartner || "Damen und Herren"},</p>
 <p style="margin:0 0 20px;font-size:14px;color:#4b5563;">vielen Dank für Ihr Interesse! Wie vereinbart, rufen wir Sie zurück:</p>
@@ -184,7 +174,7 @@ ${SIGNATURE}`,
   },
 ];
 
-// ─── Live Preview iframe ──────────────────────────────────────────────────────
+// ─── Live Preview ─────────────────────────────────────────────────────────────
 function LivePreview({ html }) {
   const iframeRef = useRef(null);
   useEffect(() => {
@@ -196,32 +186,93 @@ function LivePreview({ html }) {
   return (
     <iframe
       ref={iframeRef}
-      className="w-full border-0 rounded-b-xl"
-      style={{ height: "380px" }}
+      className="w-full border-0"
+      style={{ height: "360px" }}
       title="E-Mail Vorschau"
       sandbox="allow-same-origin"
     />
   );
 }
 
+// ─── Logo Upload Widget ───────────────────────────────────────────────────────
+function LogoUploader({ logoUrl, onLogoChange }) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef(null);
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    // Persist to AppSettings
+    const existing = await base44.entities.AppSettings.filter({ key: "email_logo_url" });
+    if (existing.length > 0) {
+      await base44.entities.AppSettings.update(existing[0].id, { value: file_url });
+    } else {
+      await base44.entities.AppSettings.create({ key: "email_logo_url", value: file_url });
+    }
+    onLogoChange(file_url);
+    setUploading(false);
+    toast.success("Logo gespeichert!");
+  };
+
+  const handleRemove = async () => {
+    const existing = await base44.entities.AppSettings.filter({ key: "email_logo_url" });
+    if (existing.length > 0) await base44.entities.AppSettings.update(existing[0].id, { value: "" });
+    onLogoChange(null);
+    toast.success("Logo entfernt");
+  };
+
+  return (
+    <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-xl">
+      {/* Preview */}
+      <div className="w-24 h-12 rounded-lg border border-border bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center overflow-hidden shrink-0">
+        {logoUrl
+          ? <img src={logoUrl} alt="Logo" className="max-h-10 max-w-[88px] object-contain" />
+          : <span className="text-white/60 text-[10px] font-medium text-center leading-tight px-1">Kein Logo</span>
+        }
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold mb-1">E-Mail Logo</p>
+        <p className="text-[11px] text-muted-foreground">Erscheint im blauen Header aller E-Mails</p>
+      </div>
+      <div className="flex gap-1.5">
+        <button
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="inline-flex items-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
+          {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />}
+          {uploading ? "..." : "Upload"}
+        </button>
+        {logoUrl && (
+          <button onClick={handleRemove} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+      </div>
+    </div>
+  );
+}
+
 // ─── Email Editor ─────────────────────────────────────────────────────────────
-function EmailEditor({ tpl, company, onBack, onSend }) {
+function EmailEditor({ tpl, company, logoUrl, onLogoChange, onBack, onSend }) {
   const [datum, setDatum] = useState("");
   const [uhrzeit, setUhrzeit] = useState("");
   const [notiz, setNotiz] = useState("");
   const [betreff, setBetreff] = useState(tpl.betreff(company));
   const [customBody, setCustomBody] = useState(() => tpl.body(company, {}));
-  const [tab, setTab] = useState("edit"); // edit | preview
+  const [tab, setTab] = useState("edit");
   const [sending, setSending] = useState(false);
   const [testSending, setTestSending] = useState(false);
   const [testSent, setTestSent] = useState(false);
-  const [attachments, setAttachments] = useState([]); // {name, url}
+  const [attachments, setAttachments] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef(null);
 
-  const fullHtml = buildHtmlEmail({ bodyContent: customBody || "", subject: betreff });
+  const fullHtml = buildHtmlEmail({ bodyContent: customBody || "", subject: betreff, logoUrl });
 
-  // Wenn Template-Felder ändern → reset auf generierten Body
   useEffect(() => {
     setCustomBody(tpl.body(company, { datum, uhrzeit, notiz }));
   }, [datum, uhrzeit, notiz]);
@@ -269,6 +320,9 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
         <ArrowLeft className="w-3.5 h-3.5" /> Vorlage wechseln
       </button>
 
+      {/* Logo */}
+      <LogoUploader logoUrl={logoUrl} onLogoChange={onLogoChange} />
+
       {/* Betreff */}
       <div>
         <Label className="text-xs mb-1 block font-semibold">Betreff</Label>
@@ -293,15 +347,15 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
         </div>
       )}
 
-      {/* Notiz */}
+      {/* Persönliche Ergänzung */}
       <div>
         <Label className="text-xs mb-1 block">Persönliche Ergänzung (optional)</Label>
         <Input value={notiz} onChange={e => setNotiz(e.target.value)} placeholder="z.B. Bezug auf unser Gespräch..." className="text-sm" />
       </div>
 
-      {/* Tabs: Bearbeiten | Vorschau */}
+      {/* Tabs */}
       <div>
-        <div className="flex bg-muted rounded-xl p-1 gap-1 mb-2">
+        <div className="flex bg-muted rounded-xl p-1 gap-1 mb-3">
           <button onClick={() => setTab("edit")} className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${tab === "edit" ? "bg-background shadow text-foreground" : "text-muted-foreground"}`}>
             ✏️ Text bearbeiten
           </button>
@@ -311,14 +365,13 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
         </div>
 
         {tab === "edit" ? (
-          <div className="border border-input rounded-xl overflow-hidden [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-border [&_.ql-toolbar]:bg-muted/50 [&_.ql-container]:border-0 [&_.ql-editor]:min-h-[220px] [&_.ql-editor]:text-sm [&_.ql-editor]:font-sans">
+          <div className="border border-input rounded-xl overflow-hidden [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-border [&_.ql-toolbar]:bg-muted/50 [&_.ql-container]:border-0 [&_.ql-editor]:min-h-[200px] [&_.ql-editor]:text-sm [&_.ql-editor]:font-sans [&_.ql-editor]:leading-relaxed">
             <ReactQuill
               theme="snow"
-              value={bodyContent}
+              value={customBody}
               onChange={setCustomBody}
               modules={{
                 toolbar: [
-                  [{ header: [false, 1, 2] }],
                   ["bold", "italic", "underline"],
                   [{ list: "ordered" }, { list: "bullet" }],
                   ["link"],
@@ -335,7 +388,7 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
                 <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
                 <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
               </div>
-              <span className="text-xs text-muted-foreground truncate flex-1">Betreff: {betreff}</span>
+              <span className="text-xs text-muted-foreground truncate flex-1">Von: info@huwa-gebaeudedienste.de &nbsp;|&nbsp; An: {company.email}</span>
             </div>
             <LivePreview html={fullHtml} />
           </div>
@@ -344,7 +397,7 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
 
       {/* Anhänge */}
       <div>
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-1.5">
           <Label className="text-xs font-semibold">Anhänge</Label>
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -369,7 +422,6 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
             ))}
           </div>
         )}
-        <p className="text-[11px] text-muted-foreground mt-1">Anhänge werden als Link in der E-Mail eingefügt.</p>
       </div>
 
       {/* Actions */}
@@ -378,13 +430,11 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
           <Mail className="w-3.5 h-3.5" />
           An: <span className="font-semibold text-foreground">{company.email}</span>
         </div>
-
         <Button variant="outline" size="sm" onClick={handleTestSend} disabled={testSending || testSent} className="w-full gap-2 text-xs h-9">
-          {testSent ? <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Test gesendet!</> :
-           testSending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sende Test...</> :
-           <><FlaskConical className="w-3.5 h-3.5" /> Test-E-Mail an mich selbst senden</>}
+          {testSent ? <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Test gesendet!</>
+           : testSending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sende Test...</>
+           : <><FlaskConical className="w-3.5 h-3.5" /> Test-E-Mail an mich selbst senden</>}
         </Button>
-
         <Button onClick={handleSend} disabled={sending} className="w-full gap-2 h-9">
           {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           {sending ? "Wird gesendet..." : `An ${company.name} senden`}
@@ -398,7 +448,19 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
 export default function SendEmailDialog({ company }) {
   const [open, setOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [logoUrl, setLogoUrl] = useState(null);
+  const [logoLoaded, setLogoLoaded] = useState(false);
   const hasEmail = !!company?.email;
+
+  // Load saved logo once when dialog opens
+  useEffect(() => {
+    if (open && !logoLoaded) {
+      base44.entities.AppSettings.filter({ key: "email_logo_url" }).then(res => {
+        if (res.length > 0 && res[0].value) setLogoUrl(res[0].value);
+        setLogoLoaded(true);
+      });
+    }
+  }, [open]);
 
   const handleClose = () => { setOpen(false); setSelectedTemplate(null); };
 
@@ -441,6 +503,8 @@ export default function SendEmailDialog({ company }) {
                 <EmailEditor
                   tpl={selectedTemplate}
                   company={company}
+                  logoUrl={logoUrl}
+                  onLogoChange={setLogoUrl}
                   onBack={() => setSelectedTemplate(null)}
                   onSend={handleClose}
                 />
