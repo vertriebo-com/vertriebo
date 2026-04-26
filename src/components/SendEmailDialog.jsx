@@ -7,13 +7,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Mail, Send, Loader2, FlaskConical, CheckCircle2, ArrowLeft, Paperclip, X, ImagePlus, Trash2 } from "lucide-react";
 import ReactQuill from "react-quill";
 import { toast } from "sonner";
+import { TEMPLATES } from "./emailTemplates";
 
 // ─── HTML Email Builder ───────────────────────────────────────────────────────
 function buildHtmlEmail({ bodyContent, subject, logoUrl }) {
   const headerLogo = logoUrl
-    ? `<img src="${logoUrl}" alt="Logo" style="max-height:56px;max-width:180px;object-fit:contain;display:block;" />`
-    : `<div style="font-size:24px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;line-height:1.1;">Huwa Gebäudedienste</div>
-       <div style="font-size:11px;color:#93c5fd;margin-top:4px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;">Gebäudereinigung & Hausmeisterdienste</div>`;
+    ? `<img src="${logoUrl}" alt="Logo" style="max-height:60px;max-width:200px;object-fit:contain;display:block;" />`
+    : `<div style="font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;line-height:1.1;">Huwa Gebäudedienste</div>
+       <div style="font-size:11px;color:#93c5fd;margin-top:4px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;">Gebäudereinigung &amp; Hausmeisterdienste</div>`;
 
   return `<!DOCTYPE html>
 <html lang="de">
@@ -26,153 +27,24 @@ function buildHtmlEmail({ bodyContent, subject, logoUrl }) {
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:32px 16px;">
 <tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10);">
-
-  <!-- HEADER -->
-  <tr><td style="background:linear-gradient(135deg,#1d4ed8 0%,#1e40af 100%);padding:24px 36px;">
+  <tr><td style="background:linear-gradient(135deg,#1d4ed8 0%,#1e40af 100%);padding:22px 36px;">
     ${headerLogo}
   </td></tr>
   <tr><td style="background:#1d4ed8;padding:0;">
     <div style="height:3px;background:linear-gradient(90deg,#60a5fa,#a78bfa,#34d399);"></div>
   </td></tr>
-
-  <!-- BODY -->
   <tr><td style="padding:36px 40px;font-size:14px;color:#374151;line-height:1.8;">
     ${bodyContent}
   </td></tr>
-
-  <!-- DIVIDER -->
-  <tr><td style="padding:0 40px;"><div style="height:1px;background:#e5e7eb;"></div></td></tr>
-
-  <!-- FOOTER -->
-  <tr><td style="background:#f8fafc;padding:22px 40px;">
-    <table width="100%" cellpadding="0" cellspacing="0"><tr>
-      <td style="vertical-align:top;">
-        <div style="font-size:13px;font-weight:800;color:#1d4ed8;">Huwa Gebäudedienste GmbH</div>
-        <div style="font-size:12px;color:#6b7280;margin-top:5px;line-height:1.9;">
-          Mittelweg 24 · 56566 Neuwied<br/>
-          📞 <a href="tel:026019131820" style="color:#1d4ed8;text-decoration:none;font-weight:600;">02601 / 9131820</a><br/>
-          ✉️ <a href="mailto:info@huwa-gebaeudedienste.de" style="color:#1d4ed8;text-decoration:none;">info@huwa-gebaeudedienste.de</a>
-        </div>
-      </td>
-      <td align="right" style="vertical-align:middle;">
-        <div style="font-size:10px;color:#9ca3af;text-align:right;line-height:1.6;">
-          Versendet über<br/><span style="color:#1d4ed8;font-weight:700;">Huwa CRM</span>
-        </div>
-      </td>
-    </tr></table>
+  <tr><td style="background:#f8fafc;padding:18px 40px;border-top:1px solid #e5e7eb;">
+    <div style="font-size:11px;color:#9ca3af;text-align:center;">Versendet über <span style="color:#1d4ed8;font-weight:700;">Huwa CRM</span></div>
   </td></tr>
-
 </table>
 </td></tr>
 </table>
 </body>
 </html>`;
 }
-
-const SIGNATURE = `<p style="margin:28px 0 0;font-size:14px;color:#374151;">Mit freundlichen Grüßen,</p>
-<p style="margin:4px 0 0;font-size:14px;font-weight:800;color:#1d4ed8;">Huwa Gebäudedienste</p>`;
-
-const TEMPLATES = [
-  {
-    id: "dienstleistungen",
-    label: "📋 Unsere Dienstleistungen",
-    description: "Wenn jemand sagt: 'Schicken Sie uns Infos'",
-    betreff: () => `Unsere Dienstleistungen – Huwa Gebäudedienste`,
-    body: (c, extra) => `
-<p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte/r ${c.ansprechpartner || "Damen und Herren"},</p>
-<p style="margin:0 0 16px;font-size:14px;color:#4b5563;">vielen Dank für Ihr Interesse! Gerne stellen wir Ihnen unsere Leistungen vor:</p>
-<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
-  <tr><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:18px;width:36px;">🧹</td><td style="padding:10px 0 10px 12px;border-bottom:1px solid #f3f4f6;"><div style="font-size:13px;font-weight:700;color:#111827;">Unterhaltsreinigung</div><div style="font-size:12px;color:#6b7280;">Täglich, wöchentlich oder nach Bedarf</div></td></tr>
-  <tr><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:18px;">🏢</td><td style="padding:10px 0 10px 12px;border-bottom:1px solid #f3f4f6;"><div style="font-size:13px;font-weight:700;color:#111827;">Büro- & Praxisreinigung</div><div style="font-size:12px;color:#6b7280;">Für Ihre Mitarbeiter und Kunden</div></td></tr>
-  <tr><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:18px;">🏭</td><td style="padding:10px 0 10px 12px;border-bottom:1px solid #f3f4f6;"><div style="font-size:13px;font-weight:700;color:#111827;">Hallen- & Industriereinigung</div><div style="font-size:12px;color:#6b7280;">Maschinelle Reinigung für große Flächen</div></td></tr>
-  <tr><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:18px;">✨</td><td style="padding:10px 0 10px 12px;border-bottom:1px solid #f3f4f6;"><div style="font-size:13px;font-weight:700;color:#111827;">Grundreinigung & Sonderreinigung</div><div style="font-size:12px;color:#6b7280;">Tiefenreinigung nach Renovierung oder Umzug</div></td></tr>
-  <tr><td style="padding:10px 0;font-size:18px;">🔧</td><td style="padding:10px 0 10px 12px;"><div style="font-size:13px;font-weight:700;color:#111827;">Hausmeisterdienste</div><div style="font-size:12px;color:#6b7280;">Kleinreparaturen, Winterdienst, Grünpflege</div></td></tr>
-</table>
-${extra.notiz ? `<div style="background:#eff6ff;border-left:4px solid #1d4ed8;padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 20px;font-size:13px;color:#374151;">${extra.notiz}</div>` : ""}
-<div style="background:linear-gradient(135deg,#1d4ed8,#1e40af);border-radius:12px;padding:20px;margin:0 0 20px;text-align:center;">
-  <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#ffffff;">Kostenloses Angebot anfordern</p>
-  <p style="margin:0;font-size:13px;color:#bfdbfe;">📞 <strong style="color:#ffffff;">02601 / 9131820</strong></p>
-</div>
-<p style="margin:0;font-size:14px;color:#4b5563;">Darf ich Sie kurz zurückrufen, um Ihren Bedarf zu besprechen?</p>
-${SIGNATURE}`,
-  },
-  {
-    id: "erstkontakt",
-    label: "👋 Erstkontakt Follow-up",
-    description: "Nach erfolglosem Anruf – schriftliche Vorstellung",
-    betreff: () => `Professionelle Gebäudereinigung – Huwa Gebäudedienste Neuwied`,
-    body: (c, extra) => `
-<p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte/r ${c.ansprechpartner || "Damen und Herren"},</p>
-<p style="margin:0 0 14px;font-size:14px;color:#4b5563;">wir haben versucht Sie telefonisch zu erreichen – daher melden wir uns auf diesem Weg.</p>
-<p style="margin:0 0 14px;font-size:14px;color:#4b5563;">Wir sind <strong style="color:#111827;">Huwa Gebäudedienste</strong> aus Neuwied und bieten professionelle Gebäudereinigung und Hausmeisterdienste für Gewerbe, Büros und Industrie in der Region an.</p>
-<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin:0 0 20px;">
-  <ul style="margin:0;padding:0 0 0 18px;font-size:13px;color:#4b5563;line-height:1.9;">
-    <li>Zuverlässige & pünktliche Reinigungsteams</li>
-    <li>Faire, transparente Preise ohne versteckte Kosten</li>
-    <li>Individuelle Reinigungspläne nach Ihrem Bedarf</li>
-    <li>Regionaler Anbieter – kurze Wege, schnelle Reaktion</li>
-  </ul>
-</div>
-${extra.notiz ? `<div style="background:#eff6ff;border-left:4px solid #1d4ed8;padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 20px;font-size:13px;color:#374151;">${extra.notiz}</div>` : ""}
-<p style="margin:0;font-size:14px;color:#4b5563;">Darf ich Sie kurz zurückrufen für einen unverbindlichen Termin?</p>
-${SIGNATURE}`,
-  },
-  {
-    id: "termin",
-    label: "📅 Terminbestätigung",
-    description: "Vereinbarten Termin schriftlich bestätigen",
-    hasDatum: true, hasUhrzeit: true,
-    betreff: () => `Terminbestätigung – Huwa Gebäudedienste`,
-    body: (c, extra) => `
-<p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte/r ${c.ansprechpartner || "Damen und Herren"},</p>
-<p style="margin:0 0 20px;font-size:14px;color:#4b5563;">vielen Dank für Ihr Interesse! Hiermit bestätigen wir unseren Termin:</p>
-<div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:12px;padding:24px;margin:0 0 20px;">
-  <table cellpadding="0" cellspacing="0">
-    <tr><td style="padding:6px 16px 6px 0;font-size:22px;">📅</td><td><div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Datum</div><div style="font-size:16px;font-weight:800;color:#1e3a8a;">${extra.datum || "wird mitgeteilt"}</div></td></tr>
-    <tr><td style="padding:6px 16px 6px 0;font-size:22px;">🕐</td><td><div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Uhrzeit</div><div style="font-size:16px;font-weight:800;color:#1e3a8a;">${extra.uhrzeit ? extra.uhrzeit + " Uhr" : "wird mitgeteilt"}</div></td></tr>
-    <tr><td style="padding:6px 16px 6px 0;font-size:22px;">📍</td><td><div style="font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Ort</div><div style="font-size:16px;font-weight:800;color:#1e3a8a;">${c.adresse ? `${c.adresse}, ${c.plz} ${c.ort}` : c.ort || "Ihr Standort"}</div></td></tr>
-  </table>
-</div>
-${extra.notiz ? `<div style="background:#fefce8;border-left:4px solid #eab308;padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 20px;font-size:13px;color:#374151;"><strong>Hinweis:</strong> ${extra.notiz}</div>` : ""}
-<p style="margin:0;font-size:14px;color:#4b5563;">Wir freuen uns auf das Gespräch! Bei Fragen: <strong>02601 / 9131820</strong></p>
-${SIGNATURE}`,
-  },
-  {
-    id: "angebot",
-    label: "📊 Angebots-Nachfassung",
-    description: "Nachfassen nach gestelltem Angebot",
-    hasDatum: true,
-    betreff: (c) => `Nachfrage zu unserem Angebot – ${c.name}`,
-    body: (c, extra) => `
-<p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte/r ${c.ansprechpartner || "Damen und Herren"},</p>
-<p style="margin:0 0 14px;font-size:14px;color:#4b5563;">wir hoffen, es geht Ihnen gut! Wir melden uns bezüglich unseres Angebots${extra.datum ? ` vom <strong>${extra.datum}</strong>` : ""}.</p>
-<p style="margin:0 0 14px;font-size:14px;color:#4b5563;">Haben Sie die Möglichkeit gehabt, unser Angebot zu prüfen? Gerne beantworten wir Ihre Fragen oder passen es individuell an.</p>
-${extra.notiz ? `<div style="background:#eff6ff;border-left:4px solid #1d4ed8;padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 20px;font-size:13px;color:#374151;">${extra.notiz}</div>` : ""}
-<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;margin:0 0 20px;text-align:center;">
-  <p style="margin:0;font-size:13px;color:#15803d;font-weight:600;">✅ Angebot ist unverbindlich & kostenlos</p>
-</div>
-<p style="margin:0;font-size:14px;color:#4b5563;">Wir freuen uns auf Ihre Rückmeldung!</p>
-${SIGNATURE}`,
-  },
-  {
-    id: "rueckruf",
-    label: "📞 Rückruf-Bestätigung",
-    description: "Vereinbarten Rückruf bestätigen",
-    hasDatum: true, hasUhrzeit: true,
-    betreff: () => `Rückruf-Bestätigung – Huwa Gebäudedienste`,
-    body: (c, extra) => `
-<p style="margin:0 0 16px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte/r ${c.ansprechpartner || "Damen und Herren"},</p>
-<p style="margin:0 0 20px;font-size:14px;color:#4b5563;">vielen Dank für Ihr Interesse! Wie vereinbart, rufen wir Sie zurück:</p>
-<div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border-radius:12px;padding:24px;margin:0 0 20px;text-align:center;">
-  <p style="margin:0 0 4px;font-size:32px;">📞</p>
-  <p style="margin:0 0 6px;font-size:12px;color:#16a34a;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Ihr Rückruf-Termin</p>
-  <p style="margin:0;font-size:22px;font-weight:900;color:#15803d;">${extra.datum || "___"} · ${extra.uhrzeit ? extra.uhrzeit + " Uhr" : "___"}</p>
-</div>
-${extra.notiz ? `<div style="background:#fefce8;border-left:4px solid #eab308;padding:12px 16px;border-radius:0 8px 8px 0;margin:0 0 20px;font-size:13px;color:#374151;">${extra.notiz}</div>` : ""}
-<p style="margin:0;font-size:14px;color:#4b5563;">Vorher erreichbar: <strong>02601 / 9131820</strong></p>
-${SIGNATURE}`,
-  },
-];
 
 // ─── Live Preview ─────────────────────────────────────────────────────────────
 function LivePreview({ html }) {
@@ -187,7 +59,7 @@ function LivePreview({ html }) {
     <iframe
       ref={iframeRef}
       className="w-full border-0"
-      style={{ height: "360px" }}
+      style={{ height: "380px" }}
       title="E-Mail Vorschau"
       sandbox="allow-same-origin"
     />
@@ -204,7 +76,6 @@ function LogoUploader({ logoUrl, onLogoChange }) {
     if (!file) return;
     setUploading(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    // Persist to AppSettings
     const existing = await base44.entities.AppSettings.filter({ key: "email_logo_url" });
     if (existing.length > 0) {
       await base44.entities.AppSettings.update(existing[0].id, { value: file_url });
@@ -225,7 +96,6 @@ function LogoUploader({ logoUrl, onLogoChange }) {
 
   return (
     <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-xl">
-      {/* Preview */}
       <div className="w-24 h-12 rounded-lg border border-border bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center overflow-hidden shrink-0">
         {logoUrl
           ? <img src={logoUrl} alt="Logo" className="max-h-10 max-w-[88px] object-contain" />
@@ -233,7 +103,7 @@ function LogoUploader({ logoUrl, onLogoChange }) {
         }
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold mb-1">E-Mail Logo</p>
+        <p className="text-xs font-semibold mb-0.5">E-Mail Logo</p>
         <p className="text-[11px] text-muted-foreground">Erscheint im blauen Header aller E-Mails</p>
       </div>
       <div className="flex gap-1.5">
@@ -452,7 +322,6 @@ export default function SendEmailDialog({ company }) {
   const [logoLoaded, setLogoLoaded] = useState(false);
   const hasEmail = !!company?.email;
 
-  // Load saved logo once when dialog opens
   useEffect(() => {
     if (open && !logoLoaded) {
       base44.entities.AppSettings.filter({ key: "email_logo_url" }).then(res => {
