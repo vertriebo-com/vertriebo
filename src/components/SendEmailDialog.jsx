@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Mail, Send, Loader2, FlaskConical, CheckCircle2, ArrowLeft, Paperclip, X } from "lucide-react";
+import ReactQuill from "react-quill";
 import { toast } from "sonner";
 
 const LOGO_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Camponotus_flavomarginatus_ant.jpg/320px-Camponotus_flavomarginatus_ant.jpg";
@@ -209,7 +210,7 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
   const [uhrzeit, setUhrzeit] = useState("");
   const [notiz, setNotiz] = useState("");
   const [betreff, setBetreff] = useState(tpl.betreff(company));
-  const [customBody, setCustomBody] = useState(null); // null = use template
+  const [customBody, setCustomBody] = useState(() => tpl.body(company, {}));
   const [tab, setTab] = useState("edit"); // edit | preview
   const [sending, setSending] = useState(false);
   const [testSending, setTestSending] = useState(false);
@@ -218,13 +219,12 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef(null);
 
-  const extra = { datum, uhrzeit, notiz };
-  const generatedBody = tpl.body(company, extra);
-  const bodyContent = customBody !== null ? customBody : generatedBody;
-  const fullHtml = buildHtmlEmail({ bodyContent, subject: betreff });
+  const fullHtml = buildHtmlEmail({ bodyContent: customBody || "", subject: betreff });
 
-  // Wenn Template-Felder ändern → reset custom edit
-  useEffect(() => { setCustomBody(null); }, [datum, uhrzeit, notiz]);
+  // Wenn Template-Felder ändern → reset auf generierten Body
+  useEffect(() => {
+    setCustomBody(tpl.body(company, { datum, uhrzeit, notiz }));
+  }, [datum, uhrzeit, notiz]);
 
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
@@ -311,13 +311,22 @@ function EmailEditor({ tpl, company, onBack, onSend }) {
         </div>
 
         {tab === "edit" ? (
-          <textarea
-            value={bodyContent}
-            onChange={e => setCustomBody(e.target.value)}
-            rows={10}
-            className="w-full rounded-xl border border-input bg-transparent px-3 py-2.5 text-xs font-mono shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-            placeholder="HTML-Inhalt der E-Mail..."
-          />
+          <div className="border border-input rounded-xl overflow-hidden [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-border [&_.ql-toolbar]:bg-muted/50 [&_.ql-container]:border-0 [&_.ql-editor]:min-h-[220px] [&_.ql-editor]:text-sm [&_.ql-editor]:font-sans">
+            <ReactQuill
+              theme="snow"
+              value={bodyContent}
+              onChange={setCustomBody}
+              modules={{
+                toolbar: [
+                  [{ header: [false, 1, 2] }],
+                  ["bold", "italic", "underline"],
+                  [{ list: "ordered" }, { list: "bullet" }],
+                  ["link"],
+                  ["clean"],
+                ],
+              }}
+            />
+          </div>
         ) : (
           <div className="border border-border rounded-xl overflow-hidden">
             <div className="bg-muted/60 px-3 py-2 border-b border-border flex items-center gap-2">
