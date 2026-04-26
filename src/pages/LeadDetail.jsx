@@ -28,7 +28,6 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import MobileSelect from "@/components/MobileSelect";
 import StatusBadge from "../components/StatusBadge";
-import EmailTemplates from "../components/EmailTemplates";
 import CallScriptDialog from "../components/CallScriptDialog";
 import AddContactLogDialog from "../components/AddContactLogDialog";
 import AddTaskDialog from "../components/AddTaskDialog";
@@ -208,14 +207,8 @@ export default function LeadDetail() {
               <Phone className="w-3.5 h-3.5" /> {company.telefon}
             </a>
           )}
-          {company.email && (
-            <a href={`mailto:${company.email}`} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium bg-muted text-foreground border border-border px-3 rounded-md hover:bg-muted/80 transition-colors">
-              <Mail className="w-3.5 h-3.5" /> E-Mail
-            </a>
-          )}
           <CallScriptDialog company={company} />
           <SendEmailDialog company={company} />
-          <EmailTemplates company={company} />
           <button onClick={handleEnrich} disabled={enriching} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium border border-border bg-background px-3 rounded-md hover:bg-muted transition-colors disabled:opacity-50">
             {enriching ? <span className="w-3 h-3 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin inline-block" /> : <Sparkles className="w-3.5 h-3.5" />}
             Anreichern
@@ -406,9 +399,7 @@ export default function LeadDetail() {
                     </p>
                   )}
                   {log.user_email && <p className="text-[10px] text-muted-foreground mt-1.5">{log.user_email}</p>}
-                  {log.ergebnis === "Nicht erreicht" && company?.email && (
-                    <div className="mt-2"><SendEmailDialog company={company} /></div>
-                  )}
+
                 </div>
               </div>
             </div>
