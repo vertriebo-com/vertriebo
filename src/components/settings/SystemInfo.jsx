@@ -8,7 +8,7 @@ import SettingsSection from "./SettingsSection";
 const AUTOMATIONS = [
   { name: "Morgen-Report", desc: "Täglich 7:30 Uhr – Tagesbericht per E-Mail an alle Vertriebler", fn: "morningReport" },
   { name: "Follow-Up Agent", desc: "Täglich – automatisches Nachfassen bei inaktiven Leads", fn: "followUpAgent" },
-  { name: "Priority Agent", desc: "Täglich – Leads priorisieren und bewerten", fn: "priorityAgent" },
+  { name: "🤖 KI-Scoring Agent", desc: "Täglich 06:30 Uhr – KI bewertet jeden Lead mit 0–100 Punkte basierend auf Kontakthistorie & Unternehmensdaten", fn: "priorityAgent" },
   { name: "Cleanup Agent", desc: "Wöchentlich – alte Daten bereinigen", fn: "cleanupAgent" },
 ];
 

@@ -273,7 +273,7 @@ export default function Leads() {
               </div>
               <div className="flex flex-col items-end gap-1.5 shrink-0">
                 <StatusBadge status={company.status} />
-                <LeadScoreBadge score={company.priority_score} isHot={company.is_hot} />
+                <LeadScoreBadge score={company.priority_score} isHot={company.is_hot} notizen={company.notizen} />
                 <div className="flex items-center gap-1">
                   {company.telefon && (
                     <a
