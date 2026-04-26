@@ -427,7 +427,7 @@ export default function SendEmailDialog({ company }) {
       </button>
 
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl max-h-[92vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Mail className="w-4 h-4 text-primary" />
@@ -435,16 +435,18 @@ export default function SendEmailDialog({ company }) {
             </DialogTitle>
           </DialogHeader>
 
-          {!selectedTemplate ? (
-            <TemplateSelector onSelect={setSelectedTemplate} />
-          ) : (
-            <EmailEditor
-              tpl={selectedTemplate}
-              company={company}
-              onBack={() => setSelectedTemplate(null)}
-              onSend={handleClose}
-            />
-          )}
+          <div className="overflow-y-auto flex-1 pr-1">
+            {!selectedTemplate ? (
+              <TemplateSelector onSelect={setSelectedTemplate} />
+            ) : (
+              <EmailEditor
+                tpl={selectedTemplate}
+                company={company}
+                onBack={() => setSelectedTemplate(null)}
+                onSend={handleClose}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </>
