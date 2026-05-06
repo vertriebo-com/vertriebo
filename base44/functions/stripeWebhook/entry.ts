@@ -1,9 +1,304 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import Stripe from 'npm:stripe@14.21.0';
 
+// ─── SOURCE OF TRUTH ARCHITEKTUR ─────────────────────────────────────────────
+//
+//  Stripe  = Zahlungsquelle (Geld, Rechnungen, Zahlungsmethoden)
+//  unsere DB = App-Zugriffsquelle (Rollen, Features, Limits)
+//
+//  REGEL: Die App fragt NIEMALS Stripe live ab, um Zugriffsrechte zu entscheiden.
+//         Alle Berechtigungen basieren ausschließlich auf Organization.billing_status
+//         und Subscription.status in unserer eigenen DB.
+//         Stripe-Webhooks halten unsere DB synchron — sie sind der Sync-Mechanismus,
+//         nicht die Runtime-Autorität.
+//
+//  Webhook-Fehlerstrategie:
+//    - Echter Fehler (DB-Schreibfehler, unerwartete Exception) → 500
+//      → Stripe retried automatisch bis zu 3 Tage (exponential backoff)
+//    - duplicate Event (bereits erfolgreich verarbeitet) → 200 sofort
+//    - ignored Event (unbekannter Typ, kein relevanter Handler) → 200
+//    - NICHT 200 bei echtem Fehler (alter Ansatz war falsch — wir wollen Retries!)
+//
+//  Idempotenz (UsageLog-Perioden):
+//    Eindeutiger Schlüssel: organization_id + period_start (ISO-String aus Stripe)
+//    → verhindert doppelte Periodenerstellung bei Webhook-Retries
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY"));
 
+// ─── Helper ───────────────────────────────────────────────────────────────────
+
+async function logBillingEvent(base44, { stripe_event_id, event_type, organization_id, status, amount, currency, payload, error_message }) {
+  try {
+    await base44.asServiceRole.entities.BillingEventLog.create({
+      stripe_event_id,
+      event_type,
+      organization_id: organization_id || null,
+      status,
+      amount: amount || null,
+      currency: currency || null,
+      payload: JSON.stringify(payload).slice(0, 4000),
+      error_message: error_message || null,
+    });
+  } catch (e) {
+    // Log-Fehler dürfen nie die eigentliche Response blockieren
+    console.error('[stripeWebhook] BillingEventLog write failed:', e.message);
+  }
+}
+
+async function findOrgByStripeCustomer(base44, stripeCustomerId) {
+  if (!stripeCustomerId) return null;
+  const orgs = await base44.asServiceRole.entities.Organization.filter({ stripe_customer_id: stripeCustomerId });
+  return orgs[0] || null;
+}
+
+async function findOrgBySubscription(base44, stripeSubscriptionId) {
+  if (!stripeSubscriptionId) return null;
+  const subs = await base44.asServiceRole.entities.Subscription.filter({ stripe_subscription_id: stripeSubscriptionId });
+  if (!subs[0]) return null;
+  const orgs = await base44.asServiceRole.entities.Organization.filter({ id: subs[0].organization_id });
+  return orgs[0] || null;
+}
+
+async function upsertSubscription(base44, { organization_id, stripeSub, plan_id }) {
+  const existing = await base44.asServiceRole.entities.Subscription.filter({ organization_id });
+  const data = {
+    organization_id,
+    stripe_subscription_id: stripeSub.id,
+    stripe_customer_id: stripeSub.customer,
+    stripe_price_id: stripeSub.items?.data?.[0]?.price?.id || null,
+    plan_id: plan_id || existing[0]?.plan_id || null,
+    status: stripeSub.status,
+    current_period_start: stripeSub.current_period_start ? new Date(stripeSub.current_period_start * 1000).toISOString() : null,
+    current_period_end: stripeSub.current_period_end ? new Date(stripeSub.current_period_end * 1000).toISOString() : null,
+    cancel_at_period_end: stripeSub.cancel_at_period_end || false,
+    cancel_at: stripeSub.cancel_at ? new Date(stripeSub.cancel_at * 1000).toISOString() : null,
+    canceled_at: stripeSub.canceled_at ? new Date(stripeSub.canceled_at * 1000).toISOString() : null,
+    ended_at: stripeSub.ended_at ? new Date(stripeSub.ended_at * 1000).toISOString() : null,
+    trial_start: stripeSub.trial_start ? new Date(stripeSub.trial_start * 1000).toISOString() : null,
+    trial_end: stripeSub.trial_end ? new Date(stripeSub.trial_end * 1000).toISOString() : null,
+  };
+  if (existing[0]) {
+    await base44.asServiceRole.entities.Subscription.update(existing[0].id, data);
+  } else {
+    await base44.asServiceRole.entities.Subscription.create(data);
+  }
+}
+
+// Stripe subscription status → unsere billing_status enum
+function mapBillingStatus(stripeStatus) {
+  const map = {
+    active: 'active', trialing: 'trialing', past_due: 'past_due',
+    unpaid: 'unpaid', canceled: 'canceled', incomplete: 'incomplete',
+    incomplete_expired: 'incomplete_expired',
+  };
+  return map[stripeStatus] || 'canceled';
+}
+
+// ─── UsageLog: idempotente Periodenerstellung ─────────────────────────────────
+// Eindeutiger Schlüssel: organization_id + period_start
+// Doppelter Webhook → kein zweites UsageLog, kein Reset
+async function upsertUsageLogPeriod(base44, { organization_id, period_start, period_end }) {
+  // Exakten period_start-String als Idempotenz-Schlüssel nutzen
+  const existing = await base44.asServiceRole.entities.UsageLog.filter({
+    organization_id,
+    period_start,
+  });
+  if (!existing[0]) {
+    await base44.asServiceRole.entities.UsageLog.create({
+      organization_id,
+      period_start,
+      period_end,
+      leads_created: 0,
+      ai_scorings_used: 0,
+      emails_sent: 0,
+      lead_generations_used: 0,
+      users_count: 0,
+    });
+    console.info(`[stripeWebhook] UsageLog erstellt für org=${organization_id} periode=${period_start}`);
+  } else {
+    console.info(`[stripeWebhook] UsageLog bereits vorhanden für org=${organization_id} periode=${period_start} – kein Reset`);
+  }
+}
+
+// ─── Handler-Funktionen pro Event-Typ ─────────────────────────────────────────
+
+async function handleCheckoutCompleted(base44, session) {
+  const organizationId = session.metadata?.organization_id;
+  const planId = session.metadata?.plan_id;
+  const userEmail = session.metadata?.user_email;
+
+  if (!organizationId) {
+    console.warn('[stripeWebhook] checkout.session.completed: kein organization_id in metadata!');
+    return { status: 'ignored', reason: 'no_organization_id' };
+  }
+
+  const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organizationId });
+  const org = orgs[0] || null;
+  // org_not_found = echter Fehler → throw, damit 500 und Stripe retried
+  if (!org) throw new Error(`org_not_found: Organization "${organizationId}" nicht in DB`);
+
+  // Stripe Customer ID sichern
+  if (session.customer && org.stripe_customer_id !== session.customer) {
+    await base44.asServiceRole.entities.Organization.update(organizationId, {
+      stripe_customer_id: session.customer,
+    });
+  }
+
+  // Plan aus DB validieren (Price-ID kommt NICHT von Stripe)
+  let resolvedPlanId = planId;
+  if (planId) {
+    try {
+      const plans = await base44.asServiceRole.entities.Plan.filter({ id: planId });
+      if (!plans[0]) {
+        console.warn(`[stripeWebhook] Plan ${planId} not found in DB – plan_id wird nicht gesetzt`);
+        resolvedPlanId = null;
+      }
+    } catch (_) { resolvedPlanId = null; }
+  }
+
+  if (session.subscription) {
+    const stripeSub = await stripe.subscriptions.retrieve(session.subscription);
+    await upsertSubscription(base44, { organization_id: organizationId, stripeSub, plan_id: resolvedPlanId });
+
+    const billingStatus = mapBillingStatus(stripeSub.status);
+    await base44.asServiceRole.entities.Organization.update(organizationId, {
+      billing_status: billingStatus,
+      plan_id: resolvedPlanId || org.plan_id,
+      ...(stripeSub.trial_end ? { trial_ends_at: new Date(stripeSub.trial_end * 1000).toISOString() } : {}),
+    });
+  }
+
+  if (userEmail) {
+    try {
+      const planName = session.metadata?.plan_name || 'Premium';
+      await base44.asServiceRole.integrations.Core.SendEmail({
+        to: userEmail,
+        subject: `🎉 Willkommen beim ${planName}-Plan!`,
+        from_name: 'Huwa Vertrieb',
+        body: `<p>Hallo,<br/><br/>dein <strong>${planName}-Plan</strong> ist jetzt aktiv. Viel Erfolg beim Vertrieb!<br/><br/>– Das Huwa-Team</p>`,
+      });
+    } catch (e) { console.warn('[stripeWebhook] Welcome email failed:', e.message); }
+  }
+
+  console.info(`[stripeWebhook] checkout.completed org=${organizationId} plan=${resolvedPlanId}`);
+  return { status: 'success' };
+}
+
+async function handleSubscriptionUpdated(base44, stripeSub) {
+  const organizationId = stripeSub.metadata?.organization_id;
+  const planId = stripeSub.metadata?.plan_id;
+
+  let org = null;
+  if (organizationId) {
+    try {
+      const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organizationId });
+      org = orgs[0] || null;
+    } catch (_) {}
+  }
+  if (!org) org = await findOrgByStripeCustomer(base44, stripeSub.customer);
+  if (!org) {
+    // Org genuinely not found → log as ignored, nicht als Fehler (kein Retry nötig)
+    console.warn(`[stripeWebhook] subscription.updated: org nicht gefunden für customer ${stripeSub.customer} – ignoriert`);
+    return { status: 'ignored', reason: 'org_not_found' };
+  }
+
+  await upsertSubscription(base44, { organization_id: org.id, stripeSub, plan_id: planId || org.plan_id });
+  const billingStatus = mapBillingStatus(stripeSub.status);
+  await base44.asServiceRole.entities.Organization.update(org.id, { billing_status: billingStatus });
+
+  console.info(`[stripeWebhook] subscription.updated org=${org.id} status=${stripeSub.status} cancel_at_period_end=${stripeSub.cancel_at_period_end}`);
+  return { status: 'success' };
+}
+
+async function handleSubscriptionDeleted(base44, stripeSub) {
+  const organizationId = stripeSub.metadata?.organization_id;
+  let org = null;
+  if (organizationId) {
+    try {
+      const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organizationId });
+      org = orgs[0] || null;
+    } catch (_) {}
+  }
+  if (!org) org = await findOrgByStripeCustomer(base44, stripeSub.customer);
+  if (!org) return { status: 'ignored', reason: 'org_not_found' };
+
+  await upsertSubscription(base44, { organization_id: org.id, stripeSub });
+  await base44.asServiceRole.entities.Organization.update(org.id, { billing_status: 'canceled' });
+
+  console.info(`[stripeWebhook] subscription.deleted org=${org.id}`);
+  return { status: 'success' };
+}
+
+async function handleInvoicePaid(base44, invoice) {
+  const stripeSubId = invoice.subscription;
+  if (!stripeSubId) return { status: 'ignored', reason: 'no_subscription' };
+
+  let org = await findOrgBySubscription(base44, stripeSubId);
+  if (!org) org = await findOrgByStripeCustomer(base44, invoice.customer);
+  if (!org) return { status: 'ignored', reason: 'org_not_found' };
+
+  const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
+  await upsertSubscription(base44, { organization_id: org.id, stripeSub });
+  await base44.asServiceRole.entities.Organization.update(org.id, { billing_status: 'active' });
+
+  // ── Idempotente UsageLog-Periode (org_id + period_start als Schlüssel) ────
+  if (invoice.period_start && invoice.period_end) {
+    const periodStart = new Date(invoice.period_start * 1000).toISOString();
+    const periodEnd = new Date(invoice.period_end * 1000).toISOString();
+    await upsertUsageLogPeriod(base44, { organization_id: org.id, period_start: periodStart, period_end: periodEnd });
+  }
+
+  // stripe_latest_invoice_id auf Subscription speichern
+  try {
+    const subs = await base44.asServiceRole.entities.Subscription.filter({ organization_id: org.id });
+    if (subs[0]) {
+      await base44.asServiceRole.entities.Subscription.update(subs[0].id, {
+        stripe_latest_invoice_id: invoice.id,
+        stripe_payment_intent_id: typeof invoice.payment_intent === 'string' ? invoice.payment_intent : null,
+      });
+    }
+  } catch (_) {}
+
+  console.info(`[stripeWebhook] invoice.paid org=${org.id} amount=${invoice.amount_paid} period=${invoice.period_start}-${invoice.period_end}`);
+  return { status: 'success', amount: invoice.amount_paid };
+}
+
+async function handleInvoicePaymentFailed(base44, invoice) {
+  const stripeSubId = invoice.subscription;
+  let org = null;
+  if (stripeSubId) org = await findOrgBySubscription(base44, stripeSubId);
+  if (!org) org = await findOrgByStripeCustomer(base44, invoice.customer);
+  if (!org) return { status: 'ignored', reason: 'org_not_found' };
+
+  await base44.asServiceRole.entities.Organization.update(org.id, { billing_status: 'past_due' });
+
+  if (stripeSubId) {
+    try {
+      const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
+      await upsertSubscription(base44, { organization_id: org.id, stripeSub });
+    } catch (_) {}
+  }
+
+  if (org.owner_email) {
+    try {
+      await base44.asServiceRole.integrations.Core.SendEmail({
+        to: org.owner_email,
+        subject: '⚠️ Zahlung fehlgeschlagen – Bitte Zahlungsmethode aktualisieren',
+        from_name: 'Huwa Vertrieb',
+        body: `<p>Hallo,<br/><br/>leider ist die Zahlung für dein Abonnement fehlgeschlagen. Bitte aktualisiere deine Zahlungsmethode im Kundenportal, um deinen Zugang zu erhalten.<br/><br/>– Das Huwa-Team</p>`,
+      });
+    } catch (e) { console.warn('[stripeWebhook] Payment failed email error:', e.message); }
+  }
+
+  console.warn(`[stripeWebhook] invoice.payment_failed org=${org.id}`);
+  return { status: 'success' };
+}
+
+// ─── Main Webhook Handler ──────────────────────────────────────────────────────
 Deno.serve(async (req) => {
+  // ── 1. Stripe Signature Verification ─────────────────────────────────────
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
@@ -12,144 +307,84 @@ Deno.serve(async (req) => {
   try {
     event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
   } catch (err) {
-    console.error("Webhook signature verification failed:", err.message);
+    console.error("[stripeWebhook] Signature verification failed:", err.message);
     return Response.json({ error: "Invalid signature" }, { status: 400 });
   }
 
+  // ── 2. Base44 Client (erst nach Signature-Verifikation!) ─────────────────
   const base44 = createClientFromRequest(req);
+  const obj = event.data.object;
 
-  console.log("Stripe event received:", event.type);
+  console.log(`[stripeWebhook] Event received: ${event.type} (${event.id})`);
+
+  // ── 3. Idempotenz: bereits erfolgreich verarbeitete Events sofort ablehnen
+  try {
+    const existingLogs = await base44.asServiceRole.entities.BillingEventLog.filter({ stripe_event_id: event.id });
+    if (existingLogs.length > 0 && existingLogs[0].status === 'success') {
+      console.log(`[stripeWebhook] Duplicate event ${event.id} – bereits verarbeitet. Skipping.`);
+      // Duplicate-Log schreiben, aber KEINEN zweiten Duplicate-Log auf Duplicate
+      return Response.json({ received: true, status: 'duplicate' });
+    }
+  } catch (e) {
+    // Wenn Idempotenz-Check fehlschlägt, lieber weiterverarbeiten als blockieren
+    console.warn('[stripeWebhook] Idempotency check failed (proceeding):', e.message);
+  }
+
+  // ── 4. Event verarbeiten ──────────────────────────────────────────────────
+  let result = { status: 'ignored' };
 
   try {
-    // Erfolgreiche Checkout-Session (einmalige Zahlung oder Abo-Start)
-    if (event.type === "checkout.session.completed") {
-      const session = event.data.object;
-      const customerEmail = session.customer_details?.email || session.customer_email;
-      const planName = session.metadata?.planName || "Starter";
-
-      if (!customerEmail) {
-        console.warn("No customer email in session:", session.id);
-        return Response.json({ received: true });
-      }
-
-      console.log(`Checkout completed for ${customerEmail}, plan: ${planName}`);
-
-      // User in DB finden
-      const users = await base44.asServiceRole.entities.User.list();
-      const user = users.find(u => u.email?.toLowerCase() === customerEmail.toLowerCase());
-
-      if (user) {
-        // Subscription-Status auf Plan setzen
-        await base44.asServiceRole.auth.updateUser(user.id, {
-          subscription_plan: planName,
-          subscription_status: "active",
-          subscription_started_at: new Date().toISOString(),
-          stripe_customer_id: session.customer || null,
-          stripe_session_id: session.id,
-        });
-        console.log(`User ${customerEmail} upgraded to ${planName}`);
-
-        // Willkommens-E-Mail senden
-        await base44.asServiceRole.integrations.Core.SendEmail({
-          to: customerEmail,
-          subject: `🎉 Willkommen beim ${planName}-Plan!`,
-          from_name: "Huwa Vertrieb",
-          body: `
-<!DOCTYPE html>
-<html>
-<body style="margin:0;padding:0;background:#f1f5f9;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
-        <tr><td style="background:#0f4cb3;border-radius:12px 12px 0 0;padding:28px 32px;">
-          <div style="font-size:24px;font-weight:800;color:white;">🎉 Zahlung erfolgreich!</div>
-          <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:8px;">Dein ${planName}-Abonnement ist jetzt aktiv</div>
-        </td></tr>
-        <tr><td style="background:white;padding:28px 32px;border:1px solid #e2e8f0;border-top:none;">
-          <p style="font-size:15px;color:#1f2937;">Hallo,</p>
-          <p style="font-size:14px;color:#4b5563;">
-            vielen Dank für dein Vertrauen! Dein <strong>${planName}-Plan</strong> ist jetzt freigeschaltet.
-            Du kannst dich sofort einloggen und mit der Lead-Generierung starten.
-          </p>
-          <div style="text-align:center;margin:24px 0;">
-            <a href="${Deno.env.get("BASE44_APP_URL") || "https://app.base44.com"}" 
-               style="background:#0f4cb3;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
-              Jetzt zum Dashboard →
-            </a>
-          </div>
-          <p style="font-size:13px;color:#6b7280;">
-            Bei Fragen stehen wir dir jederzeit zur Verfügung:<br/>
-            📧 info@huwa-gebaeudedienste.de · 📞 02601/9131820
-          </p>
-        </td></tr>
-        <tr><td style="background:#1e293b;border-radius:0 0 12px 12px;padding:20px 32px;">
-          <div style="font-size:12px;color:#94a3b8;">
-            Huwa Vertrieb CRM · Mittelweg 24 · 56566 Neuwied
-          </div>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>
-          `,
-        });
-      } else {
-        // User existiert noch nicht → AppSettings als Pending speichern
-        console.log(`User ${customerEmail} not found yet, saving pending subscription`);
-        await base44.asServiceRole.entities.AppSettings.create({
-          key: `pending_subscription_${customerEmail}`,
-          value: JSON.stringify({
-            email: customerEmail,
-            plan: planName,
-            session_id: session.id,
-            customer_id: session.customer,
-            created_at: new Date().toISOString(),
-          }),
-        });
-      }
+    switch (event.type) {
+      case 'checkout.session.completed':
+        result = await handleCheckoutCompleted(base44, obj);
+        break;
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+        result = await handleSubscriptionUpdated(base44, obj);
+        break;
+      case 'customer.subscription.deleted':
+        result = await handleSubscriptionDeleted(base44, obj);
+        break;
+      case 'invoice.paid':
+        result = await handleInvoicePaid(base44, obj);
+        break;
+      case 'invoice.payment_failed':
+        result = await handleInvoicePaymentFailed(base44, obj);
+        break;
+      default:
+        console.log(`[stripeWebhook] Unhandled event type: ${event.type}`);
+        result = { status: 'ignored', reason: 'unhandled_event_type' };
     }
-
-    // Abo-Verlängerung (monatliche Zahlung)
-    if (event.type === "invoice.paid") {
-      const invoice = event.data.object;
-      const customerEmail = invoice.customer_email;
-
-      if (customerEmail) {
-        console.log(`Invoice paid for ${customerEmail}`);
-        const users = await base44.asServiceRole.entities.User.list();
-        const user = users.find(u => u.email?.toLowerCase() === customerEmail.toLowerCase());
-
-        if (user) {
-          await base44.asServiceRole.auth.updateUser(user.id, {
-            subscription_status: "active",
-            subscription_renewed_at: new Date().toISOString(),
-          });
-          console.log(`Subscription renewed for ${customerEmail}`);
-        }
-      }
-    }
-
-    // Abo gekündigt / Zahlung fehlgeschlagen
-    if (event.type === "customer.subscription.deleted" || event.type === "invoice.payment_failed") {
-      const obj = event.data.object;
-      const customerId = obj.customer;
-
-      // Über Stripe Customer-ID den User finden
-      const users = await base44.asServiceRole.entities.User.list();
-      const user = users.find(u => u.stripe_customer_id === customerId);
-
-      if (user) {
-        await base44.asServiceRole.auth.updateUser(user.id, {
-          subscription_status: event.type === "customer.subscription.deleted" ? "cancelled" : "payment_failed",
-        });
-        console.log(`Subscription ${event.type} for user ${user.email}`);
-      }
-    }
-
-    return Response.json({ received: true });
-  } catch (error) {
-    console.error("Webhook processing error:", error.message);
-    return Response.json({ error: error.message }, { status: 500 });
+  } catch (err) {
+    // ── ECHTER FEHLER → 500 → Stripe retried ────────────────────────────────
+    // (Vorher war hier 200 — das ist falsch, weil Stripe dann nicht retried)
+    console.error(`[stripeWebhook] Processing error for ${event.type} (${event.id}):`, err.message);
+    // Fehler loggen (best-effort, darf nicht nochmal werfen)
+    await logBillingEvent(base44, {
+      stripe_event_id: event.id,
+      event_type: event.type,
+      organization_id: obj?.metadata?.organization_id || null,
+      status: 'error',
+      amount: obj?.amount_paid || obj?.amount_total || null,
+      currency: obj?.currency || null,
+      payload: obj,
+      error_message: err.message,
+    });
+    // 500 → Stripe retried (bis zu 3 Tage, exponential backoff)
+    return Response.json({ error: err.message }, { status: 500 });
   }
+
+  // ── 5. BillingEventLog schreiben (nur bei success/ignored, nicht bei error) ─
+  await logBillingEvent(base44, {
+    stripe_event_id: event.id,
+    event_type: event.type,
+    organization_id: obj?.metadata?.organization_id || null,
+    status: result.status === 'success' ? 'success' : 'ignored',
+    amount: obj?.amount_paid || obj?.amount_total || result.amount || null,
+    currency: obj?.currency || null,
+    payload: obj,
+    error_message: null,
+  });
+
+  return Response.json({ received: true, status: result.status });
 });
