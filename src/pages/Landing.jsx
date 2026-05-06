@@ -7,48 +7,67 @@ import { toast } from "sonner";
 const PLANS = [
   {
     name: "Starter",
-    price: "149",
-    priceId: "price_1TNtHwBInRzoFM7CwauSnrap",
+    planId: "69fb1b37d7433caf98c34ff9",
+    price: "99",
     description: "Perfekt für Einzelkämpfer",
     color: "border-border",
     features: [
-      "1 Vertriebler",
-      "100 Leads pro Monat",
+      "2 Vertriebler",
+      "300 Leads pro Monat",
+      "100 Recherche-Credits/Monat",
       "CRM & Pipeline",
       "KI-Morgenreport",
       "Google Maps Integration",
-      "E-Mail-Vorlagen",
+      "500 E-Mails/Monat",
     ],
   },
   {
-    name: "Team",
-    price: "349",
-    priceId: "price_1TNtHwBInRzoFM7C75e1l2JL",
+    name: "Professional",
+    planId: "69fb1b37d7433caf98c34ffa",
+    price: "199",
     description: "Für wachsende Teams",
     color: "border-primary",
     popular: true,
     features: [
-      "Bis zu 5 Vertriebler",
-      "500 Leads pro Monat",
+      "5 Vertriebler",
+      "1.500 Leads pro Monat",
+      "750 Recherche-Credits/Monat",
       "Alle Starter-Features",
-      "Teamziele & Statistiken",
-      "Wochenberichte",
-      "Aufgabenverteilung",
+      "Erweiterte Reports",
+      "Eigene E-Mail-Vorlagen",
+      "2.000 E-Mails/Monat",
     ],
   },
   {
-    name: "Agentur",
-    price: "699",
-    priceId: "price_1TNtHwBInRzoFM7CaTsLN3In",
+    name: "Gold",
+    planId: "69fb7de571a0504da10ef985",
+    price: "349",
+    description: "Für ambitionierte Teams",
+    color: "border-border",
+    features: [
+      "10 Vertriebler",
+      "5.000 Leads pro Monat",
+      "2.000 Recherche-Credits/Monat",
+      "Alle Professional-Features",
+      "1.000 KI-Aktionen/Monat",
+      "5.000 E-Mails/Monat",
+      "Priority Support",
+    ],
+  },
+  {
+    name: "Agency",
+    planId: "69fb1b37d7433caf98c34ffb",
+    price: "599",
     description: "Für professionelle Agenturen",
     color: "border-border",
     features: [
       "Unbegrenzte Vertriebler",
-      "2.000+ Leads pro Monat",
-      "Alle Team-Features",
-      "Priority Support",
-      "Individuelle Anpassungen",
-      "Onboarding-Beratung",
+      "Unbegrenzte Leads",
+      "Unbegrenzte Recherche-Credits",
+      "Alle Gold-Features",
+      "Unbegrenzte KI-Aktionen",
+      "Unbegrenzte E-Mails",
+      "Individuelle Anpassungen & Onboarding",
     ],
   },
 ];
@@ -76,12 +95,27 @@ export default function Landing() {
     }
     setLoading(plan.name);
     try {
+      const user = await base44.auth.me().catch(() => null);
+      if (!user) {
+        base44.auth.redirectToLogin(window.location.href);
+        return;
+      }
+      // organization_id aus AppSettings oder User-Daten holen
+      const settings = await base44.entities.AppSettings.list();
+      const orgIdSetting = settings?.find(s => s.key === "organization_id");
+      if (!orgIdSetting?.value) {
+        toast.error("Keine Organisation gefunden. Bitte zuerst das Onboarding abschließen.");
+        setLoading(null);
+        return;
+      }
       const res = await base44.functions.invoke("createCheckoutSession", {
-        priceId: plan.priceId,
-        planName: plan.name,
+        organization_id: orgIdSetting.value,
+        plan_id: plan.planId,
       });
       if (res.data?.url) {
         window.location.href = res.data.url;
+      } else {
+        toast.error(res.data?.error || "Kein Checkout-Link erhalten.");
       }
     } catch (e) {
       toast.error("Fehler beim Starten des Checkouts: " + e.message);
