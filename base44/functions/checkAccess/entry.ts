@@ -6,35 +6,50 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const ACTION_ROLES = {
   view_leads:                ['organization_admin', 'sales_rep'],
   create_lead:               ['organization_admin', 'sales_rep'],
+  update_assigned_lead:      ['organization_admin', 'sales_rep'],
   delete_lead:               ['organization_admin'],
   generate_leads:            ['organization_admin'],
   create_contact_log:        ['organization_admin', 'sales_rep'],
   view_tasks:                ['organization_admin', 'sales_rep'],
+  complete_task:             ['organization_admin', 'sales_rep'],
   manage_users:              ['organization_admin'],
   manage_settings:           ['organization_admin'],
   manage_billing:            ['organization_admin'],
+  data_export:               ['organization_admin'],
   view_reports:              ['organization_admin', 'sales_rep'],
   use_ai_scoring:            ['organization_admin', 'sales_rep'],
+  send_bulk_email:           ['organization_admin', 'sales_rep'],
   manage_blacklist:          ['organization_admin'],
   platform_admin_access:     [], // platform_admin only
 };
 
-// ─── Billing Status → Access Level ───────────────────────────────────────────
-// full: all actions allowed
-// restricted: only billing/data-export for admin, sales_rep blocked
-// blocked: no access
+// ─── Billing Status → Access Mode ────────────────────────────────────────────
+//
+//  full        – alles erlaubt
+//  degraded    – sales_rep nur Lesen/Bearbeiten; admin alles außer neue Leads/KI
+//  admin_only  – nur admin: billing + data_export; sales_rep komplett gesperrt
+//  blocked     – niemand hat Zugriff außer admin auf billing + data_export
+//
 const BILLING_ACCESS = {
   active:               'full',
   trialing:             'full',
-  past_due:             'restricted',
-  incomplete:           'restricted',
-  unpaid:               'blocked',
-  canceled:             'blocked',
-  incomplete_expired:   'blocked',
+  past_due:             'degraded',       // sales_rep: lesen+bearbeiten; kein create/AI
+  incomplete:           'degraded',       // gleich wie past_due
+  unpaid:               'blocked',        // admin: nur billing; sales_rep: nix
+  canceled:             'blocked',        // admin: billing + data_export; sales_rep: nix
+  incomplete_expired:   'blocked',        // wie unpaid
 };
 
-// Actions allowed even in restricted/blocked billing state (admin only)
-const BILLING_RESTRICTED_ALLOWED = ['manage_billing'];
+// Aktionen, die im Modus "degraded" GESPERRT sind (für alle Rollen)
+const DEGRADED_BLOCKED_ACTIONS = new Set([
+  'create_lead',
+  'generate_leads',
+  'use_ai_scoring',
+  'send_bulk_email',
+]);
+
+// Aktionen, die admin auch im Modus "blocked" darf
+const BLOCKED_ADMIN_ALLOWED = new Set(['manage_billing', 'data_export']);
 
 // ─── Main checkAccess function ────────────────────────────────────────────────
 /**
@@ -141,29 +156,35 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
   const billingAccess = BILLING_ACCESS[billingStatus] || 'blocked';
 
   if (action && billingAccess !== 'full') {
+    const ctx = { user, organization, member, role, plan, subscription, limits };
+
     if (billingAccess === 'blocked') {
-      return deny(
-        'billing_blocked',
-        `Abo-Status "${billingStatus}": Zugriff gesperrt. Bitte Zahlung aktualisieren.`,
-        { user, organization, member, role, plan, subscription, limits }
-      );
-    }
-    if (billingAccess === 'restricted') {
-      // sales_rep is fully blocked in restricted mode
-      if (role === 'sales_rep') {
-        return deny(
-          'billing_restricted_sales_rep',
-          `Abo-Status "${billingStatus}": Sales Rep hat keinen Zugriff. Admin muss Zahlung aktualisieren.`,
-          { user, organization, member, role, plan, subscription, limits }
-        );
+      // admin darf billing + data_export
+      if (role === 'organization_admin' && BLOCKED_ADMIN_ALLOWED.has(action)) {
+        // allowed – fall through
+      } else if (role === 'sales_rep') {
+        return deny('billing_blocked_sales_rep',
+          `Abo-Status "${billingStatus}": Kein Zugriff für Sales Rep. Admin muss Zahlung aktualisieren.`, ctx);
+      } else {
+        return deny('billing_blocked',
+          `Abo-Status "${billingStatus}": Zugriff gesperrt. Bitte Zahlung aktualisieren.`, ctx);
       }
-      // admin: only billing actions allowed
-      if (!BILLING_RESTRICTED_ALLOWED.includes(action)) {
-        return deny(
-          'billing_restricted',
-          `Abo-Status "${billingStatus}": Nur Billing-Aktionen erlaubt. Bitte Zahlung aktualisieren.`,
-          { user, organization, member, role, plan, subscription, limits }
-        );
+    }
+
+    if (billingAccess === 'degraded') {
+      // Bestimmte Aktionen sind in degraded komplett gesperrt (für alle Rollen)
+      if (DEGRADED_BLOCKED_ACTIONS.has(action)) {
+        return deny('billing_degraded_action_blocked',
+          `Abo-Status "${billingStatus}": Aktion "${action}" nicht verfügbar. Bitte Zahlung aktualisieren.`, ctx);
+      }
+      // sales_rep darf: view_leads, view_tasks, create_contact_log, update_assigned_lead, complete_task
+      // alles andere ist für sales_rep gesperrt (nur admin)
+      const DEGRADED_SALES_REP_ALLOWED = new Set([
+        'view_leads', 'view_tasks', 'create_contact_log', 'update_assigned_lead', 'complete_task',
+      ]);
+      if (role === 'sales_rep' && !DEGRADED_SALES_REP_ALLOWED.has(action)) {
+        return deny('billing_degraded_sales_rep',
+          `Abo-Status "${billingStatus}": Sales Rep darf "${action}" nicht ausführen.`, ctx);
       }
     }
   }

@@ -49,24 +49,32 @@ Deno.serve(async (req) => {
     const ACTION_ROLES = {
       view_leads:             ['organization_admin', 'sales_rep'],
       create_lead:            ['organization_admin', 'sales_rep'],
+      update_assigned_lead:   ['organization_admin', 'sales_rep'],
       delete_lead:            ['organization_admin'],
       generate_leads:         ['organization_admin'],
       create_contact_log:     ['organization_admin', 'sales_rep'],
       view_tasks:             ['organization_admin', 'sales_rep'],
+      complete_task:          ['organization_admin', 'sales_rep'],
       manage_users:           ['organization_admin'],
       manage_settings:        ['organization_admin'],
       manage_billing:         ['organization_admin'],
+      data_export:            ['organization_admin'],
       view_reports:           ['organization_admin', 'sales_rep'],
       use_ai_scoring:         ['organization_admin', 'sales_rep'],
+      send_bulk_email:        ['organization_admin', 'sales_rep'],
       manage_blacklist:       ['organization_admin'],
       platform_admin_access:  [],
     };
 
     const BILLING_ACCESS = {
       active: 'full', trialing: 'full',
-      past_due: 'restricted', incomplete: 'restricted',
+      past_due: 'degraded', incomplete: 'degraded',
       unpaid: 'blocked', canceled: 'blocked', incomplete_expired: 'blocked',
     };
+
+    const DEGRADED_BLOCKED_ACTIONS = new Set(['create_lead', 'generate_leads', 'use_ai_scoring', 'send_bulk_email']);
+    const DEGRADED_SALES_REP_ALLOWED = new Set(['view_leads', 'view_tasks', 'create_contact_log', 'update_assigned_lead', 'complete_task']);
+    const BLOCKED_ADMIN_ALLOWED = new Set(['manage_billing', 'data_export']);
 
     const checkRole = (role, action) => {
       const allowed = ACTION_ROLES[action];
@@ -78,12 +86,19 @@ Deno.serve(async (req) => {
     const checkBilling = (billingStatus, role, action) => {
       const access = BILLING_ACCESS[billingStatus] || 'blocked';
       if (access === 'full') return { allowed: true, reason: 'ok' };
-      if (access === 'blocked') return { allowed: false, reason: 'billing_blocked' };
-      if (access === 'restricted') {
-        if (role === 'sales_rep') return { allowed: false, reason: 'billing_restricted_sales_rep' };
-        if (action !== 'manage_billing') return { allowed: false, reason: 'billing_restricted' };
+
+      if (access === 'blocked') {
+        if (role === 'organization_admin' && BLOCKED_ADMIN_ALLOWED.has(action)) return { allowed: true, reason: 'ok' };
+        if (role === 'sales_rep') return { allowed: false, reason: 'billing_blocked_sales_rep' };
+        return { allowed: false, reason: 'billing_blocked' };
+      }
+
+      if (access === 'degraded') {
+        if (DEGRADED_BLOCKED_ACTIONS.has(action)) return { allowed: false, reason: 'billing_degraded_action_blocked' };
+        if (role === 'sales_rep' && !DEGRADED_SALES_REP_ALLOWED.has(action)) return { allowed: false, reason: 'billing_degraded_sales_rep' };
         return { allowed: true, reason: 'ok' };
       }
+
       return { allowed: false, reason: 'billing_blocked' };
     };
 
@@ -154,13 +169,13 @@ Deno.serve(async (req) => {
       return checkBilling('unpaid', 'organization_admin', 'view_leads');
     });
 
-    // 11. Billing: unpaid → admin → manage_billing (auch gesperrt bei unpaid)
-    await simulate('11. Billing: unpaid → admin → manage_billing (❌ geblockt)', { allowed: false, reason: 'billing_blocked' }, async () => {
+    // 11. Billing: unpaid → admin → manage_billing (jetzt: erlaubt!)
+    await simulate('11. Billing: unpaid → admin → manage_billing (✅ erlaubt)', { allowed: true }, async () => {
       return checkBilling('unpaid', 'organization_admin', 'manage_billing');
     });
 
-    // 12. Billing: past_due → admin → view_leads (eingeschränkt, nicht billing)
-    await simulate('12. Billing: past_due → admin → view_leads (❌ restricted)', { allowed: false, reason: 'billing_restricted' }, async () => {
+    // 12. Billing: past_due → admin → view_leads (erlaubt in degraded)
+    await simulate('12. Billing: past_due → admin → view_leads (✅ erlaubt in degraded)', { allowed: true }, async () => {
       return checkBilling('past_due', 'organization_admin', 'view_leads');
     });
 
@@ -169,8 +184,8 @@ Deno.serve(async (req) => {
       return checkBilling('past_due', 'organization_admin', 'manage_billing');
     });
 
-    // 14. Billing: past_due → sales_rep → view_leads (gesperrt)
-    await simulate('14. Billing: past_due → sales_rep → view_leads (❌ restricted)', { allowed: false, reason: 'billing_restricted_sales_rep' }, async () => {
+    // 14. Billing: past_due → sales_rep → view_leads (jetzt: erlaubt!)
+    await simulate('14. Billing: past_due → sales_rep → view_leads (✅ erlaubt in degraded)', { allowed: true }, async () => {
       return checkBilling('past_due', 'sales_rep', 'view_leads');
     });
 
@@ -207,6 +222,58 @@ Deno.serve(async (req) => {
       if (!org) return { allowed: false, reason: 'organization_not_found' };
       if (org.status !== 'active') return { allowed: false, reason: 'organization_not_active' };
       return { allowed: true, reason: 'ok' };
+    });
+
+    // ── NEUE TESTS (Billing-Präzisierung) ─────────────────────────────────────
+
+    // 21. unpaid → admin → manage_billing (✅ erlaubt)
+    await simulate('21. unpaid → admin → manage_billing (✅ erlaubt)', { allowed: true }, async () => {
+      return checkBilling('unpaid', 'organization_admin', 'manage_billing');
+    });
+
+    // 22. unpaid → admin → view_leads (❌ gesperrt)
+    await simulate('22. unpaid → admin → view_leads (❌ gesperrt)', { allowed: false, reason: 'billing_blocked' }, async () => {
+      return checkBilling('unpaid', 'organization_admin', 'view_leads');
+    });
+
+    // 23. unpaid → sales_rep → view_leads (❌ gesperrt)
+    await simulate('23. unpaid → sales_rep → view_leads (❌ gesperrt)', { allowed: false, reason: 'billing_blocked_sales_rep' }, async () => {
+      return checkBilling('unpaid', 'sales_rep', 'view_leads');
+    });
+
+    // 24. unpaid → sales_rep → manage_billing (❌ gesperrt – nur admin)
+    await simulate('24. unpaid → sales_rep → manage_billing (❌ gesperrt)', { allowed: false, reason: 'billing_blocked_sales_rep' }, async () => {
+      return checkBilling('unpaid', 'sales_rep', 'manage_billing');
+    });
+
+    // 25. canceled → admin → data_export (✅ erlaubt)
+    await simulate('25. canceled → admin → data_export (✅ erlaubt)', { allowed: true }, async () => {
+      return checkBilling('canceled', 'organization_admin', 'data_export');
+    });
+
+    // 26. past_due → sales_rep → view_leads (✅ erlaubt)
+    await simulate('26. past_due → sales_rep → view_leads (✅ erlaubt)', { allowed: true }, async () => {
+      return checkBilling('past_due', 'sales_rep', 'view_leads');
+    });
+
+    // 27. past_due → sales_rep → create_contact_log (✅ erlaubt)
+    await simulate('27. past_due → sales_rep → create_contact_log (✅ erlaubt)', { allowed: true }, async () => {
+      return checkBilling('past_due', 'sales_rep', 'create_contact_log');
+    });
+
+    // 28. past_due → sales_rep → generate_leads (❌ gesperrt)
+    await simulate('28. past_due → sales_rep → generate_leads (❌ gesperrt)', { allowed: false, reason: 'billing_degraded_action_blocked' }, async () => {
+      return checkBilling('past_due', 'sales_rep', 'generate_leads');
+    });
+
+    // 29. past_due → sales_rep → use_ai_scoring (❌ gesperrt)
+    await simulate('29. past_due → sales_rep → use_ai_scoring (❌ gesperrt)', { allowed: false, reason: 'billing_degraded_action_blocked' }, async () => {
+      return checkBilling('past_due', 'sales_rep', 'use_ai_scoring');
+    });
+
+    // 30. past_due → admin → create_lead (❌ gesperrt – degraded_action_blocked gilt für alle)
+    await simulate('30. past_due → admin → create_lead (❌ gesperrt)', { allowed: false, reason: 'billing_degraded_action_blocked' }, async () => {
+      return checkBilling('past_due', 'organization_admin', 'create_lead');
     });
 
     // ── Summary ───────────────────────────────────────────────────────────────
