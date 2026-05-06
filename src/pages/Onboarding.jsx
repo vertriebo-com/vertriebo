@@ -113,21 +113,30 @@ export default function Onboarding() {
       // Auto-generate first leads (non-blocking)
       base44.functions.invoke("generateLeads", { count: 25 }).catch(() => {});
 
-      // Organisation für Checkout laden (falls plan_id übergeben)
+      // Organisation anlegen (falls noch nicht vorhanden) und ggf. Checkout starten
       if (planId) {
         try {
           const user = await base44.auth.me();
-          const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
-          const org = orgs?.[0];
-          if (org) {
-            const res = await base44.functions.invoke("createCheckoutSession", {
-              organization_id: org.id,
-              plan_id: planId,
+          // Prüfen ob Organisation schon existiert
+          let orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+          let org = orgs?.[0];
+          if (!org) {
+            org = await base44.entities.Organization.create({
+              name: firmenname,
+              owner_email: user.email,
+              status: "pending",
+              billing_status: "trialing",
             });
-            if (res.data?.url) {
-              window.location.href = res.data.url;
-              return;
-            }
+          }
+          const res = await base44.functions.invoke("createCheckoutSession", {
+            organization_id: org.id,
+            plan_id: planId,
+          });
+          if (res.data?.url) {
+            window.location.href = res.data.url;
+            return;
+          } else {
+            toast.error(res.data?.error || "Kein Checkout-Link erhalten.");
           }
         } catch (e) {
           toast.error("Checkout-Fehler: " + e.message);
