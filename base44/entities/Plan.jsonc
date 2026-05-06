@@ -25,13 +25,13 @@
     },
     "max_leads_per_month": {
       "type": "number",
-      "title": "Max. Leads/Monat (-1 = unbegrenzt)",
-      "default": 500
+      "title": "Max. gespeicherte Kontakte (-1 = unbegrenzt)",
+      "default": 300
     },
     "max_ai_scorings_per_month": {
       "type": "number",
-      "title": "Max. KI-Scorings/Monat",
-      "default": 100
+      "title": "Max. KI-Aktionen/Monat",
+      "default": 50
     },
     "max_emails_per_month": {
       "type": "number",
@@ -40,8 +40,8 @@
     },
     "max_lead_generations_per_month": {
       "type": "number",
-      "title": "Max. Lead-Generierungen/Monat",
-      "default": 5
+      "title": "Max. Recherche-Credits/Monat",
+      "default": 100
     },
     "has_advanced_reports": {
       "type": "boolean",
@@ -62,6 +62,31 @@
       "type": "number",
       "title": "Reihenfolge",
       "default": 1
+    },
+    "cost_per_ai_action_cent": {
+      "type": "number",
+      "title": "Kosten pro KI-Aktion (Cent, intern)",
+      "default": 0
+    },
+    "cost_per_lead_generation_cent": {
+      "type": "number",
+      "title": "Kosten pro Recherche-Credit (Cent, intern)",
+      "default": 0
+    },
+    "cost_per_email_cent": {
+      "type": "number",
+      "title": "Kosten pro E-Mail (Cent, intern)",
+      "default": 0
+    },
+    "cost_per_google_places_request_cent": {
+      "type": "number",
+      "title": "Kosten pro Google Places API Request (Cent, intern)",
+      "default": 0
+    },
+    "estimated_cost_per_month_cent": {
+      "type": "number",
+      "title": "Gesch\u00e4tzte externe Kosten/Monat (Cent, intern)",
+      "default": 0
     }
   },
   "required": [
