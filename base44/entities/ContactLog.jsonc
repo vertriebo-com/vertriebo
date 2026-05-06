@@ -2,6 +2,10 @@
   "name": "ContactLog",
   "type": "object",
   "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
     "company_id": {
       "type": "string",
       "title": "Firma ID"

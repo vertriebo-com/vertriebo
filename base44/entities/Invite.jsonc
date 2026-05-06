@@ -1,0 +1,52 @@
+{
+  "name": "Invite",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "email": {
+      "type": "string",
+      "title": "Eingeladene E-Mail"
+    },
+    "role": {
+      "type": "string",
+      "title": "Zuk\u00fcnftige Rolle",
+      "enum": [
+        "organization_admin",
+        "sales_rep"
+      ],
+      "default": "sales_rep"
+    },
+    "token": {
+      "type": "string",
+      "title": "Sicherer Einladungstoken"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "pending",
+        "accepted",
+        "expired"
+      ],
+      "default": "pending"
+    },
+    "invited_by": {
+      "type": "string",
+      "title": "Eingeladen von (E-Mail)"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "G\u00fcltig bis (48h)"
+    }
+  },
+  "required": [
+    "organization_id",
+    "email",
+    "role",
+    "token"
+  ]
+}

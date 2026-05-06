@@ -1,0 +1,96 @@
+{
+  "name": "Subscription",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "stripe_subscription_id": {
+      "type": "string",
+      "title": "Stripe Subscription ID"
+    },
+    "stripe_customer_id": {
+      "type": "string",
+      "title": "Stripe Customer ID"
+    },
+    "stripe_price_id": {
+      "type": "string",
+      "title": "Stripe Price ID"
+    },
+    "stripe_checkout_session_id": {
+      "type": "string",
+      "title": "Stripe Checkout Session ID"
+    },
+    "stripe_latest_invoice_id": {
+      "type": "string",
+      "title": "Letzte Rechnung ID"
+    },
+    "stripe_payment_intent_id": {
+      "type": "string",
+      "title": "Payment Intent ID"
+    },
+    "plan_id": {
+      "type": "string",
+      "title": "Plan ID"
+    },
+    "status": {
+      "type": "string",
+      "title": "Abo-Status",
+      "enum": [
+        "trialing",
+        "active",
+        "past_due",
+        "unpaid",
+        "canceled",
+        "incomplete",
+        "incomplete_expired"
+      ],
+      "default": "trialing"
+    },
+    "current_period_start": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Periode Start"
+    },
+    "current_period_end": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Periode Ende"
+    },
+    "cancel_at_period_end": {
+      "type": "boolean",
+      "title": "K\u00fcndigung zum Periodenende",
+      "default": false
+    },
+    "cancel_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "K\u00fcndigung geplant am"
+    },
+    "canceled_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Gek\u00fcndigt am"
+    },
+    "ended_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Abo beendet am"
+    },
+    "trial_start": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Trial Start"
+    },
+    "trial_end": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Trial Ende"
+    }
+  },
+  "required": [
+    "organization_id",
+    "status"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "OrganizationSettings",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "key": {
+      "type": "string",
+      "title": "Einstellungsschl\u00fcssel"
+    },
+    "value": {
+      "type": "string",
+      "title": "Einstellungswert"
+    }
+  },
+  "required": [
+    "organization_id",
+    "key"
+  ]
+}

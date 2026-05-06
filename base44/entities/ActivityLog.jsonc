@@ -2,6 +2,10 @@
   "name": "ActivityLog",
   "type": "object",
   "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
     "user_email": {
       "type": "string",
       "title": "Benutzer E-Mail"

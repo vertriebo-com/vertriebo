@@ -1,0 +1,50 @@
+{
+  "name": "BillingEventLog",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "stripe_event_id": {
+      "type": "string",
+      "title": "Stripe Event ID (Idempotenz)"
+    },
+    "event_type": {
+      "type": "string",
+      "title": "Event Typ"
+    },
+    "status": {
+      "type": "string",
+      "title": "Verarbeitungsstatus",
+      "enum": [
+        "success",
+        "error",
+        "ignored",
+        "duplicate"
+      ],
+      "default": "success"
+    },
+    "amount": {
+      "type": "number",
+      "title": "Betrag (Cent)"
+    },
+    "currency": {
+      "type": "string",
+      "title": "W\u00e4hrung"
+    },
+    "payload": {
+      "type": "string",
+      "title": "JSON Payload (Stripe Event)"
+    },
+    "error_message": {
+      "type": "string",
+      "title": "Fehlermeldung"
+    }
+  },
+  "required": [
+    "stripe_event_id",
+    "event_type",
+    "status"
+  ]
+}

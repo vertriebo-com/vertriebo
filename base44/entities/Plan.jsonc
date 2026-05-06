@@ -1,0 +1,70 @@
+{
+  "name": "Plan",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Planname"
+    },
+    "stripe_price_id": {
+      "type": "string",
+      "title": "Stripe Price ID"
+    },
+    "stripe_product_id": {
+      "type": "string",
+      "title": "Stripe Product ID"
+    },
+    "price_monthly": {
+      "type": "number",
+      "title": "Preis/Monat (Cent)"
+    },
+    "max_users": {
+      "type": "number",
+      "title": "Max. Benutzer (-1 = unbegrenzt)",
+      "default": 3
+    },
+    "max_leads_per_month": {
+      "type": "number",
+      "title": "Max. Leads/Monat (-1 = unbegrenzt)",
+      "default": 500
+    },
+    "max_ai_scorings_per_month": {
+      "type": "number",
+      "title": "Max. KI-Scorings/Monat",
+      "default": 100
+    },
+    "max_emails_per_month": {
+      "type": "number",
+      "title": "Max. E-Mails/Monat",
+      "default": 500
+    },
+    "max_lead_generations_per_month": {
+      "type": "number",
+      "title": "Max. Lead-Generierungen/Monat",
+      "default": 5
+    },
+    "has_advanced_reports": {
+      "type": "boolean",
+      "title": "Erweiterte Reports",
+      "default": false
+    },
+    "has_custom_email_templates": {
+      "type": "boolean",
+      "title": "Eigene E-Mail-Vorlagen",
+      "default": false
+    },
+    "is_active": {
+      "type": "boolean",
+      "title": "Plan buchbar",
+      "default": true
+    },
+    "sort_order": {
+      "type": "number",
+      "title": "Reihenfolge",
+      "default": 1
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

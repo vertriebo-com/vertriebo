@@ -1,0 +1,84 @@
+{
+  "name": "Organization",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Firmenname"
+    },
+    "slug": {
+      "type": "string",
+      "title": "Slug (eindeutig)"
+    },
+    "owner_email": {
+      "type": "string",
+      "title": "Inhaber E-Mail"
+    },
+    "status": {
+      "type": "string",
+      "title": "Plattform-Status",
+      "enum": [
+        "active",
+        "suspended",
+        "pending"
+      ],
+      "default": "pending"
+    },
+    "billing_status": {
+      "type": "string",
+      "title": "Billing-Status",
+      "enum": [
+        "trialing",
+        "active",
+        "past_due",
+        "unpaid",
+        "canceled",
+        "incomplete",
+        "incomplete_expired"
+      ],
+      "default": "trialing"
+    },
+    "suspended_reason": {
+      "type": "string",
+      "title": "Sperrungsgrund"
+    },
+    "suspended_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Gesperrt am"
+    },
+    "stripe_customer_id": {
+      "type": "string",
+      "title": "Stripe Customer ID"
+    },
+    "plan_id": {
+      "type": "string",
+      "title": "Plan ID"
+    },
+    "trial_ends_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Trial Ende"
+    },
+    "logo_url": {
+      "type": "string",
+      "title": "Logo URL"
+    },
+    "billing_email": {
+      "type": "string",
+      "title": "Rechnungs-E-Mail"
+    },
+    "address": {
+      "type": "string",
+      "title": "Adresse"
+    },
+    "website": {
+      "type": "string",
+      "title": "Website"
+    }
+  },
+  "required": [
+    "name",
+    "owner_email"
+  ]
+}

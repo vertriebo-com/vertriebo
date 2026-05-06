@@ -2,6 +2,10 @@
   "name": "Blacklist",
   "type": "object",
   "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
     "firmenname": {
       "type": "string",
       "title": "Firmenname"

@@ -2,6 +2,10 @@
   "name": "Company",
   "type": "object",
   "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
     "name": {
       "type": "string",
       "title": "Firmenname"

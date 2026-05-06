@@ -1,0 +1,36 @@
+{
+  "name": "EmailTemplate",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "name": {
+      "type": "string",
+      "title": "Vorlagenname"
+    },
+    "betreff": {
+      "type": "string",
+      "title": "E-Mail-Betreff"
+    },
+    "body": {
+      "type": "string",
+      "title": "HTML-Body"
+    },
+    "typ": {
+      "type": "string",
+      "title": "Typ (z.B. Erstansprache, Nachfassen)"
+    },
+    "is_default": {
+      "type": "boolean",
+      "title": "Standardvorlage",
+      "default": false
+    }
+  },
+  "required": [
+    "organization_id",
+    "name",
+    "betreff"
+  ]
+}

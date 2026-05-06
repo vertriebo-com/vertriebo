@@ -1,0 +1,51 @@
+{
+  "name": "OrganizationMember",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "user_email": {
+      "type": "string",
+      "title": "Benutzer E-Mail"
+    },
+    "role": {
+      "type": "string",
+      "title": "Rolle",
+      "enum": [
+        "organization_admin",
+        "sales_rep"
+      ],
+      "default": "sales_rep"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "active",
+        "inactive",
+        "invited"
+      ],
+      "default": "invited"
+    },
+    "permissions": {
+      "type": "string",
+      "title": "Sonderrechte (JSON)"
+    },
+    "invited_by": {
+      "type": "string",
+      "title": "Eingeladen von"
+    },
+    "last_active_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Zuletzt aktiv"
+    }
+  },
+  "required": [
+    "organization_id",
+    "user_email",
+    "role"
+  ]
+}

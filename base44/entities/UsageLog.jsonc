@@ -1,0 +1,50 @@
+{
+  "name": "UsageLog",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "period_start": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Periode Start (aus Stripe)"
+    },
+    "period_end": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Periode Ende (aus Stripe)"
+    },
+    "leads_created": {
+      "type": "number",
+      "title": "Erstellte Leads",
+      "default": 0
+    },
+    "ai_scorings_used": {
+      "type": "number",
+      "title": "KI-Scorings genutzt",
+      "default": 0
+    },
+    "emails_sent": {
+      "type": "number",
+      "title": "E-Mails gesendet",
+      "default": 0
+    },
+    "lead_generations_used": {
+      "type": "number",
+      "title": "Lead-Generierungen genutzt",
+      "default": 0
+    },
+    "users_count": {
+      "type": "number",
+      "title": "Aktive Nutzer (Snapshot)",
+      "default": 0
+    }
+  },
+  "required": [
+    "organization_id",
+    "period_start",
+    "period_end"
+  ]
+}
