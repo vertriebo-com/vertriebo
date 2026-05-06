@@ -124,9 +124,27 @@ export default function Onboarding() {
             org = await base44.entities.Organization.create({
               name: firmenname,
               owner_email: user.email,
-              status: "pending",
+              status: "active",
               billing_status: "trialing",
             });
+            // Owner als organization_admin eintragen
+            await base44.entities.OrganizationMember.create({
+              organization_id: org.id,
+              user_email: user.email,
+              role: "organization_admin",
+              status: "active",
+            });
+          } else {
+            // Prüfen ob Member-Eintrag fehlt
+            const members = await base44.entities.OrganizationMember.filter({ organization_id: org.id, user_email: user.email });
+            if (!members?.[0]) {
+              await base44.entities.OrganizationMember.create({
+                organization_id: org.id,
+                user_email: user.email,
+                role: "organization_admin",
+                status: "active",
+              });
+            }
           }
           const res = await base44.functions.invoke("createCheckoutSession", {
             organization_id: org.id,
