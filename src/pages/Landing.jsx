@@ -100,16 +100,16 @@ export default function Landing() {
         base44.auth.redirectToLogin(window.location.href);
         return;
       }
-      // organization_id aus AppSettings oder User-Daten holen
-      const settings = await base44.entities.AppSettings.list();
-      const orgIdSetting = settings?.find(s => s.key === "organization_id");
-      if (!orgIdSetting?.value) {
+      // organization_id: Erst aus Organization-Entity laden (owner_email = user.email)
+      const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+      const org = orgs?.[0];
+      if (!org) {
         toast.error("Keine Organisation gefunden. Bitte zuerst das Onboarding abschließen.");
         setLoading(null);
         return;
       }
       const res = await base44.functions.invoke("createCheckoutSession", {
-        organization_id: orgIdSetting.value,
+        organization_id: org.id,
         plan_id: plan.planId,
       });
       if (res.data?.url) {
