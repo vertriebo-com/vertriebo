@@ -179,7 +179,7 @@ Deno.serve(async (req) => {
         method: "POST",
         headers: { "accept":"application/json", "api-key":Deno.env.get("BREVO_API_KEY"), "content-type":"application/json" },
         body: JSON.stringify({
-          sender: { name:"Huwa Vertrieb Coach", email:"info@huwa-gebaeudedienste.de" },
+          sender: { name:"Vertriebo Coach", email:"info@huwa-gebaeudedienste.de" },
           to: [{ email:user.email }],
           subject: testMode ? `[TEST] ${motivation.emoji} ${firstName}, noch kein Kontakt heute!` : `${motivation.emoji} ${firstName}, dein Vertriebscoach meldet sich!`,
           htmlContent: emailBody,

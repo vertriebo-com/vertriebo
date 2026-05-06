@@ -86,8 +86,8 @@ export default function Layout() {
               className="w-10 h-10 object-contain rounded-lg bg-white p-0.5"
             />
             <div>
-              <h1 className="text-sm font-bold tracking-tight">Huwa Vertrieb</h1>
-              <p className="text-[11px] text-sidebar-foreground/60">Gebäudedienste CRM</p>
+              <h1 className="text-sm font-bold tracking-tight">Vertriebo</h1>
+              <p className="text-[11px] text-sidebar-foreground/60">KI-Vertriebssystem</p>
             </div>
           </div>
         </div>
@@ -154,7 +154,7 @@ export default function Layout() {
               alt="Huwa Logo"
               className="w-7 h-7 object-contain"
             />
-            <span className="text-sm font-semibold">Huwa Vertrieb</span>
+            <span className="text-sm font-semibold">Vertriebo</span>
           </div>
           <div className="w-9" />
         </header>

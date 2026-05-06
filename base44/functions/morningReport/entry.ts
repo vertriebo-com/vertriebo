@@ -209,7 +209,7 @@ Deno.serve(async (req) => {
 <tr><td style="height:3px;background:linear-gradient(90deg,#60a5fa,#a78bfa,#34d399);padding:0;"></td></tr>
 <tr><td style="background:#f8fafc;padding:20px 32px;border-bottom:1px solid #e5e7eb;"><div style="font-size:19px;font-weight:900;color:#1e3a8a;">Guten Morgen, ${firstName}! ☀️</div><div style="font-size:12px;color:#6b7280;margin-top:5px;">${dateStr}</div></td></tr>
 <tr><td style="padding:28px 32px;">${statsBar}${totalItems>0?motivationBanner:''}${overdueSection}${todaySection}${hotSection}${rueckrufSection}${noItemsSection}</td></tr>
-<tr><td style="background:#1e293b;border-radius:0 0 16px 16px;padding:22px 32px;"><div style="font-size:11px;color:#94a3b8;">Automatisch generiert von <span style="color:#60a5fa;font-weight:700;">Huwa CRM</span> · org=${organization_id}</div></td></tr>
+<tr><td style="background:#1e293b;border-radius:0 0 16px 16px;padding:22px 32px;"><div style="font-size:11px;color:#94a3b8;">Automatisch generiert von <span style="color:#60a5fa;font-weight:700;">Vertriebo</span> · org=${organization_id}</div></td></tr>
 </table></td></tr></table></body></html>`;
 
       const overdueFlag = overdueTasks.length > 0 ? '🔴 ' : '';
@@ -220,7 +220,7 @@ Deno.serve(async (req) => {
       const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: { "accept":"application/json", "api-key":Deno.env.get("BREVO_API_KEY"), "content-type":"application/json" },
-        body: JSON.stringify({ sender:{name:"Huwa Vertrieb CRM",email:"info@huwa-gebaeudedienste.de"}, to:[{email:user.email}], subject, htmlContent:emailBody }),
+        body: JSON.stringify({ sender:{name:"Vertriebo",email:"info@huwa-gebaeudedienste.de"}, to:[{email:user.email}], subject, htmlContent:emailBody }),
       });
       if (!brevoRes.ok) {
         const err = await brevoRes.json();

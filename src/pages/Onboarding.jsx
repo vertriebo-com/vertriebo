@@ -251,7 +251,7 @@ export default function Onboarding() {
               Dein System ist konfiguriert für <strong>{selectedIndustry?.icon} {selectedIndustry?.name}</strong>.
             </p>
             <p className="text-sm text-muted-foreground mb-8">
-              25 neue Leads wurden bereits für dich generiert. Dein erster Morgenreport kommt morgen früh.
+              25 neue Leads wurden bereits für dich generiert. Dein erster Morgenreport kommt morgen früh – powered by Vertriebo.
             </p>
             <Button onClick={() => navigate("/")} className="gap-2" size="lg">
               Zum Dashboard <ArrowRight className="w-4 h-4" />

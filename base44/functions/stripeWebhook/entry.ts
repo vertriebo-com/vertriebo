@@ -176,8 +176,8 @@ async function handleCheckoutCompleted(base44, session) {
       await base44.asServiceRole.integrations.Core.SendEmail({
         to: userEmail,
         subject: `🎉 Willkommen beim ${planName}-Plan!`,
-        from_name: 'Huwa Vertrieb',
-        body: `<p>Hallo,<br/><br/>dein <strong>${planName}-Plan</strong> ist jetzt aktiv. Viel Erfolg beim Vertrieb!<br/><br/>– Das Huwa-Team</p>`,
+        from_name: 'Vertriebo',
+        body: `<p>Hallo,<br/><br/>dein <strong>${planName}-Plan</strong> ist jetzt aktiv. Viel Erfolg beim Vertrieb!<br/><br/>– Das Vertriebo-Team</p>`,
       });
     } catch (e) { console.warn('[stripeWebhook] Welcome email failed:', e.message); }
   }
@@ -286,8 +286,8 @@ async function handleInvoicePaymentFailed(base44, invoice) {
       await base44.asServiceRole.integrations.Core.SendEmail({
         to: org.owner_email,
         subject: '⚠️ Zahlung fehlgeschlagen – Bitte Zahlungsmethode aktualisieren',
-        from_name: 'Huwa Vertrieb',
-        body: `<p>Hallo,<br/><br/>leider ist die Zahlung für dein Abonnement fehlgeschlagen. Bitte aktualisiere deine Zahlungsmethode im Kundenportal, um deinen Zugang zu erhalten.<br/><br/>– Das Huwa-Team</p>`,
+        from_name: 'Vertriebo',
+        body: `<p>Hallo,<br/><br/>leider ist die Zahlung für dein Abonnement fehlgeschlagen. Bitte aktualisiere deine Zahlungsmethode im Kundenportal, um deinen Zugang zu erhalten.<br/><br/>– Das Vertriebo-Team</p>`,
       });
     } catch (e) { console.warn('[stripeWebhook] Payment failed email error:', e.message); }
   }

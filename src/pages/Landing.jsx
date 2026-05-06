@@ -194,7 +194,7 @@ export default function Landing() {
 
       {/* Footer */}
       <div className="border-t border-border py-8 text-center text-sm text-muted-foreground">
-        <p className="mb-3">© 2026 Huwa Gebäudereinigung & Hausmeisterdienste · Mittelweg 24 · 56566 Neuwied</p>
+        <p className="mb-3">© 2026 Vertriebo · Ein Produkt der Huwa Gebäudereinigung & Hausmeisterdienste GmbH</p>
         <div className="flex flex-wrap justify-center gap-4">
           <a href="/impressum" className="hover:text-foreground transition-colors">Impressum</a>
           <a href="/datenschutz" className="hover:text-foreground transition-colors">Datenschutz</a>

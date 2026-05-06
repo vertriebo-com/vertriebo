@@ -40,6 +40,26 @@
       "type": "number",
       "title": "Aktive Nutzer (Snapshot)",
       "default": 0
+    },
+    "google_places_requests": {
+      "type": "number",
+      "title": "Google Places API Requests",
+      "default": 0
+    },
+    "place_details_requests": {
+      "type": "number",
+      "title": "Place Details API Requests",
+      "default": 0
+    },
+    "ai_actions_used": {
+      "type": "number",
+      "title": "KI-Aktionen gesamt (Enrich + Score + Coach)",
+      "default": 0
+    },
+    "estimated_external_cost_cent": {
+      "type": "number",
+      "title": "Gesch. externe Kosten Periode (Cent)",
+      "default": 0
     }
   },
   "required": [

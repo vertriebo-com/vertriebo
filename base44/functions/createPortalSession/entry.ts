@@ -60,21 +60,25 @@ Deno.serve(async (req) => {
     const user = access.user;
 
     // ── 3. Eigene Organisation laden (keine fremden IDs akzeptieren) ─────────
-    const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
-    const org = orgs[0] || null;
-    if (!org) return Response.json({ error: 'Organisation nicht gefunden' }, { status: 404 });
+    // organization already validated via checkAccess (access.organization contains the org)
+    const org = access.organization;
+    // For platform_admin: load org manually since checkAccess returns null organization
+    let orgData = org;
+    if (!orgData) {
+      const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
+      orgData = orgs[0] || null;
+    }
+    if (!orgData) return Response.json({ error: 'Organisation nicht gefunden', code: 'org_not_found' }, { status: 404 });
 
-    if (!org.stripe_customer_id) {
+    if (!orgData.stripe_customer_id) {
       return Response.json({
         error: 'Kein Stripe-Konto verknüpft. Bitte zuerst ein Abonnement abschließen.',
         code: 'no_stripe_customer'
       }, { status: 400 });
     }
 
-    // ── 4. Sicherheitscheck: Customer ID gehört wirklich zu dieser Org ──────
-    // (verhindert, dass eine manipulierte organization_id eine fremde Customer-ID öffnet)
-    // Wir lesen die Customer-ID aus UNSERER DB – nicht aus dem Request
-    const stripeCustomerId = org.stripe_customer_id;
+    // ── 4. Sicherheitscheck: Customer ID kommt NUR aus unserer DB ───────────
+    const stripeCustomerId = orgData.stripe_customer_id;
 
     const origin = req.headers.get('origin') || 'https://app.base44.com';
     const returnUrl = return_url || `${origin}/settings`;
@@ -85,7 +89,7 @@ Deno.serve(async (req) => {
       return_url: returnUrl,
     });
 
-    console.info(`[createPortalSession] org=${organization_id} user=${user.email} customer=${stripeCustomerId}`);
+    console.info(`[createPortalSession] org=${organization_id} user=${user.email} customer=${stripeCustomerId} org_name=${orgData.name}`);
     return Response.json({ url: portalSession.url });
 
   } catch (error) {
