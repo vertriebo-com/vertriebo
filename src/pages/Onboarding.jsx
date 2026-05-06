@@ -26,6 +26,8 @@ export default function Onboarding() {
   const navigate = useNavigate();
   const urlParams = new URLSearchParams(window.location.search);
   const plan = urlParams.get("plan") || "Starter";
+  const planId = urlParams.get("plan_id") || null;
+  const planName = urlParams.get("plan_name") || null;
 
   const [step, setStep] = useState(0);
   const [selectedIndustry, setSelectedIndustry] = useState(null);
@@ -108,10 +110,29 @@ export default function Onboarding() {
         })
       );
 
-      // Auto-generate first leads (non-blocking, user might not be fully logged in yet)
-      base44.functions.invoke("generateLeads", { count: 25 }).catch(() => {
-        // Leads werden beim ersten Dashboard-Besuch nachgeladen
-      });
+      // Auto-generate first leads (non-blocking)
+      base44.functions.invoke("generateLeads", { count: 25 }).catch(() => {});
+
+      // Organisation für Checkout laden (falls plan_id übergeben)
+      if (planId) {
+        try {
+          const user = await base44.auth.me();
+          const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+          const org = orgs?.[0];
+          if (org) {
+            const res = await base44.functions.invoke("createCheckoutSession", {
+              organization_id: org.id,
+              plan_id: planId,
+            });
+            if (res.data?.url) {
+              window.location.href = res.data.url;
+              return;
+            }
+          }
+        } catch (e) {
+          toast.error("Checkout-Fehler: " + e.message);
+        }
+      }
 
       setStep(2);
     } catch (e) {
@@ -253,9 +274,13 @@ export default function Onboarding() {
             <p className="text-sm text-muted-foreground mb-8">
               25 neue Leads wurden bereits für dich generiert. Dein erster Morgenreport kommt morgen früh – powered by Vertriebo.
             </p>
-            <Button onClick={() => navigate("/")} className="gap-2" size="lg">
-              Zum Dashboard <ArrowRight className="w-4 h-4" />
-            </Button>
+            {planId ? (
+              <p className="text-sm text-muted-foreground">Du wirst gleich zum Checkout weitergeleitet...</p>
+            ) : (
+              <Button onClick={() => navigate("/")} className="gap-2" size="lg">
+                Zum Dashboard <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
           </div>
         )}
       </div>

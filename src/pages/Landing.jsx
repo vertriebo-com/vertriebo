@@ -94,18 +94,19 @@ export default function Landing() {
       return;
     }
     setLoading(plan.name);
+    const user = await base44.auth.me().catch(() => null);
+    if (!user) {
+      // Nicht eingeloggt → zum Login, danach zurück zum Onboarding mit Plan-Parameter
+      base44.auth.redirectToLogin(`${window.location.origin}/onboarding?plan_id=${plan.planId}&plan_name=${encodeURIComponent(plan.name)}`);
+      return;
+    }
+    // Bereits eingeloggt → prüfen ob Organisation existiert
     try {
-      const user = await base44.auth.me().catch(() => null);
-      if (!user) {
-        base44.auth.redirectToLogin(window.location.href);
-        return;
-      }
-      // organization_id: Erst aus Organization-Entity laden (owner_email = user.email)
       const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
       const org = orgs?.[0];
       if (!org) {
-        toast.error("Keine Organisation gefunden. Bitte zuerst das Onboarding abschließen.");
-        setLoading(null);
+        // Hat Organisation noch nicht → Onboarding mit Plan starten
+        window.location.href = `/onboarding?plan_id=${plan.planId}&plan_name=${encodeURIComponent(plan.name)}`;
         return;
       }
       const res = await base44.functions.invoke("createCheckoutSession", {
