@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Check, Zap, Users, Building2, Phone, ArrowRight, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,14 @@ const INDUSTRIES = [
 
 export default function Landing() {
   const [loading, setLoading] = useState(null);
+
+  // Nach erfolgreichem Checkout → direkt zum Dashboard weiterleiten
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      window.location.href = "/dashboard";
+    }
+  }, []);
 
   const handleLogin = () => {
     base44.auth.redirectToLogin(window.location.origin + "/dashboard");
