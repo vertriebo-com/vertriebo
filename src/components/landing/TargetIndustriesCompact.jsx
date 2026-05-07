@@ -1,36 +1,39 @@
 import { Building2, Shield, Home, Package, Hammer, Laptop, Leaf, Truck } from "lucide-react";
 
 const INDUSTRIES = [
-  { icon: Building2, name: "Gebäudereinigung", color: "text-blue-600" },
-  { icon: Shield, name: "Sicherheitsdienst", color: "text-slate-600" },
-  { icon: Home, name: "Hausmeisterdienste", color: "text-blue-600" },
-  { icon: Package, name: "Entrümpelung", color: "text-slate-600" },
-  { icon: Hammer, name: "Handwerksbetriebe", color: "text-blue-600" },
-  { icon: Laptop, name: "IT-Service", color: "text-slate-600" },
-  { icon: Leaf, name: "Gartenbau", color: "text-blue-600" },
-  { icon: Truck, name: "Spedition / Logistik", color: "text-slate-600" },
+  { icon: Building2, name: "Gebäudereinigung" },
+  { icon: Shield, name: "Sicherheitsdienst" },
+  { icon: Home, name: "Hausmeisterdienste" },
+  { icon: Package, name: "Entrümpelung" },
+  { icon: Hammer, name: "Handwerk" },
+  { icon: Laptop, name: "IT-Service" },
+  { icon: Leaf, name: "Gartenbau" },
+  { icon: Truck, name: "Logistik" },
 ];
 
 export default function TargetIndustriesCompact() {
   return (
-    <div className="max-w-6xl mx-auto px-6 py-20">
-      <h2 className="text-3xl font-bold text-center mb-4 text-slate-900">Gemacht für Betriebe, die aktiv neue Firmenkunden gewinnen wollen</h2>
-      <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
-        Vertriebo wurde von Vertriebsprofis für lokale Dienstleister entwickelt.
-      </p>
-      
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {INDUSTRIES.map(ind => {
-          const Icon = ind.icon;
-          return (
-            <div key={ind.name} className="flex flex-col items-center gap-3 p-6 rounded-xl bg-white border border-slate-200 hover:border-blue-400 transition-colors shadow-sm">
-              <div className="w-12 h-12 rounded-lg bg-slate-50 flex items-center justify-center border border-slate-200">
-                <Icon className={`w-6 h-6 ${ind.color}`} />
+    <div className="bg-white border-t border-slate-200">
+      <div className="max-w-6xl mx-auto px-6 py-12">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">Für lokale Dienstleister</h2>
+          <p className="text-sm text-slate-600">
+            Vertriebo wurde von Vertriebsprofis entwickelt – für Betriebe, die aktiv neue Firmenkunden gewinnen wollen.
+          </p>
+        </div>
+        
+        {/* Kompakte Tag-Liste */}
+        <div className="flex flex-wrap justify-center gap-3">
+          {INDUSTRIES.map(ind => {
+            const Icon = ind.icon;
+            return (
+              <div key={ind.name} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-50 border border-slate-200">
+                <Icon className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-semibold text-slate-700">{ind.name}</span>
               </div>
-              <span className="text-sm font-semibold text-slate-900 text-center">{ind.name}</span>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

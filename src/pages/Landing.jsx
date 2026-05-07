@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import HowItWorks from "@/components/landing/HowItWorks";
-import FeaturesCompact from "@/components/landing/FeaturesCompact";
 import TargetIndustriesCompact from "@/components/landing/TargetIndustriesCompact";
 import ProductShowcase from "@/components/landing/ProductShowcase";
 import PricingFAQ from "@/components/landing/PricingFAQ";
@@ -146,96 +145,92 @@ export default function Landing() {
         </div>
       </nav>
 
-      {/* A) Hero mit Produktmockup */}
-      <div className="relative overflow-hidden bg-slate-50 border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-16 md:py-24">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Linke Seite: Text + CTA */}
+      {/* A) Hero mit starkem Nutzenversprechen */}
+      <div className="relative overflow-hidden bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-6 py-20 md:py-28">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Linke Seite: Headline + CTA */}
             <div className="text-left">
-              <div className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 bg-blue-50 text-blue-700 border border-blue-200">
-                <Zap className="w-3.5 h-3.5" /> Vertriebsmaschine für lokale Dienstleister
+              <div className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full mb-5 bg-blue-600 text-white">
+                <Zap className="w-3.5 h-3.5 fill-white" /> Für lokale Dienstleister
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight mb-6 text-slate-900 leading-tight">
-                Mehr Firmenkunden gewinnen –<br />ohne chaotische Listen und vergessene Rückrufe.
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6 text-slate-900 leading-tight">
+                Ihr Vertriebssystem für<br />mehr Firmenkunden.
               </h1>
-              <p className="text-lg mb-4 text-slate-600 leading-relaxed">
-                Vertriebo findet passende Firmenkontakte, organisiert Ihre Vertriebsarbeit und zeigt Ihrem Team jeden Tag, 
-                welche Leads als Nächstes dran sind.
+              <p className="text-lg mb-3 text-slate-600 leading-relaxed font-medium">
+                Vertriebo zeigt Ihrem Team jeden Tag, welche Firmen es anrufen sollte – priorisiert, organisiert, nachverfolgbar.
               </p>
               <p className="text-sm mb-8 text-slate-500 font-medium">
-                Ideal für Gebäudereinigung, Hausmeisterdienste, Handwerk, Entrümpelung und lokale B2B-Dienstleister.
+                Für Gebäudereinigung, Hausmeister, Handwerk & lokale B2B-Dienstleister.
               </p>
-              <div className="flex flex-wrap gap-3 mb-8">
+              
+              <div className="flex flex-col sm:flex-row gap-3 mb-8">
                 <button
                   onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}
-                  className="px-8 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
+                  className="px-7 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/25"
                 >
                   14 Tage kostenlos testen
                 </button>
                 <a
                   href="#how-it-works"
-                  className="px-8 py-3.5 rounded-xl text-base font-bold text-slate-700 border border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center gap-2"
+                  className="px-7 py-3.5 rounded-xl text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
                 >
-                  Wie es funktioniert <ArrowRight className="w-4 h-4" />
+                  Wie es funktioniert
                 </a>
               </div>
               
-              {/* Trust Elements */}
-              <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+              {/* Trust Badges */}
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-slate-600">
                 <div className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-600" />
-                  <span>Monatlich kündbar</span>
+                  <Check className="w-4 h-4 text-emerald-600" /> 14 Tage kostenlos
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-600" />
-                  <span>Keine versteckten Kosten</span>
+                  <Check className="w-4 h-4 text-emerald-600" /> Monatlich kündbar
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-600" />
-                  <span>DSGVO-orientierte Mandantentrennung</span>
+                  <Check className="w-4 h-4 text-emerald-600" /> DSGVO-orientiert
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-600" />
-                  <span>Stripe-Abrechnung</span>
+                  <Check className="w-4 h-4 text-emerald-600" /> Deutsches Produkt
                 </div>
               </div>
             </div>
 
-            {/* Rechte Seite: Produkt-Mockup */}
+            {/* Rechte Seite: Dashboard-Mockup */}
             <div className="relative">
-              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
-                <div className="bg-slate-100 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-400" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                  <div className="w-3 h-3 rounded-full bg-green-400" />
-                  <span className="text-xs text-slate-500 ml-2">Vertriebo Dashboard</span>
+              <div className="bg-white rounded-2xl shadow-2xl border-2 border-slate-200 overflow-hidden">
+                <div className="bg-slate-100 px-4 py-3 border-b border-slate-300 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-400 border border-red-500" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-400 border border-yellow-500" />
+                    <div className="w-3 h-3 rounded-full bg-green-400 border border-green-500" />
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-600">app.vertriebo.de/dashboard</div>
+                  <div className="w-12" />
                 </div>
-                <div className="p-6 bg-gradient-to-br from-blue-50 to-white">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-xs text-slate-500 font-semibold uppercase">Heute fällig</p>
-                        <p className="text-2xl font-bold text-slate-900">12 Rückrufe</p>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Check className="w-6 h-6 text-blue-600" />
-                      </div>
+                <div className="p-5">
+                  {/* Mini Stats */}
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                      <p className="text-[10px] font-bold text-blue-700 uppercase">Heute fällig</p>
+                      <p className="text-xl font-black text-blue-900">12</p>
                     </div>
-                    <div className="space-y-2">
-                      {[1, 2, 3].map(i => (
-                        <div key={i} className="bg-white rounded-lg p-3 border border-slate-200 shadow-sm">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm font-bold text-slate-900">Firma {i} GmbH</p>
-                              <p className="text-xs text-slate-500">Rückruf heute · Priorität: Hoch</p>
-                            </div>
-                            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                              <Check className="w-4 h-4 text-emerald-600" />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                    <div className="bg-emerald-50 rounded-lg p-3 border border-emerald-200">
+                      <p className="text-[10px] font-bold text-emerald-700 uppercase">Offene Leads</p>
+                      <p className="text-xl font-black text-emerald-900">47</p>
                     </div>
+                  </div>
+                  {/* Prioritized Lead */}
+                  <div className="bg-white rounded-lg p-3 border-2 border-red-200 bg-red-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] font-bold text-red-700 uppercase">Priorität: Hoch</p>
+                      <span className="text-[10px] font-bold text-red-700 bg-red-100 px-2 py-0.5 rounded-full">Rückruf</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-900 mb-1">Schmidt Gebäudereinigung GmbH</p>
+                    <p className="text-[10px] text-slate-600 mb-2">Berlin · Zuletzt: Gestern</p>
+                    <button className="w-full py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold rounded">
+                      Jetzt anrufen
+                    </button>
                   </div>
                 </div>
               </div>
@@ -244,44 +239,55 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* B) Problem: Warum Vertrieb heute chaotisch läuft */}
-      <div className="max-w-6xl mx-auto px-6 py-20">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4 text-slate-900">Warum Vertrieb heute oft chaotisch läuft</h2>
-          <p className="text-slate-600 max-w-2xl mx-auto">
-            Die meisten Dienstleister verlieren jeden Tag wertvolle Chancen – nicht wegen schlechter Arbeit, sondern wegen fehlender Struktur.
-          </p>
-        </div>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[
-            { emoji: "📊", title: "Manuelle Suche", desc: "Firmenkontakte werden mühsam in Excel oder Google Maps gesucht" },
-            { emoji: "❌", title: "Vergessene Rückrufe", desc: "Wichtige Follow-ups gehen im Tagesgeschäft unter" },
-            { emoji: "🎯", title: "Keine Prioritäten", desc: "Vertriebler wissen nicht, wen sie zuerst anrufen sollten" },
-            { emoji: "📧", title: "Keine Vorlagen", desc: "E-Mails werden jedes Mal neu geschrieben – inkonsistent und zeitaufwändig" },
-            { emoji: "📉", title: "Unsichtbarer Erfolg", desc: "Niemand sieht, was wirklich im Vertrieb passiert" },
-            { emoji: "🔄", title: "Verlorene Leads", desc: "Follow-ups werden vergessen, potenzielle Kunden gehen verloren" },
-          ].map((item, i) => (
-            <div key={i} className="bg-red-50 border border-red-200 rounded-xl p-5">
-              <div className="text-3xl mb-3">{item.emoji}</div>
-              <h3 className="font-bold text-red-900 mb-2">{item.title}</h3>
-              <p className="text-sm text-red-800">{item.desc}</p>
+      {/* B) Problem → Lösung (kompakt) */}
+      <div className="bg-slate-50 border-y border-slate-200">
+        <div className="max-w-6xl mx-auto px-6 py-16">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold mb-3 text-slate-900">Schluss mit chaotischem Vertrieb</h2>
+            <p className="text-slate-600 max-w-2xl mx-auto">
+              Die meisten Dienstleister verlieren jeden Tag Chancen – nicht wegen schlechter Arbeit, sondern wegen fehlender Struktur.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-6 mb-10">
+            {[
+              { emoji: "📊", title: "Manuelle Suche", desc: "Firmen werden mühsam in Excel oder Google Maps gesucht" },
+              { emoji: "❌", title: "Vergessene Rückrufe", desc: "Wichtige Follow-ups gehen im Alltag unter" },
+              { emoji: "🎯", title: "Keine Prioritäten", desc: "Vertriebler wissen nicht, wen sie zuerst anrufen sollten" },
+            ].map((item, i) => (
+              <div key={i} className="bg-white border border-red-200 rounded-xl p-5">
+                <div className="text-3xl mb-3">{item.emoji}</div>
+                <h3 className="font-bold text-red-900 mb-2">{item.title}</h3>
+                <p className="text-sm text-red-800">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+          
+          <div className="bg-blue-600 rounded-2xl p-6 md:p-8 text-white">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Check className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold mb-2">Mit Vertriebo anders:</h3>
+                <p className="text-blue-100">
+                  Ihr Team sieht jeden Morgen die priorisierten Leads, alle Kontakte sind dokumentiert, und Follow-ups entstehen automatisch.
+                </p>
+              </div>
             </div>
-          ))}
+          </div>
         </div>
       </div>
 
-      {/* C) Lösung: Was Vertriebo anders macht */}
-      <FeaturesCompact />
-
-      {/* D) So funktioniert Vertriebo in 3 Schritten */}
+      {/* C) So funktioniert Vertriebo (3 Schritte) */}
       <div id="how-it-works">
         <HowItWorks />
       </div>
 
-      {/* E) Produkt-Screenshots / App-Bereiche */}
+      {/* D) Produkt-Screenshots mit echtem UI */}
       <ProductShowcase />
 
-      {/* F) Für lokale Dienstleister */}
+      {/* E) Zielgruppen (kompakt als Tags) */}
       <TargetIndustriesCompact />
 
       {/* G) Preise */}
