@@ -171,46 +171,75 @@ Deno.serve(async (req) => {
       skipped_duplicate: 0,
       skipped_excluded: 0,
       skipped_no_match: 0,
+      skipped_outside_radius: 0,
       search_queries: searchQueries.map(q => q.query),
       raw_hits: 0,
     };
 
-    // Generate mock leads
-    const allMockLeads = generateExtendedMockLeads(targetCustomers, city, 100);
+    // Get city coordinates
+    const cityCoords = CITY_COORDS[city];
+    if (!cityCoords) {
+      return Response.json({
+        error: `Stadt "${city}" nicht in Koordinaten-Datenbank. Bitte Ort von den unterstützten Städten wählen.`,
+        success: false,
+      }, { status: 400 });
+    }
+
+    const radiusKm = settings.service_area_radius_km ? parseFloat(settings.service_area_radius_km) : 25;
+
+    // Generate mock leads (für diesen Test noch Mock-Daten – würde echte API sein)
+    const allMockLeads = generateExtendedMockLeads(targetCustomers, city, 100, cityCoords);
     results.raw_hits = allMockLeads.length;
+
+    let skipped_outside_radius = 0;
 
     // Filter & save
     for (const lead of allMockLeads) {
       if (results.created.length >= target_count) break;
 
+      // ─── SCHRITT 1: Geo-Validierung ─────────────────────────────────────
+      if (lead.lat && lead.lng && cityCoords) {
+        const distance = calculateDistance(cityCoords.lat, cityCoords.lng, lead.lat, lead.lng);
+        if (distance > radiusKm) {
+          skipped_outside_radius++;
+          continue;
+        }
+      }
+
+      // ─── SCHRITT 2: Duplikat-Check ──────────────────────────────────────
       if (existingNames.has(lead.name.toLowerCase())) {
         results.skipped_duplicate++;
         continue;
       }
 
+      // ─── SCHRITT 3: Ausschlüsse-Check ───────────────────────────────────
       const excludedReason = matchesExcluded(lead.name, lead.branche, excluded);
       if (excludedReason) {
         results.skipped_excluded++;
         continue;
       }
 
+      // ─── SCHRITT 4: Zielkundentyp-Check ─────────────────────────────────
       const matchedType = matchesTargetCustomer(lead.name, lead.branche, targetCustomers);
       if (!matchedType) {
         results.skipped_no_match++;
         continue;
       }
 
+      // ─── SCHRITT 5: Speichern ───────────────────────────────────────────
       try {
         const company = await base44.asServiceRole.entities.Company.create({
           organization_id,
           name: lead.name,
           branche: lead.branche,
-          ort: city,
+          ort: lead.ort || city,
           plz: lead.plz || "",
           adresse: lead.address || "",
           telefon: lead.phone || "",
           email: lead.email || "",
           website: lead.website || "",
+          latitude: lead.lat || null,
+          longitude: lead.lng || null,
           quelle: "Google Places API",
           status: "Neu",
           is_hot: false,
@@ -220,25 +249,31 @@ Deno.serve(async (req) => {
           source_query: `${matchedType} ${city}`,
         });
         results.created.push(company.id);
+        existingNames.add(lead.name.toLowerCase());
       } catch (e) {
         console.warn(`[generateLeads] Failed to create company: ${e.message}`);
       }
     }
 
-    console.info(`[generateLeads] OK – created=${results.created.length} dups=${results.skipped_duplicate} excluded=${results.skipped_excluded} no_match=${results.skipped_no_match}`);
+    // Log detailliert
+    console.info(`[generateLeads] REPORT – org=${organization_id}`);
+    console.info(`[generateLeads] Stadt=${city}, Radius=${radiusKm}km, Coords=${cityCoords.lat}/${cityCoords.lng}`);
+    console.info(`[generateLeads] raw_hits=${results.raw_hits}, outside_radius=${skipped_outside_radius}, no_match=${results.skipped_no_match}, excluded=${results.skipped_excluded}, duplicate=${results.skipped_duplicate}, created=${results.created.length}`);
 
     return Response.json({
       success: true,
       count: results.created.length,
       summary: {
-        created: results.created.length,
         raw_hits: results.raw_hits,
-        skipped_duplicate: results.skipped_duplicate,
+        target_customer_matches: results.raw_hits - results.skipped_no_match,
+        skipped_outside_radius: skipped_outside_radius,
         skipped_excluded: results.skipped_excluded,
-        skipped_no_match: results.skipped_no_match,
-        total_processed: allMockLeads.length,
+        skipped_duplicate: results.skipped_duplicate,
+        created: results.created.length,
       },
+      details: `${results.raw_hits} Roh-Treffer, ${results.raw_hits - results.skipped_no_match} fachlich passend, ${skipped_outside_radius} außerhalb Radius, ${results.skipped_excluded} durch Ausschluss, ${results.skipped_duplicate} Dubletten, ${results.created.length} gespeichert.`,
       search_queries: results.search_queries,
+      note: "TEST: Mock-Daten mit Geo-Validierung (nicht echte API)",
     });
 
   } catch (error) {
@@ -247,72 +282,93 @@ Deno.serve(async (req) => {
   }
 });
 
-function generateExtendedMockLeads(targetCustomers, city, count) {
-  // Erweiterte Mock-Daten mit mehr Varianten
-  const mockData = {
-    "Hausverwaltungen": [
-      { name: "Hausverwaltung Schmidt", branche: "Hausverwaltung", phone: "+49 123 456" },
-      { name: "Wohn-Service GmbH", branche: "Hausverwaltung", email: "info@wohn-service.de" },
-      { name: "Hausmeister & Partner", branche: "Gebäudeverwaltung", phone: "+49 111 222" },
-      { name: "City Management", branche: "Immobilienverwaltung", phone: "+49 222 333" },
-      { name: "Süd Verwaltung", branche: "Immobilienverwaltung", phone: "+49 333 444" },
-    ],
-    "Bürogebäude": [
-      { name: "Business Center Berlin", branche: "Bürocenter", phone: "+49 555 666" },
-      { name: "Gewerbepark München", branche: "Gewerbepark", phone: "+49 666 777" },
-      { name: "Office Solutions AG", branche: "Büroservice", email: "info@office-sol.de" },
-      { name: "Bürohaus Frankfurt", branche: "Bürogebäude", phone: "+49 777 888" },
-    ],
-    "Arztpraxen": [
-      { name: "Dr. Müller Arztpraxis", branche: "Arztpraxis", phone: "+49 888 999" },
-      { name: "Zahnarzt Dr. Weber", branche: "Zahnarztpraxis", phone: "+49 999 000" },
-      { name: "Gemeinschaftspraxis Stadt", branche: "Gemeinschaftspraxis", email: "termin@stadt-praxis.de" },
-      { name: "MVZ Medizin", branche: "Medizinisches Versorgungszentrum", phone: "+49 000 111" },
-    ],
-    "Autohäuser": [
-      { name: "Autohaus Schmidt", branche: "Autohaus", phone: "+49 111 222", website: "schmidt-autos.de" },
-      { name: "Müller KFZ Handel", branche: "Autohandel", email: "info@mueller-kfz.de" },
-      { name: "Premium Motors", branche: "Automobilhandel", phone: "+49 222 333" },
-      { name: "Rhein Auto", branche: "Autohaus", phone: "+49 333 444" },
-      { name: "Metropol Autos", branche: "Autohändler", phone: "+49 444 555" },
-    ],
-    "Online-Shops": [
-      { name: "OnlineShop24 GmbH", branche: "Onlineshop", email: "support@onlineshop24.de" },
-      { name: "E-Commerce Lösungen", branche: "E-Commerce", phone: "+49 555 666" },
-      { name: "WebShop ProfiTeam", branche: "Webhandel", phone: "+49 666 777" },
-    ],
-    "Großhändler": [
-      { name: "Großhandel Central", branche: "Großhandel", phone: "+49 777 888" },
-      { name: "Wholesale Distribution", branche: "Großhandel", email: "kontakt@wholesale-dist.de" },
-      { name: "Distributeur Premium", branche: "Vertrieb", phone: "+49 888 999" },
-    ],
-    "Möbelhäuser": [
-      { name: "Möbelhaus König", branche: "Möbelhandel", phone: "+49 999 000" },
-      { name: "Küchenstudio Weber", branche: "Küchenstudio", phone: "+49 000 111" },
-      { name: "Möbel Megastore", branche: "Möbelhaus", email: "verkauf@megastore.de" },
-    ],
+// ─── City Coordinates (für Geo-Validierung) ────────────────────────────────
+const CITY_COORDS = {
+  "Berlin": { lat: 52.5200, lng: 13.4050 },
+  "Munich": { lat: 48.1351, lng: 11.5820 },
+  "Frankfurt": { lat: 50.1109, lng: 8.6821 },
+  "Hamburg": { lat: 53.5511, lng: 9.9937 },
+  "Cologne": { lat: 50.9365, lng: 6.9589 },
+  "Dresden": { lat: 51.0504, lng: 13.7373 },
+  "Leipzig": { lat: 51.3397, lng: 12.3731 },
+  "Koblenz": { lat: 50.3569, lng: 7.5862 },
+  "Neuwied": { lat: 50.4268, lng: 7.4738 },
+  "Bendorf": { lat: 50.4175, lng: 7.5920 },
+};
+
+// ─── Haversine Distance (Koordinaten → Kilometer) ────────────────────────────
+function calculateDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371; // Erdradius in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLng = (lng2 - lng1) * (Math.PI / 180);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+function generateExtendedMockLeads(targetCustomers, city, count, cityCoords) {
+  // Realistische Mock-Daten MIT KOORDINATEN
+  const mockDataByCity = {
+    "Berlin": {
+      "Hausverwaltungen": [
+        { name: "Hausverwaltung Schmidt Berlin", branche: "Hausverwaltung", phone: "+49 30 123 456", lat: 52.5200, lng: 13.4050, ort: "Berlin" },
+        { name: "Wohn-Service Charlottenburg", branche: "Hausverwaltung", email: "info@wohn-service.de", lat: 52.5200, lng: 13.3050, ort: "Berlin" },
+        { name: "City Management Mitte", branche: "Immobilienverwaltung", phone: "+49 30 222 333", lat: 52.5160, lng: 13.4047, ort: "Berlin" },
+      ],
+      "Bürogebäude": [
+        { name: "Business Center Berlin Prenzlauer Berg", branche: "Bürocenter", phone: "+49 30 555 666", lat: 52.5400, lng: 13.4100, ort: "Berlin" },
+        { name: "Office Solutions Charlottenburg", branche: "Büroservice", email: "info@office-sol.de", lat: 52.5200, lng: 13.2900, ort: "Berlin" },
+        { name: "Bürohaus Berlin-Mitte", branche: "Bürogebäude", phone: "+49 30 777 888", lat: 52.5179, lng: 13.4027, ort: "Berlin" },
+      ],
+      "Arztpraxen": [
+        { name: "Dr. Müller Arztpraxis Kreuzberg", branche: "Arztpraxis", phone: "+49 30 888 999", lat: 52.4961, lng: 13.3891, ort: "Berlin" },
+        { name: "Zahnarzt Dr. Weber Lichtenberg", branche: "Zahnarztpraxis", phone: "+49 30 999 000", lat: 52.5100, lng: 13.4400, ort: "Berlin" },
+        { name: "Gemeinschaftspraxis Steglitz", branche: "Gemeinschaftspraxis", email: "termin@stadt-praxis.de", lat: 52.4533, lng: 13.3198, ort: "Berlin" },
+      ],
+      "Möbelhäuser": [
+        { name: "Möbelhaus König Köpenick", branche: "Möbelhandel", phone: "+49 30 111 222", lat: 52.4500, lng: 13.6200, ort: "Berlin" },
+        { name: "Küchenstudio Weber Charlottenburg", branche: "Küchenstudio", phone: "+49 30 222 333", lat: 52.5200, lng: 13.3000, ort: "Berlin" },
+        { name: "Möbel Megastore Berlin-Nord", branche: "Möbelhaus", email: "verkauf@megastore.de", lat: 52.5600, lng: 13.3800, ort: "Berlin" },
+      ],
+    },
+    "Munich": {
+      "Hausverwaltungen": [
+        { name: "Hausverwaltung München Zentral", branche: "Hausverwaltung", phone: "+49 89 123 456", lat: 48.1351, lng: 11.5820, ort: "Munich" },
+        { name: "Immobilienmanagement Schwabing", branche: "Immobilienverwaltung", email: "info@immo-muenchen.de", lat: 48.1600, lng: 11.5800, ort: "Munich" },
+      ],
+      "Bürogebäude": [
+        { name: "Gewerbepark München-Nord", branche: "Gewerbepark", phone: "+49 89 555 666", lat: 48.2000, lng: 11.6000, ort: "Munich" },
+        { name: "Business Center München", branche: "Bürocenter", phone: "+49 89 666 777", lat: 48.1351, lng: 11.5820, ort: "Munich" },
+      ],
+    },
+    "Frankfurt": {
+      "Bürogebäude": [
+        { name: "Bürohaus Frankfurt-Süd", branche: "Bürogebäude", phone: "+49 69 777 888", lat: 50.0900, lng: 8.6600, ort: "Frankfurt" },
+        { name: "Business Tower Frankfurt", branche: "Bürocenter", email: "info@business-tower.de", lat: 50.1109, lng: 8.6821, ort: "Frankfurt" },
+      ],
+    },
+    "Koblenz": {
+      "Hausverwaltungen": [
+        { name: "Hausverwaltung Koblenz-Mitte", branche: "Hausverwaltung", phone: "+49 261 123 456", lat: 50.3569, lng: 7.5862, ort: "Koblenz" },
+        { name: "Immobilienservice Koblenz", branche: "Immobilienverwaltung", email: "info@immobilien-koblenz.de", lat: 50.3500, lng: 7.6000, ort: "Koblenz" },
+      ],
+      "Arztpraxen": [
+        { name: "Dr. Schmidt Zahnarzt Koblenz", branche: "Zahnarztpraxis", phone: "+49 261 555 666", lat: 50.3569, lng: 7.5862, ort: "Koblenz" },
+      ],
+      "Möbelhäuser": [
+        { name: "Möbelhaus Koblenz", branche: "Möbelhandel", phone: "+49 261 222 333", lat: 50.3600, lng: 7.5700, ort: "Koblenz" },
+      ],
+    },
   };
 
+  // Leads für Target-City abrufen
+  const cityLeads = mockDataByCity[city] || {};
   const leads = [];
   
   for (const targetType of targetCustomers) {
-    const typeLeads = mockData[targetType] || [];
+    const typeLeads = cityLeads[targetType] || [];
     leads.push(...typeLeads.slice(0, Math.max(1, Math.floor(count / Math.max(1, targetCustomers.length)))));
   }
 
-  // Shuffle & deduplicate
-  const uniqueLeads = [];
-  const seenNames = new Set();
-  for (const lead of leads.sort(() => Math.random() - 0.5)) {
-    if (!seenNames.has(lead.name)) {
-      seenNames.add(lead.name);
-      uniqueLeads.push({
-        ...lead,
-        address: `${Math.floor(Math.random() * 200) + 1} Straße ${city}`,
-        plz: "10115",
-      });
-    }
-  }
-
-  return uniqueLeads.slice(0, count);
+  // Shuffle
+  return leads.sort(() => Math.random() - 0.5).slice(0, count);
 }
