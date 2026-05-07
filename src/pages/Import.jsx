@@ -119,7 +119,7 @@ export default function Import() {
         <p className="text-sm text-muted-foreground">Firmen aus CSV oder Excel importieren</p>
       </div>
 
-      <div className="bg-card border border-border rounded-xl p-8">
+      <div className="bg-white border border-slate-200 rounded-xl p-8">
         <div className="text-center">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Upload className="w-8 h-8 text-primary" />
@@ -147,7 +147,7 @@ export default function Import() {
       </div>
 
       {results && (
-        <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
           <h3 className="text-sm font-semibold">Import-Ergebnis</h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center gap-2">

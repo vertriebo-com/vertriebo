@@ -128,8 +128,8 @@ export default function Tasks() {
           return (
             <div
               key={task.id}
-              className={`bg-card border rounded-xl p-4 flex items-start gap-3 transition-all ${
-                isOverdue ? "border-red-200 bg-red-50/50" : "border-border"
+              className={`bg-white border rounded-xl p-4 flex items-start gap-3 transition-all ${
+                isOverdue ? "border-red-200 bg-red-50/50" : "border-slate-200"
               }`}
             >
               <input

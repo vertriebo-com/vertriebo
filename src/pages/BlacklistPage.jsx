@@ -92,7 +92,7 @@ export default function BlacklistPage() {
 
       <div className="space-y-2">
         {entries.map(entry => (
-          <div key={entry.id} className="bg-card border border-border rounded-xl p-4 flex items-center justify-between">
+          <div key={entry.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium">{entry.firmenname}</p>
               {entry.grund && <p className="text-xs text-muted-foreground">Grund: {entry.grund}</p>}

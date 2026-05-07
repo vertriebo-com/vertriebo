@@ -102,7 +102,7 @@ export default function Statistics() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Status Pie */}
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-white border border-slate-200 rounded-xl p-5">
           <h3 className="text-sm font-semibold mb-4">Lead-Status Verteilung</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -119,7 +119,7 @@ export default function Statistics() {
         </div>
 
         {/* Contact Bar */}
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="bg-white border border-slate-200 rounded-xl p-5">
           <h3 className="text-sm font-semibold mb-4">Kontaktarten</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -135,7 +135,7 @@ export default function Statistics() {
       </div>
 
       {/* Conversion per Branche */}
-      <div className="bg-card border border-border rounded-xl p-5">
+      <div className="bg-white border border-slate-200 rounded-xl p-5">
         <h3 className="text-sm font-semibold mb-1">Conversion-Rate nach Branche</h3>
         <p className="text-xs text-muted-foreground mb-4">Nur Branchen mit mind. 2 Leads</p>
         {brancheData.length === 0 ? (

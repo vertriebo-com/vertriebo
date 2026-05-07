@@ -134,14 +134,14 @@ export default function DuplicatesPage() {
       </div>
 
       {groups.length === 0 && (
-        <div className="bg-card border border-border rounded-xl p-12 text-center">
+        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
           <GitMerge className="w-12 h-12 mx-auto mb-3 text-emerald-500 opacity-60" />
           <p className="text-muted-foreground text-sm">Keine möglichen Duplikate gefunden. Daten sind sauber!</p>
         </div>
       )}
 
       {groups.map((group, gi) => (
-        <div key={gi} className="bg-card border border-border rounded-xl overflow-hidden">
+        <div key={gi} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="px-5 py-3 border-b border-border bg-amber-50 flex items-center justify-between">
             <span className="text-xs font-semibold text-amber-700">
               ⚠️ {group.length} ähnliche Firmen

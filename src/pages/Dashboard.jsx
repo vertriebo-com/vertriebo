@@ -98,7 +98,7 @@ export default function Dashboard() {
 
       {/* Quick Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Rückrufe</p>
@@ -110,7 +110,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Heutige Aufgaben</p>
@@ -122,7 +122,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Heiße Leads</p>
@@ -134,7 +134,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Woche</p>
@@ -148,7 +148,7 @@ export default function Dashboard() {
       </div>
 
       {/* Weekly Progress Bar */}
-      <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-primary" />
@@ -170,7 +170,7 @@ export default function Dashboard() {
       {/* Main Action Section */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Today's Priorities */}
-        <div className="bg-card border border-border rounded-xl shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-500" />
@@ -214,7 +214,7 @@ export default function Dashboard() {
         </div>
 
         {/* Hot Leads */}
-        <div className="bg-card border border-border rounded-xl shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
           <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Star className="w-4 h-4 text-orange-500" />
@@ -254,7 +254,7 @@ export default function Dashboard() {
       </div>
 
       {/* Pipeline Overview */}
-      <div className="bg-card border border-border rounded-xl shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
         <div className="px-5 py-4 border-b border-border">
           <h2 className="text-sm font-semibold">Pipeline-Übersicht</h2>
         </div>
@@ -283,7 +283,7 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Activities */}
-      <div className="bg-card border border-border rounded-xl shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
         <div className="px-5 py-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-primary" />

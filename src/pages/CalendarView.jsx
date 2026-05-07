@@ -152,7 +152,7 @@ export default function CalendarView() {
 
       {/* Termin-Banner */}
       {termins.length > 0 && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
+        <div className="bg-white border border-slate-200 rounded-xl p-3">
           <p className="text-xs font-semibold text-purple-700 uppercase tracking-wider mb-2">🗓 Offene Termine</p>
           <div className="flex flex-wrap gap-2">
             {termins.map(c => (
@@ -261,7 +261,7 @@ export default function CalendarView() {
 
         {/* Day Detail Panel */}
         {selectedDay && (
-          <div className="w-72 shrink-0 bg-card border border-border rounded-xl p-4 space-y-3 self-start sticky top-4">
+          <div className="w-72 shrink-0 bg-white border border-slate-200 rounded-xl p-4 space-y-3 self-start sticky top-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">{DAYS_LONG[selectedDay.isoWeekday() - 1]}</p>
