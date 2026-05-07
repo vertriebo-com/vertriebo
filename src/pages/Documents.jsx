@@ -113,13 +113,13 @@ export default function Documents() {
         <FileText className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
         <div>
           <p className="text-sm font-semibold text-blue-800">Unternehmensbroschüre</p>
-          <p className="text-xs text-blue-600 mt-0.5">Professionelle 1-seitige PDF-Broschüre über Huwa – Leistungen, Vorteile, Kontakt. Einfach generieren und beim Kunden dalassen.</p>
+          <p className="text-xs text-blue-600 mt-0.5">Professionelle 1-seitige PDF-Broschüre für Ihr Unternehmen – Leistungen, Vorteile, Kontakt. Einfach generieren und beim Kunden dalassen.</p>
         </div>
       </div>
 
       {/* Upload (nur Admin) */}
       {isAdmin && (
-        <div className="bg-card border border-border rounded-xl">
+        <div className="bg-white border border-slate-200 rounded-xl">
           <div className="px-5 py-4 border-b border-border flex items-center gap-2">
             <Upload className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-semibold">Dokument hochladen</h3>
@@ -171,7 +171,7 @@ export default function Documents() {
       )}
 
       {/* Dokumentenliste */}
-      <div className="bg-card border border-border rounded-xl">
+      <div className="bg-white border border-slate-200 rounded-xl">
         <div className="px-5 py-4 border-b border-border flex items-center gap-2">
           <FolderOpen className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-semibold">Alle Dokumente ({documents.length})</h3>
