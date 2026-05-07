@@ -76,39 +76,43 @@ export default function StartLeadsStep({ org, onDone }) {
   };
 
   if (generated && result) {
+    const shortfall = 25 - result.count;
+    const hasWarning = shortfall > 0;
+
     return (
       <div className="bg-white border border-slate-200 rounded-2xl p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
-            <CheckCircle2 className="w-6 h-6 text-green-600" />
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${hasWarning ? "bg-amber-100" : "bg-green-100"}`}>
+            <CheckCircle2 className={`w-6 h-6 ${hasWarning ? "text-amber-600" : "text-green-600"}`} />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Startkontakte generiert!</h2>
-            <p className="text-sm font-medium text-slate-600 mt-0.5">{result.count} passende Firmen recherchiert</p>
+            <h2 className="text-lg font-bold text-slate-900">{result.count} passende Firmenkontakte gefunden</h2>
+            <p className="text-sm font-medium text-slate-600 mt-0.5">Automatisch recherchiert und gefiltert</p>
           </div>
         </div>
 
+        {/* Statistik */}
         <div className="space-y-3 mb-6 p-4 bg-slate-50 border border-slate-200 rounded-xl">
           {result.summary && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-xs font-semibold text-slate-700 uppercase mb-1">✓ Gespeichert</p>
                   <p className="text-2xl font-black text-green-600">{result.summary.created}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-700 uppercase mb-1">⊘ Übersprungen</p>
-                  <p className="text-2xl font-black text-slate-400">{result.summary.skipped_duplicate + result.summary.skipped_excluded + result.summary.skipped_no_match}</p>
+                  <p className="text-xs font-semibold text-slate-700 uppercase mb-1">Roh-Treffer</p>
+                  <p className="text-2xl font-black text-slate-700">{result.summary.raw_hits}</p>
                 </div>
               </div>
 
-              <div className="border-t border-slate-300 pt-3 space-y-2 text-xs">
+              <div className="border-t border-slate-300 pt-3 space-y-1.5 text-xs">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Dubletten:</span>
                   <span className="font-semibold text-slate-900">{result.summary.skipped_duplicate}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Ausgeschlossen:</span>
+                  <span className="text-slate-600">Ausgeschlossen (z.B. Konkurrenz):</span>
                   <span className="font-semibold text-slate-900">{result.summary.skipped_excluded}</span>
                 </div>
                 <div className="flex justify-between">
@@ -116,12 +120,43 @@ export default function StartLeadsStep({ org, onDone }) {
                   <span className="font-semibold text-slate-900">{result.summary.skipped_no_match}</span>
                 </div>
               </div>
+
+              {result.search_queries && result.search_queries.length > 0 && (
+                <div className="border-t border-slate-300 pt-3 mt-3">
+                  <p className="text-xs font-semibold text-slate-700 uppercase mb-2">Suchbegriffe</p>
+                  <div className="flex flex-wrap gap-1">
+                    {result.search_queries.slice(0, 5).map((q, i) => (
+                      <span key={i} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                        {q}
+                      </span>
+                    ))}
+                    {result.search_queries.length > 5 && (
+                      <span className="text-xs text-slate-600 px-2 py-1">+{result.search_queries.length - 5} mehr</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
 
+        {/* Warning wenn zu wenige Leads */}
+        {hasWarning && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-6">
+            <p className="text-sm font-semibold text-amber-900 mb-2">
+              💡 Es wurden nur {result.count} statt 25 passende Kontakte gefunden
+            </p>
+            <ul className="text-xs text-amber-800 space-y-1 mb-3">
+              <li>• Das System sortiert unpassende Treffer automatisch aus</li>
+              <li>• Sie können den Suchradius vergrößern</li>
+              <li>• Oder weitere Zielkundengruppen auswählen</li>
+              <li>• Eine neue Recherche später ist jederzeit möglich</li>
+            </ul>
+          </div>
+        )}
+
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl mb-6 text-xs text-blue-900 font-medium">
-          💡 Sie können jederzeit weitere Firmenkontakte im Leads-Bereich recherchieren.
+          📊 {result.count} Recherche-Credits verbraucht (1 pro gespeichertem Kontakt).
         </div>
 
         <Button onClick={onDone} className="w-full gap-2 bg-green-600 hover:bg-green-700">
@@ -214,9 +249,9 @@ export default function StartLeadsStep({ org, onDone }) {
       </div>
 
       <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl mb-6">
-        <p className="text-xs font-bold text-blue-900 uppercase mb-2">Verbrauch</p>
-        <p className="text-sm text-blue-900 font-semibold">bis zu <span className="text-blue-700">25 Recherche-Credits</span></p>
-        <p className="text-xs text-blue-800 mt-2">Es werden nur Firmen gespeichert, die zu Ihren Zielkunden passen. Unpassende Treffer werden automatisch verworfen.</p>
+        <p className="text-xs font-bold text-blue-900 uppercase mb-2">Bis zu 25 passende Kontakte</p>
+        <p className="text-sm text-blue-900 font-semibold">Verbrauch: <span className="text-blue-700">1 Credit pro gespeichertem Kontakt</span></p>
+        <p className="text-xs text-blue-800 mt-2">Unpassende Treffer werden automatisch aussortiert. Die tatsächliche Anzahl kann daher niedriger sein.</p>
       </div>
 
       {!hasTargetCustomers && (

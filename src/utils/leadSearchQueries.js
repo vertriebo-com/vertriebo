@@ -1,97 +1,83 @@
-// ─── Search Query Generation für Lead-Generierung ──────────────────────────────
+// ─── Search Query Variants für jede Zielgruppe ────────────────────────────────
+// Jede Zielgruppe hat mehrere Suchvarianten, um mehr Treffer zu generieren
 
-// Keyword-Mappings für Zielgruppen → Google Places Suchbegriffe
-const CUSTOMER_TYPE_KEYWORDS = {
-  "Hausverwaltungen": ["Hausverwaltung"],
-  "Immobilienverwaltungen": ["Immobilienverwaltung", "Property Management"],
-  "Bürogebäude": ["Büro", "Office", "Geschäftsgebäude"],
-  "Arztpraxen": ["Zahnarzt", "Zahnarztpraxis", "Dentist"],
-  "Zahnarztpraxen": ["Zahnarzt", "Zahnarztpraxis", "Dentist"],
-  "Kanzleien": ["Anwalt", "Rechtsanwalt", "Kanzlei", "Law Office"],
-  "Steuerkanzleien": ["Steuerberater", "Tax Advisor"],
-  "Autohäuser": ["Autohaus", "Autohändler", "Car Dealer"],
-  "Werkstätten": ["Autowerkstatt", "KFZ-Werkstatt", "Auto Repair"],
-  "Hotels": ["Hotel", "Gasthof", "Pension"],
-  "Pflegeheime": ["Pflegeheim", "Altenheim", "Care Home"],
-  "Schulen": ["Grundschule", "Gymnasium", "Schule", "School"],
-  "Kitas": ["Kita", "Kindergarten", "Daycare"],
-  "Fitnessstudios": ["Fitnessstudio", "Gym", "Fitnesscenter"],
-  "Einzelhandel": ["Einzelhandel", "Einzelhandelsladen", "Retail"],
-  "Supermärkte": ["Supermarkt", "Lebensmittel", "Grocery Store"],
-  "Restaurants": ["Restaurant", "Gastro", "Gastronomie"],
-  "Lagerhallen": ["Lagerhalle", "Lager", "Warehouse"],
-  "Produktionsbetriebe": ["Produktion", "Manufacturing", "Fabrik"],
-  "Industrieunternehmen": ["Industrie", "Industrial", "Manufaktur"],
-  "Bauunternehmen": ["Bauleitung", "Baubetrieb", "Construction"],
-  "Handwerksbetriebe": ["Handwerk", "Handwerksbetrieb", "Craftsman"],
-  "Online-Shops": ["Online Shop", "E-Commerce", "Webshop"],
-  "Großhändler": ["Großhandel", "Wholesale", "Distributor"],
-  "Möbelhäuser": ["Möbelhaus", "Möbel", "Furniture Store"],
-  "Apotheken": ["Apotheke", "Pharmacy"],
-  "Logistikzentren": ["Logistik", "Logistikzentrum", "Logistics"],
+export const SEARCH_VARIANTS = {
+  "Hausverwaltungen": ["Hausverwaltung", "Immobilienverwaltung", "WEG Verwaltung", "Property Management", "Gebäudeverwaltung"],
+  "Immobilienverwaltungen": ["Immobilienverwaltung", "Hausverwaltung", "Property Management", "Immobilienmanagement"],
+  "Bürogebäude": ["Bürogebäude", "Gewerbepark", "Business Center", "Firmenpark", "Bürocenter"],
+  "Arztpraxen": ["Arztpraxis", "Zahnarztpraxis", "Gemeinschaftspraxis", "Praxiszentrum", "Medizinisches Versorgungszentrum"],
+  "Zahnarztpraxen": ["Zahnarztpraxis", "Zahnklinik", "Zahnarzt", "Zahnmedizin"],
+  "Kanzleien": ["Anwaltskanzlei", "Rechtskanzlei", "Law Firm", "Rechtsanwalt"],
+  "Steuerkanzleien": ["Steuerberatung", "Steuerkanzlei", "Steuerberater", "Tax Consultant"],
+  "Autohäuser": ["Autohaus", "Autohandel", "Autohändler", "Autoverkauf", "Automobilhandel"],
+  "Werkstätten": ["Autowerkstatt", "KFZ-Werkstatt", "Kfz-Meister", "Autowerkstatt", "Autoreperatur"],
+  "Hotels": ["Hotel", "Gasthof", "Pension", "Herberge", "Übernachtung"],
+  "Pflegeheime": ["Pflegeheim", "Altenheim", "Seniorenheim", "Pflegeanstalt"],
+  "Schulen": ["Schule", "Gymnasium", "Grundschule", "Sekundarschule", "Bildungseinrichtung"],
+  "Kitas": ["Kita", "Kindergarten", "Kindertagesstätte", "Vorschule"],
+  "Fitnessstudios": ["Fitnessstudio", "Gym", "Fitnessclub", "Trainingscentre"],
+  "Einzelhandel": ["Einzelhandel", "Einzelhandelsgeschäft", "Fachhandel"],
+  "Supermärkte": ["Supermarkt", "Discounter", "Lebensmittel"],
+  "Restaurants": ["Restaurant", "Gastro", "Gastronomie", "Pizzeria", "Gastststätte"],
+  "Lagerhallen": ["Lagerhalle", "Lager", "Warehouse", "Logistikhalle", "Lagerbetrieb"],
+  "Produktionsbetriebe": ["Produktion", "Fabrik", "Produktionsstätte", "Werk"],
+  "Industrieunternehmen": ["Industrie", "Industriebetrieb", "Industrieunternehmen"],
+  "Bauunternehmen": ["Bauunternehmen", "Baumeister", "Baufirma", "Bauträger"],
+  "Handwerksbetriebe": ["Handwerk", "Handwerksbetrieb", "Handwerker"],
+  "Online-Shops": ["Onlineshop", "E-Commerce", "Online-Handel", "Webshop"],
+  "Großhändler": ["Großhandel", "Großhändler", "Wholesale", "Distributeur"],
+  "Möbelhäuser": ["Möbelhaus", "Möbelhändler", "Möbelhandel", "Küchenstudio"],
+  "Apotheken": ["Apotheke", "Pharmazie", "Apotheker"],
+  "Logistikzentren": ["Logistik", "Logistikzentrum", "Distributionszentrum", "Logistikunternehmen"],
 };
 
-// Keyword-Mappings für Ausschlüsse
-const EXCLUDED_TYPE_KEYWORDS = {
-  "Keine Privatkunden": ["privat", "privatperson", "residential"],
-  "Keine Restaurants": ["restaurant", "gastro", "bar", "café"],
-  "Keine Ärzte": ["arzt", "zahnarzt", "doctor", "physician", "dentist"],
-  "Keine Steuerberater": ["steuerberater", "tax advisor", "accountant"],
-  "Keine IT-Firmen": ["IT", "software", "computer", "tech"],
-  "Keine Immobilienfirmen": ["immobilien", "real estate", "makler"],
-  "Keine Vereine": ["verein", "club", "association"],
-  "Keine Behörden": ["behörde", "government", "amt", "authority"],
-  "Keine Kleinstbetriebe": ["einzelperson", "freelancer", "solopreneur"],
-};
-
-/**
- * Generiere Suchbegriffe basierend auf Zielkunden und Gebiet
- */
+// ─── Search Query Generator ──────────────────────────────────────────────────
 export function generateSearchQueries(targetCustomerTypes, city) {
   const queries = [];
-  
-  targetCustomerTypes.forEach(customerType => {
-    const keywords = CUSTOMER_TYPE_KEYWORDS[customerType] || [customerType];
-    keywords.forEach(keyword => {
-      queries.push(`${keyword} ${city}`);
-    });
-  });
+  const variants = new Set();
+
+  for (const type of targetCustomerTypes) {
+    const typeVariants = SEARCH_VARIANTS[type] || [type];
+    for (const variant of typeVariants) {
+      const query = `${variant} ${city}`;
+      if (!variants.has(query)) {
+        variants.add(query);
+        queries.push({ query, type, variant });
+      }
+    }
+  }
 
   return queries;
 }
 
-/**
- * Prüfe ob ein Lead zu Ausschlüssen passt
- */
-export function matchesExclusions(leadName, leadBranche, excludedTypes) {
-  const searchString = `${(leadName || "").toLowerCase()} ${(leadBranche || "").toLowerCase()}`;
+// ─── Lead Matching & Filtering ───────────────────────────────────────────────
+export function matchesTargetCustomer(leadName, leadBranche, targetTypes) {
+  const search = `${(leadName || "").toLowerCase()} ${(leadBranche || "").toLowerCase()}`;
   
-  for (const exclusionType of excludedTypes) {
-    const keywords = EXCLUDED_TYPE_KEYWORDS[exclusionType] || [exclusionType.toLowerCase()];
-    for (const keyword of keywords) {
-      if (searchString.includes(keyword.toLowerCase())) {
-        return true; // Lead sollte ausgeschlossen werden
-      }
+  for (const type of targetTypes) {
+    const variants = SEARCH_VARIANTS[type] || [type.toLowerCase()];
+    for (const variant of variants) {
+      if (search.includes(variant.toLowerCase())) return type;
     }
   }
-  
-  return false; // Lead ist nicht ausgeschlossen
+  return null;
 }
 
-/**
- * Prüfe ob ein Lead zu einer Zielgruppe passt
- */
-export function matchesTargetCustomer(leadName, leadBranche, targetCustomerTypes) {
-  const searchString = `${(leadName || "").toLowerCase()} ${(leadBranche || "").toLowerCase()}`;
+export function matchesExcluded(leadName, leadBranche, excludedTypes) {
+  const EXCLUDED_VARIANTS = {
+    "Keine Steuerberater": ["steuerberater", "tax advisor", "steuerkanzlei"],
+    "Keine IT-Firmen": ["it-", "software", "computer", "informatik"],
+    "Keine Restaurants": ["restaurant", "gastro", "pizzeria", "bar"],
+    "Keine Ärzte": ["arzt", "zahnarzt", "medizin"],
+  };
+
+  const search = `${(leadName || "").toLowerCase()} ${(leadBranche || "").toLowerCase()}`;
   
-  for (const customerType of targetCustomerTypes) {
-    const keywords = CUSTOMER_TYPE_KEYWORDS[customerType] || [customerType];
-    for (const keyword of keywords) {
-      if (searchString.includes(keyword.toLowerCase())) {
-        return customerType; // Gefunden
-      }
+  for (const type of excludedTypes) {
+    const variants = EXCLUDED_VARIANTS[type] || [type.toLowerCase()];
+    for (const variant of variants) {
+      if (search.includes(variant.toLowerCase())) return type;
     }
   }
-  
-  return null; // Kein Match
+  return null;
 }

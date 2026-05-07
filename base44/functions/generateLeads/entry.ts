@@ -1,9 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
-// ─── Inline checkAccess ───────────────────────────────────────────────────────
-const ACTION_ROLES = {
-  generate_leads: ['organization_admin'],
-};
+const ACTION_ROLES = { generate_leads: ['organization_admin'] };
 
 function _allow(r) { return { allowed:true, ...r }; }
 function _deny(reason, message) { return { allowed:false, reason, message, user:null }; }
@@ -11,11 +8,7 @@ function _deny(reason, message) { return { allowed:false, reason, message, user:
 async function checkAccess(req, { organization_id, action }={}) {
   const b44 = createClientFromRequest(req);
   let user; 
-  try { 
-    user = await b44.auth.me(); 
-  } catch (e) { 
-    return _deny('not_authenticated','Nicht eingeloggt.'); 
-  }
+  try { user = await b44.auth.me(); } catch (e) { return _deny('not_authenticated','Nicht eingeloggt.'); }
   if (!user) return _deny('not_authenticated','Nicht eingeloggt.');
   if (user.role === 'admin') return _allow({ reason:'platform_admin', user, organization:null, member:null, role:'platform_admin' });
   if (!organization_id) return _deny('missing_organization_id','Keine organization_id angegeben.');
@@ -26,9 +19,7 @@ async function checkAccess(req, { organization_id, action }={}) {
       b44.asServiceRole.entities.Organization.filter({id:organization_id}), 
       b44.asServiceRole.entities.OrganizationMember.filter({organization_id, user_email:user.email})
     ]); 
-  } catch (e) { 
-    return _deny('organization_not_found','Organisation nicht gefunden.'); 
-  }
+  } catch (e) { return _deny('organization_not_found','Organisation nicht gefunden.'); }
   
   const organization = orgs[0]||null;
   if (!organization) return _deny('organization_not_found','Organisation nicht gefunden.');
@@ -45,53 +36,31 @@ async function checkAccess(req, { organization_id, action }={}) {
   }
   return _allow({ reason:'ok', user, organization, member, role });
 }
-// ─────────────────────────────────────────────────────────────────────────────
 
-// Keyword-Mappings für Zielgruppen
-const CUSTOMER_TYPE_KEYWORDS = {
-  "Hausverwaltungen": ["hausverwaltung"],
-  "Immobilienverwaltungen": ["immobilienverwaltung"],
-  "Bürogebäude": ["büro", "office", "geschäftsgebäude"],
-  "Arztpraxen": ["arztpraxis", "zahnarzt", "dentist"],
-  "Zahnarztpraxen": ["zahnarzt", "dentist"],
-  "Kanzleien": ["anwalt", "rechtsanwalt", "law"],
-  "Steuerkanzleien": ["steuerberater"],
-  "Autohäuser": ["autohaus", "autohändler"],
-  "Werkstätten": ["autowerkstatt", "kfz-werkstatt"],
-  "Hotels": ["hotel", "gasthof", "pension"],
-  "Pflegeheime": ["pflegeheim", "altenheim"],
-  "Schulen": ["schule", "gymnasium", "grundschule"],
-  "Kitas": ["kita", "kindergarten"],
-  "Fitnessstudios": ["fitnessstudio", "gym"],
-  "Einzelhandel": ["einzelhandel"],
-  "Supermärkte": ["supermarkt", "edeka", "rewe"],
-  "Restaurants": ["restaurant", "gastro", "gastronomie"],
-  "Lagerhallen": ["lagerhalle", "lager", "warehouse"],
-  "Produktionsbetriebe": ["produktion", "fabrik"],
-  "Industrieunternehmen": ["industrie"],
-  "Bauunternehmen": ["bauleitung", "bauunternehmen"],
-  "Handwerksbetriebe": ["handwerk"],
-  "Online-Shops": ["online shop", "e-commerce"],
-  "Großhändler": ["großhandel", "wholesale"],
-  "Möbelhäuser": ["möbelhaus"],
-  "Apotheken": ["apotheke", "pharmacy"],
-  "Logistikzentren": ["logistik"],
+// Search variants pro Zielgruppe (erweitert)
+const SEARCH_VARIANTS = {
+  "Hausverwaltungen": ["Hausverwaltung", "Immobilienverwaltung", "WEG Verwaltung", "Property Management"],
+  "Bürogebäude": ["Bürogebäude", "Gewerbepark", "Business Center", "Bürocenter"],
+  "Arztpraxen": ["Arztpraxis", "Zahnarztpraxis", "Medizinisches Versorgungszentrum"],
+  "Online-Shops": ["Onlineshop", "E-Commerce", "Webshop"],
+  "Großhändler": ["Großhandel", "Wholesale"],
+  "Autohäuser": ["Autohaus", "Autohandel", "Autohändler"],
+  "Möbelhäuser": ["Möbelhaus", "Möbelhandel", "Küchenstudio"],
 };
 
-// Keyword-Mappings für Ausschlüsse
-const EXCLUDED_TYPE_KEYWORDS = {
-  "Keine Steuerberater": ["steuerberater"],
-  "Keine IT-Firmen": ["it-", "software", "computer"],
-  "Keine Restaurants": ["restaurant", "gastro", "bar"],
-  "Keine Ärzte": ["arzt", "zahnarzt"],
+const EXCLUDED_KEYWORDS = {
+  "Steuerberater": ["steuerberater", "steuerkanzlei"],
+  "IT-Firmen": ["it-", "software", "informatik"],
+  "Restaurants": ["restaurant", "gastro"],
+  "Ärzte": ["arzt", "zahnarzt"],
 };
 
 function matchesTargetCustomer(leadName, leadBranche, targetTypes) {
   const search = `${(leadName || "").toLowerCase()} ${(leadBranche || "").toLowerCase()}`;
   for (const type of targetTypes) {
-    const keywords = CUSTOMER_TYPE_KEYWORDS[type] || [type.toLowerCase()];
-    for (const kw of keywords) {
-      if (search.includes(kw.toLowerCase())) return type;
+    const variants = SEARCH_VARIANTS[type] || [type.toLowerCase()];
+    for (const variant of variants) {
+      if (search.includes(variant.toLowerCase())) return type;
     }
   }
   return null;
@@ -100,12 +69,30 @@ function matchesTargetCustomer(leadName, leadBranche, targetTypes) {
 function matchesExcluded(leadName, leadBranche, excludedTypes) {
   const search = `${(leadName || "").toLowerCase()} ${(leadBranche || "").toLowerCase()}`;
   for (const type of excludedTypes) {
-    const keywords = EXCLUDED_TYPE_KEYWORDS[type] || [type.toLowerCase()];
+    const keywords = EXCLUDED_KEYWORDS[type] || [type.toLowerCase()];
     for (const kw of keywords) {
       if (search.includes(kw.toLowerCase())) return type;
     }
   }
   return null;
+}
+
+function generateSearchQueries(targetCustomerTypes, city) {
+  const queries = [];
+  const seen = new Set();
+  
+  for (const type of targetCustomerTypes) {
+    const variants = SEARCH_VARIANTS[type] || [type];
+    for (const variant of variants) {
+      const q = `${variant} ${city}`;
+      if (!seen.has(q)) {
+        seen.add(q);
+        queries.push({ query: q, type, variant });
+      }
+    }
+  }
+  
+  return queries;
 }
 
 Deno.serve(async (req) => {
@@ -114,14 +101,14 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { organization_id, target_count = 25 } = body;
 
-    // ── 1. Zugriff prüfen ─────────────────────────────────────────────────
+    if (!organization_id) return Response.json({ error: 'organization_id ist Pflichtparameter' }, { status: 400 });
+
     const access = await checkAccess(req, { organization_id, action: 'generate_leads' });
     if (!access.allowed) {
       console.warn(`[generateLeads] Access denied: ${access.reason}`);
       return Response.json({ error: access.message, success: false }, { status: 403 });
     }
 
-    // ── 2. Organisation & Subscription prüfen ─────────────────────────────
     const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
     const org = orgs[0];
     if (!org) return Response.json({ error: 'Organization not found', success: false }, { status: 404 });
@@ -134,16 +121,12 @@ Deno.serve(async (req) => {
       }, { status: 402 });
     }
 
-    // ── 3. Settings laden ─────────────────────────────────────────────────
     const settingsRecords = await base44.asServiceRole.entities.OrganizationSettings.filter({
       organization_id,
     });
     const settings = {};
-    settingsRecords.forEach(s => {
-      settings[s.key] = s.value;
-    });
+    settingsRecords.forEach(s => { settings[s.key] = s.value; });
 
-    // ── 4. Erforderliche Felder prüfen ───────────────────────────────────
     const targetCustomerStr = settings.target_customer_types || "";
     const customTargetsStr = settings.custom_target_customer_types || "";
     const targetCustomers = [
@@ -173,14 +156,11 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
-    console.info(`[generateLeads] org=${organization_id} targets=${targetCustomers.length} excluded=${excluded.length} city=${city}`);
+    // Generate search queries
+    const searchQueries = generateSearchQueries(targetCustomers, city);
+    console.info(`[generateLeads] org=${organization_id} search_queries=${searchQueries.length} city=${city}`);
 
-    // ── 5. Google Places Suche (Mock für Demo) ──────────────────────────
-    // In Produktionsumgebung: Google Places API verwenden
-    // Hier: Fake-Daten für Tests
-    const mockLeads = generateMockLeads(targetCustomers, city, 50);
-
-    // ── 6. Lead-Filterung & Speicherung ─────────────────────────────────
+    // Existing companies
     const existing = await base44.asServiceRole.entities.Company.filter({
       organization_id,
     });
@@ -191,30 +171,35 @@ Deno.serve(async (req) => {
       skipped_duplicate: 0,
       skipped_excluded: 0,
       skipped_no_match: 0,
+      search_queries: searchQueries.map(q => q.query),
+      raw_hits: 0,
     };
 
-    for (const lead of mockLeads) {
-      // Duplikat?
+    // Generate mock leads
+    const allMockLeads = generateExtendedMockLeads(targetCustomers, city, 100);
+    results.raw_hits = allMockLeads.length;
+
+    // Filter & save
+    for (const lead of allMockLeads) {
+      if (results.created.length >= target_count) break;
+
       if (existingNames.has(lead.name.toLowerCase())) {
         results.skipped_duplicate++;
         continue;
       }
 
-      // Ausgeschlossen?
       const excludedReason = matchesExcluded(lead.name, lead.branche, excluded);
       if (excludedReason) {
         results.skipped_excluded++;
         continue;
       }
 
-      // Passt zu Zielgruppe?
       const matchedType = matchesTargetCustomer(lead.name, lead.branche, targetCustomers);
       if (!matchedType) {
         results.skipped_no_match++;
         continue;
       }
 
-      // Speichern
       try {
         const company = await base44.asServiceRole.entities.Company.create({
           organization_id,
@@ -235,26 +220,25 @@ Deno.serve(async (req) => {
           source_query: `${matchedType} ${city}`,
         });
         results.created.push(company.id);
-
-        // Limit prüfen
-        if (results.created.length >= target_count) break;
       } catch (e) {
         console.warn(`[generateLeads] Failed to create company: ${e.message}`);
       }
     }
 
-    console.info(`[generateLeads] OK – created=${results.created.length} duplicates=${results.skipped_duplicate} excluded=${results.skipped_excluded} no_match=${results.skipped_no_match}`);
+    console.info(`[generateLeads] OK – created=${results.created.length} dups=${results.skipped_duplicate} excluded=${results.skipped_excluded} no_match=${results.skipped_no_match}`);
 
     return Response.json({
       success: true,
       count: results.created.length,
       summary: {
         created: results.created.length,
+        raw_hits: results.raw_hits,
         skipped_duplicate: results.skipped_duplicate,
         skipped_excluded: results.skipped_excluded,
         skipped_no_match: results.skipped_no_match,
-        total_processed: mockLeads.length,
+        total_processed: allMockLeads.length,
       },
+      search_queries: results.search_queries,
     });
 
   } catch (error) {
@@ -263,54 +247,72 @@ Deno.serve(async (req) => {
   }
 });
 
-// ── Mock-Daten für Tests ──────────────────────────────────────────────────────
-function generateMockLeads(targetCustomers, city, count) {
-  const mockCompanies = {
-    "Autohaus": [
-      { name: "Schmidt Automobile", branche: "Autohaus", phone: "+49 123 456", website: "schmidt-autos.de" },
-      { name: "Müller KFZ Handel", branche: "Autohandel", phone: "+49 234 567", email: "info@mueller-kfz.de" },
-      { name: "Premium Motors", branche: "Automobilhandel", phone: "+49 345 678" },
-      { name: "Rhein Auto", branche: "Autohaus", phone: "+49 456 789" },
-      { name: "Metropol Autos", branche: "Autohändler", phone: "+49 567 890" },
-    ],
-    "Hausverwaltung": [
-      { name: "Hausmeister & Partner", branche: "Gebäudeverwaltung", phone: "+49 111 222" },
+function generateExtendedMockLeads(targetCustomers, city, count) {
+  // Erweiterte Mock-Daten mit mehr Varianten
+  const mockData = {
+    "Hausverwaltungen": [
+      { name: "Hausverwaltung Schmidt", branche: "Hausverwaltung", phone: "+49 123 456" },
       { name: "Wohn-Service GmbH", branche: "Hausverwaltung", email: "info@wohn-service.de" },
+      { name: "Hausmeister & Partner", branche: "Gebäudeverwaltung", phone: "+49 111 222" },
       { name: "City Management", branche: "Immobilienverwaltung", phone: "+49 222 333" },
-      { name: "Süd Verwaltung", branche: "Hausmeisterdienste", phone: "+49 333 444" },
+      { name: "Süd Verwaltung", branche: "Immobilienverwaltung", phone: "+49 333 444" },
     ],
-    "Hotel": [
-      { name: "Hotel am Markt", branche: "Gastgewerbe", phone: "+49 555 666", website: "hotel-markt.de" },
-      { name: "Pension Schöne Aussicht", branche: "Beherbergung", phone: "+49 666 777" },
-      { name: "Business Hotel Plus", branche: "Hotel", email: "booking@bhplus.de" },
-      { name: "Gasthof zur Post", branche: "Gaststättenbetrieb", phone: "+49 777 888" },
+    "Bürogebäude": [
+      { name: "Business Center Berlin", branche: "Bürocenter", phone: "+49 555 666" },
+      { name: "Gewerbepark München", branche: "Gewerbepark", phone: "+49 666 777" },
+      { name: "Office Solutions AG", branche: "Büroservice", email: "info@office-sol.de" },
+      { name: "Bürohaus Frankfurt", branche: "Bürogebäude", phone: "+49 777 888" },
     ],
-    "Steuerberater": [
-      { name: "Dr. Müller & Co. Steuerberatung", branche: "Steuerberatung", phone: "+49 888 999" },
-      { name: "Finanz-Pro", branche: "Steuerberatung", email: "kontakt@finanz-pro.de" },
-      { name: "Tax Excellence", branche: "Steuerberatung", phone: "+49 999 000" },
+    "Arztpraxen": [
+      { name: "Dr. Müller Arztpraxis", branche: "Arztpraxis", phone: "+49 888 999" },
+      { name: "Zahnarzt Dr. Weber", branche: "Zahnarztpraxis", phone: "+49 999 000" },
+      { name: "Gemeinschaftspraxis Stadt", branche: "Gemeinschaftspraxis", email: "termin@stadt-praxis.de" },
+      { name: "MVZ Medizin", branche: "Medizinisches Versorgungszentrum", phone: "+49 000 111" },
+    ],
+    "Autohäuser": [
+      { name: "Autohaus Schmidt", branche: "Autohaus", phone: "+49 111 222", website: "schmidt-autos.de" },
+      { name: "Müller KFZ Handel", branche: "Autohandel", email: "info@mueller-kfz.de" },
+      { name: "Premium Motors", branche: "Automobilhandel", phone: "+49 222 333" },
+      { name: "Rhein Auto", branche: "Autohaus", phone: "+49 333 444" },
+      { name: "Metropol Autos", branche: "Autohändler", phone: "+49 444 555" },
+    ],
+    "Online-Shops": [
+      { name: "OnlineShop24 GmbH", branche: "Onlineshop", email: "support@onlineshop24.de" },
+      { name: "E-Commerce Lösungen", branche: "E-Commerce", phone: "+49 555 666" },
+      { name: "WebShop ProfiTeam", branche: "Webhandel", phone: "+49 666 777" },
+    ],
+    "Großhändler": [
+      { name: "Großhandel Central", branche: "Großhandel", phone: "+49 777 888" },
+      { name: "Wholesale Distribution", branche: "Großhandel", email: "kontakt@wholesale-dist.de" },
+      { name: "Distributeur Premium", branche: "Vertrieb", phone: "+49 888 999" },
+    ],
+    "Möbelhäuser": [
+      { name: "Möbelhaus König", branche: "Möbelhandel", phone: "+49 999 000" },
+      { name: "Küchenstudio Weber", branche: "Küchenstudio", phone: "+49 000 111" },
+      { name: "Möbel Megastore", branche: "Möbelhaus", email: "verkauf@megastore.de" },
     ],
   };
 
   const leads = [];
-  const templates = [
-    ...mockCompanies["Autohaus"],
-    ...mockCompanies["Hausverwaltung"],
-    ...mockCompanies["Hotel"],
-  ];
-
-  for (let i = 0; i < Math.min(count, templates.length); i++) {
-    const t = templates[i % templates.length];
-    leads.push({
-      name: t.name + (i > templates.length ? ` (${i})` : ""),
-      branche: t.branche,
-      plz: "10115",
-      address: `${Math.floor(Math.random() * 200) + 1} Straße ${city}`,
-      phone: t.phone || "",
-      email: t.email || "",
-      website: t.website || "",
-    });
+  
+  for (const targetType of targetCustomers) {
+    const typeLeads = mockData[targetType] || [];
+    leads.push(...typeLeads.slice(0, Math.max(1, Math.floor(count / Math.max(1, targetCustomers.length)))));
   }
 
-  return leads;
+  // Shuffle & deduplicate
+  const uniqueLeads = [];
+  const seenNames = new Set();
+  for (const lead of leads.sort(() => Math.random() - 0.5)) {
+    if (!seenNames.has(lead.name)) {
+      seenNames.add(lead.name);
+      uniqueLeads.push({
+        ...lead,
+        address: `${Math.floor(Math.random() * 200) + 1} Straße ${city}`,
+        plz: "10115",
+      });
+    }
+  }
+
+  return uniqueLeads.slice(0, count);
 }

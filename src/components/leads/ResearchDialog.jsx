@@ -105,32 +105,74 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           <div className="space-y-4 py-4">
             {result.success ? (
               <>
-                <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-green-50 border-green-200">
-                  <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
-                  <div className="text-sm font-medium text-green-900">
-                    ✓ {result.count} Firmenkontakte erstellt
+                <div className={`flex items-start gap-3 p-4 rounded-xl border-2 ${
+                  result.count >= 20 ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
+                }`}>
+                  <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${result.count >= 20 ? "text-green-600" : "text-amber-600"}`} />
+                  <div className={`text-sm font-medium ${result.count >= 20 ? "text-green-900" : "text-amber-900"}`}>
+                    {result.count} Firmenkontakte gespeichert
                   </div>
                 </div>
+
                 {result.summary && (
-                  <div className="space-y-2 text-xs bg-slate-50 p-3 rounded-lg">
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Gespeichert:</span>
-                      <span className="font-semibold text-slate-900">{result.summary.created}</span>
+                  <>
+                    <div className="space-y-2 text-xs bg-slate-50 p-3 rounded-lg">
+                      <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-200">
+                        <div>
+                          <span className="text-slate-600 block text-[10px] font-semibold uppercase">Gefunden (Roh)</span>
+                          <span className="text-lg font-bold text-slate-900">{result.summary.raw_hits}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-600 block text-[10px] font-semibold uppercase">Gespeichert</span>
+                          <span className="text-lg font-bold text-green-600">{result.summary.created}</span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Dubletten:</span>
+                          <span className="font-semibold text-slate-900">{result.summary.skipped_duplicate}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Ausgeschlossen:</span>
+                          <span className="font-semibold text-slate-900">{result.summary.skipped_excluded}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-600">Keine Übereinstimmung:</span>
+                          <span className="font-semibold text-slate-900">{result.summary.skipped_no_match}</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Dubletten:</span>
-                      <span className="font-semibold text-slate-900">{result.summary.skipped_duplicate}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Ausgeschlossen:</span>
-                      <span className="font-semibold text-slate-900">{result.summary.skipped_excluded}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Keine Übereinstimmung:</span>
-                      <span className="font-semibold text-slate-900">{result.summary.skipped_no_match}</span>
-                    </div>
-                  </div>
+
+                    {result.search_queries && result.search_queries.length > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-blue-900 uppercase mb-2">Suchbegriffe ({result.search_queries.length})</p>
+                        <div className="flex flex-wrap gap-1">
+                          {result.search_queries.map((q, i) => (
+                            <span key={i} className="text-xs bg-white border border-blue-200 text-blue-700 px-2 py-1 rounded">
+                              {q}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {result.count < 10 && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <p className="text-xs font-semibold text-amber-900 mb-2">💡 Weniger Kontakte als erwartet?</p>
+                        <ul className="text-xs text-amber-800 space-y-0.5">
+                          <li>• Vergrößern Sie den Suchradius</li>
+                          <li>• Wählen Sie mehr Zielkundengruppen aus</li>
+                          <li>• Führen Sie eine neue Recherche durch</li>
+                        </ul>
+                      </div>
+                    )}
+                  </>
                 )}
+
+                <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-900 text-center font-semibold">
+                  {result.count} Credits verbraucht
+                </div>
               </>
             ) : (
               <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-red-50 border-red-200">
