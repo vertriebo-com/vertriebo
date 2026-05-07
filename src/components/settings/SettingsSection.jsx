@@ -6,8 +6,8 @@ export default function SettingsSection({ icon: Icon, title, description, childr
           <Icon className="w-4 h-4 text-primary" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold">{title}</h3>
-          {description && <p className="text-xs text-muted-foreground">{description}</p>}
+          <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+          {description && <p className="text-xs text-slate-600 font-medium">{description}</p>}
         </div>
       </div>
       <div className="px-5 py-4">

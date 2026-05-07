@@ -274,26 +274,26 @@ export default function CompanySettings({ org: orgProp }) {
       <SettingsSection icon={Building2} title="Unternehmensprofil" description="Firmenstammdaten – werden in E-Mails, PDFs und Vorlagen verwendet">
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="sm:col-span-2">
-            <Label className="text-xs font-semibold mb-1 block">Firmenname *</Label>
+            <Label className="text-xs font-semibold mb-1 block text-slate-900">Firmenname *</Label>
             <Input value={firmenname} onChange={e => setFirmenname(e.target.value)} placeholder="Muster GmbH" />
           </div>
           <div className="sm:col-span-2">
-            <Label className="text-xs font-semibold mb-2 block">Branche</Label>
+            <Label className="text-xs font-semibold mb-2 block text-slate-900">Branche</Label>
             <div className="flex flex-wrap gap-2">
               {INDUSTRIES.map(ind => (
                 <button key={ind} type="button" onClick={() => setIndustry(industry === ind ? "" : ind)}
-                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all ${industry === ind ? "border-primary bg-primary/10 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/40"}`}>
+                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${industry === ind ? "border-primary bg-primary/10 text-primary" : "border-border text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}>
                   {ind}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><Phone className="w-3 h-3" /> Telefon</Label>
+            <Label className="text-xs font-semibold mb-1 block flex items-center gap-1 text-slate-900"><Phone className="w-3 h-3" /> Telefon</Label>
             <Input value={telefon} onChange={e => setTelefon(e.target.value)} placeholder="02601/9131820" />
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><Globe className="w-3 h-3" /> Website</Label>
+            <Label className="text-xs font-semibold mb-1 block flex items-center gap-1 text-slate-900"><Globe className="w-3 h-3" /> Website</Label>
             <Input
               value={website}
               onChange={e => handleWebsiteChange(e.target.value)}
@@ -304,7 +304,7 @@ export default function CompanySettings({ org: orgProp }) {
             {websiteError && <p className="text-[11px] text-destructive mt-0.5">{websiteError}</p>}
           </div>
           <div className="sm:col-span-2">
-            <Label className="text-xs font-semibold mb-1 block">Adresse</Label>
+            <Label className="text-xs font-semibold mb-1 block text-slate-900">Adresse</Label>
             <Input value={adresse} onChange={e => setAdresse(e.target.value)} placeholder="Musterstraße 1, 12345 Musterstadt" />
           </div>
         </div>
@@ -314,15 +314,15 @@ export default function CompanySettings({ org: orgProp }) {
       <SettingsSection icon={MapPin} title="Hauptstandort & Suchgebiet" description="Wird für die Lead-Generierung und geografische Suche verwendet">
         <div className="grid sm:grid-cols-3 gap-3">
           <div>
-            <Label className="text-xs font-semibold mb-1 block">PLZ *</Label>
+            <Label className="text-xs font-semibold mb-1 block text-slate-900">PLZ *</Label>
             <Input value={plz} onChange={e => setPlz(e.target.value)} placeholder="56564" maxLength={5} />
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1 block">Ort</Label>
+            <Label className="text-xs font-semibold mb-1 block text-slate-900">Ort</Label>
             <Input value={plzCity} onChange={e => setPlzCity(e.target.value)} placeholder="Neuwied" />
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1 block">
+            <Label className="text-xs font-semibold mb-1 block text-slate-900">
               Suchradius: <span className={`font-bold ${radiusOverLimit ? "text-destructive" : "text-primary"}`}>{radius} km</span>
             </Label>
             <input
@@ -349,19 +349,19 @@ export default function CompanySettings({ org: orgProp }) {
       <SettingsSection icon={Users} title="Zielkunden & Dienstleistungen" description="Steuert Lead-Generierung, E-Mail-Vorlagen und KI-Skripte">
         <div className="space-y-4">
           <div>
-            <Label className="text-xs font-semibold mb-1 block">Ihre Zielkunden</Label>
-            <p className="text-[11px] text-muted-foreground mb-2">
+            <Label className="text-xs font-semibold mb-1 block text-slate-900">Ihre Zielkunden</Label>
+            <p className="text-[11px] text-slate-600 font-medium mb-2">
               Die Auswahl bestimmt automatisch die Suchbegriffe für die Lead-Generierung via Google Places.
             </p>
             <div className="flex flex-wrap gap-2 mb-2">
               {ZIELKUNDEN_OPTIONS.map(v => (
                 <button key={v} type="button" onClick={() => toggleZielkunde(v)}
-                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all ${zielkunden.includes(v) ? "border-primary bg-primary/10 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/40"}`}>
+                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${zielkunden.includes(v) ? "border-primary bg-primary/10 text-primary" : "border-border text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}>
                   {v}
                 </button>
               ))}
               {zielkunden.filter(v => !ZIELKUNDEN_OPTIONS.includes(v)).map(v => (
-                <span key={v} className="text-xs px-3 py-1.5 rounded-full border-2 border-primary bg-primary/10 text-primary font-semibold flex items-center gap-1">
+                <span key={v} className="text-xs px-3 py-1.5 rounded-full border-2 border-primary bg-primary/10 text-primary font-medium flex items-center gap-1">
                   {v}<button onClick={() => toggleZielkunde(v)} className="ml-0.5 hover:text-destructive">×</button>
                 </span>
               ))}
@@ -382,19 +382,19 @@ export default function CompanySettings({ org: orgProp }) {
           </div>
 
           <div>
-            <Label className="text-xs font-semibold mb-1 block">Ihre Dienstleistungen</Label>
-            <p className="text-[11px] text-muted-foreground mb-2">
+            <Label className="text-xs font-semibold mb-1 block text-slate-900">Ihre Dienstleistungen</Label>
+            <p className="text-[11px] text-slate-600 font-medium mb-2">
               Werden automatisch in E-Mail-Vorlagen, KI-Anrufskripten und Follow-up-Texten verwendet.
             </p>
             <div className="flex flex-wrap gap-2 mb-2">
               {DIENSTLEISTUNGEN_OPTIONS.map(v => (
                 <button key={v} type="button" onClick={() => toggleDienst(v)}
-                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all ${dienstleistungen.includes(v) ? "border-primary bg-primary/10 text-primary font-semibold" : "border-border text-muted-foreground hover:border-primary/40"}`}>
+                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${dienstleistungen.includes(v) ? "border-primary bg-primary/10 text-primary" : "border-border text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}>
                   {v}
                 </button>
               ))}
               {dienstleistungen.filter(v => !DIENSTLEISTUNGEN_OPTIONS.includes(v)).map(v => (
-                <span key={v} className="text-xs px-3 py-1.5 rounded-full border-2 border-primary bg-primary/10 text-primary font-semibold flex items-center gap-1">
+                <span key={v} className="text-xs px-3 py-1.5 rounded-full border-2 border-primary bg-primary/10 text-primary font-medium flex items-center gap-1">
                   {v}<button onClick={() => toggleDienst(v)} className="ml-0.5 hover:text-destructive">×</button>
                 </span>
               ))}
@@ -427,7 +427,7 @@ export default function CompanySettings({ org: orgProp }) {
         </div>
 
         <div>
-          <Label className="text-xs font-semibold mb-1 block flex items-center gap-1">
+          <Label className="text-xs font-semibold mb-1 block flex items-center gap-1 text-slate-900">
             <Mail className="w-3 h-3" /> Standard-Vertriebler
           </Label>
           <Select value={standardVertriebler} onValueChange={setStandardVertriebler}>
