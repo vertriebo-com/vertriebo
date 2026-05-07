@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { Mail, Save, Loader2, User, Phone, Globe, MapPin, ImagePlus, Trash2 } from "lucide-react";
+import { Mail, Save, Loader2, User, Phone, Globe, MapPin, ImagePlus, Trash2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,6 +19,27 @@ function SignaturePreview({ sig }) {
   return <iframe ref={iframeRef} className="w-full border-0" style={{ height: "150px" }} title="Signatur-Vorschau" sandbox="allow-same-origin" />;
 }
 
+function normalizeUrl(val) {
+  const v = (val || "").trim();
+  if (!v) return "";
+  if (v.startsWith("http://") || v.startsWith("https://")) return v;
+  // Looks like a real domain?
+  if (v.includes(".")) return "https://" + v;
+  return ""; // plain text like "Huwa Gebäudedienste" → discard
+}
+
+function isValidUrl(val) {
+  if (!val) return true;
+  try { new URL(normalizeUrl(val) || "invalid"); return true; } catch { return false; }
+}
+
+function isLikelyPlainText(val) {
+  if (!val) return false;
+  const v = val.trim();
+  // Contains spaces and no dot → likely plain text
+  return v.includes(" ") && !v.includes(".");
+}
+
 export default function EmailSettings({ org: orgProp }) {
   const [orgId, setOrgId] = useState(orgProp?.id || null);
   const [loading, setLoading] = useState(true);
@@ -32,17 +53,35 @@ export default function EmailSettings({ org: orgProp }) {
   const [replyTo, setReplyTo] = useState("");
   const [telefon, setTelefon] = useState("");
   const [website, setWebsite] = useState("");
+  const [websiteError, setWebsiteError] = useState("");
   const [adresse, setAdresse] = useState("");
   const [firmenname, setFirmenname] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [customSignature, setCustomSignature] = useState(null);
 
-  const autoSignature = buildSignatureHtml({ absendername, firmenname, telefon, email: replyTo || absenderEmail, website, adresse });
+  const autoSignature = buildSignatureHtml({
+    absendername, firmenname, telefon,
+    email: replyTo || absenderEmail,
+    website: normalizeUrl(website),
+    adresse,
+  });
   const displaySignature = customSignature !== null ? customSignature : autoSignature;
 
   const handleFieldChange = (setter) => (val) => {
     setter(val);
-    setCustomSignature(null); // regenerate on field change
+    setCustomSignature(null);
+  };
+
+  const handleWebsiteChange = (val) => {
+    setWebsite(val);
+    setCustomSignature(null);
+    if (isLikelyPlainText(val)) {
+      setWebsiteError("Das ist kein URL. Bitte eine echte Web-Adresse eingeben, z.B. https://www.meinefirma.de");
+    } else if (val && !isValidUrl(val)) {
+      setWebsiteError("Ungültige URL. Beispiel: https://www.meinefirma.de");
+    } else {
+      setWebsiteError("");
+    }
   };
 
   const resolveOrg = async () => {
@@ -66,7 +105,6 @@ export default function EmailSettings({ org: orgProp }) {
       setLoading(true);
       const currentOrgId = await resolveOrg();
       if (!currentOrgId) { setLoading(false); return; }
-
       const [orgs, settings] = await Promise.all([
         base44.entities.Organization.filter({ id: currentOrgId }),
         base44.entities.OrganizationSettings.filter({ organization_id: currentOrgId }),
@@ -74,18 +112,19 @@ export default function EmailSettings({ org: orgProp }) {
       const map = {};
       settings.forEach(s => { map[s.key] = s.value; });
       const org = orgs[0];
-
       setFirmenname(org?.name || map.company_name || "");
       setAbsendername(map.email_from_name || "");
       setAbsenderEmail(map.email_sender_email || "");
       setReplyTo(map.email_reply_to || "");
       setTelefon(map.email_telefon || "");
-      setWebsite(map.email_website || "");
+
+      // Load website – only if it looks like a real URL
+      const rawWebsite = map.email_website || map.company_website || "";
+      setWebsite(isLikelyPlainText(rawWebsite) ? "" : rawWebsite);
+
       setAdresse(map.email_adresse || "");
       setLogoUrl(map.email_logo_url || "");
-      if (map.organization_email_signature) {
-        setCustomSignature(map.organization_email_signature);
-      }
+      if (map.organization_email_signature) setCustomSignature(map.organization_email_signature);
       setLoading(false);
     })();
   }, []);
@@ -101,32 +140,39 @@ export default function EmailSettings({ org: orgProp }) {
   };
 
   const handleSave = async () => {
+    if (websiteError) { toast.error("Bitte die Website-URL korrigieren."); return; }
     setSaving(true);
     const currentOrgId = await resolveOrg();
     if (!currentOrgId) { toast.error("Keine Organisation gefunden."); setSaving(false); return; }
+
+    const cleanWebsite = normalizeUrl(website);
 
     const existing = await base44.entities.OrganizationSettings.filter({ organization_id: currentOrgId });
     const existingMap = {};
     existing.forEach(s => { existingMap[s.key] = s.id; });
 
     const toSave = {
-      email_from_name: absendername,
-      email_sender_email: absenderEmail,
-      email_reply_to: replyTo,
-      email_telefon: telefon,
-      email_website: website,
-      email_adresse: adresse,
-      organization_email_signature: displaySignature,
+      email_from_name:               absendername,
+      email_sender_email:            absenderEmail,
+      email_reply_to:                replyTo,
+      email_telefon:                 telefon,
+      email_website:                 cleanWebsite,
+      company_website:               cleanWebsite,
+      email_adresse:                 adresse,
+      organization_email_signature:  displaySignature,
       ...(logoUrl ? { email_logo_url: logoUrl } : {}),
     };
 
     await Promise.all(
       Object.entries(toSave).map(([key, value]) => {
-        if (!value) return null;
+        const strVal = String(value ?? "");
         if (existingMap[key]) {
-          return base44.entities.OrganizationSettings.update(existingMap[key], { organization_id: currentOrgId, key, value });
+          return base44.entities.OrganizationSettings.update(existingMap[key], { organization_id: currentOrgId, key, value: strVal });
         }
-        return base44.entities.OrganizationSettings.create({ organization_id: currentOrgId, key, value });
+        if (strVal) {
+          return base44.entities.OrganizationSettings.create({ organization_id: currentOrgId, key, value: strVal });
+        }
+        return null;
       }).filter(Boolean)
     );
 
@@ -142,21 +188,55 @@ export default function EmailSettings({ org: orgProp }) {
 
   return (
     <div className="space-y-5">
-      <SettingsSection icon={Mail} title="Absender & Kontakt" description="Werden als Absender in allen ausgehenden E-Mails verwendet">
+
+      {/* Info-Box: Plattform-Absender */}
+      <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
+        <Info className="w-4 h-4 shrink-0 mt-0.5" />
+        <div>
+          <strong>Wie E-Mail-Versand funktioniert:</strong>{" "}
+          E-Mails werden über die verifizierte Vertriebo-Infrastruktur versendet.
+          Der <strong>Absendername</strong> bestimmt, welcher Name beim Empfänger erscheint.
+          Die <strong>Reply-To-Adresse</strong> bestimmt, wohin Antworten gehen.
+        </div>
+      </div>
+
+      <SettingsSection icon={User} title="Absender & Kontakt" description="Werden als Absender in allen ausgehenden E-Mails verwendet">
         <div className="space-y-3">
           <div>
-            <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><User className="w-3 h-3" /> Absendername *</Label>
-            <Input value={absendername} onChange={e => handleFieldChange(setAbsendername)(e.target.value)} placeholder={`z.B. Max Mustermann von ${firmenname || "Ihrer Firma"}`} />
-            <p className="text-[11px] text-muted-foreground mt-0.5">Erscheint als Absender in allen E-Mails</p>
+            <Label className="text-xs font-semibold mb-1 block">
+              Absendername *
+              <span className="text-muted-foreground font-normal ml-1">— erscheint beim Empfänger als „Von: ..."</span>
+            </Label>
+            <Input
+              value={absendername}
+              onChange={e => handleFieldChange(setAbsendername)(e.target.value)}
+              placeholder={`z.B. Max Mustermann von ${firmenname || "Ihrer Firma"}`}
+            />
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><Mail className="w-3 h-3" /> Absender-E-Mail</Label>
-              <Input value={absenderEmail} onChange={e => handleFieldChange(setAbsenderEmail)(e.target.value)} placeholder="info@meinefirma.de" type="email" />
+              <Label className="text-xs font-semibold mb-1 block">
+                Absender-E-Mail
+                <span className="text-muted-foreground font-normal ml-1">— technische Absenderadresse</span>
+              </Label>
+              <Input
+                value={absenderEmail}
+                onChange={e => handleFieldChange(setAbsenderEmail)(e.target.value)}
+                placeholder="info@meinefirma.de"
+                type="email"
+              />
             </div>
             <div>
-              <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><Mail className="w-3 h-3" /> Reply-To E-Mail</Label>
-              <Input value={replyTo} onChange={e => handleFieldChange(setReplyTo)(e.target.value)} placeholder="antworten@meinefirma.de" type="email" />
+              <Label className="text-xs font-semibold mb-1 block">
+                Reply-To E-Mail
+                <span className="text-muted-foreground font-normal ml-1">— wohin gehen Antworten?</span>
+              </Label>
+              <Input
+                value={replyTo}
+                onChange={e => handleFieldChange(setReplyTo)(e.target.value)}
+                placeholder="antworten@meinefirma.de"
+                type="email"
+              />
             </div>
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
@@ -166,7 +246,18 @@ export default function EmailSettings({ org: orgProp }) {
             </div>
             <div>
               <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><Globe className="w-3 h-3" /> Website</Label>
-              <Input value={website} onChange={e => handleFieldChange(setWebsite)(e.target.value)} placeholder="www.meinefirma.de" />
+              <Input
+                value={website}
+                onChange={e => handleWebsiteChange(e.target.value)}
+                placeholder="https://www.meinefirma.de"
+                className={websiteError ? "border-destructive" : ""}
+              />
+              {websiteError && <p className="text-[11px] text-destructive mt-0.5">{websiteError}</p>}
+              {!websiteError && website && (
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Gespeichert als: {normalizeUrl(website)}
+                </p>
+              )}
             </div>
           </div>
           <div>
@@ -211,13 +302,16 @@ export default function EmailSettings({ org: orgProp }) {
           <div className="bg-muted/50 px-3 py-2 border-b border-border flex items-center justify-between">
             <span className="text-[11px] text-muted-foreground">Vorschau der Standard-Signatur</span>
             <button onClick={() => setEditingSignature(!editingSignature)} className="text-xs text-primary hover:underline">
-              {editingSignature ? "Vorschau" : "Manuell bearbeiten"}
+              {editingSignature ? "Vorschau" : "Manuell bearbeiten (HTML)"}
             </button>
           </div>
           {editingSignature ? (
-            <textarea className="w-full p-3 text-xs font-mono bg-background border-0 outline-none resize-none" rows={8}
+            <textarea
+              className="w-full p-3 text-xs font-mono bg-background border-0 outline-none resize-none"
+              rows={8}
               value={customSignature !== null ? customSignature : autoSignature}
-              onChange={e => setCustomSignature(e.target.value)} />
+              onChange={e => setCustomSignature(e.target.value)}
+            />
           ) : (
             <SignaturePreview sig={displaySignature} />
           )}
@@ -230,7 +324,7 @@ export default function EmailSettings({ org: orgProp }) {
       </SettingsSection>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving} className="gap-2">
+        <Button onClick={handleSave} disabled={saving || !!websiteError} className="gap-2">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? "Wird gespeichert..." : "E-Mail-Einstellungen speichern"}
         </Button>
