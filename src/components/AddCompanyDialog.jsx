@@ -40,24 +40,39 @@ export default function AddCompanyDialog({ open, onClose, onCreated }) {
     }
     setLoading(true);
 
-    // Dublettencheck
-    const existing = await base44.entities.Company.filter({ name: form.name.trim() });
+    const me = await base44.auth.me();
+
+    // Org-ID ermitteln
+    let orgId = null;
+    const orgs = await base44.entities.Organization.filter({ owner_email: me.email });
+    let org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    orgId = org?.id || null;
+    if (!orgId) { toast.error("Keine Organisation gefunden."); setLoading(false); return; }
+
+    // Dublettencheck (nur innerhalb der Org)
+    const existing = await base44.entities.Company.filter({ organization_id: orgId, name: form.name.trim() });
     if (existing.length > 0) {
       toast.error("Diese Firma existiert bereits!");
       setLoading(false);
       return;
     }
 
-    // Blacklist check
-    const blacklisted = await base44.entities.Blacklist.filter({ firmenname: form.name.trim() });
+    // Blacklist check (nur innerhalb der Org)
+    const blacklisted = await base44.entities.Blacklist.filter({ organization_id: orgId, firmenname: form.name.trim() });
     if (blacklisted.length > 0) {
       toast.error("Diese Firma ist auf der Blacklist!");
       setLoading(false);
       return;
     }
 
-    const me = await base44.auth.me();
-    await base44.entities.Company.create({ ...form, assigned_to: me.email });
+    await base44.entities.Company.create({ ...form, organization_id: orgId, assigned_to: me.email });
 
     toast.success("Firma erstellt");
     setForm(EMPTY_FORM);

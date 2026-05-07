@@ -108,7 +108,21 @@ export default function LeadDetail() {
   };
 
   const handleBlacklist = async () => {
-    await base44.entities.Blacklist.create({ firmenname: company.name, telefon: company.telefon, email: company.email, grund: "Manuell hinzugefügt" });
+    const me = await base44.auth.me();
+    let orgId = company.organization_id || null;
+    if (!orgId) {
+      const orgs = await base44.entities.Organization.filter({ owner_email: me.email });
+      let org = orgs?.[0] || null;
+      if (!org) {
+        const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
+        if (memberships?.[0]?.organization_id) {
+          const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+          org = memberOrgs?.[0] || null;
+        }
+      }
+      orgId = org?.id || null;
+    }
+    await base44.entities.Blacklist.create({ organization_id: orgId, firmenname: company.name, telefon: company.telefon, email: company.email, grund: "Manuell hinzugefügt" });
     await base44.entities.Company.update(id, { is_blacklisted: true, status: "Verloren" });
     toast.success("Firma auf Blacklist gesetzt"); navigate("/leads");
   };

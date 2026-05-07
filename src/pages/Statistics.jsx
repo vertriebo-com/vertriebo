@@ -20,14 +20,27 @@ export default function Statistics() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([
-      base44.entities.Company.list("-created_date", 500),
-      base44.entities.ContactLog.list("-created_date", 500),
-    ]).then(([comps, logs]) => {
+    (async () => {
+      const user = await base44.auth.me();
+      let org = null;
+      const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+      org = orgs?.[0] || null;
+      if (!org) {
+        const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+        if (memberships?.[0]?.organization_id) {
+          const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+          org = memberOrgs?.[0] || null;
+        }
+      }
+      if (!org) { setLoading(false); return; }
+      const [comps, logs] = await Promise.all([
+        base44.entities.Company.filter({ organization_id: org.id }, "-created_date", 500),
+        base44.entities.ContactLog.filter({ organization_id: org.id }, "-created_date", 500),
+      ]);
       setCompanies(comps);
       setContactLogs(logs);
       setLoading(false);
-    });
+    })();
   }, []);
 
   if (loading) {

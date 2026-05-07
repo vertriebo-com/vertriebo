@@ -10,20 +10,39 @@ export default function WeekProgress({ user }) {
   const [companies, setCompanies] = useState([]);
   const [generating, setGenerating] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [orgId, setOrgId] = useState(null);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user]);
 
   const loadData = async () => {
+    if (!user) return;
+    // Org-ID ermitteln
+    let currentOrgId = orgId;
+    if (!currentOrgId) {
+      const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+      let org = orgs?.[0] || null;
+      if (!org) {
+        const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+        if (memberships?.[0]?.organization_id) {
+          const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+          org = memberOrgs?.[0] || null;
+        }
+      }
+      if (!org) { setLoading(false); return; }
+      currentOrgId = org.id;
+      setOrgId(currentOrgId);
+    }
+
     const now = new Date();
     const startOfYear = new Date(now.getFullYear(), 0, 1);
     const days = Math.floor((now - startOfYear) / (24 * 60 * 60 * 1000));
     const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7);
 
     const [batches, comps] = await Promise.all([
-      base44.entities.WeeklyBatch.filter({ kalenderwoche: weekNumber, jahr: now.getFullYear() }),
-      base44.entities.Company.list("-created_date", 500),
+      base44.entities.WeeklyBatch.filter({ organization_id: currentOrgId, kalenderwoche: weekNumber, jahr: now.getFullYear() }),
+      base44.entities.Company.filter({ organization_id: currentOrgId }, "-created_date", 500),
     ]);
 
     const currentBatch = batches[0] || null;

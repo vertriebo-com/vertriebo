@@ -15,12 +15,27 @@ export default function QuickLogButton({ companyId, companyName, onLogged }) {
   const [showSonstiges, setShowSonstiges] = useState(false);
   const [sonstigesNotiz, setSonstigesNotiz] = useState("");
 
+  const getOrgId = async (me) => {
+    const orgs = await base44.entities.Organization.filter({ owner_email: me.email });
+    let org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    return org?.id || null;
+  };
+
   const handleQuickLog = async (e, action) => {
     e.preventDefault();
     e.stopPropagation();
     setLoading(true);
     const me = await base44.auth.me();
+    const orgId = await getOrgId(me);
     await base44.entities.ContactLog.create({
+      organization_id: orgId,
       company_id: companyId,
       typ: "Anruf",
       ergebnis: action.ergebnis,
@@ -47,7 +62,9 @@ export default function QuickLogButton({ companyId, companyName, onLogged }) {
     if (!sonstigesNotiz.trim()) return;
     setLoading(true);
     const me = await base44.auth.me();
+    const orgId = await getOrgId(me);
     await base44.entities.ContactLog.create({
+      organization_id: orgId,
       company_id: companyId,
       typ: "Sonstiges",
       ergebnis: "Abgeschlossen",

@@ -12,16 +12,28 @@ export default function WeeklyGoal({ user }) {
   const [tempGoal, setTempGoal] = useState(goal);
 
   useEffect(() => {
-    // Anrufe dieser Woche
+    if (!user) return;
     const weekStart = moment().startOf("isoWeek").toISOString();
-    base44.entities.ContactLog.list("-created_date", 500).then(logs => {
+    (async () => {
+      let org = null;
+      const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+      org = orgs?.[0] || null;
+      if (!org) {
+        const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+        if (memberships?.[0]?.organization_id) {
+          const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+          org = memberOrgs?.[0] || null;
+        }
+      }
+      if (!org) return;
+      const logs = await base44.entities.ContactLog.filter({ organization_id: org.id }, "-created_date", 500);
       const thisWeek = logs.filter(l =>
         l.typ === "Anruf" &&
         (!user || l.user_email === user.email || user.role === "admin") &&
         l.created_date >= weekStart
       );
       setContactLogs(thisWeek);
-    });
+    })();
     if (user?.wochenziel_anrufe) setGoal(user.wochenziel_anrufe);
   }, [user]);
 

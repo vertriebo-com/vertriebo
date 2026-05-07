@@ -56,8 +56,22 @@ export default function AddContactLogDialog({ open, onClose, companyId, companyN
     setLoading(true);
     const me = await base44.auth.me();
 
+    // Org-ID ermitteln
+    let orgId = null;
+    const orgs = await base44.entities.Organization.filter({ owner_email: me.email });
+    let org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    orgId = org?.id || null;
+
     await base44.entities.ContactLog.create({
       ...form,
+      organization_id: orgId,
       company_id: companyId,
       user_email: me.email,
       rueckruf_datum: form.rueckruf_datum ? new Date(form.rueckruf_datum).toISOString() : null,
@@ -84,6 +98,7 @@ export default function AddContactLogDialog({ open, onClose, companyId, companyN
     // Auto-create callback task if needed
     if (needsCallback && form.rueckruf_datum) {
       await base44.entities.Task.create({
+        organization_id: orgId,
         company_id: companyId,
         company_name: companyName,
         titel: form.ergebnis === "Rückruf vereinbart"
