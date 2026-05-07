@@ -10,11 +10,11 @@ import { toast } from "sonner";
 import { TEMPLATES } from "./emailTemplates";
 
 // ─── HTML Email Builder ───────────────────────────────────────────────────────
-function buildHtmlEmail({ bodyContent, subject, logoUrl }) {
+function buildHtmlEmail({ bodyContent, subject, logoUrl, senderName }) {
+  const displayName = senderName || "Vertriebo";
   const headerLogo = logoUrl
     ? `<img src="${logoUrl}" alt="Logo" style="max-height:60px;max-width:200px;object-fit:contain;display:block;" />`
-    : `<div style="font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;line-height:1.1;">Huwa Gebäudedienste</div>
-       <div style="font-size:11px;color:#93c5fd;margin-top:4px;font-weight:500;letter-spacing:0.8px;text-transform:uppercase;">Gebäudereinigung &amp; Hausmeisterdienste</div>`;
+    : `<div style="font-size:22px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;line-height:1.1;">${displayName}</div>`;
 
   return `<!DOCTYPE html>
 <html lang="de">
@@ -37,7 +37,7 @@ function buildHtmlEmail({ bodyContent, subject, logoUrl }) {
     ${bodyContent}
   </td></tr>
   <tr><td style="background:#f8fafc;padding:18px 40px;border-top:1px solid #e5e7eb;">
-    <div style="font-size:11px;color:#9ca3af;text-align:center;">Versendet über <span style="color:#1d4ed8;font-weight:700;">Huwa CRM</span></div>
+    <div style="font-size:11px;color:#9ca3af;text-align:center;">Versendet über <span style="color:#1d4ed8;font-weight:700;">Vertriebo CRM</span></div>
   </td></tr>
 </table>
 </td></tr>
@@ -67,7 +67,7 @@ function LivePreview({ html }) {
 }
 
 // ─── Logo Upload Widget ───────────────────────────────────────────────────────
-function LogoUploader({ logoUrl, onLogoChange }) {
+function LogoUploader({ logoUrl, orgId, onLogoChange }) {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef(null);
 
@@ -76,11 +76,12 @@ function LogoUploader({ logoUrl, onLogoChange }) {
     if (!file) return;
     setUploading(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    const existing = await base44.entities.AppSettings.filter({ key: "email_logo_url" });
+    // Save per org
+    const existing = await base44.entities.OrganizationSettings.filter({ organization_id: orgId, key: "email_logo_url" });
     if (existing.length > 0) {
-      await base44.entities.AppSettings.update(existing[0].id, { value: file_url });
+      await base44.entities.OrganizationSettings.update(existing[0].id, { value: file_url });
     } else {
-      await base44.entities.AppSettings.create({ key: "email_logo_url", value: file_url });
+      await base44.entities.OrganizationSettings.create({ organization_id: orgId, key: "email_logo_url", value: file_url });
     }
     onLogoChange(file_url);
     setUploading(false);
@@ -88,8 +89,8 @@ function LogoUploader({ logoUrl, onLogoChange }) {
   };
 
   const handleRemove = async () => {
-    const existing = await base44.entities.AppSettings.filter({ key: "email_logo_url" });
-    if (existing.length > 0) await base44.entities.AppSettings.update(existing[0].id, { value: "" });
+    const existing = await base44.entities.OrganizationSettings.filter({ organization_id: orgId, key: "email_logo_url" });
+    if (existing.length > 0) await base44.entities.OrganizationSettings.update(existing[0].id, { value: "" });
     onLogoChange(null);
     toast.success("Logo entfernt");
   };
@@ -127,7 +128,7 @@ function LogoUploader({ logoUrl, onLogoChange }) {
 }
 
 // ─── Email Editor ─────────────────────────────────────────────────────────────
-function EmailEditor({ tpl, company, logoUrl, onLogoChange, onBack, onSend }) {
+function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onBack, onSend }) {
   const [datum, setDatum] = useState("");
   const [uhrzeit, setUhrzeit] = useState("");
   const [notiz, setNotiz] = useState("");
@@ -141,7 +142,7 @@ function EmailEditor({ tpl, company, logoUrl, onLogoChange, onBack, onSend }) {
   const [uploadingFile, setUploadingFile] = useState(false);
   const fileInputRef = useRef(null);
 
-  const fullHtml = buildHtmlEmail({ bodyContent: customBody || "", subject: betreff, logoUrl });
+  const fullHtml = buildHtmlEmail({ bodyContent: customBody || "", subject: betreff, logoUrl, senderName: fromName });
 
   useEffect(() => {
     setCustomBody(tpl.body(company, { datum, uhrzeit, notiz }));
@@ -162,7 +163,8 @@ function EmailEditor({ tpl, company, logoUrl, onLogoChange, onBack, onSend }) {
       to: toEmail,
       subject: isTest ? `[TEST] ${betreff}` : betreff,
       body: fullHtml,
-      fromName: "Huwa Gebäudedienste",
+      organization_id: orgId,
+      // fromName kommt serverseitig aus OrganizationSettings
     });
   };
 
@@ -191,7 +193,7 @@ function EmailEditor({ tpl, company, logoUrl, onLogoChange, onBack, onSend }) {
       </button>
 
       {/* Logo */}
-      <LogoUploader logoUrl={logoUrl} onLogoChange={onLogoChange} />
+      <LogoUploader logoUrl={logoUrl} orgId={orgId} onLogoChange={onLogoChange} />
 
       {/* Betreff */}
       <div>
@@ -258,7 +260,7 @@ function EmailEditor({ tpl, company, logoUrl, onLogoChange, onBack, onSend }) {
                 <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
                 <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
               </div>
-              <span className="text-xs text-muted-foreground truncate flex-1">Von: info@huwa-gebaeudedienste.de &nbsp;|&nbsp; An: {company.email}</span>
+              <span className="text-xs text-muted-foreground truncate flex-1">Von: {fromName || "Ihr Unternehmen"} &nbsp;|&nbsp; An: {company.email}</span>
             </div>
             <LivePreview html={fullHtml} />
           </div>
@@ -319,15 +321,34 @@ export default function SendEmailDialog({ company }) {
   const [open, setOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [logoUrl, setLogoUrl] = useState(null);
-  const [logoLoaded, setLogoLoaded] = useState(false);
+  const [fromName, setFromName] = useState(null);
+  const [orgId, setOrgId] = useState(null);
+  const [orgLoaded, setOrgLoaded] = useState(false);
   const hasEmail = !!company?.email;
 
   useEffect(() => {
-    if (open && !logoLoaded) {
-      base44.entities.AppSettings.filter({ key: "email_logo_url" }).then(res => {
-        if (res.length > 0 && res[0].value) setLogoUrl(res[0].value);
-        setLogoLoaded(true);
-      });
+    if (open && !orgLoaded) {
+      (async () => {
+        const user = await base44.auth.me();
+        let org = null;
+        const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+        org = orgs?.[0] || null;
+        if (!org) {
+          const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+          if (memberships?.[0]?.organization_id) {
+            const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+            org = memberOrgs?.[0] || null;
+          }
+        }
+        if (!org) return;
+        setOrgId(org.id);
+        const settings = await base44.entities.OrganizationSettings.filter({ organization_id: org.id });
+        const map = {};
+        settings.forEach(s => { map[s.key] = s.value; });
+        if (map.email_logo_url) setLogoUrl(map.email_logo_url);
+        setFromName(map.email_from_name || map.company_name || org.name || null);
+        setOrgLoaded(true);
+      })();
     }
   }, [open]);
 
@@ -373,6 +394,8 @@ export default function SendEmailDialog({ company }) {
                   tpl={selectedTemplate}
                   company={company}
                   logoUrl={logoUrl}
+                  orgId={orgId}
+                  fromName={fromName}
                   onLogoChange={setLogoUrl}
                   onBack={() => setSelectedTemplate(null)}
                   onSend={handleClose}

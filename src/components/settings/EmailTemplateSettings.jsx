@@ -39,13 +39,33 @@ export default function EmailTemplateSettings() {
   const [report, setReport] = useState(DEFAULT_REPORT);
   const [expanded, setExpanded] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [orgId, setOrgId] = useState(null);
 
   useEffect(() => {
     loadSettings();
   }, []);
 
+  const getOrgId = async () => {
+    if (orgId) return orgId;
+    const user = await base44.auth.me();
+    let org = null;
+    const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+    org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    if (org) setOrgId(org.id);
+    return org?.id || null;
+  };
+
   const loadSettings = async () => {
-    const settings = await base44.entities.AppSettings.list();
+    const currentOrgId = await getOrgId();
+    if (!currentOrgId) return;
+    const settings = await base44.entities.OrganizationSettings.filter({ organization_id: currentOrgId });
     const map = {};
     settings.forEach(s => { map[s.key] = s.value; });
 
@@ -64,7 +84,9 @@ export default function EmailTemplateSettings() {
 
   const handleSave = async () => {
     setSaving(true);
-    const existing = await base44.entities.AppSettings.list();
+    const currentOrgId = await getOrgId();
+    if (!currentOrgId) { toast.error("Keine Organisation gefunden."); setSaving(false); return; }
+    const existing = await base44.entities.OrganizationSettings.filter({ organization_id: currentOrgId });
     const existingMap = {};
     existing.forEach(s => { existingMap[s.key] = s.id; });
 
@@ -80,9 +102,9 @@ export default function EmailTemplateSettings() {
     await Promise.all(
       Object.entries(toSave).map(([key, value]) => {
         if (existingMap[key]) {
-          return base44.entities.AppSettings.update(existingMap[key], { value });
+          return base44.entities.OrganizationSettings.update(existingMap[key], { value });
         } else {
-          return base44.entities.AppSettings.create({ key, value });
+          return base44.entities.OrganizationSettings.create({ organization_id: currentOrgId, key, value });
         }
       })
     );
