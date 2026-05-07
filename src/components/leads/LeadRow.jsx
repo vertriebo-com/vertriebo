@@ -270,7 +270,14 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
                     ))}
                   </div>
                   <div className="border-t border-[#E2E8F0] p-1.5">
-                    <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
+                    <button
+                      onClick={() => {
+                        setShowActions(false);
+                        // Wird durch AddTaskDialog im Parent behandelt
+                        window.dispatchEvent(new CustomEvent("open-task-dialog", { detail: { companyId: company.id, companyName: company.name } }));
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
                       <Calendar className="w-3.5 h-3.5" />
                       Aufgabe erstellen
                     </button>
