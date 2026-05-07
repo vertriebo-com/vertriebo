@@ -44,9 +44,11 @@ Deno.serve(async (req) => {
     const { organization_id } = body;
     if (!organization_id) return Response.json({ error: 'organization_id required' }, { status: 400 });
 
-    // Verify membership
-    const members = await base44.entities.OrganizationMember.filter({ organization_id, user_email: user.email });
-    if (!members?.[0]) return Response.json({ error: 'Forbidden' }, { status: 403 });
+    // Verify membership (platform_admin bypasses check)
+    if (user.role !== 'admin') {
+      const members = await base44.entities.OrganizationMember.filter({ organization_id, user_email: user.email });
+      if (!members?.[0]) return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
 
     // Load org settings
     const settingsList = await base44.entities.OrganizationSettings.filter({ organization_id });

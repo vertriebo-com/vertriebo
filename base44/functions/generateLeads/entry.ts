@@ -168,13 +168,35 @@ Deno.serve(async (req) => {
     ]);
     const settingsMap = {};
     settingsList.forEach(s => { settingsMap[s.key]=s.value; });
-    if (!settingsMap["lead_lat"]) {
-      const appSettings = await base44.asServiceRole.entities.AppSettings.list();
-      appSettings.forEach(s => { if (!settingsMap[s.key]) settingsMap[s.key]=s.value; });
+
+    // ── PLZ → Koordinaten (kein AppSettings-Fallback mehr!) ─────────────────
+    // Neue Kunden speichern lead_plz + lead_radius_km im Onboarding.
+    // Falls noch keine lat/lng gespeichert: über Nominatim-Geocoding auflösen.
+    let centerLat = parseFloat(settingsMap["lead_lat"]) || null;
+    let centerLng = parseFloat(settingsMap["lead_lng"]) || null;
+    const plzFromSettings = settingsMap["lead_plz"];
+    if ((!centerLat || !centerLng) && plzFromSettings) {
+      try {
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(plzFromSettings)}&country=de&format=json&limit=1`, {
+          headers: { 'User-Agent': 'Vertriebo/1.0' }
+        });
+        const geoData = await geoRes.json();
+        if (geoData?.[0]) {
+          centerLat = parseFloat(geoData[0].lat);
+          centerLng = parseFloat(geoData[0].lon);
+          // Für zukünftige Läufe cachen
+          await Promise.all([
+            base44.asServiceRole.entities.OrganizationSettings.create({ organization_id, key: 'lead_lat', value: String(centerLat) }),
+            base44.asServiceRole.entities.OrganizationSettings.create({ organization_id, key: 'lead_lng', value: String(centerLng) }),
+          ]).catch(() => {}); // Fehler beim Cachen ignorieren
+          console.info(`[generateLeads] Geocoded PLZ ${plzFromSettings} → ${centerLat},${centerLng}`);
+        }
+      } catch(e) { console.warn('[generateLeads] Geocoding failed:', e.message); }
     }
-    const centerLat = parseFloat(settingsMap["lead_lat"])||DEFAULT_LAT;
-    const centerLng = parseFloat(settingsMap["lead_lng"])||DEFAULT_LNG;
-    const radiusKm = parseFloat(settingsMap["lead_radius"])||40;
+    // Letzter Fallback: Defaultkoordinaten (Neuwied)
+    if (!centerLat || !centerLng) { centerLat = DEFAULT_LAT; centerLng = DEFAULT_LNG; }
+
+    const radiusKm = parseFloat(settingsMap["lead_radius_km"]) || parseFloat(settingsMap["lead_radius"]) || 40;
     const radiusMeters = Math.round(radiusKm*1000);
     const existingNames = new Set(existingCompanies.map(c => c.name?.toLowerCase().trim()));
     const blacklistNames = new Set(blacklist.map(b => b.firmenname?.toLowerCase().trim()));
@@ -244,12 +266,14 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.WeeklyBatch.update(batch.id, { anzahl_firmen:created });
 
     // ── 6. UsageLog: alle relevanten Werte tracken ───────────────────────────
-    //   lead_generations_used = Recherche-Läufe (wie oft gesucht)
-    //   leads_created         = Recherche-Credits verbraucht (1 pro Kontakt)
+    //   lead_generations_used  = Recherche-Läufe
+    //   leads_created          = Recherche-Credits (1 pro Kontakt)
     //   google_places_requests = Nearbysearch-API-Calls
     //   place_details_requests = Place Details-API-Calls
-    //   estimated_external_cost_cent: 0.017€/Nearbysearch + 0.017€/Details (Google Preise)
-    const googleCostCent = Math.round((googlePlacesRequests + placeDetailsRequests) * 1.7); // ~0.017€ pro Request
+    //   estimated_external_cost_cent = konfigurierbar über Plan.cost_per_google_places_request_cent
+    //   Fallback: 2 Cent pro Request falls Plan nicht gesetzt (≈ 0.02€, leicht über Google-Preis als Puffer)
+    const costPerRequest = plan?.cost_per_google_places_request_cent ?? 2;
+    const googleCostCent = Math.round((googlePlacesRequests + placeDetailsRequests) * costPerRequest);
     try {
       if (usageLog) {
         await base44.asServiceRole.entities.UsageLog.update(usageLog.id, {
