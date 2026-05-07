@@ -117,21 +117,13 @@ export default function Leads() {
       </div>
 
       {/* Focus Cards */}
-      <FocusCards 
-        companies={companies} 
-        activeFocus={focusFilter} 
-        onFilterClick={setFocusFilter} 
-      />
+      <FocusCards companies={companies} activeFocus={focusFilter} onFilterClick={setFocusFilter} />
 
       {/* Pipeline Bar */}
-      <PipelineBar 
-        companies={companies} 
-        activeStatus={statusFilter} 
-        onStatusClick={setStatusFilter} 
-      />
+      <PipelineBar companies={companies} activeStatus={statusFilter} onStatusClick={setStatusFilter} />
 
       {/* Search + Actions */}
-      <div className="bg-card border border-border rounded-2xl p-4 shadow-sm space-y-4">
+      <div className="bg-white border border-border rounded-2xl p-4 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -204,10 +196,10 @@ export default function Leads() {
 
       {/* Leads List */}
       {filtered.length === 0 ? (
-        <div className="bg-card border border-border rounded-2xl p-16 text-center">
-          <Building2 className="w-16 h-16 mx-auto mb-4 text-muted-foreground/20" />
-          <h3 className="text-lg font-bold text-foreground mb-2">Keine Leads gefunden</h3>
-          <p className="text-sm text-muted-foreground mb-6">
+        <div className="bg-white border border-border rounded-2xl p-16 text-center">
+          <Building2 className="w-16 h-16 mx-auto mb-4 text-slate-200" />
+          <h3 className="text-lg font-bold text-slate-900 mb-2">Keine Leads gefunden</h3>
+          <p className="text-sm text-slate-600 mb-6">
             {companies.length === 0 ? "Noch keine Firmenkontakte vorhanden." : "Filter anpassen oder neuen Lead hinzufügen."}
           </p>
           {companies.length === 0 ? (

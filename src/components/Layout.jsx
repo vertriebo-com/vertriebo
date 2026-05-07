@@ -81,21 +81,21 @@ export default function Layout() {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Premium Dark */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col transition-transform duration-300 ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 to-slate-950 text-white flex flex-col transition-transform duration-300 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Logo */}
-        <div className="px-4 py-5 border-b border-sidebar-border">
+        <div className="px-4 py-5 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary to-blue-700 flex items-center justify-center shadow-lg">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg">
               <span className="text-white font-bold text-sm">V</span>
             </div>
             <div>
               <h1 className="text-base font-bold tracking-tight text-white">Vertriebo</h1>
-              <p className="text-[10px] text-sidebar-foreground/60 font-medium">KI-Vertriebssystem</p>
+              <p className="text-[10px] text-slate-400 font-medium">KI-Vertriebssystem</p>
             </div>
           </div>
         </div>
@@ -112,33 +112,33 @@ export default function Layout() {
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-primary/10 text-primary border border-primary/20 shadow-sm"
-                    : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
+                    ? "bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-sm"
+                    : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? "text-primary" : ""}`} />
+                <Icon className={`w-4 h-4 ${isActive ? "text-blue-400" : ""}`} />
                 <span className="flex-1">{item.label}</span>
-                {isActive && <ChevronRight className="w-3.5 h-3.5 text-primary" />}
+                {isActive && <ChevronRight className="w-3.5 h-3.5 text-blue-400" />}
               </Link>
             );
           })}
         </nav>
 
         {/* User */}
-        <div className="p-3 border-t border-sidebar-border">
+        <div className="p-3 border-t border-slate-800">
           {user && (
-            <div className="bg-sidebar-accent/30 rounded-xl p-3 border border-sidebar-border/50">
+            <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/20 to-blue-600/20 flex items-center justify-center text-sm font-bold text-primary border border-primary/20">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center text-sm font-bold text-blue-400 border border-blue-500/30">
                   {user.full_name?.charAt(0) || "U"}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">{user.full_name || "Benutzer"}</p>
-                  <p className="text-[10px] text-sidebar-foreground/60 font-medium capitalize">
+                  <p className="text-[10px] text-slate-400 font-medium capitalize">
                     {orgRole === "organization_admin" ? "Admin" : orgRole === "sales_rep" ? "Vertriebler" : user.role || "Vertriebler"}
                   </p>
                 </div>
-                <button onClick={handleLogout} className="text-sidebar-foreground/40 hover:text-white transition-colors p-1.5 hover:bg-sidebar-accent/50 rounded-lg">
+                <button onClick={handleLogout} className="text-slate-500 hover:text-white transition-colors p-1.5 hover:bg-slate-700/50 rounded-lg">
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>

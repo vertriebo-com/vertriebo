@@ -1,51 +1,11 @@
 import { Phone, Flame, Clock, AlertCircle, Calendar } from "lucide-react";
 
 const FOCUS_CARDS = [
-  { 
-    id: "call_today", 
-    label: "Heute anrufen", 
-    value: "call_today",
-    icon: Phone, 
-    color: "from-emerald-500 to-green-600", 
-    bg: "bg-emerald-50",
-    textColor: "text-emerald-700"
-  },
-  { 
-    id: "callback_open", 
-    label: "Rückruf offen", 
-    value: "callback_open",
-    icon: Clock, 
-    color: "from-amber-500 to-orange-600", 
-    bg: "bg-amber-50",
-    textColor: "text-amber-700"
-  },
-  { 
-    id: "hot_leads", 
-    label: "Heiße Leads", 
-    value: "hot_leads",
-    icon: Flame, 
-    color: "from-orange-500 to-red-600", 
-    bg: "bg-orange-50",
-    textColor: "text-orange-700"
-  },
-  { 
-    id: "no_task", 
-    label: "Ohne nächste Aufgabe", 
-    value: "no_task",
-    icon: AlertCircle, 
-    color: "from-gray-500 to-slate-600", 
-    bg: "bg-gray-50",
-    textColor: "text-gray-700"
-  },
-  { 
-    id: "new_this_week", 
-    label: "Neu diese Woche", 
-    value: "new_this_week",
-    icon: Calendar, 
-    color: "from-blue-500 to-indigo-600", 
-    bg: "bg-blue-50",
-    textColor: "text-blue-700"
-  },
+  { id: "call_today", label: "Heute anrufen", value: "call_today", icon: Phone, iconBg: "bg-emerald-500", text: "text-emerald-600", bg: "bg-emerald-50" },
+  { id: "callback_open", label: "Rückruf offen", value: "callback_open", icon: Clock, iconBg: "bg-amber-500", text: "text-amber-600", bg: "bg-amber-50" },
+  { id: "hot_leads", label: "Heiße Leads", value: "hot_leads", icon: Flame, iconBg: "bg-orange-500", text: "text-orange-600", bg: "bg-orange-50" },
+  { id: "no_task", label: "Ohne Aufgabe", value: "no_task", icon: AlertCircle, iconBg: "bg-slate-500", text: "text-slate-600", bg: "bg-slate-50" },
+  { id: "new_this_week", label: "Neu diese Woche", value: "new_this_week", icon: Calendar, iconBg: "bg-blue-500", text: "text-blue-600", bg: "bg-blue-50" },
 ];
 
 export default function FocusCards({ companies, activeFocus, onFilterClick }) {
@@ -81,36 +41,23 @@ export default function FocusCards({ companies, activeFocus, onFilterClick }) {
           <button
             key={card.id}
             onClick={() => onFilterClick(isActive ? null : card.value)}
-            className={`relative overflow-hidden rounded-2xl p-5 transition-all duration-300 ${
-              isActive 
-                ? "ring-2 ring-primary ring-offset-2 shadow-lg scale-[1.02]" 
-                : "hover:shadow-md hover:scale-[1.01]"
+            className={`bg-card border transition-all duration-200 rounded-2xl p-5 hover:shadow-md ${
+              isActive ? `border-primary ring-1 ring-primary shadow-lg ${card.bg}` : "border-border hover:border-primary/30"
             }`}
           >
-            {/* Background Gradient */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${card.color} opacity-[0.08]`} />
-            
-            {/* Content */}
-            <div className="relative">
-              <div className="flex items-center justify-between mb-3">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${card.color} flex items-center justify-center shadow-sm`}>
-                  <Icon className="w-5 h-5 text-white" />
-                </div>
-                {count > 0 && (
-                  <span className={`text-2xl font-bold ${card.textColor}`}>
-                    {count}
-                  </span>
-                )}
+            <div className="flex items-center justify-between mb-3">
+              <div className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center shadow-sm`}>
+                <Icon className="w-5 h-5 text-white" />
               </div>
-              
-              <div className="text-left">
-                <p className="text-sm font-semibold text-foreground mb-0.5">
-                  {card.label}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {count === 0 ? "Keine Einträge" : count === 1 ? "1 Eintrag" : `${count} Einträge`}
-                </p>
-              </div>
+              {count > 0 && (
+                <span className={`text-2xl font-bold ${card.text}`}>{count}</span>
+              )}
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-foreground mb-0.5">{card.label}</p>
+              <p className="text-xs text-muted-foreground">
+                {count === 0 ? "Keine" : count === 1 ? "1 Lead" : `${count} Leads`}
+              </p>
             </div>
           </button>
         );

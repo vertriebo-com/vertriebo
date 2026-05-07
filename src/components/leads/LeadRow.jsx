@@ -40,29 +40,29 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
   };
 
   return (
-    <div className="group bg-card border border-border rounded-xl p-5 hover:shadow-lg hover:border-primary/30 transition-all duration-200">
+    <div className="group bg-white border border-border rounded-2xl p-5 hover:shadow-lg hover:border-primary/20 transition-all duration-200">
       <div className="flex items-center gap-4">
         {/* Company Info - Left */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${
             company.is_hot 
-              ? "bg-gradient-to-br from-orange-400/20 to-red-500/20 border-2 border-orange-400/30" 
-              : "bg-gradient-to-br from-primary/10 to-blue-600/10 border-2 border-primary/20"
+              ? "bg-orange-50 border-2 border-orange-200" 
+              : "bg-blue-50 border-2 border-blue-200"
           }`}>
-            {company.is_hot ? <Flame className="w-7 h-7 text-orange-500" /> : <Building2 className="w-7 h-7 text-primary" />}
+            {company.is_hot ? <Flame className="w-7 h-7 text-orange-600" /> : <Building2 className="w-7 h-7 text-blue-600" />}
           </div>
           
           <div className="min-w-0 flex-1">
             <Link 
               to={`/leads/${company.id}`} 
-              className="text-base font-bold text-foreground hover:text-primary transition-colors truncate block mb-1"
+              className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors truncate block mb-1"
             >
               {company.name}
             </Link>
             <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-sm text-muted-foreground">{company.branche || "Keine Branche"}</span>
+              <span className="text-sm text-slate-600">{company.branche || "Keine Branche"}</span>
               {company.ort && (
-                <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1 text-sm text-slate-500">
                   <MapPin className="w-3.5 h-3.5" /> {company.ort}
                 </span>
               )}
@@ -73,63 +73,62 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
         {/* Contact Info - Center Left */}
         <div className="hidden lg:flex items-center gap-6 min-w-[200px]">
           {company.telefon ? (
-            <a href={`tel:${company.telefon}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group/contact">
+            <a href={`tel:${company.telefon}`} className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 transition-colors group/contact">
               <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center group-hover/contact:bg-emerald-100 transition-colors">
                 <Phone className="w-4 h-4 text-emerald-600" />
               </div>
               <span className="truncate">{company.telefon}</span>
             </a>
           ) : (
-            <span className="text-sm text-muted-foreground">–</span>
+            <span className="text-sm text-slate-400">–</span>
           )}
         </div>
 
         {/* Status & Priority - Center */}
-        <div className="hidden md:flex items-center gap-4 min-w-[180px]">
-          <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
-            company.status === "Rückruf" ? "bg-amber-50 text-amber-700 border-amber-200" :
-            company.status === "Termin" ? "bg-purple-50 text-purple-700 border-purple-200" :
-            company.status === "Angebot" ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
-            company.status === "Gewonnen" ? "bg-green-50 text-green-700 border-green-200" :
-            company.status === "Verloren" ? "bg-gray-50 text-gray-600 border-gray-200" :
-            "bg-blue-50 text-blue-700 border-blue-200"
-          }`}>
-            {company.status}
-          </div>
-          <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 ${priorityColor}`}>
-            {priorityLabel}
-            <span className="opacity-60">({company.priority_score || 0})</span>
-          </div>
+        <div className="hidden md:flex items-center gap-3 min-w-[180px]">
+        <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
+          company.status === "Rückruf" ? "bg-amber-50 text-amber-700 border-amber-200" :
+          company.status === "Termin" ? "bg-purple-50 text-purple-700 border-purple-200" :
+          company.status === "Angebot" ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
+          company.status === "Gewonnen" ? "bg-green-50 text-green-700 border-green-200" :
+          company.status === "Verloren" ? "bg-slate-50 text-slate-600 border-slate-200" :
+          "bg-blue-50 text-blue-700 border-blue-200"
+        }`}>
+          {company.status}
+        </div>
+        <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${priorityColor}`}>
+          {priorityLabel}
+        </div>
         </div>
 
         {/* Next Step / Last Contact - Center Right */}
         <div className="hidden xl:flex items-center gap-4 min-w-[200px]">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-              <Calendar className="w-3.5 h-3.5" />
-              <span>Nächster Schritt</span>
-            </div>
-            <p className="text-sm font-medium text-foreground">Anrufen</p>
-            <p className="text-xs text-muted-foreground">Heute fällig</p>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Nächster Schritt</span>
           </div>
+          <p className="text-sm font-semibold text-slate-900">Anrufen</p>
+          <p className="text-xs text-slate-500">Heute fällig</p>
+        </div>
         </div>
 
         {/* Vertriebler - Right */}
         <div className="hidden lg:flex items-center min-w-[150px]">
           {company.assigned_to ? (
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="w-4 h-4 text-primary" />
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                <User className="w-4 h-4 text-blue-600" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
+                <p className="text-sm font-medium text-slate-900 truncate">
                   {company.assigned_to.split("@")[0]}
                 </p>
-                <p className="text-[10px] text-muted-foreground truncate">{company.assigned_to}</p>
+                <p className="text-[10px] text-slate-500 truncate">{company.assigned_to}</p>
               </div>
             </div>
           ) : (
-            <span className="text-sm text-muted-foreground italic">Nicht zugewiesen</span>
+            <span className="text-sm text-slate-400 italic">Nicht zugewiesen</span>
           )}
         </div>
 
