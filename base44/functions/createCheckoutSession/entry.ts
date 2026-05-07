@@ -129,21 +129,9 @@ Deno.serve(async (req) => {
       }, { status: 409 });
     }
 
-    // ── 5b. Trial-Missbrauch-Schutz ─────────────────────────────────────────
-    // Trial nur wenn ALLE der folgenden Bedingungen erfüllt sind:
-    //   1. Org hat noch KEINE Subscription in der DB (weder aktiv noch historisch)
-    //   2. Org hat noch keinen stripe_customer_id (noch nie bezahlt)
-    // Zusätzliche Absicherung: Auch wenn stripe_customer_id leer, aber Subscription
-    // vorhanden → kein Trial (verhindert Race Conditions / manuelle DB-Eingriffe)
-    const hadAnySubscription = existingSubs.length > 0;
-    const hadStripeCustomer = !!org.stripe_customer_id;
-    // Trial-Berechtigung: BEIDE Bedingungen müssen erfüllt sein
-    const isEligibleForTrial = !hadAnySubscription && !hadStripeCustomer;
-    const trialDays = isEligibleForTrial ? 14 : 0;
+    const trialDays = 0;
 
-    console.info(`[createCheckoutSession] trial_check org=${organization_id} had_subs=${hadAnySubscription} had_customer=${hadStripeCustomer} eligible=${isEligibleForTrial}`);
-
-    console.info(`[createCheckoutSession] org=${organization_id} trial_eligible=${isEligibleForTrial} had_subs=${hadAnySubscription} had_customer=${hadStripeCustomer}`);
+    console.info(`[createCheckoutSession] org=${organization_id} trial disabled`);
 
     // ── 6. Stripe Customer: bestehende ID nutzen oder neu anlegen ───────────
     let stripeCustomerId = org.stripe_customer_id || null;

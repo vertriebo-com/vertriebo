@@ -223,7 +223,7 @@ export default function Landing() {
           ))}
         </div>
         <p className="text-center text-xs text-muted-foreground mt-6">
-          14 Tage kostenlos testen · Keine Kreditkarte erforderlich für den Test
+          Monatlich kündbar · Keine versteckten Kosten
         </p>
       </div>
 
