@@ -47,15 +47,31 @@ function _deny(reason, message) { return { allowed:false, reason, message, user:
 
 async function checkAccess(req, { organization_id, action }={}) {
   const b44 = createClientFromRequest(req);
-  let user; try { user = await b44.auth.me(); } catch { return _deny('not_authenticated','Nicht eingeloggt.'); }
+  let user; 
+  try { 
+    user = await b44.auth.me(); 
+  } catch (e) { 
+    console.error('[checkAccess] Auth error:', e.message);
+    return _deny('not_authenticated','Nicht eingeloggt.'); 
+  }
   if (!user) return _deny('not_authenticated','Nicht eingeloggt.');
   if (user.role === 'admin') return _allow({ reason:'platform_admin', user, organization:null, member:null, role:'platform_admin' });
   if (!organization_id) return _deny('missing_organization_id','Keine organization_id angegeben.');
   let orgs, members;
-  try { [orgs, members] = await Promise.all([b44.asServiceRole.entities.Organization.filter({id:organization_id}), b44.asServiceRole.entities.OrganizationMember.filter({organization_id, user_email:user.email})]); }
-  catch { return _deny('organization_not_found','Organisation nicht gefunden.'); }
+  try { 
+    [orgs, members] = await Promise.all([
+      b44.asServiceRole.entities.Organization.filter({id:organization_id}), 
+      b44.asServiceRole.entities.OrganizationMember.filter({organization_id, user_email:user.email})
+    ]); 
+  } catch (e) { 
+    console.error('[checkAccess] DB query error:', e.message);
+    return _deny('organization_not_found','Organisation nicht gefunden.'); 
+  }
   const organization = orgs[0]||null;
-  if (!organization) return _deny('organization_not_found','Organisation nicht gefunden.');
+  if (!organization) {
+    console.warn(`[checkAccess] Organization ${organization_id} not found for user ${user.email}`);
+    return _deny('organization_not_found','Organisation nicht gefunden.');
+  }
 
   // Owner der Organisation darf immer billing machen (z.B. direkt nach Onboarding)
   if (organization.owner_email === user.email) {
@@ -112,16 +128,32 @@ Deno.serve(async (req) => {
     if (!plan.is_active) return Response.json({ error: `Plan ist nicht buchbar` }, { status: 400 });
 
     // ── 4. Organisation laden ───────────────────────────────────────────────
-    const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
-    const org = orgs[0] || null;
-    if (!org) return Response.json({ error: 'Organisation nicht gefunden' }, { status: 404 });
+    let org = null;
+    try {
+      const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
+      org = orgs[0] || null;
+    } catch (e) {
+      console.error(`[createCheckoutSession] Failed to load org ${organization_id}:`, e.message);
+      return Response.json({ error: 'Organisation nicht laden konnte', reason: 'org_load_failed' }, { status: 404 });
+    }
+    if (!org) {
+      console.warn(`[createCheckoutSession] Organization ${organization_id} not found`);
+      return Response.json({ error: 'Organisation nicht gefunden' }, { status: 404 });
+    }
 
     // ── 5. Existierende Subscriptions prüfen ───────────────────────────────
-    const existingSubs = await base44.asServiceRole.entities.Subscription.filter({ organization_id });
+    let existingSubs = [];
+    try {
+      existingSubs = await base44.asServiceRole.entities.Subscription.filter({ organization_id });
+    } catch (e) {
+      console.error(`[createCheckoutSession] Failed to load subscriptions for org ${organization_id}:`, e.message);
+      // Nicht kritisch – wenn Subs nicht geladen werden können, nehmen wir an dass es keine gibt
+    }
     const activeSub = existingSubs.find(s => ['active', 'trialing'].includes(s.status));
 
     // ── 5a. Doppel-Checkout-Schutz (aktive oder laufende Trial-Sub) ─────────
     if (activeSub && !allow_upgrade) {
+      console.warn(`[createCheckoutSession] Active subscription already exists for org ${organization_id}`);
       return Response.json({
         error: 'Organisation hat bereits eine aktive Subscription',
         subscription_status: activeSub.status,
@@ -136,19 +168,26 @@ Deno.serve(async (req) => {
     // ── 6. Stripe Customer: bestehende ID nutzen oder neu anlegen ───────────
     let stripeCustomerId = org.stripe_customer_id || null;
     if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: org.name,
-        metadata: {
-          organization_id,
-          owner_email: org.owner_email,
-          base44_app_id: Deno.env.get('BASE44_APP_ID'),
-          app_environment: getAppEnvironment(),
-        },
-      });
-      stripeCustomerId = customer.id;
-      await base44.asServiceRole.entities.Organization.update(organization_id, { stripe_customer_id: stripeCustomerId });
-      console.info(`[createCheckoutSession] Stripe Customer erstellt: ${stripeCustomerId} für org ${organization_id}`);
+      try {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          name: org.name,
+          metadata: {
+            organization_id,
+            owner_email: org.owner_email,
+            base44_app_id: Deno.env.get('BASE44_APP_ID'),
+            app_environment: getAppEnvironment(),
+          },
+        });
+        stripeCustomerId = customer.id;
+
+        // Update org mit Stripe Customer ID
+        await base44.asServiceRole.entities.Organization.update(organization_id, { stripe_customer_id: stripeCustomerId });
+        console.info(`[createCheckoutSession] Stripe Customer erstellt: ${stripeCustomerId} für org ${organization_id}`);
+      } catch (e) {
+        console.error(`[createCheckoutSession] Failed to create Stripe customer for org ${organization_id}:`, e.message);
+        return Response.json({ error: 'Stripe Customer konnte nicht erstellt werden', reason: 'stripe_customer_creation_failed' }, { status: 500 });
+      }
     }
 
     const origin = req.headers.get('origin') || 'https://app.base44.com';
