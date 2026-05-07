@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import MobileBottomNav from "./MobileBottomNav";
+import AppHeader from "./AppHeader";
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import {
@@ -45,8 +46,6 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [orgRole, setOrgRole] = useState(null);
-
-  const isSubPage = SUB_PAGES.some(p => location.pathname.startsWith(p));
 
   useEffect(() => {
     (async () => {
@@ -149,27 +148,8 @@ export default function Layout() {
 
       {/* Main Content - Light Mode */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#F6F8FB]">
-        {/* Top Bar Mobile */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-[#E2E8F0]">
-          {isSubPage ? (
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ChevronRight className="w-5 h-5 rotate-180" />
-            </Button>
-          ) : (
-            <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)}>
-              <Menu className="w-5 h-5" />
-            </Button>
-          )}
-          <div className="flex items-center gap-2">
-            <img
-              src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/7fe9f4d4d_Logo1HUWA.png"
-              alt="Huwa Logo"
-              className="w-7 h-7 object-contain"
-            />
-            <span className="text-sm font-semibold">Vertriebo</span>
-          </div>
-          <div className="w-9" />
-        </header>
+        {/* App Header - Zentrale Header-Komponente */}
+        <AppHeader />
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-5 lg:p-8" style={{ overscrollBehavior: "none", paddingLeft: "max(1.25rem, env(safe-area-inset-left))", paddingRight: "max(1.25rem, env(safe-area-inset-right))" }}>
