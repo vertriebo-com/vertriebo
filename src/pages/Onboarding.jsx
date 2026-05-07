@@ -45,35 +45,47 @@ export default function Onboarding() {
         base44.auth.redirectToLogin(window.location.href);
         return;
       }
-      // Wenn bereits onboarded und plan_id vorhanden → direkt Checkout starten
+
+      // Nach erfolgreichem Checkout: onboarding_done prüfen und ggf. zum Dashboard
+      const urlParams2 = new URLSearchParams(window.location.search);
+      if (urlParams2.get("checkout") === "success") {
+        try {
+          const user = await base44.auth.me();
+          const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+          const org = orgs?.[0];
+          if (org?.onboarding_done && ["active", "trialing"].includes(org.billing_status)) {
+            window.location.replace("/dashboard");
+            return;
+          }
+          // Webhook noch nicht angekommen – kurz warten und nochmal prüfen
+          await new Promise(r => setTimeout(r, 3000));
+          const orgs2 = await base44.entities.Organization.filter({ owner_email: user.email });
+          const org2 = orgs2?.[0];
+          if (org2?.onboarding_done && ["active", "trialing"].includes(org2.billing_status)) {
+            window.location.replace("/dashboard");
+            return;
+          }
+          // Trotzdem weitermachen – Webhook kommt bald
+        } catch (e) { /* ignore */ }
+      }
+      // Wenn bereits onboarded (org.onboarding_done = true) und plan_id vorhanden → direkt Checkout
       if (planId) {
         try {
-          const settings = await base44.entities.AppSettings.list();
-          const alreadyOnboarded = settings?.find(s => s.key === "onboarding_done")?.value === "true";
-          if (alreadyOnboarded) {
-            const user = await base44.auth.me();
-            let orgs = await base44.entities.Organization.filter({ owner_email: user.email });
-            let org = orgs?.[0];
-            if (!org) {
-              org = await base44.entities.Organization.create({
-                name: user.full_name || user.email,
-                owner_email: user.email,
-                status: "active",
-                billing_status: "trialing",
-              });
-            }
-            // Member-Eintrag sicherstellen
-            const members = await base44.entities.OrganizationMember.filter({ organization_id: org.id, user_email: user.email });
+          const user = await base44.auth.me();
+          const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+          const existingOrg = orgs?.[0];
+          if (existingOrg?.onboarding_done) {
+            const members = await base44.entities.OrganizationMember.filter({ organization_id: existingOrg.id, user_email: user.email });
             if (!members?.[0]) {
               await base44.entities.OrganizationMember.create({
-                organization_id: org.id,
+                organization_id: existingOrg.id,
                 user_email: user.email,
                 role: "organization_admin",
                 status: "active",
               });
             }
             const res = await base44.functions.invoke("createCheckoutSession", {
-              organization_id: org.id,
+              organization_id: existingOrg.id,
               plan_id: planId,
             });
             if (res.data?.url) {
@@ -114,6 +126,8 @@ export default function Onboarding() {
     }
     setSaving(true);
     try {
+      const user = await base44.auth.me();
+
       // Geocode PLZ
       const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${plz}&country=de&format=json&limit=1`);
       const geoData = await geoRes.json();
@@ -121,10 +135,38 @@ export default function Onboarding() {
       const lng = geoData?.[0]?.lon || "7.4620";
       const city = geoData?.[0]?.display_name?.split(",")[0] || "";
 
-      // Save all settings
-      const existing = await base44.entities.AppSettings.list();
+      // Organisation anlegen oder updaten
+      let orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+      let org = orgs?.[0];
+      if (!org) {
+        org = await base44.entities.Organization.create({
+          name: firmenname,
+          owner_email: user.email,
+          status: "active",
+          billing_status: "trialing",
+          onboarding_done: false,
+          industry: selectedIndustry?.name || "",
+          service_area_plz: plz,
+          service_area_radius_km: parseInt(radius),
+        });
+      }
+
+      // Member-Eintrag sicherstellen
+      const members = await base44.entities.OrganizationMember.filter({ organization_id: org.id, user_email: user.email });
+      if (!members?.[0]) {
+        await base44.entities.OrganizationMember.create({
+          organization_id: org.id,
+          user_email: user.email,
+          role: "organization_admin",
+          status: "active",
+        });
+      }
+
+      // OrganizationSettings für Lead-Generierung (per Org, nicht global)
+      const orgSettingsKey = `lead_config_${org.id}`;
+      const existingOrgSettings = await base44.entities.OrganizationSettings.filter({ organization_id: org.id });
       const existingMap = {};
-      existing.forEach(s => { existingMap[s.key] = s.id; });
+      existingOrgSettings.forEach(s => { existingMap[s.key] = s.id; });
 
       const toSave = {
         lead_lat: String(parseFloat(lat).toFixed(4)),
@@ -134,72 +176,47 @@ export default function Onboarding() {
         lead_plz_city: city,
         lead_count: "25",
         lead_keywords: JSON.stringify(selectedIndustry?.keywords || []),
-        onboarding_done: "true",
-        onboarding_branche: selectedIndustry?.name || "",
-        onboarding_firmenname: firmenname,
-        onboarding_plan: plan,
       };
 
       await Promise.all(
         Object.entries(toSave).map(([key, value]) => {
           if (existingMap[key]) {
-            return base44.entities.AppSettings.update(existingMap[key], { value });
+            return base44.entities.OrganizationSettings.update(existingMap[key], { organization_id: org.id, key, value });
           } else {
-            return base44.entities.AppSettings.create({ key, value });
+            return base44.entities.OrganizationSettings.create({ organization_id: org.id, key, value });
           }
         })
       );
 
-      // Auto-generate first leads (non-blocking)
-      base44.functions.invoke("generateLeads", { count: 25 }).catch(() => {});
-
-      // Organisation anlegen (falls noch nicht vorhanden) und ggf. Checkout starten
+      // Checkout starten wenn plan_id vorhanden
       if (planId) {
-        try {
-          const user = await base44.auth.me();
-          // Prüfen ob Organisation schon existiert
-          let orgs = await base44.entities.Organization.filter({ owner_email: user.email });
-          let org = orgs?.[0];
-          if (!org) {
-            org = await base44.entities.Organization.create({
-              name: firmenname,
-              owner_email: user.email,
-              status: "active",
-              billing_status: "trialing",
-            });
-            // Owner als organization_admin eintragen
-            await base44.entities.OrganizationMember.create({
-              organization_id: org.id,
-              user_email: user.email,
-              role: "organization_admin",
-              status: "active",
-            });
-          } else {
-            // Prüfen ob Member-Eintrag fehlt
-            const members = await base44.entities.OrganizationMember.filter({ organization_id: org.id, user_email: user.email });
-            if (!members?.[0]) {
-              await base44.entities.OrganizationMember.create({
-                organization_id: org.id,
-                user_email: user.email,
-                role: "organization_admin",
-                status: "active",
-              });
-            }
-          }
-          const res = await base44.functions.invoke("createCheckoutSession", {
-            organization_id: org.id,
-            plan_id: planId,
-          });
-          if (res.data?.url) {
-            window.location.href = res.data.url;
-            return;
-          } else {
-            toast.error(res.data?.error || "Kein Checkout-Link erhalten.");
-          }
-        } catch (e) {
-          toast.error("Checkout-Fehler: " + e.message);
+        const res = await base44.functions.invoke("createCheckoutSession", {
+          organization_id: org.id,
+          plan_id: planId,
+        });
+        if (res.data?.url) {
+          // onboarding_done wird ERST nach erfolgreichem Checkout via Webhook gesetzt
+          window.location.href = res.data.url;
+          return;
+        } else {
+          toast.error(res.data?.error || "Kein Checkout-Link erhalten.");
+          setSaving(false);
+          return;
         }
       }
+
+      // Kein Plan (direkter Abschluss ohne Zahlung) → onboarding_done setzen
+      await base44.entities.Organization.update(org.id, {
+        name: firmenname,
+        onboarding_done: true,
+        onboarding_completed_at: new Date().toISOString(),
+        industry: selectedIndustry?.name || "",
+        service_area_plz: plz,
+        service_area_radius_km: parseInt(radius),
+      });
+
+      // Auto-generate first leads (non-blocking, org-spezifisch)
+      base44.functions.invoke("generateLeads", { organization_id: org.id, count: 25 }).catch(() => {});
 
       setStep(2);
     } catch (e) {

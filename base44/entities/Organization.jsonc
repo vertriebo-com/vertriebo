@@ -75,6 +75,28 @@
     "website": {
       "type": "string",
       "title": "Website"
+    },
+    "onboarding_done": {
+      "type": "boolean",
+      "title": "Onboarding abgeschlossen",
+      "default": false
+    },
+    "onboarding_completed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Onboarding abgeschlossen am"
+    },
+    "industry": {
+      "type": "string",
+      "title": "Branche"
+    },
+    "service_area_plz": {
+      "type": "string",
+      "title": "Suchgebiet PLZ"
+    },
+    "service_area_radius_km": {
+      "type": "number",
+      "title": "Suchradius (km)"
     }
   },
   "required": [

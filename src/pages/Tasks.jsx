@@ -22,11 +22,25 @@ export default function Tasks() {
   const [pendingDone, setPendingDone] = useState(new Set());
 
   const loadData = async () => {
-    const [me, allTasks] = await Promise.all([
-      base44.auth.me(),
-      base44.entities.Task.list("-created_date", 200),
-    ]);
+    const me = await base44.auth.me();
     setUser(me);
+
+    // Organisation ermitteln
+    let orgId = null;
+    const orgs = await base44.entities.Organization.filter({ owner_email: me.email });
+    let org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    orgId = org?.id || null;
+
+    const allTasks = orgId
+      ? await base44.entities.Task.filter({ organization_id: orgId }, "-created_date", 200)
+      : [];
     setTasks(allTasks);
     setLoading(false);
   };

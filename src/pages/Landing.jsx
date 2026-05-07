@@ -92,7 +92,7 @@ export default function Landing() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
-      window.location.href = "/dashboard";
+      window.location.href = "/onboarding?checkout=success";
     }
   }, []);
 

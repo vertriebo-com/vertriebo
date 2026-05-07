@@ -21,17 +21,27 @@ import { Button } from "@/components/ui/button";
 import moment from "moment";
 
 export default function Dashboard() {
-  const { user, filterCompanies, loading: filterLoading } = useLeadsFilter();
+  const { user, org, filterCompanies, loading: filterLoading } = useLeadsFilter();
+  // Patch user with org so query can access org.id
+  if (user && !user.org) user.org = org;
+
+  const orgId = user?.org?.id || null;
 
   const { data: companies = [], isLoading: loadingCompanies } = useQuery({
-    queryKey: ["companies"],
-    queryFn: () => base44.entities.Company.list("-created_date", 500),
+    queryKey: ["companies", orgId],
+    queryFn: () => orgId
+      ? base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 500)
+      : Promise.resolve([]),
+    enabled: !!orgId,
     staleTime: 60_000,
   });
 
   const { data: tasks = [], isLoading: loadingTasks } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list("-faellig_am", 100),
+    queryKey: ["tasks", orgId],
+    queryFn: () => orgId
+      ? base44.entities.Task.filter({ organization_id: orgId }, "-faellig_am", 100)
+      : Promise.resolve([]),
+    enabled: !!orgId,
     staleTime: 60_000,
   });
 

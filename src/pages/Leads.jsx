@@ -57,7 +57,7 @@ const STATUS_GLOW = {
 };
 
 export default function Leads() {
-  const { user, filterCompanies, loading: filterLoading } = useLeadsFilter();
+  const { user, org, filterCompanies, loading: filterLoading } = useLeadsFilter();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("Alle");
@@ -70,9 +70,13 @@ export default function Leads() {
   const [bulkStatus, setBulkStatus] = useState("");
   const searchRef = useRef(null);
 
+  const orgId = org?.id || null;
   const { data: companies = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ["companies"],
-    queryFn: () => base44.entities.Company.list("-created_date", 500),
+    queryKey: ["companies", orgId],
+    queryFn: () => orgId
+      ? base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 500)
+      : Promise.resolve([]),
+    enabled: !!orgId,
     staleTime: 60_000,
   });
 

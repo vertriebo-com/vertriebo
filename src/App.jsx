@@ -70,30 +70,58 @@ const PublicApp = () => {
 };
 
 
-// Onboarding guard: after login, check if onboarding was done
+// Onboarding guard: checks per-organization onboarding status
 const OnboardingGuard = ({ children }) => {
   const [checked, setChecked] = useState(false);
-  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  const [redirect, setRedirect] = useState(null);
   const location = useLocation();
 
   useEffect(() => {
-    base44.entities.AppSettings.list()
-      .then(settings => {
-        const done = settings?.find(s => s.key === "onboarding_done")?.value === "true";
-        setNeedsOnboarding(!done);
+    (async () => {
+      try {
+        const user = await base44.auth.me();
+        if (!user) { setRedirect("/"); setChecked(true); return; }
+
+        // Eigene Organisation suchen
+        let org = null;
+        const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+        org = orgs?.[0] || null;
+
+        // Als Member suchen falls kein Owner
+        if (!org) {
+          const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+          if (memberships?.[0]?.organization_id) {
+            const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+            org = memberOrgs?.[0] || null;
+          }
+        }
+
+        if (!org) {
+          // Keine Organisation → Onboarding (Plan auswählen & einrichten)
+          setRedirect("/onboarding");
+        } else {
+          const billingOk = ["active", "trialing"].includes(org.billing_status);
+          if (!billingOk) {
+            // Kein aktives Abo → zurück zur Landing-Page zur Plan-Auswahl
+            setRedirect("/");
+          } else if (!org.onboarding_done) {
+            setRedirect("/onboarding");
+          } else {
+            setRedirect(null); // alles ok
+          }
+        }
+      } catch {
+        // Bei Fehler nicht blockieren
+      } finally {
         setChecked(true);
-      })
-      .catch(() => {
-        // On error, don't block the user
-        setChecked(true);
-      });
+      }
+    })();
   }, []);
 
   if (!checked) return <Spinner />;
 
-  // Already on onboarding page – don't redirect (avoid loop)
-  if (needsOnboarding && location.pathname !== "/onboarding") {
-    return <Navigate to="/onboarding" replace />;
+  if (redirect && location.pathname !== "/onboarding" && location.pathname !== redirect) {
+    return <Navigate to={redirect} replace />;
   }
 
   return children;
