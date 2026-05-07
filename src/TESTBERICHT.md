@@ -140,8 +140,16 @@
 **UX-Qualität:** 85% ✅  
 **Datenqualität:** 100% ✅ (Bereinigt)
 
-**Bereit für Produktion:** JA ✅  
-**Bereit für User-Testing:** JA ✅
+**Status:**
+- ✅ **Bereit für internes User-Testing / Beta-Test**
+- ⚠️ **Noch nicht öffentlich produktionsbereit für fremde Kunden**
+
+**Go-Live Checkliste (vor echtem Launch):**
+- [ ] Stripe Live-End-to-End (Checkout, Webhook, Portal, past_due)
+- [ ] E-Mail-Domain: noreply@vertriebo.de bei Brevo verifizieren
+- [ ] Rechtliches: Impressum, Datenschutz, AGB, AV-Vertrag
+- [ ] Landingpage: Formulierungen prüfen, Agency-Limits
+- [ ] Invite-Flow: End-to-End testen
 
 ---
 

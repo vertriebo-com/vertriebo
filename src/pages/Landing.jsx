@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
-import { Check, Zap, Users, Building2, Phone, ArrowRight, Star } from "lucide-react";
+import { Check, Zap, Users, Building2, Phone, ArrowRight, Star, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { base44 } from "@/api/base44Client";
 
 const PLANS = [
   {
@@ -13,13 +13,18 @@ const PLANS = [
     color: "border-border",
     features: [
       "2 Vertriebler",
-      "300 Leads pro Monat",
+      "300 gespeicherte Firmenkontakte/Monat",
       "100 Recherche-Credits/Monat",
       "CRM & Pipeline",
       "KI-Morgenreport",
       "Google Maps Integration",
       "500 E-Mails/Monat",
     ],
+    footnotes: {
+      leads: "Gespeicherte Kontakte in Ihrem CRM",
+      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places",
+      emails: "E-Mails via Brevo inklusive",
+    },
   },
   {
     name: "Professional",
@@ -30,13 +35,18 @@ const PLANS = [
     popular: true,
     features: [
       "5 Vertriebler",
-      "1.500 Leads pro Monat",
+      "1.500 gespeicherte Firmenkontakte/Monat",
       "750 Recherche-Credits/Monat",
       "Alle Starter-Features",
       "Erweiterte Reports",
       "Eigene E-Mail-Vorlagen",
       "2.000 E-Mails/Monat",
     ],
+    footnotes: {
+      leads: "Gespeicherte Kontakte in Ihrem CRM",
+      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places",
+      emails: "E-Mails via Brevo inklusive",
+    },
   },
   {
     name: "Gold",
@@ -46,13 +56,19 @@ const PLANS = [
     color: "border-border",
     features: [
       "10 Vertriebler",
-      "5.000 Leads pro Monat",
+      "5.000 gespeicherte Firmenkontakte/Monat",
       "2.000 Recherche-Credits/Monat",
       "Alle Professional-Features",
       "1.000 KI-Aktionen/Monat",
       "5.000 E-Mails/Monat",
       "Priority Support",
     ],
+    footnotes: {
+      leads: "Gespeicherte Kontakte in Ihrem CRM",
+      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places",
+      emails: "E-Mails via Brevo inklusive",
+      ai: "KI-Aktionen: Lead-Anreicherung, Scoring, Coaching",
+    },
   },
   {
     name: "Agency",
@@ -62,13 +78,19 @@ const PLANS = [
     color: "border-border",
     features: [
       "Unbegrenzte Vertriebler",
-      "Unbegrenzte Leads",
-      "Unbegrenzte Recherche-Credits",
+      "15.000 gespeicherte Firmenkontakte/Monat",
+      "5.000 Recherche-Credits/Monat",
       "Alle Gold-Features",
-      "Unbegrenzte KI-Aktionen",
-      "Unbegrenzte E-Mails",
-      "Individuelle Anpassungen & Onboarding",
+      "3.000 KI-Aktionen/Monat",
+      "10.000 E-Mails/Monat",
+      "Individuelles Onboarding & Anpassungen",
     ],
+    footnotes: {
+      leads: "Gespeicherte Kontakte in Ihrem CRM",
+      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places",
+      emails: "E-Mails via Brevo inklusive",
+      ai: "KI-Aktionen: Lead-Anreicherung, Scoring, Coaching",
+    },
   },
 ];
 
@@ -84,6 +106,15 @@ const INDUSTRIES = [
   { icon: "🏢", name: "Immobilien" },
   { icon: "📦", name: "Lager / Fulfillment" },
 ];
+
+function Footnote({ text }) {
+  return (
+    <div className="flex items-start gap-1.5 mt-2 text-[10px] text-muted-foreground">
+      <Info className="w-3 h-3 shrink-0 mt-0.5 opacity-60" />
+      <span className="leading-relaxed opacity-80">{text}</span>
+    </div>
+  );
+}
 
 export default function Landing() {
   const [loading, setLoading] = useState(null);
@@ -182,9 +213,9 @@ export default function Landing() {
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 text-white">
             Mehr Kunden.<br />Weniger Aufwand.
           </h1>
-          <p className="text-lg max-w-xl mx-auto mb-10" style={{ color: "rgba(255,255,255,0.65)" }}>
-            Das All-in-One Vertriebssystem für Dienstleister – mit automatischer Lead-Generierung,
-            KI-Morgenreport und vollständigem CRM.
+          <p className="text-lg max-w-2xl mx-auto mb-10" style={{ color: "rgba(255,255,255,0.65)" }}>
+            Vertriebo ist Ihre komplette Vertriebsmaschine für lokale Dienstleister.
+            Automatisierte Lead-Generierung, intelligente Priorisierung und ein CRM, das Ihr Team tatsächlich nutzt.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
             <button
@@ -234,9 +265,44 @@ export default function Landing() {
       </div>
 
       {/* Pricing */}
-      <div id="pricing" className="max-w-5xl mx-auto px-6 py-16">
+      <div id="pricing" className="max-w-6xl mx-auto px-6 py-16">
         <h2 className="text-2xl font-bold text-center mb-2 text-white">Einfache Preise</h2>
-        <p className="text-center mb-10" style={{ color: "rgba(255,255,255,0.5)" }}>Monatlich kündbar. Keine versteckten Kosten.</p>
+        <p className="text-center mb-4" style={{ color: "rgba(255,255,255,0.5)" }}>Monatlich kündbar. Keine versteckten Kosten.</p>
+        
+        {/* Legende */}
+        <div className="max-w-3xl mx-auto mb-8 p-4 rounded-xl" style={{ background: "rgba(99,179,237,0.08)", border: "1px solid rgba(99,179,237,0.2)" }}>
+          <div className="grid sm:grid-cols-2 gap-3 text-xs">
+            <div className="flex items-start gap-2">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#63b3ed" }} />
+              <div>
+                <strong style={{ color: "#63b3ed" }}>Gespeicherte Firmenkontakte:</strong>
+                <span className="opacity-80 ml-1">Kontakte in Ihrem CRM (Blacklist ausgenommen)</span>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#63b3ed" }} />
+              <div>
+                <strong style={{ color: "#63b3ed" }}>Recherche-Credits:</strong>
+                <span className="opacity-80 ml-1">1 Credit = 1 automatischer Lead-Lauf via Google Places API</span>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#63b3ed" }} />
+              <div>
+                <strong style={{ color: "#63b3ed" }}>KI-Aktionen:</strong>
+                <span className="opacity-80 ml-1">Lead-Anreicherung, Scoring, Coaching – kombiniert KI & Web-Recherche</span>
+              </div>
+            </div>
+            <div className="flex items-start gap-2">
+              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#63b3ed" }} />
+              <div>
+                <strong style={{ color: "#63b3ed" }}>E-Mail-Versand:</strong>
+                <span className="opacity-80 ml-1">Alle E-Mails via Brevo inklusive (SPF/DKIM konfiguriert)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
           {PLANS.map(plan => (
             <div
@@ -260,7 +326,7 @@ export default function Landing() {
                 <span className="text-4xl font-extrabold text-white">{plan.price}€</span>
                 <span className="text-sm ml-1" style={{ color: "rgba(255,255,255,0.5)" }}>/Monat</span>
               </div>
-              <ul className="space-y-2 mb-8 flex-1">
+              <ul className="space-y-2 mb-6 flex-1">
                 {plan.features.map(f => (
                   <li key={f} className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
                     <Check className="w-4 h-4 flex-shrink-0" style={{ color: "#38d9a9" }} />
@@ -268,6 +334,15 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
+              
+              {/* Footnotes */}
+              <div className="mb-6 space-y-1.5">
+                {plan.footnotes.leads && <Footnote text={plan.footnotes.leads} />}
+                {plan.footnotes.credits && <Footnote text={plan.footnotes.credits} />}
+                {plan.footnotes.emails && <Footnote text={plan.footnotes.emails} />}
+                {plan.footnotes.ai && <Footnote text={plan.footnotes.ai} />}
+              </div>
+
               <button
                 onClick={() => handleCheckout(plan)}
                 disabled={loading === plan.name}
@@ -283,7 +358,7 @@ export default function Landing() {
           ))}
         </div>
         <p className="text-center text-xs mt-6" style={{ color: "rgba(255,255,255,0.35)" }}>
-          Monatlich kündbar · Keine versteckten Kosten
+          Monatlich kündbar · Alle Preise zzgl. MwSt. · Fair-Use für Agency-Plan
         </p>
       </div>
 
