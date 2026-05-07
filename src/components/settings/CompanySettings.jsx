@@ -6,10 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import SettingsSection from "./SettingsSection";
 
 // ─── Zielkunden → Google Places Suchbegriffe Mapping ─────────────────────────
-// Wird von generateLeads genutzt: Einstellungen → aktive Lead-Suche
 export const ZIELKUNDEN_SEARCH_MAPPING = {
   "Hausverwaltungen":              ["Hausverwaltung", "Immobilienverwaltung", "WEG Verwaltung", "Property Management", "Wohnungsverwaltung"],
   "Büros":                         ["Büro", "Unternehmen", "Gewerbe", "Kanzlei", "Beratung"],
@@ -36,12 +34,11 @@ const INDUSTRIES = [
   "Catering","Handwerk","Spedition / Logistik","Gesundheit / Medizin","Immobilien","Lager / Fulfillment",
 ];
 
-// Plan → max Radius in km
 const PLAN_RADIUS_LIMITS = {
   starter:      25,
   professional: 50,
   gold:         100,
-  agency:       null, // unbegrenzt
+  agency:       null,
 };
 
 function getPlanRadiusLimit(planName) {
@@ -62,7 +59,7 @@ function normalizeUrl(val) {
 }
 
 function isValidUrl(val) {
-  if (!val) return true; // optional field
+  if (!val) return true;
   try { new URL(normalizeUrl(val)); return true; } catch { return false; }
 }
 
@@ -71,14 +68,11 @@ export default function CompanySettings({ org: orgProp }) {
   const [orgId, setOrgId] = useState(orgProp?.id || null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [members, setMembers] = useState([]); // OrganizationMember list
+  const [members, setMembers] = useState([]);
   const [plan, setPlan] = useState(null);
 
-  // Organization fields
   const [firmenname, setFirmenname] = useState("");
   const [industry, setIndustry] = useState("");
-
-  // OrganizationSettings fields
   const [telefon, setTelefon] = useState("");
   const [website, setWebsite] = useState("");
   const [websiteError, setWebsiteError] = useState("");
@@ -86,8 +80,6 @@ export default function CompanySettings({ org: orgProp }) {
   const [plz, setPlz] = useState("");
   const [radius, setRadius] = useState("25");
   const [plzCity, setPlzCity] = useState("");
-
-  // Sales settings
   const [zielkunden, setZielkunden] = useState([]);
   const [customZielkunde, setCustomZielkunde] = useState("");
   const [dienstleistungen, setDienstleistungen] = useState([]);
@@ -132,8 +124,6 @@ export default function CompanySettings({ org: orgProp }) {
       setOrg(currentOrg);
       setFirmenname(currentOrg.name || "");
       setIndustry(currentOrg.industry || "");
-
-      // Load plan for radius limit
       if (currentOrg.plan_id) {
         const plans = await base44.entities.Plan.filter({ id: currentOrg.plan_id });
         setPlan(plans[0] || null);
@@ -141,7 +131,6 @@ export default function CompanySettings({ org: orgProp }) {
     }
 
     setMembers(orgMembers);
-
     const map = {};
     settings.forEach(s => { map[s.key] = s.value; });
 
@@ -199,11 +188,7 @@ export default function CompanySettings({ org: orgProp }) {
     if (!currentOrgId) { toast.error("Keine Organisation gefunden."); setSaving(false); return; }
 
     const normalizedWebsite = normalizeUrl(website);
-
-    // Build search keywords from selected Zielkunden
-    const zielkundenKeywords = zielkunden
-      .flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z])
-      .join(", ");
+    const zielkundenKeywords = zielkunden.flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z]).join(", ");
 
     await base44.entities.Organization.update(currentOrgId, {
       name: firmenname.trim(),
@@ -229,7 +214,7 @@ export default function CompanySettings({ org: orgProp }) {
       lead_radius_km:                  radius,
       lead_plz_city:                   plzCity,
       zielkunden:                      zielkunden.join(", "),
-      zielkunden_keywords:             zielkundenKeywords, // ← für generateLeads nutzbar
+      zielkunden_keywords:             zielkundenKeywords,
       dienstleistungen:                dienstleistungen.join(", "),
       sales_goal_contacts_per_week:    kontakteProWoche,
       sales_goal_calls_per_week:       anrufeProWoche,
@@ -269,12 +254,19 @@ export default function CompanySettings({ org: orgProp }) {
   );
 
   return (
-    <div className="space-y-5">
-      {/* Firmenstammdaten */}
-      <SettingsSection icon={Building2} title="Unternehmensprofil" description="Firmenstammdaten – werden in E-Mails, PDFs und Vorlagen verwendet">
-        <div className="grid sm:grid-cols-2 gap-3">
+    <div className="space-y-6">
+      {/* Card 1: Firmendaten */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div className="mb-5">
+          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-primary" />
+            Firmendaten
+          </h3>
+          <p className="text-xs font-medium text-slate-600 mt-1">Grundlegende Unternehmensinformationen</p>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <Label className="text-xs font-semibold mb-1 block text-slate-900">Firmenname *</Label>
+            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">Firmenname *</Label>
             <Input value={firmenname} onChange={e => setFirmenname(e.target.value)} placeholder="Muster GmbH" />
           </div>
           <div className="sm:col-span-2">
@@ -282,18 +274,22 @@ export default function CompanySettings({ org: orgProp }) {
             <div className="flex flex-wrap gap-2">
               {INDUSTRIES.map(ind => (
                 <button key={ind} type="button" onClick={() => setIndustry(industry === ind ? "" : ind)}
-                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${industry === ind ? "border-primary bg-primary/10 text-primary" : "border-border text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}>
+                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${industry === ind ? "border-primary bg-primary/10 text-primary" : "border-slate-200 text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}>
                   {ind}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1 block flex items-center gap-1 text-slate-900"><Phone className="w-3 h-3" /> Telefon</Label>
+            <Label className="text-xs font-semibold mb-1.5 block flex items-center gap-1.5 text-slate-900">
+              <Phone className="w-3.5 h-3.5 text-slate-500" /> Telefon
+            </Label>
             <Input value={telefon} onChange={e => setTelefon(e.target.value)} placeholder="02601/9131820" />
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1 block flex items-center gap-1 text-slate-900"><Globe className="w-3 h-3" /> Website</Label>
+            <Label className="text-xs font-semibold mb-1.5 block flex items-center gap-1.5 text-slate-900">
+              <Globe className="w-3.5 h-3.5 text-slate-500" /> Website
+            </Label>
             <Input
               value={website}
               onChange={e => handleWebsiteChange(e.target.value)}
@@ -301,28 +297,35 @@ export default function CompanySettings({ org: orgProp }) {
               type="url"
               className={websiteError ? "border-destructive" : ""}
             />
-            {websiteError && <p className="text-[11px] text-destructive mt-0.5">{websiteError}</p>}
+            {websiteError && <p className="text-[11px] text-destructive mt-1">{websiteError}</p>}
           </div>
           <div className="sm:col-span-2">
-            <Label className="text-xs font-semibold mb-1 block text-slate-900">Adresse</Label>
+            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">Adresse</Label>
             <Input value={adresse} onChange={e => setAdresse(e.target.value)} placeholder="Musterstraße 1, 12345 Musterstadt" />
           </div>
         </div>
-      </SettingsSection>
+      </div>
 
-      {/* Suchgebiet */}
-      <SettingsSection icon={MapPin} title="Hauptstandort & Suchgebiet" description="Wird für die Lead-Generierung und geografische Suche verwendet">
-        <div className="grid sm:grid-cols-3 gap-3">
+      {/* Card 2: Suchgebiet */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div className="mb-5">
+          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-primary" />
+            Hauptstandort & Suchgebiet
+          </h3>
+          <p className="text-xs font-medium text-slate-600 mt-1">Wird für die Lead-Generierung verwendet</p>
+        </div>
+        <div className="grid sm:grid-cols-3 gap-4">
           <div>
-            <Label className="text-xs font-semibold mb-1 block text-slate-900">PLZ *</Label>
+            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">PLZ *</Label>
             <Input value={plz} onChange={e => setPlz(e.target.value)} placeholder="56564" maxLength={5} />
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1 block text-slate-900">Ort</Label>
+            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">Ort</Label>
             <Input value={plzCity} onChange={e => setPlzCity(e.target.value)} placeholder="Neuwied" />
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1 block text-slate-900">
+            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">
               Suchradius: <span className={`font-bold ${radiusOverLimit ? "text-destructive" : "text-primary"}`}>{radius} km</span>
             </Label>
             <input
@@ -331,32 +334,41 @@ export default function CompanySettings({ org: orgProp }) {
               className="w-full accent-primary mt-2"
             />
             {planRadiusLimit !== null && (
-              <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-                <Info className="w-3 h-3" /> Ihr Plan erlaubt max. <strong>{planRadiusLimit} km</strong>
+              <p className="text-[11px] text-slate-600 font-medium mt-1.5 flex items-center gap-1">
+                <Info className="w-3 h-3 text-slate-400" /> Ihr Plan erlaubt max. <strong>{planRadiusLimit} km</strong>
               </p>
             )}
           </div>
         </div>
         {radiusOverLimit && (
-          <div className="flex items-center gap-2 mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-            Der gewählte Radius überschreitet Ihr Plan-Limit. Bitte auf max. {planRadiusLimit} km reduzieren oder auf einen höheren Plan wechseln.
+          <div className="flex items-start gap-2.5 mt-4 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2.5">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <div>
+              Der gewählte Radius überschreitet Ihr Plan-Limit. Bitte auf max. {planRadiusLimit} km reduzieren oder auf einen höheren Plan wechseln.
+            </div>
           </div>
         )}
-      </SettingsSection>
+      </div>
 
-      {/* Zielkunden */}
-      <SettingsSection icon={Users} title="Zielkunden & Dienstleistungen" description="Steuert Lead-Generierung, E-Mail-Vorlagen und KI-Skripte">
-        <div className="space-y-4">
+      {/* Card 3: Zielkunden & Leistungen */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div className="mb-5">
+          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <Users className="w-4 h-4 text-primary" />
+            Zielkunden & Dienstleistungen
+          </h3>
+          <p className="text-xs font-medium text-slate-600 mt-1">Steuert Lead-Generierung, E-Mail-Vorlagen und KI-Skripte</p>
+        </div>
+        <div className="space-y-5">
           <div>
-            <Label className="text-xs font-semibold mb-1 block text-slate-900">Ihre Zielkunden</Label>
-            <p className="text-[11px] text-slate-600 font-medium mb-2">
+            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">Ihre Zielkunden</Label>
+            <p className="text-[11px] text-slate-600 font-medium mb-2.5">
               Die Auswahl bestimmt automatisch die Suchbegriffe für die Lead-Generierung via Google Places.
             </p>
-            <div className="flex flex-wrap gap-2 mb-2">
+            <div className="flex flex-wrap gap-2 mb-2.5">
               {ZIELKUNDEN_OPTIONS.map(v => (
                 <button key={v} type="button" onClick={() => toggleZielkunde(v)}
-                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${zielkunden.includes(v) ? "border-primary bg-primary/10 text-primary" : "border-border text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}>
+                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${zielkunden.includes(v) ? "border-primary bg-primary/10 text-primary" : "border-slate-200 text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}>
                   {v}
                 </button>
               ))}
@@ -367,29 +379,29 @@ export default function CompanySettings({ org: orgProp }) {
               ))}
             </div>
             {zielkunden.length > 0 && (
-              <div className="text-[11px] text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
-                <span className="font-semibold">Aktive Suchbegriffe:</span>{" "}
+              <div className="text-[11px] text-slate-600 font-medium bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
+                <span className="font-semibold text-slate-900">Aktive Suchbegriffe:</span>{" "}
                 {zielkunden.flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z]).slice(0, 8).join(", ")}
                 {zielkunden.flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z]).length > 8 && " ..."}
               </div>
             )}
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-2 mt-2.5">
               <Input value={customZielkunde} onChange={e => setCustomZielkunde(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && addCustomZielkunde()}
-                placeholder="Eigene Zielgruppe..." className="text-sm h-8" />
-              <Button variant="outline" size="sm" onClick={addCustomZielkunde} className="shrink-0">+ Hinzufügen</Button>
+                placeholder="Eigene Zielgruppe..." className="text-sm h-9" />
+              <Button variant="outline" size="sm" onClick={addCustomZielkunde} className="shrink-0 h-9">+ Hinzufügen</Button>
             </div>
           </div>
 
           <div>
-            <Label className="text-xs font-semibold mb-1 block text-slate-900">Ihre Dienstleistungen</Label>
-            <p className="text-[11px] text-slate-600 font-medium mb-2">
+            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">Ihre Dienstleistungen</Label>
+            <p className="text-[11px] text-slate-600 font-medium mb-2.5">
               Werden automatisch in E-Mail-Vorlagen, KI-Anrufskripten und Follow-up-Texten verwendet.
             </p>
-            <div className="flex flex-wrap gap-2 mb-2">
+            <div className="flex flex-wrap gap-2 mb-2.5">
               {DIENSTLEISTUNGEN_OPTIONS.map(v => (
                 <button key={v} type="button" onClick={() => toggleDienst(v)}
-                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${dienstleistungen.includes(v) ? "border-primary bg-primary/10 text-primary" : "border-border text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}>
+                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${dienstleistungen.includes(v) ? "border-primary bg-primary/10 text-primary" : "border-slate-200 text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}>
                   {v}
                 </button>
               ))}
@@ -402,33 +414,40 @@ export default function CompanySettings({ org: orgProp }) {
             <div className="flex gap-2">
               <Input value={customDienst} onChange={e => setCustomDienst(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && addCustomDienst()}
-                placeholder="Sonstige Leistung..." className="text-sm h-8" />
-              <Button variant="outline" size="sm" onClick={addCustomDienst} className="shrink-0">+ Hinzufügen</Button>
+                placeholder="Sonstige Leistung..." className="text-sm h-9" />
+              <Button variant="outline" size="sm" onClick={addCustomDienst} className="shrink-0 h-9">+ Hinzufügen</Button>
             </div>
           </div>
         </div>
-      </SettingsSection>
+      </div>
 
-      {/* Vertriebsziele */}
-      <SettingsSection icon={Target} title="Vertriebsziele" description="Wöchentliche Ziele und Standard-Einstellungen für das Vertriebsteam">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+      {/* Card 4: Vertriebsziele */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div className="mb-5">
+          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+            <Target className="w-4 h-4 text-primary" />
+            Vertriebsziele
+          </h3>
+          <p className="text-xs font-medium text-slate-600 mt-1">Wöchentliche Ziele und Standard-Einstellungen</p>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
           {[
-            { label: "Neue Kontakte/Woche", value: kontakteProWoche, set: setKontakteProWoche },
+            { label: "Kontakte/Woche", value: kontakteProWoche, set: setKontakteProWoche },
             { label: "Anrufe/Woche", value: anrufeProWoche, set: setAnrufeProWoche },
             { label: "Termine/Woche", value: termineProWoche, set: setTermineProWoche },
-            { label: "Follow-up nach (Tage)", value: followUpTage, set: setFollowUpTage },
+            { label: "Follow-up (Tage)", value: followUpTage, set: setFollowUpTage },
           ].map(item => (
             <div key={item.label}>
-              <Label className="text-[11px] text-muted-foreground mb-1 block">{item.label}</Label>
+              <Label className="text-[11px] text-slate-600 font-medium mb-1.5 block">{item.label}</Label>
               <Input type="number" min="1" value={item.value}
-                onChange={e => item.set(e.target.value)} className="text-sm text-center font-bold" />
+                onChange={e => item.set(e.target.value)} className="text-sm text-center font-semibold" />
             </div>
           ))}
         </div>
 
         <div>
-          <Label className="text-xs font-semibold mb-1 block flex items-center gap-1 text-slate-900">
-            <Mail className="w-3 h-3" /> Standard-Vertriebler
+          <Label className="text-xs font-semibold mb-1.5 block flex items-center gap-1.5 text-slate-900">
+            <Mail className="w-3.5 h-3.5 text-slate-500" /> Standard-Vertriebler
           </Label>
           <Select value={standardVertriebler} onValueChange={setStandardVertriebler}>
             <SelectTrigger>
@@ -444,12 +463,13 @@ export default function CompanySettings({ org: orgProp }) {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Neu generierte Leads werden automatisch diesem Vertriebler zugewiesen</p>
+          <p className="text-[11px] text-slate-600 font-medium mt-1.5">Neu generierte Leads werden automatisch diesem Vertriebler zugewiesen</p>
         </div>
-      </SettingsSection>
+      </div>
 
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving || !!websiteError} className="gap-2">
+      {/* Save Button */}
+      <div className="flex justify-end pt-2">
+        <Button onClick={handleSave} disabled={saving || !!websiteError} className="gap-2 px-6">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? "Wird gespeichert..." : "Änderungen speichern"}
         </Button>

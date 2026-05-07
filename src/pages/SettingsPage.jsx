@@ -1,45 +1,54 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Building2, Mail, FileText, Users, CreditCard, Info, User } from "lucide-react";
+import { Loader2, Building2, Mail, FileText, Users, CreditCard, Info, User, Building, Phone, FileCheck, UserPlus, Zap } from "lucide-react";
 import CompanySettings from "@/components/settings/CompanySettings";
 import EmailSettings from "@/components/settings/EmailSettings";
 import EmailTemplateSettings from "@/components/settings/EmailTemplateSettings";
 import UserManagement from "@/components/settings/UserManagement";
 import BillingSettings from "@/components/settings/BillingSettings";
+import { Button } from "@/components/ui/button";
 
-// ─── Tab-Struktur ─────────────────────────────────────────────────────────────
-// adminOnly: true → nur organization_admin sieht den Tab
-const TAB_GROUPS = [
-  {
-    label: "Firma",
-    tabs: [
-      { id: "company",   label: "Unternehmensprofil", icon: Building2, adminOnly: true },
-    ],
+// ─── Navigation Items ─────────────────────────────────────────────────────────────
+const ADMIN_NAV_ITEMS = [
+  { 
+    id: "company", 
+    label: "Unternehmen", 
+    description: "Firmendaten, Suchgebiet und Zielkunden",
+    icon: Building 
   },
-  {
-    label: "Kommunikation",
-    tabs: [
-      { id: "email",     label: "Absender & Signatur",  icon: Mail,     adminOnly: true },
-      { id: "templates", label: "E-Mail-Vorlagen",       icon: FileText, adminOnly: true },
-    ],
+  { 
+    id: "email", 
+    label: "Kommunikation", 
+    description: "Absender, Logo und E-Mail-Signatur",
+    icon: Mail 
   },
-  {
-    label: "Team",
-    tabs: [
-      { id: "team",      label: "Benutzer & Rollen",    icon: Users,    adminOnly: true },
-    ],
+  { 
+    id: "templates", 
+    label: "Vorlagen", 
+    description: "E-Mail-Vorlagen für alle Anlässe",
+    icon: FileCheck 
   },
-  {
-    label: "Abonnement",
-    tabs: [
-      { id: "billing",   label: "Plan & Verbrauch",     icon: CreditCard, adminOnly: true },
-    ],
+  { 
+    id: "team", 
+    label: "Team", 
+    description: "Benutzer, Rollen und Berechtigungen",
+    icon: Users 
+  },
+  { 
+    id: "billing", 
+    label: "Abonnement", 
+    description: "Plan, Nutzung und Zahlung",
+    icon: Zap 
   },
 ];
 
-// sales_rep only tab
-const SALES_REP_TABS = [
-  { id: "profile", label: "Mein Profil", icon: User, adminOnly: false },
+const SALES_REP_NAV_ITEMS = [
+  { 
+    id: "profile", 
+    label: "Profil", 
+    description: "Ihre persönlichen Kontodaten",
+    icon: User 
+  },
 ];
 
 // Spinner helper
@@ -103,84 +112,54 @@ export default function SettingsPage() {
 
   if (loading) return <Spinner />;
 
-  // Build visible tabs
-  const allAdminTabs = TAB_GROUPS.flatMap(g => g.tabs);
-  const visibleTabs = isAdmin ? allAdminTabs : SALES_REP_TABS;
-  const visibleGroups = isAdmin
-    ? TAB_GROUPS
-    : [{ label: "Profil", tabs: SALES_REP_TABS }];
+  // Build visible tabs (removed - using card navigation now)
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-      <div className="mb-4">
+    <div className="max-w-6xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900">Einstellungen</h1>
         <p className="text-sm font-medium text-slate-700 mt-2">
           {isAdmin
-            ? "Verwalten Sie Ihr Unternehmensprofil, E-Mail-Einstellungen und Ihr Team."
+            ? "Verwalten Sie Ihr Unternehmen, Kommunikation, Team und Abonnement."
             : "Verwalten Sie Ihr persönliches Profil."}
         </p>
       </div>
 
-      {/* Tab Bar mit Gruppen-Labels */}
-      <div className="border-b border-border">
-        {isAdmin ? (
-          <div className="flex gap-0 overflow-x-auto">
-            {visibleGroups.map((group, gi) => (
-              <div key={gi} className="flex items-end">
-                {gi > 0 && <div className="w-px h-6 bg-border self-end mb-0.5 mx-1" />}
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide px-1 mb-1">{group.label}</span>
-                  <div className="flex">
-                    {group.tabs.map(tab => {
-                      const Icon = tab.icon;
-                      const isActive = activeTab === tab.id;
-                      return (
-                        <button
-                          key={tab.id}
-                          onClick={() => setActiveTab(tab.id)}
-                          className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                            isActive
-                              ? "border-primary text-primary"
-                              : "border-transparent text-slate-600 hover:text-slate-900 hover:border-border"
-                          }`}
-                        >
-                          <Icon className="w-3.5 h-3.5" />
-                          {tab.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+      {/* Modern Navigation Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mb-8">
+        {(isAdmin ? ADMIN_NAV_ITEMS : SALES_REP_NAV_ITEMS).map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`flex flex-col items-start p-4 rounded-xl border-2 transition-all text-left ${
+                isActive
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${
+                isActive ? "bg-primary text-white" : "bg-slate-100 text-slate-600"
+              }`}>
+                <Icon className="w-4 h-4" />
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex gap-1">
-            {visibleTabs.map(tab => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    isActive
-                      ? "border-primary text-primary"
-                      : "border-transparent text-slate-600 hover:text-slate-900 hover:border-border"
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        )}
+              <span className={`text-sm font-semibold ${isActive ? "text-primary" : "text-slate-900"}`}>
+                {item.label}
+              </span>
+              <span className="text-[11px] text-slate-600 mt-0.5 line-clamp-2">
+                {item.description}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Tab Content */}
-      <div className="pt-1">
-        {/* Admin Tabs */}
+      {/* Content Area */}
+      <div className="space-y-6">
+        {/* Admin Content */}
         {activeTab === "company"   && isAdmin && <CompanySettings org={org} />}
         {activeTab === "email"     && isAdmin && <EmailSettings org={org} />}
         {activeTab === "templates" && isAdmin && <EmailTemplateSettings />}
@@ -192,27 +171,27 @@ export default function SettingsPage() {
         {/* Sales Rep: Mein Profil */}
         {activeTab === "profile" && (
           <div className="space-y-4">
-            <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
               <h3 className="text-sm font-semibold text-slate-900 mb-1">Mein Konto</h3>
-              <p className="text-xs font-medium text-slate-700 mb-3">Ihre persönlichen Kontodaten.</p>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-slate-700 w-24 shrink-0 font-medium">Name:</span>
+              <p className="text-xs font-medium text-slate-600 mb-4">Ihre persönlichen Kontodaten.</p>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-slate-700 w-28 shrink-0 font-medium">Name:</span>
                   <span className="font-semibold text-slate-900">{currentUser?.full_name || "—"}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-slate-700 w-24 shrink-0 font-medium">E-Mail:</span>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-slate-700 w-28 shrink-0 font-medium">E-Mail:</span>
                   <span className="font-semibold text-slate-900">{currentUser?.email}</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-slate-700 w-24 shrink-0 font-medium">Rolle:</span>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-slate-700 w-28 shrink-0 font-medium">Rolle:</span>
                   <span className="font-semibold text-slate-900">{role === "organization_admin" ? "Admin" : "Vertriebler"}</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-start gap-3 bg-white border border-[#E2E8F0] rounded-xl px-4 py-3 shadow-sm">
-              <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
-              <p className="text-sm font-medium text-slate-700">
+            <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3">
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
+              <p className="text-sm font-medium text-blue-900">
                 Unternehmensprofil, E-Mail-Vorlagen, Team-Verwaltung und Abonnement sind nur für Admins zugänglich.
                 Bitte wenden Sie sich an Ihren Administrator für Änderungen.
               </p>
