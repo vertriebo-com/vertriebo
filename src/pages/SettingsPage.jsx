@@ -13,8 +13,10 @@ import PipelineSettings from "@/components/settings/PipelineSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import EmailTemplateSettings from "@/components/settings/EmailTemplateSettings";
 import SystemInfo from "@/components/settings/SystemInfo";
+import BillingSettings from "@/components/settings/BillingSettings";
 
 const TABS = [
+  { key: "billing",       label: "💳 Abonnement" },
   { key: "users",         label: "Benutzer" },
   { key: "company",       label: "Firmendaten" },
   { key: "pipeline",      label: "Pipeline" },
@@ -27,9 +29,10 @@ const TABS = [
 
 export default function SettingsPage() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [currentOrg, setCurrentOrg] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("users");
+  const [activeTab, setActiveTab] = useState("billing");
   const [selfDeleteOpen, setSelfDeleteOpen] = useState(false);
 
   useEffect(() => {
@@ -43,6 +46,19 @@ export default function SettingsPage() {
     ]);
     setCurrentUser(me);
     setUsers(allUsers);
+    // Org laden für Billing-Tab
+    if (me) {
+      const orgs = await base44.entities.Organization.filter({ owner_email: me.email });
+      let org = orgs?.[0] || null;
+      if (!org) {
+        const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
+        if (memberships?.[0]?.organization_id) {
+          const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+          org = memberOrgs?.[0] || null;
+        }
+      }
+      setCurrentOrg(org);
+    }
     setLoading(false);
   };
 
@@ -84,6 +100,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {activeTab === "billing" && <BillingSettings org={currentOrg} user={currentUser} />}
       {activeTab === "users" && (
         <UserManagement users={users} currentUser={currentUser} onRefresh={loadData} />
       )}
