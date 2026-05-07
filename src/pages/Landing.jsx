@@ -6,7 +6,7 @@ import { base44 } from "@/api/base44Client";
 import HowItWorks from "@/components/landing/HowItWorks";
 import FeaturesCompact from "@/components/landing/FeaturesCompact";
 import TargetIndustriesCompact from "@/components/landing/TargetIndustriesCompact";
-import AppScreenshotsRealistic from "@/components/landing/AppScreenshotsRealistic";
+import ProductShowcase from "@/components/landing/ProductShowcase";
 import PricingFAQ from "@/components/landing/PricingFAQ";
 
 const PLANS = [
@@ -279,7 +279,7 @@ export default function Landing() {
       </div>
 
       {/* E) Produkt-Screenshots / App-Bereiche */}
-      <AppScreenshotsRealistic />
+      <ProductShowcase />
 
       {/* F) Für lokale Dienstleister */}
       <TargetIndustriesCompact />
