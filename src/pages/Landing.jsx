@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Check, Zap, Users, Building2, Phone, ArrowRight, Star, Info } from "lucide-react";
+import { Check, Zap, Building2, Phone, ArrowRight, Star, Info, Target, Mail, TrendingUp, Users, Shield, Calendar, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
@@ -9,21 +9,20 @@ const PLANS = [
     name: "Starter",
     planId: "69fb1b37d7433caf98c34ff9",
     price: "99",
-    description: "Perfekt für Einzelkämpfer",
+    description: "Für Einzelkämpfer",
     color: "border-border",
     features: [
       "2 Vertriebler",
-      "300 gespeicherte Firmenkontakte/Monat",
-      "100 Recherche-Credits/Monat",
+      "300 gespeicherte Firmenkontakte",
+      "100 Recherche-Credits",
       "CRM & Pipeline",
       "KI-Morgenreport",
-      "Google Maps Integration",
       "500 E-Mails/Monat",
     ],
     footnotes: {
-      leads: "Gespeicherte Kontakte in Ihrem CRM",
-      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places",
-      emails: "E-Mails via Brevo inklusive",
+      leads: "Gespeicherte Kontakte in Ihrem CRM – Blacklist ausgenommen",
+      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places API",
+      emails: "E-Mails via Brevo inklusive (SPF/DKIM konfiguriert)",
     },
   },
   {
@@ -35,16 +34,16 @@ const PLANS = [
     popular: true,
     features: [
       "5 Vertriebler",
-      "1.500 gespeicherte Firmenkontakte/Monat",
-      "750 Recherche-Credits/Monat",
+      "1.500 gespeicherte Firmenkontakte",
+      "750 Recherche-Credits",
       "Alle Starter-Features",
       "Erweiterte Reports",
       "Eigene E-Mail-Vorlagen",
       "2.000 E-Mails/Monat",
     ],
     footnotes: {
-      leads: "Gespeicherte Kontakte in Ihrem CRM",
-      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places",
+      leads: "Gespeicherte Kontakte in Ihrem CRM – Blacklist ausgenommen",
+      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places API",
       emails: "E-Mails via Brevo inklusive",
     },
   },
@@ -56,16 +55,16 @@ const PLANS = [
     color: "border-border",
     features: [
       "10 Vertriebler",
-      "5.000 gespeicherte Firmenkontakte/Monat",
-      "2.000 Recherche-Credits/Monat",
+      "5.000 gespeicherte Firmenkontakte",
+      "2.000 Recherche-Credits",
       "Alle Professional-Features",
-      "1.000 KI-Aktionen/Monat",
+      "1.000 KI-Aktionen",
       "5.000 E-Mails/Monat",
       "Priority Support",
     ],
     footnotes: {
       leads: "Gespeicherte Kontakte in Ihrem CRM",
-      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places",
+      credits: "1 Credit = 1 automatischer Lead-Lauf",
       emails: "E-Mails via Brevo inklusive",
       ai: "KI-Aktionen: Lead-Anreicherung, Scoring, Coaching",
     },
@@ -74,22 +73,23 @@ const PLANS = [
     name: "Agency",
     planId: "69fb1b37d7433caf98c34ffb",
     price: "599",
-    description: "Für professionelle Agenturen",
+    description: "Für größere Teams & Agenturen",
     color: "border-border",
     features: [
-      "Unbegrenzte Vertriebler",
-      "15.000 gespeicherte Firmenkontakte/Monat",
-      "5.000 Recherche-Credits/Monat",
+      "Individuelle Vertriebler-Anzahl",
+      "15.000 gespeicherte Firmenkontakte",
+      "5.000 Recherche-Credits",
       "Alle Gold-Features",
-      "3.000 KI-Aktionen/Monat",
+      "3.000 KI-Aktionen",
       "10.000 E-Mails/Monat",
-      "Individuelles Onboarding & Anpassungen",
+      "Persönliches Onboarding",
     ],
     footnotes: {
       leads: "Gespeicherte Kontakte in Ihrem CRM",
-      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places",
+      credits: "1 Credit = 1 automatischer Lead-Lauf",
       emails: "E-Mails via Brevo inklusive",
       ai: "KI-Aktionen: Lead-Anreicherung, Scoring, Coaching",
+      fairuse: "Agency-Plan unterliegt Fair-Use-Richtlinien",
     },
   },
 ];
@@ -97,19 +97,17 @@ const PLANS = [
 const INDUSTRIES = [
   { icon: "🧹", name: "Gebäudereinigung" },
   { icon: "🔒", name: "Sicherheitsdienst" },
+  { icon: "🏠", name: "Hausmeisterdienste" },
+  { icon: "📦", name: "Entrümpelung" },
+  { icon: "🔨", name: "Handwerksbetriebe" },
   { icon: "💻", name: "IT-Service" },
   { icon: "🌿", name: "Gartenbau" },
-  { icon: "🍽️", name: "Catering" },
-  { icon: "🔨", name: "Handwerk" },
   { icon: "🚚", name: "Spedition / Logistik" },
-  { icon: "🏥", name: "Gesundheit / Medizin" },
-  { icon: "🏢", name: "Immobilien" },
-  { icon: "📦", name: "Lager / Fulfillment" },
 ];
 
 function Footnote({ text }) {
   return (
-    <div className="flex items-start gap-1.5 mt-2 text-[10px] text-muted-foreground">
+    <div className="flex items-start gap-1.5 mt-1.5 text-[10px] text-slate-500">
       <Info className="w-3 h-3 shrink-0 mt-0.5 opacity-60" />
       <span className="leading-relaxed opacity-80">{text}</span>
     </div>
@@ -119,7 +117,6 @@ function Footnote({ text }) {
 export default function Landing() {
   const [loading, setLoading] = useState(null);
 
-  // Nach erfolgreichem Checkout → direkt zum Dashboard weiterleiten
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
@@ -143,16 +140,13 @@ export default function Landing() {
     setLoading(plan.name);
     const user = await base44.auth.me().catch(() => null);
     if (!user) {
-      // Nicht eingeloggt → zum Login, danach zurück zum Onboarding mit Plan-Parameter
       base44.auth.redirectToLogin(`${window.location.origin}/onboarding?plan_id=${plan.planId}&plan_name=${encodeURIComponent(plan.name)}`);
       return;
     }
-    // Bereits eingeloggt → prüfen ob Organisation existiert
     try {
       const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
       const org = orgs?.[0];
       if (!org) {
-        // Hat Organisation noch nicht → Onboarding mit Plan starten
         window.location.href = `/onboarding?plan_id=${plan.planId}&plan_name=${encodeURIComponent(plan.name)}`;
         return;
       }
@@ -172,92 +166,226 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: "#0d1117" }}>
+    <div className="min-h-screen bg-white">
       {/* Navbar */}
-      <nav style={{ background: "#0d1b2a" }} className="sticky top-0 z-50 border-b border-white/10">
+      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          {/* Logo */}
           <div className="flex items-center gap-2.5">
-            <img
-              src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/7fe9f4d4d_Logo1HUWA.png"
-              alt="Vertriebo Logo"
-              className="w-8 h-8 object-contain"
-            />
-            <span className="text-white font-bold text-xl tracking-tight">Vertriebo</span>
+            <img src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/7fe9f4d4d_Logo1HUWA.png" alt="Vertriebo Logo" className="w-8 h-8 object-contain" />
+            <span className="text-slate-900 font-bold text-xl tracking-tight">Vertriebo</span>
           </div>
-          {/* Auth Buttons */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={handleLogin}
-              className="px-5 py-2 rounded-lg text-sm font-semibold text-white border border-white/40 hover:border-white/70 hover:bg-white/5 transition-all"
-            >
+            <button onClick={handleLogin} className="px-5 py-2 rounded-lg text-sm font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all">
               Login
             </button>
-            <button
-              onClick={handleRegister}
-              className="px-5 py-2 rounded-lg text-sm font-semibold text-gray-900 hover:opacity-90 transition-all"
-              style={{ background: "#f5c542" }}
-            >
-              Registrieren
+            <button onClick={handleRegister} className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all">
+              Kostenlos testen
             </button>
           </div>
         </div>
       </nav>
 
       {/* Hero */}
-      <div className="relative overflow-hidden border-b border-white/10" style={{ background: "#0d1b2a" }}>
+      <div className="relative overflow-hidden bg-slate-50 border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-6 py-24 text-center">
-          <div className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full mb-6" style={{ background: "rgba(99,179,237,0.12)", color: "#63b3ed" }}>
-            <Zap className="w-3.5 h-3.5" /> KI-gestütztes Vertriebs-CRM
+          <div className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-full mb-6 bg-blue-50 text-blue-700 border border-blue-200">
+            <Zap className="w-3.5 h-3.5" /> Vertriebsmaschine für lokale Dienstleister
           </div>
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 text-white">
-            Mehr Kunden.<br />Weniger Aufwand.
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 text-slate-900 leading-tight">
+            Mehr Firmenkunden gewinnen –<br />ohne chaotische Listen und vergessene Rückrufe.
           </h1>
-          <p className="text-lg max-w-2xl mx-auto mb-10" style={{ color: "rgba(255,255,255,0.65)" }}>
-            Vertriebo ist Ihre komplette Vertriebsmaschine für lokale Dienstleister.
-            Automatisierte Lead-Generierung, intelligente Priorisierung und ein CRM, das Ihr Team tatsächlich nutzt.
+          <p className="text-lg max-w-3xl mx-auto mb-10 text-slate-600 leading-relaxed">
+            Vertriebo findet passende Firmenkontakte, organisiert Ihre Vertriebsarbeit und zeigt Ihrem Team jeden Tag, 
+            welche Leads als Nächstes dran sind.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
             <button
               onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}
-              className="px-8 py-3.5 rounded-xl text-base font-bold text-white transition-all hover:opacity-90"
-              style={{ background: "linear-gradient(135deg, #38d9a9, #20c997)" }}
+              className="px-8 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/20"
             >
               Jetzt starten
             </button>
+            <a
+              href="#features"
+              className="px-8 py-3.5 rounded-xl text-base font-bold text-slate-700 border border-slate-300 bg-white hover:bg-slate-50 transition-all"
+            >
+              Wie es funktioniert
+            </a>
+          </div>
+          
+          {/* Trust Elements */}
+          <div className="mt-12 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500">
+            <div className="flex items-center gap-1.5">
+              <Check className="w-4 h-4 text-emerald-600" />
+              <span>Monatlich kündbar</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Check className="w-4 h-4 text-emerald-600" />
+              <span>Keine versteckten Kosten</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Check className="w-4 h-4 text-emerald-600" />
+              <span>DSGVO-orientierte Mandantentrennung</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Check className="w-4 h-4 text-emerald-600" />
+              <span>Stripe-Abrechnung</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Branchen */}
-      <div className="max-w-5xl mx-auto px-6 py-14">
-        <p className="text-center text-sm font-semibold uppercase tracking-wider mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>Für alle Dienstleistungsbranchen</p>
-        <div className="flex flex-wrap justify-center gap-3">
-          {INDUSTRIES.map(ind => (
-            <span key={ind.name} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-white" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
-              {ind.icon} {ind.name}
-            </span>
-          ))}
+      {/* Problem → Lösung */}
+      <div className="max-w-6xl mx-auto px-6 py-20">
+        <div className="grid lg:grid-cols-2 gap-12">
+          {/* Problem */}
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">Kenn Sie das?</h2>
+            <div className="space-y-4">
+              {[
+                "Firmenkontakte werden manuell in Excel gesucht",
+                "Rückrufe gehen im Tagesgeschäft unter",
+                "Vertriebler arbeiten ohne klare Prioritäten",
+                "E-Mail-Vorlagen fehlen oder sind veraltet",
+                "Follow-ups werden vergessen",
+                "Niemand sieht, was wirklich im Vertrieb passiert",
+              ].map((problem, i) => (
+                <div key={i} className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200">
+                  <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-white text-xs font-bold">✕</span>
+                  </div>
+                  <p className="text-sm text-red-900 font-medium">{problem}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Lösung */}
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">Mit Vertriebo anders:</h2>
+            <div className="space-y-4">
+              {[
+                "Automatische Firmenkontakte-Recherche via Google Places",
+                "KI-priorisierte Leads – Sie wissen, wen Sie zuerst anrufen",
+                "Tägliche Aufgaben & Rückrufe – klar und verbindlich",
+                "E-Mail-Vorlagen & Signaturen – professionell & konsistent",
+                "Automatische Follow-ups – kein Lead geht verloren",
+                "Vertriebs-Reports – sehen Sie, was Ihr Team leistet",
+              ].map((solution, i) => (
+                <div key={i} className="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-3 h-3 text-white" />
+                  </div>
+                  <p className="text-sm text-emerald-900 font-medium">{solution}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Features */}
-      <div className="border-y py-14" style={{ background: "#111827", borderColor: "rgba(255,255,255,0.08)" }}>
-        <div className="max-w-5xl mx-auto px-6">
-          <h2 className="text-2xl font-bold text-center mb-10 text-white">Was ist drin?</h2>
-          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
+      <div id="features" className="bg-slate-50 border-y border-slate-200 py-20">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2 className="text-3xl font-bold text-center mb-4 text-slate-900">Ihr komplettes Vertriebssystem</h2>
+          <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
+            Alles, was Sie für systematische Neukundengewinnung brauchen – in einer Plattform.
+          </p>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: <Zap className="w-5 h-5" style={{ color: "#63b3ed" }} />, title: "Automatische Leads", desc: "Google Places generiert täglich neue Firmenkontakte in deinem Umkreis." },
-              { icon: <Phone className="w-5 h-5" style={{ color: "#63b3ed" }} />, title: "\"Heute anrufen\"", desc: "Das System schlägt täglich die beste Firma zum Anrufen vor." },
-              { icon: <Star className="w-5 h-5" style={{ color: "#63b3ed" }} />, title: "KI-Morgenreport", desc: "Jeder Vertriebler bekommt täglich seine Aufgaben und Rückrufe per E-Mail." },
-              { icon: <Users className="w-5 h-5" style={{ color: "#63b3ed" }} />, title: "Team-Management", desc: "Aufgaben zuweisen, Fortschritt verfolgen, Teamziele setzen." },
-              { icon: <Building2 className="w-5 h-5" style={{ color: "#63b3ed" }} />, title: "Vollständiges CRM", desc: "Pipeline, Kontakthistorie, Notizen, Dokumente – alles an einem Ort." },
-              { icon: <ArrowRight className="w-5 h-5" style={{ color: "#63b3ed" }} />, title: "Branchen-Templates", desc: "Vorkonfiguriert für deine Branche – sofort startklar in Minuten." },
+              {
+                icon: <Building2 className="w-6 h-6 text-blue-600" />,
+                title: "Firmenkontakte recherchieren",
+                desc: "Google Places Integration findet automatisch passende Firmen in Ihrem Zielgebiet. Branche, PLZ, Umkreis – alles konfigurierbar.",
+              },
+              {
+                icon: <Target className="w-6 h-6 text-blue-600" />,
+                title: "Leads priorisieren",
+                desc: "KI-basiertes Scoring zeigt Ihnen, welche Firmen am vielversprechendsten sind. Heiße Leads zuerst, Kalte später.",
+              },
+              {
+                icon: <Phone className="w-6 h-6 text-blue-600" />,
+                title: "Rückrufe organisieren",
+                desc: "Das System erstellt automatisch Rückruf-Aufgaben. Mit Fristen, Erinnerungen und Eskalation bei Nicht-Erledigung.",
+              },
+              {
+                icon: <Mail className="w-6 h-6 text-blue-600" />,
+                title: "E-Mail-Vorlagen & Signaturen",
+                desc: "Professionelle Vorlagen für Erstkontakt, Angebote, Nachfassen. Mit Ihrem Logo, Ihrer Signatur, Ihrem Branding.",
+              },
+              {
+                icon: <TrendingUp className="w-6 h-6 text-blue-600" />,
+                title: "Vertrieb messbar machen",
+                desc: "Reports zeigen: Anrufe pro Tag, gewonnene Leads, Conversion-Raten. Sie sehen genau, was Ihr Team leistet.",
+              },
+              {
+                icon: <Users className="w-6 h-6 text-blue-600" />,
+                title: "Team & Rollen",
+                desc: "Vertriebler, Admins, Organisation-Admins. Jeder sieht nur seine Leads. Mandantentrennung garantiert Datenschutz.",
+              },
+              {
+                icon: <Calendar className="w-6 h-6 text-blue-600" />,
+                title: "Pipeline-Management",
+                desc: "7 Stufen von 'Neu' bis 'Gewonnen'. Sie sehen jederzeit, wo jeder Lead steht und was als Nächstes zu tun ist.",
+              },
+              {
+                icon: <FileText className="w-6 h-6 text-blue-600" />,
+                title: "Dokumente & Notizen",
+                desc: "Alle Informationen zu jedem Lead an einem Ort. Kontaktdetails, Historie, Notizen, Anhänge – sofort griffbereit.",
+              },
+              {
+                icon: <Shield className="w-6 h-6 text-blue-600" />,
+                title: "DSGVO-konform",
+                desc: "Jede Organisation hat ihre eigenen Daten. Keine Vermischung. Blacklist-Funktion schützt vor unerwünschten Kontakten.",
+              },
             ].map(f => (
-              <div key={f.title} className="rounded-xl p-5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="mb-3">{f.icon}</div>
-                <h3 className="font-semibold mb-1 text-white">{f.title}</h3>
-                <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>{f.desc}</p>
+              <div key={f.title} className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center mb-4">
+                  {f.icon}
+                </div>
+                <h3 className="font-bold text-slate-900 mb-2">{f.title}</h3>
+                <p className="text-sm text-slate-600 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Zielgruppe */}
+      <div className="max-w-6xl mx-auto px-6 py-20">
+        <h2 className="text-3xl font-bold text-center mb-4 text-slate-900">Für lokale Dienstleister</h2>
+        <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
+          Vertriebo wurde von Vertriebsprofis für Dienstleister entwickelt.
+        </p>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {INDUSTRIES.map(ind => (
+            <div key={ind.name} className="flex flex-col items-center gap-3 p-6 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 transition-colors">
+              <span className="text-4xl">{ind.icon}</span>
+              <span className="text-sm font-semibold text-slate-900 text-center">{ind.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* App Screenshots Placeholder */}
+      <div className="bg-slate-900 py-20">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2 className="text-3xl font-bold text-center mb-12 text-white">So arbeitet Ihr Team mit Vertriebo</h2>
+          <div className="grid md:grid-cols-2 gap-6">
+            {[
+              { title: "Dashboard", desc: "Tagesaufgaben & Prioritäten auf einen Blick" },
+              { title: "Leads-Übersicht", desc: "Alle Firmenkontakte mit Status & Priorität" },
+              { title: "LeadDetail", desc: "Komplette Historie, Aufgaben, E-Mails" },
+              { title: "E-Mail-Vorlagen", desc: "Professionelle Templates mit Logo" },
+            ].map((shot, i) => (
+              <div key={i} className="bg-slate-800 rounded-xl p-8 border border-slate-700">
+                <div className="aspect-video bg-slate-700 rounded-lg mb-4 flex items-center justify-center">
+                  <span className="text-slate-500 text-sm">Screenshot: {shot.title}</span>
+                </div>
+                <h3 className="font-bold text-white mb-1">{shot.title}</h3>
+                <p className="text-sm text-slate-400">{shot.desc}</p>
               </div>
             ))}
           </div>
@@ -265,39 +393,42 @@ export default function Landing() {
       </div>
 
       {/* Pricing */}
-      <div id="pricing" className="max-w-6xl mx-auto px-6 py-16">
-        <h2 className="text-2xl font-bold text-center mb-2 text-white">Einfache Preise</h2>
-        <p className="text-center mb-4" style={{ color: "rgba(255,255,255,0.5)" }}>Monatlich kündbar. Keine versteckten Kosten.</p>
+      <div id="pricing" className="max-w-6xl mx-auto px-6 py-20">
+        <h2 className="text-3xl font-bold text-center mb-4 text-slate-900">Einfache, transparente Preise</h2>
+        <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
+          Monatlich kündbar. Keine versteckten Kosten. Alle Features inklusive.
+        </p>
         
         {/* Legende */}
-        <div className="max-w-3xl mx-auto mb-8 p-4 rounded-xl" style={{ background: "rgba(99,179,237,0.08)", border: "1px solid rgba(99,179,237,0.2)" }}>
-          <div className="grid sm:grid-cols-2 gap-3 text-xs">
+        <div className="max-w-4xl mx-auto mb-10 p-5 rounded-xl bg-blue-50 border border-blue-200">
+          <h3 className="text-sm font-bold text-blue-900 mb-3">Wichtige Begriffe:</h3>
+          <div className="grid md:grid-cols-2 gap-4 text-xs">
             <div className="flex items-start gap-2">
-              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#63b3ed" }} />
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
-                <strong style={{ color: "#63b3ed" }}>Gespeicherte Firmenkontakte:</strong>
-                <span className="opacity-80 ml-1">Kontakte in Ihrem CRM (Blacklist ausgenommen)</span>
+                <strong className="text-blue-900">Gespeicherte Firmenkontakte:</strong>
+                <span className="text-slate-700 ml-1">Kontakte in Ihrem CRM (Blacklist ausgenommen). Keine „Leads pro Monat" – Sie behalten alle Kontakte dauerhaft.</span>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#63b3ed" }} />
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
-                <strong style={{ color: "#63b3ed" }}>Recherche-Credits:</strong>
-                <span className="opacity-80 ml-1">1 Credit = 1 automatischer Lead-Lauf via Google Places API</span>
+                <strong className="text-blue-900">Recherche-Credits:</strong>
+                <span className="text-slate-700 ml-1">1 Credit = 1 automatischer Lead-Lauf via Google Places API. Keine garantierten Kundenanfragen.</span>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#63b3ed" }} />
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
-                <strong style={{ color: "#63b3ed" }}>KI-Aktionen:</strong>
-                <span className="opacity-80 ml-1">Lead-Anreicherung, Scoring, Coaching – kombiniert KI & Web-Recherche</span>
+                <strong className="text-blue-900">KI-Aktionen:</strong>
+                <span className="text-slate-700 ml-1">Lead-Anreicherung, Scoring, Coaching – kombiniert KI & Web-Recherche.</span>
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: "#63b3ed" }} />
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
-                <strong style={{ color: "#63b3ed" }}>E-Mail-Versand:</strong>
-                <span className="opacity-80 ml-1">Alle E-Mails via Brevo inklusive (SPF/DKIM konfiguriert)</span>
+                <strong className="text-blue-900">E-Mail-Versand:</strong>
+                <span className="text-slate-700 ml-1">Alle E-Mails via Brevo inklusive (SPF/DKIM konfiguriert). Ihre Reply-To-Adresse.</span>
               </div>
             </div>
           </div>
@@ -307,69 +438,89 @@ export default function Landing() {
           {PLANS.map(plan => (
             <div
               key={plan.name}
-              className="rounded-2xl p-6 relative flex flex-col"
+              className="rounded-2xl p-6 relative flex flex-col border-2 bg-white"
               style={{
-                background: plan.popular ? "rgba(99,179,237,0.1)" : "rgba(255,255,255,0.04)",
-                border: plan.popular ? "2px solid #63b3ed" : "1px solid rgba(255,255,255,0.1)"
+                borderColor: plan.popular ? "#2563EB" : "#E2E8F0",
+                boxShadow: plan.popular ? "0 4px 24px rgba(37,99,235,0.15)" : "none"
               }}
             >
               {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full text-white" style={{ background: "#63b3ed" }}>
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full text-white bg-blue-600">
                   Beliebtester Plan
                 </div>
               )}
               <div className="mb-4">
-                <h3 className="text-lg font-bold text-white">{plan.name}</h3>
-                <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>{plan.description}</p>
+                <h3 className="text-lg font-bold text-slate-900">{plan.name}</h3>
+                <p className="text-sm text-slate-600">{plan.description}</p>
               </div>
               <div className="mb-6">
-                <span className="text-4xl font-extrabold text-white">{plan.price}€</span>
-                <span className="text-sm ml-1" style={{ color: "rgba(255,255,255,0.5)" }}>/Monat</span>
+                <span className="text-4xl font-extrabold text-slate-900">{plan.price}€</span>
+                <span className="text-sm ml-1 text-slate-500">/Monat</span>
               </div>
-              <ul className="space-y-2 mb-6 flex-1">
+              <ul className="space-y-2.5 mb-6 flex-1">
                 {plan.features.map(f => (
-                  <li key={f} className="flex items-center gap-2 text-sm" style={{ color: "rgba(255,255,255,0.75)" }}>
-                    <Check className="w-4 h-4 flex-shrink-0" style={{ color: "#38d9a9" }} />
+                  <li key={f} className="flex items-start gap-2 text-sm text-slate-700">
+                    <Check className="w-4 h-4 flex-shrink-0 text-emerald-600 mt-0.5" />
                     {f}
                   </li>
                 ))}
               </ul>
               
               {/* Footnotes */}
-              <div className="mb-6 space-y-1.5">
+              <div className="mb-6 space-y-1">
                 {plan.footnotes.leads && <Footnote text={plan.footnotes.leads} />}
                 {plan.footnotes.credits && <Footnote text={plan.footnotes.credits} />}
                 {plan.footnotes.emails && <Footnote text={plan.footnotes.emails} />}
                 {plan.footnotes.ai && <Footnote text={plan.footnotes.ai} />}
+                {plan.footnotes.fairuse && <Footnote text={plan.footnotes.fairuse} />}
               </div>
 
               <button
                 onClick={() => handleCheckout(plan)}
                 disabled={loading === plan.name}
-                className="w-full py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-50"
-                style={plan.popular
-                  ? { background: "#63b3ed", color: "#0d1117" }
-                  : { background: "rgba(255,255,255,0.08)", color: "white", border: "1px solid rgba(255,255,255,0.2)" }
-                }
+                className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 ${
+                  plan.popular
+                    ? "bg-blue-600 text-white hover:bg-blue-700"
+                    : "bg-slate-100 text-slate-900 hover:bg-slate-200"
+                }`}
               >
                 {loading === plan.name ? "Wird geladen..." : "Jetzt starten"}
               </button>
             </div>
           ))}
         </div>
-        <p className="text-center text-xs mt-6" style={{ color: "rgba(255,255,255,0.35)" }}>
-          Monatlich kündbar · Alle Preise zzgl. MwSt. · Fair-Use für Agency-Plan
+        
+        <p className="text-center text-xs text-slate-500 mt-8">
+          Alle Preise zzgl. MwSt. · Monatlich kündbar · Fair-Use für Agency-Plan
         </p>
       </div>
 
+      {/* Final CTA */}
+      <div className="bg-blue-600 py-20">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Starten Sie mit Vertriebo und bringen Sie Struktur in Ihre Neukundengewinnung.
+          </h2>
+          <p className="text-blue-100 mb-8 max-w-2xl mx-auto">
+            Keine Excel-Listen mehr. Keine vergessenen Rückrufe. Ein klares System für Ihren Vertriebserfolg.
+          </p>
+          <button
+            onClick={handleRegister}
+            className="px-8 py-4 rounded-xl text-base font-bold text-blue-600 bg-white hover:bg-blue-50 transition-all shadow-lg"
+          >
+            Kostenlos testen →
+          </button>
+        </div>
+      </div>
+
       {/* Footer */}
-      <div className="py-8 text-center text-sm" style={{ borderTop: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.35)" }}>
-        <p className="mb-3">© 2026 Vertriebo · Ein Produkt der Huwa Gebäudereinigung & Hausmeisterdienste GmbH</p>
-        <div className="flex flex-wrap justify-center gap-4">
-          <a href="/impressum" className="hover:text-white transition-colors">Impressum</a>
-          <a href="/datenschutz" className="hover:text-white transition-colors">Datenschutz</a>
-          <a href="/agb" className="hover:text-white transition-colors">AGB</a>
-          <a href="mailto:info@huwa-gebaeudedienste.de" className="hover:text-white transition-colors">Kontakt</a>
+      <div className="py-10 text-center text-sm text-slate-500 border-t border-slate-200 bg-white">
+        <p className="mb-4">© 2026 Vertriebo · Ein Produkt der Huwa Gebäudereinigung & Hausmeisterdienste GmbH</p>
+        <div className="flex flex-wrap justify-center gap-6">
+          <a href="/impressum" className="hover:text-slate-900 transition-colors">Impressum</a>
+          <a href="/datenschutz" className="hover:text-slate-900 transition-colors">Datenschutz</a>
+          <a href="/agb" className="hover:text-slate-900 transition-colors">AGB</a>
+          <a href="mailto:info@huwa-gebaeudedienste.de" className="hover:text-slate-900 transition-colors">Kontakt</a>
         </div>
       </div>
     </div>
