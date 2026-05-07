@@ -81,8 +81,8 @@ export default function BlacklistPage() {
   return (
     <div className="space-y-5 max-w-3xl">
       <div className="mb-2">
-        <h1 className="text-3xl font-bold text-foreground">Blacklist</h1>
-        <p className="text-sm text-slate-600 font-medium mt-2">{entries.length} Einträge gesperrt</p>
+        <h1 className="text-3xl font-bold text-slate-900">Blacklist</h1>
+        <p className="text-sm font-medium text-slate-700 mt-2">{entries.length} Einträge gesperrt</p>
       </div>
 
       <div className="flex justify-end">
@@ -108,10 +108,10 @@ export default function BlacklistPage() {
           </div>
         ))}
         {entries.length === 0 && (
-          <div className="bg-white border border-slate-200 rounded-xl p-16 text-center shadow-sm">
+          <div className="bg-white border border-[#E2E8F0] rounded-xl p-16 text-center shadow-sm">
             <Ban className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm font-semibold text-foreground">Keine Einträge auf der Blacklist</p>
-            <p className="text-xs text-slate-600 mt-1 font-medium">Alle Firmen sind kontaktierbar</p>
+            <p className="text-sm font-semibold text-slate-900">Keine Einträge auf der Blacklist</p>
+            <p className="text-xs font-medium text-slate-700 mt-1">Alle Firmen sind kontaktierbar</p>
           </div>
         )}
       </div>

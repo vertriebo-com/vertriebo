@@ -91,8 +91,8 @@ export default function MapView() {
     <div className="space-y-4 flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold">Karte</h1>
-          <p className="text-sm text-muted-foreground">{withCoords} von {total} Leads mit Koordinaten</p>
+          <h1 className="text-xl font-bold text-slate-900">Karte</h1>
+          <p className="text-sm font-medium text-slate-700">{withCoords} von {total} Leads mit Koordinaten</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -133,7 +133,7 @@ export default function MapView() {
         </div>
       )}
 
-      <div className="rounded-xl overflow-hidden border border-border" style={{ height: "600px" }}>
+      <div className="rounded-xl overflow-hidden border border-[#E2E8F0]" style={{ height: "600px" }}>
         {!loading && !filterLoading && (
           <MapContainer center={NEUWIED} zoom={11} style={{ height: "600px", width: "100%" }}>
             <TileLayer

@@ -97,17 +97,17 @@ export default function Documents() {
     <div className="space-y-6 max-w-3xl">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dokumente</h1>
-          <p className="text-sm text-slate-600 font-medium mt-2">Verwaltung von Dokumenten und Unterlagen</p>
+          <h1 className="text-3xl font-bold text-slate-900">Dokumente</h1>
+          <p className="text-sm font-medium text-slate-700 mt-2">Verwaltung von Dokumenten und Unterlagen</p>
         </div>
       </div>
 
       {/* Upload (nur Admin) */}
       {isAdmin && (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-            <Upload className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold text-foreground">Dokument hochladen</h3>
+        <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm">
+          <div className="px-5 py-4 border-b border-[#E2E8F0] flex items-center gap-2">
+            <Upload className="w-4 h-4 text-blue-600" />
+            <h3 className="text-sm font-semibold text-slate-900">Dokument hochladen</h3>
           </div>
           <div className="px-5 py-4 space-y-3">
             <div className="grid sm:grid-cols-2 gap-3">
@@ -156,21 +156,21 @@ export default function Documents() {
       )}
 
       {/* Dokumentenliste */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-          <FolderOpen className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">Dokumente ({documents.length})</h3>
+      <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm">
+        <div className="px-5 py-4 border-b border-[#E2E8F0] flex items-center gap-2">
+          <FolderOpen className="w-4 h-4 text-blue-600" />
+          <h3 className="text-sm font-semibold text-slate-900">Dokumente ({documents.length})</h3>
         </div>
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-[#E2E8F0]">
           {documents.map(doc => (
             <div key={doc.id} className="px-5 py-4 flex items-center gap-3 hover:bg-slate-50 transition-colors">
               <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0 border border-red-100">
                 <FileText className="w-5 h-5 text-red-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{doc.titel}</p>
+                <p className="text-sm font-medium text-slate-900 truncate">{doc.titel}</p>
                 {doc.beschreibung && (
-                  <p className="text-xs text-slate-600 truncate mt-0.5">{doc.beschreibung}</p>
+                  <p className="text-xs font-medium text-slate-700 truncate mt-0.5">{doc.beschreibung}</p>
                 )}
                 <p className="text-[11px] text-slate-500 mt-1">{doc.dateiname}</p>
               </div>
@@ -194,8 +194,8 @@ export default function Documents() {
           {documents.length === 0 && (
             <div className="px-5 py-16 text-center">
               <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-sm font-medium text-foreground">Keine Dokumente vorhanden</p>
-              <p className="text-xs text-slate-600 mt-1">Laden Sie ein Dokument hoch, um es hier anzuzeigen</p>
+              <p className="text-sm font-semibold text-slate-900">Keine Dokumente vorhanden</p>
+              <p className="text-xs font-medium text-slate-700 mt-1">Laden Sie ein Dokument hoch, um es hier anzuzeigen</p>
             </div>
           )}
         </div>

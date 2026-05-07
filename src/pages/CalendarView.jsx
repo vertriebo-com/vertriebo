@@ -119,10 +119,10 @@ export default function CalendarView() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
-            <Calendar className="w-6 h-6 text-primary" /> Kalender
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-slate-900">
+            <Calendar className="w-6 h-6 text-blue-600" /> Kalender
           </h1>
-          <p className="text-sm text-slate-600 font-medium mt-2">
+          <p className="text-sm font-medium text-slate-700 mt-2">
             {view === "week"
               ? `KW ${startOfWeek.isoWeek()} · ${startOfWeek.format("D. MMM")} – ${startOfWeek.clone().add(6, "days").format("D. MMM YYYY")}`
               : currentMonth.format("MMMM YYYY")}
@@ -152,7 +152,7 @@ export default function CalendarView() {
 
       {/* Termin-Banner */}
       {termins.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
           <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-3">🗓 Offene Termine</p>
           <div className="flex flex-wrap gap-2">
             {termins.map(c => (
@@ -261,7 +261,7 @@ export default function CalendarView() {
 
         {/* Day Detail Panel */}
         {selectedDay && (
-          <div className="w-72 shrink-0 bg-white border border-slate-200 rounded-xl p-4 space-y-3 self-start sticky top-4">
+          <div className="w-72 shrink-0 bg-white border border-[#E2E8F0] rounded-xl p-4 space-y-3 self-start sticky top-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-muted-foreground">{DAYS_LONG[selectedDay.isoWeekday() - 1]}</p>

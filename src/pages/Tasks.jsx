@@ -103,8 +103,8 @@ export default function Tasks() {
       )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Aufgaben</h1>
-          <p className="text-sm text-slate-600 font-medium mt-1">
+          <h1 className="text-3xl font-bold text-slate-900">Aufgaben</h1>
+          <p className="text-sm font-medium text-slate-700 mt-1">
             {openCount} offen{overdueCount > 0 && ` · ${overdueCount} überfällig`}
           </p>
         </div>
@@ -129,7 +129,7 @@ export default function Tasks() {
             <div
               key={task.id}
               className={`bg-white border rounded-xl p-4 flex items-start gap-3 transition-all ${
-                isOverdue ? "border-red-200 bg-red-50/50" : "border-slate-200"
+                isOverdue ? "border-red-200 bg-red-50/50" : "border-[#E2E8F0]"
               }`}
             >
               <input
@@ -140,14 +140,14 @@ export default function Tasks() {
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className={`text-sm font-medium ${task.erledigt ? "line-through text-slate-400" : "text-foreground"}`}>
+                  <p className={`text-sm font-medium ${task.erledigt ? "line-through text-slate-400" : "text-slate-900"}`}>
                     {task.titel}
                   </p>
                   <PriorityBadge priority={task.prioritaet} />
                   <span className="text-[10px] font-medium bg-slate-100 text-slate-700 px-2 py-1 rounded">{task.typ}</span>
                 </div>
                 {task.company_name && (
-                  <Link to={`/leads/${task.company_id}`} className="text-xs text-primary font-medium hover:underline mt-1 block">
+                  <Link to={`/leads/${task.company_id}`} className="text-xs font-medium text-blue-600 hover:underline mt-1 block">
                     {task.company_name}
                   </Link>
                 )}
@@ -168,10 +168,10 @@ export default function Tasks() {
           );
         })}
         {filtered.length === 0 && (
-          <div className="bg-white border border-slate-200 rounded-xl text-center py-16">
+          <div className="bg-white border border-[#E2E8F0] rounded-xl text-center py-16">
             <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm font-medium text-foreground">Alle Aufgaben erledigt!</p>
-            <p className="text-xs text-slate-600 mt-1">Keine ausstehenden Aufgaben</p>
+            <p className="text-sm font-semibold text-slate-900">Alle Aufgaben erledigt!</p>
+            <p className="text-xs font-medium text-slate-700 mt-1">Keine ausstehenden Aufgaben</p>
           </div>
         )}
       </div>

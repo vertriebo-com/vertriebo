@@ -122,23 +122,23 @@ export default function DuplicatesPage() {
   return (
     <div className="space-y-5 max-w-4xl">
       <div className="mb-2">
-        <h1 className="text-3xl font-bold text-foreground">Duplikate</h1>
-        <p className="text-sm text-slate-600 font-medium mt-2">
+        <h1 className="text-3xl font-bold text-slate-900">Duplikate</h1>
+        <p className="text-sm font-medium text-slate-700 mt-2">
           {groups.length === 0 ? "Keine Duplikate gefunden ✓" : `${groups.length} Gruppe(n) ähnlicher Firmen gefunden`}
         </p>
       </div>
 
       {groups.length === 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center shadow-sm">
-          <GitMerge className="w-12 h-12 mx-auto mb-3 text-emerald-500" />
-          <p className="text-sm font-semibold text-foreground">Keine möglichen Duplikate gefunden</p>
-          <p className="text-xs text-slate-600 mt-1 font-medium">Deine Daten sind sauber organisiert</p>
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-12 text-center shadow-sm">
+          <GitMerge className="w-12 h-12 mx-auto mb-3 text-emerald-600" />
+          <p className="text-sm font-semibold text-slate-900">Keine möglichen Duplikate gefunden</p>
+          <p className="text-xs font-medium text-slate-700 mt-1">Deine Daten sind sauber organisiert</p>
         </div>
       )}
 
       {groups.map((group, gi) => (
-        <div key={gi} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
-          <div className="px-5 py-3 border-b border-slate-100 bg-amber-50 flex items-center justify-between">
+        <div key={gi} className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm">
+          <div className="px-5 py-3 border-b border-[#E2E8F0] bg-amber-50 flex items-center justify-between">
             <span className="text-xs font-semibold text-amber-700">
               ⚠️ {group.length} ähnliche Firmen
             </span>
@@ -152,13 +152,13 @@ export default function DuplicatesPage() {
               Zusammenführen
             </Button>
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-[#E2E8F0]">
             {group.map(c => (
               <div key={c.id} className="px-5 py-3 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
                   <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground truncate">{c.name}</p>
+                    <p className="text-sm font-semibold text-slate-900 truncate">{c.name}</p>
                     <p className="text-xs text-slate-600 font-medium mt-0.5">
                       {[c.ort, c.telefon, c.email].filter(Boolean).join(" · ") || "Keine weiteren Daten"}
                     </p>

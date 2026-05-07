@@ -113,8 +113,8 @@ export default function SettingsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       <div className="mb-4">
-        <h1 className="text-3xl font-bold text-foreground">Einstellungen</h1>
-        <p className="text-sm text-slate-600 font-medium mt-2">
+        <h1 className="text-3xl font-bold text-slate-900">Einstellungen</h1>
+        <p className="text-sm font-medium text-slate-700 mt-2">
           {isAdmin
             ? "Verwalten Sie Ihr Unternehmensprofil, E-Mail-Einstellungen und Ihr Team."
             : "Verwalten Sie Ihr persönliches Profil."}
@@ -192,27 +192,27 @@ export default function SettingsPage() {
         {/* Sales Rep: Mein Profil */}
         {activeTab === "profile" && (
           <div className="space-y-4">
-            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-foreground mb-1">Mein Konto</h3>
-              <p className="text-xs text-slate-600 mb-3 font-medium">Ihre persönlichen Kontodaten.</p>
+            <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-slate-900 mb-1">Mein Konto</h3>
+              <p className="text-xs font-medium text-slate-700 mb-3">Ihre persönlichen Kontodaten.</p>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-slate-600 w-24 shrink-0 font-medium">Name:</span>
-                  <span className="font-semibold text-foreground">{currentUser?.full_name || "—"}</span>
+                  <span className="text-slate-700 w-24 shrink-0 font-medium">Name:</span>
+                  <span className="font-semibold text-slate-900">{currentUser?.full_name || "—"}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-slate-600 w-24 shrink-0 font-medium">E-Mail:</span>
-                  <span className="font-semibold text-foreground">{currentUser?.email}</span>
+                  <span className="text-slate-700 w-24 shrink-0 font-medium">E-Mail:</span>
+                  <span className="font-semibold text-slate-900">{currentUser?.email}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-slate-600 w-24 shrink-0 font-medium">Rolle:</span>
-                  <span className="font-semibold text-foreground">{role === "organization_admin" ? "Admin" : "Vertriebler"}</span>
+                  <span className="text-slate-700 w-24 shrink-0 font-medium">Rolle:</span>
+                  <span className="font-semibold text-slate-900">{role === "organization_admin" ? "Admin" : "Vertriebler"}</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-start gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+            <div className="flex items-start gap-3 bg-white border border-[#E2E8F0] rounded-xl px-4 py-3 shadow-sm">
               <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
-              <p className="text-sm text-slate-600 font-medium">
+              <p className="text-sm font-medium text-slate-700">
                 Unternehmensprofil, E-Mail-Vorlagen, Team-Verwaltung und Abonnement sind nur für Admins zugänglich.
                 Bitte wenden Sie sich an Ihren Administrator für Änderungen.
               </p>
