@@ -57,6 +57,7 @@ const Spinner = () => (
 const PublicApp = () => {
   return (
     <Routes>
+      <Route path="/" element={<Landing />} />
       <Route path="/landing" element={<Landing />} />
       <Route path="/onboarding" element={<Onboarding />} />
       <Route path="/impressum" element={<Impressum />} />
@@ -115,7 +116,7 @@ const AuthenticatedApp = () => {
     <OnboardingGuard>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<AnimatedRoutes><Dashboard /></AnimatedRoutes>} />
+          <Route path="/dashboard" element={<AnimatedRoutes><Dashboard /></AnimatedRoutes>} />
           <Route path="/leads" element={<AnimatedRoutes><Leads /></AnimatedRoutes>} />
           <Route path="/leads/:id" element={<AnimatedRoutes><LeadDetail /></AnimatedRoutes>} />
           <Route path="/tasks" element={<AnimatedRoutes><Tasks /></AnimatedRoutes>} />

@@ -89,7 +89,7 @@ export default function Landing() {
   const [loading, setLoading] = useState(null);
 
   const handleLogin = () => {
-    base44.auth.redirectToLogin(window.location.origin + "/");
+    base44.auth.redirectToLogin(window.location.origin + "/dashboard");
   };
 
   const handleRegister = () => {

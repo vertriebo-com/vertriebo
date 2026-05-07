@@ -23,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
-  { path: "/", label: "Dashboard", icon: LayoutDashboard },
+  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/leads", label: "Leads", icon: Building2 },
   { path: "/map", label: "Karte", icon: Map },
   { path: "/tasks", label: "Aufgaben", icon: ListTodo },
