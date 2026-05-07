@@ -4,39 +4,30 @@ import { Link } from "react-router-dom";
 import { usePullToRefresh } from "../hooks/usePullToRefresh";
 import { toast } from "sonner";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Search,
   Plus,
-  Building2,
-  MapPin,
-  Phone,
-  PhoneOff,
-  Trash2,
-  Flame,
   Download,
   SlidersHorizontal,
   ArrowUpDown,
   X,
-  Mail,
-  Calendar,
-  User,
-  Clock,
   Filter,
-  ChevronDown,
-  Star
+  Building2,
+  Flame,
+  RefreshCcw,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import StatusBadge from "../components/StatusBadge";
 import AddCompanyDialog from "../components/AddCompanyDialog";
-import LeadScoreBadge from "../components/LeadScoreBadge";
-import QuickLogButton from "../components/QuickLogButton";
-import PriorityBadge from "../components/PriorityBadge";
+import PipelineOverview from "../components/leads/PipelineOverview";
+import QuickFilters from "../components/leads/QuickFilters";
+import LeadCard from "../components/leads/LeadCard";
+import moment from "moment";
 
-const STATUSES = ["Alle", "Neu", "Kontakt", "Rückruf", "Termin", "Angebot", "Gewonnen", "Verloren"];
-const PRIORITIES = ["Alle", "Hoch", "Mittel", "Niedrig"];
+const STATUSES = ["Neu", "Kontakt", "Rückruf", "Termin", "Angebot", "Gewonnen", "Verloren"];
 const SORT_OPTIONS = [
   { value: "priority", label: "Priorität" },
   { value: "name", label: "Name A–Z" },
@@ -47,18 +38,15 @@ const SORT_OPTIONS = [
 
 export default function Leads() {
   const { user, org, filterCompanies, loading: filterLoading } = useLeadsFilter();
-  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("Alle");
-  const [priorityFilter, setPriorityFilter] = useState("Alle");
-  const [assignedFilter, setAssignedFilter] = useState("Alle");
+  const [statusFilter, setStatusFilter] = useState(null);
+  const [quickFilter, setQuickFilter] = useState(null);
   const [sortBy, setSortBy] = useState("priority");
   const [showAdd, setShowAdd] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
-  const [showNewOnly, setShowNewOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [selected, setSelected] = useState(new Set());
-  const [bulkStatus, setBulkStatus] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState("Alle");
+  const [assignedFilter, setAssignedFilter] = useState("Alle");
   const [members, setMembers] = useState([]);
 
   const orgId = org?.id || null;
@@ -71,7 +59,6 @@ export default function Leads() {
     staleTime: 60_000,
   });
 
-  // Load organization members for filter
   useEffect(() => {
     if (orgId) {
       base44.entities.OrganizationMember.filter({ organization_id: orgId, status: "active" })
@@ -83,31 +70,6 @@ export default function Leads() {
   const { containerRef, isRefreshing } = usePullToRefresh(loadData);
 
   const isAdmin = user?.role === "admin" || user?.role === "organization_admin";
-
-  const toggleSelect = (id, e) => {
-    e.preventDefault(); e.stopPropagation();
-    setSelected(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
-  const handleBulkStatus = async () => {
-    if (!bulkStatus || selected.size === 0) return;
-    await Promise.all([...selected].map(id => base44.entities.Company.update(id, { status: bulkStatus })));
-    toast.success(`${selected.size} Leads auf "${bulkStatus}" gesetzt`);
-    setSelected(new Set());
-    setBulkStatus("");
-    loadData();
-  };
-
-  const handleDelete = async (e, companyId) => {
-    e.preventDefault(); e.stopPropagation();
-    if (!window.confirm("Lead wirklich löschen?")) return;
-    await base44.entities.Company.delete(companyId);
-    loadData();
-  };
 
   const ARCHIVED_STATUSES = ["Gewonnen", "Verloren"];
 
@@ -138,7 +100,7 @@ export default function Leads() {
   const filtered = applySort(
     filterCompanies(companies).filter(c => {
       if (!showArchived && ARCHIVED_STATUSES.includes(c.status)) return false;
-      if (statusFilter !== "Alle" && c.status !== statusFilter) return false;
+      if (statusFilter && c.status !== statusFilter) return false;
       if (priorityFilter !== "Alle") {
         const score = c.priority_score || 0;
         if (priorityFilter === "Hoch" && score < 60) return false;
@@ -146,6 +108,21 @@ export default function Leads() {
         if (priorityFilter === "Niedrig" && score >= 30) return false;
       }
       if (assignedFilter !== "Alle" && c.assigned_to !== assignedFilter) return false;
+      
+      // Quick Filters
+      if (quickFilter === "my_leads" && c.assigned_to !== user?.email) return false;
+      if (quickFilter === "call_today") {
+        const today = moment().format("YYYY-MM-DD");
+        if (!c.last_contact_date || moment(c.last_contact_date).format("YYYY-MM-DD") !== today) return false;
+      }
+      if (quickFilter === "callback_open" && c.status !== "Rückruf") return false;
+      if (quickFilter === "hot_leads" && !c.is_hot) return false;
+      if (quickFilter === "new_import" && c.quelle !== "CSV Import") return false;
+      if (quickFilter === "no_contact") {
+        const daysSince = c.last_contact_date ? moment().diff(moment(c.last_contact_date), "days") : 999;
+        if (daysSince < 14) return false;
+      }
+      
       if (search) {
         const s = search.toLowerCase();
         return (
@@ -173,18 +150,6 @@ export default function Leads() {
     URL.revokeObjectURL(url);
   };
 
-  const handleNotReached = async (e, company) => {
-    e.preventDefault(); e.stopPropagation();
-    const me = await base44.auth.me();
-    await base44.entities.ContactLog.create({
-      company_id: company.id, typ: "Anruf", ergebnis: "Nicht erreicht",
-      notiz: "", naechster_schritt: "Erneut anrufen", user_email: me.email,
-    });
-    await base44.entities.Company.update(company.id, { status: "Rückruf", last_contact_date: new Date().toISOString() });
-    toast.success(`${company.name} – Nicht erreicht gespeichert`);
-    loadData();
-  };
-
   if (loading || filterLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -210,7 +175,17 @@ export default function Leads() {
         </p>
       </div>
 
-      {/* Search + Main Filters */}
+      {/* Pipeline Overview */}
+      <PipelineOverview
+        companies={companies}
+        onStatusClick={setStatusFilter}
+        activeStatus={statusFilter}
+      />
+
+      {/* Quick Filters */}
+      <QuickFilters activeFilter={quickFilter} onFilterClick={setQuickFilter} />
+
+      {/* Search + Filters */}
       <div className="bg-card border border-border rounded-xl p-4 shadow-sm space-y-3">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
@@ -222,14 +197,6 @@ export default function Leads() {
               className="pl-9 bg-background"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-            </SelectContent>
-          </Select>
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-full sm:w-40">
               <ArrowUpDown className="w-3.5 h-3.5 mr-1.5 text-muted-foreground" />
@@ -242,6 +209,18 @@ export default function Leads() {
           <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="gap-2">
             <Filter className="w-3.5 h-3.5" /> Filter
           </Button>
+          <div className="flex-1" />
+          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> Neuer Lead
+          </Button>
+          {isAdmin && (
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <TrendingUp className="w-3.5 h-3.5" /> Recherche
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={handleCsvExport} className="gap-1.5">
+            <Download className="w-3.5 h-3.5" /> Export
+          </Button>
         </div>
 
         {/* Extended Filters */}
@@ -252,7 +231,7 @@ export default function Leads() {
                 <SelectValue placeholder="Priorität" />
               </SelectTrigger>
               <SelectContent>
-                {PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                {["Alle", "Hoch", "Mittel", "Niedrig"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={assignedFilter} onValueChange={setAssignedFilter}>
@@ -282,12 +261,17 @@ export default function Leads() {
           </div>
         )}
 
-        {/* Active Filters */}
-        {(statusFilter !== "Alle" || priorityFilter !== "Alle" || assignedFilter !== "Alle" || search) && (
+        {/* Active Filters Display */}
+        {(statusFilter || quickFilter || priorityFilter !== "Alle" || assignedFilter !== "Alle" || search) && (
           <div className="flex flex-wrap gap-2 pt-2">
-            {statusFilter !== "Alle" && (
-              <button onClick={() => setStatusFilter("Alle")} className="inline-flex items-center gap-1 text-xs font-medium bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full hover:bg-primary/20 transition-colors">
+            {statusFilter && (
+              <button onClick={() => setStatusFilter(null)} className="inline-flex items-center gap-1 text-xs font-medium bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full hover:bg-primary/20 transition-colors">
                 Status: {statusFilter} <X className="w-3 h-3" />
+              </button>
+            )}
+            {quickFilter && (
+              <button onClick={() => setQuickFilter(null)} className="inline-flex items-center gap-1 text-xs font-medium bg-muted text-muted-foreground border border-border px-2.5 py-1 rounded-full hover:bg-muted/80 transition-colors">
+                Filter: {quickFilter} <X className="w-3 h-3" />
               </button>
             )}
             {priorityFilter !== "Alle" && (
@@ -309,167 +293,40 @@ export default function Leads() {
         )}
       </div>
 
-      {/* Action Bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {selected.size > 0 ? (
-            <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5">
-              <span className="text-xs font-semibold text-primary">{selected.size} ausgewählt</span>
-              <Select value={bulkStatus} onValueChange={setBulkStatus}>
-                <SelectTrigger className="h-7 w-32 text-xs bg-background">
-                  <SelectValue placeholder="Status..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {STATUSES.filter(s => s !== "Alle").map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Button size="sm" className="h-7 text-xs" onClick={handleBulkStatus} disabled={!bulkStatus}>Anwenden</Button>
-              <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setSelected(new Set())}><X className="w-3.5 h-3.5" /></button>
+      {/* Leads Grid */}
+      {filtered.length === 0 ? (
+        <div className="bg-card border border-border rounded-xl p-16 text-center">
+          <Building2 className="w-16 h-16 mx-auto mb-4 text-muted-foreground/20" />
+          <h3 className="text-lg font-bold text-foreground mb-2">Keine Leads gefunden</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            {companies.length === 0
+              ? "Noch keine Firmenkontakte vorhanden. Starten Sie jetzt mit der Lead-Generierung."
+              : "Passen Sie Ihre Filter an oder fügen Sie einen neuen Lead hinzu."}
+          </p>
+          {companies.length === 0 ? (
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button size="lg" onClick={() => setShowAdd(true)} className="gap-2">
+                <Plus className="w-4 h-4" /> Ersten Lead anlegen
+              </Button>
+              {isAdmin && (
+                <Button variant="outline" size="lg" className="gap-2">
+                  <TrendingUp className="w-4 h-4" /> Firmen recherchieren
+                </Button>
+              )}
             </div>
           ) : (
-            <>
-              <Button variant="outline" size="sm" onClick={handleCsvExport} className="gap-1.5">
-                <Download className="w-3.5 h-3.5" /> CSV Export
-              </Button>
-            </>
+            <Button variant="outline" onClick={() => { setStatusFilter(null); setQuickFilter(null); setSearch(""); }} className="gap-2">
+              <RefreshCcw className="w-4 h-4" /> Filter zurücksetzen
+            </Button>
           )}
         </div>
-        <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5">
-          <Plus className="w-3.5 h-3.5" /> Neuer Lead
-        </Button>
-      </div>
-
-      {/* Leads Table */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-muted/50 border-b border-border">
-                <th className="px-4 py-3 w-10">
-                  <input
-                    type="checkbox"
-                    checked={selected.size === filtered.length && filtered.length > 0}
-                    onChange={(e) => setSelected(e.target.checked ? new Set(filtered.map(c => c.id)) : new Set())}
-                    className="w-4 h-4 rounded accent-primary"
-                  />
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Firma</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden md:table-cell">Kontakt</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden xl:table-cell">Priorität</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden 2xl:table-cell">Letzter Kontakt</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden lg:table-cell">Vertriebler</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Aktionen</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.map(company => {
-                const isSelected = selected.has(company.id);
-                return (
-                  <tr key={company.id} className={`hover:bg-muted/30 transition-colors ${isSelected ? "bg-primary/5" : ""}`}>
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={(e) => toggleSelect(company.id, e)}
-                        className="w-4 h-4 rounded accent-primary cursor-pointer"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <Link to={`/leads/${company.id}`} className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${company.is_hot ? "bg-gradient-to-br from-orange-400/20 to-red-500/20 border border-orange-400/30" : "bg-gradient-to-br from-primary/10 to-blue-600/10 border border-primary/20"}`}>
-                          {company.is_hot ? <Flame className="w-5 h-5 text-orange-500" /> : <Building2 className="w-5 h-5 text-primary" />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold hover:text-primary transition-colors truncate">{company.name}</p>
-                          <p className="text-xs text-muted-foreground">{company.branche || "Keine Branche"}</p>
-                        </div>
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <div className="space-y-1">
-                        {company.telefon && (
-                          <a href={`tel:${company.telefon}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
-                            <Phone className="w-3 h-3" /> {company.telefon}
-                          </a>
-                        )}
-                        {company.email && (
-                          <a href={`mailto:${company.email}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors truncate">
-                            <Mail className="w-3 h-3" /> {company.email}
-                          </a>
-                        )}
-                        {!company.telefon && !company.email && <span className="text-xs text-muted-foreground">–</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      <StatusBadge status={company.status} />
-                    </td>
-                    <td className="px-4 py-3 hidden xl:table-cell">
-                      <LeadScoreBadge score={company.priority_score} isHot={company.is_hot} notizen={company.notizen} />
-                    </td>
-                    <td className="px-4 py-3 hidden 2xl:table-cell">
-                      {company.last_contact_date ? (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Clock className="w-3 h-3" />
-                          {new Date(company.last_contact_date).toLocaleDateString("de-DE")}
-                        </div>
-                      ) : <span className="text-xs text-muted-foreground">–</span>}
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      {company.assigned_to ? (
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <User className="w-3 h-3 text-muted-foreground" />
-                          <span className="truncate max-w-[120px]">{company.assigned_to}</span>
-                        </div>
-                      ) : <span className="text-xs text-muted-foreground">–</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {company.telefon && (
-                          <a
-                            href={`tel:${company.telefon}`}
-                            onClick={e => e.stopPropagation()}
-                            className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-600 hover:bg-emerald-100 transition-colors"
-                            title="Anrufen"
-                          >
-                            <Phone className="w-4 h-4" />
-                          </a>
-                        )}
-                        <button
-                          onClick={(e) => handleNotReached(e, company)}
-                          className="p-2 rounded-lg bg-muted/50 border border-border/50 text-muted-foreground hover:bg-amber-50 hover:border-amber-200 hover:text-amber-600 transition-colors"
-                          title="Nicht erreicht"
-                        >
-                          <PhoneOff className="w-4 h-4" />
-                        </button>
-                        <QuickLogButton companyId={company.id} companyName={company.name} onLogged={loadData} />
-                        {isAdmin && (
-                          <button
-                            onClick={(e) => handleDelete(e, company.id)}
-                            className="p-2 rounded-lg bg-muted/50 border border-border/50 text-muted-foreground hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"
-                            title="Lead löschen"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-16 text-center">
-                    <Building2 className="w-12 h-12 mx-auto mb-3 text-muted-foreground/20" />
-                    <p className="text-sm font-medium text-foreground">Keine Leads gefunden</p>
-                    <p className="text-xs text-muted-foreground mt-1">Filter anpassen oder neuen Lead hinzufügen</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filtered.map(company => (
+            <LeadCard key={company.id} company={company} isAdmin={isAdmin} onLogged={loadData} />
+          ))}
         </div>
-      </div>
+      )}
 
       <AddCompanyDialog open={showAdd} onClose={() => setShowAdd(false)} onCreated={loadData} />
     </div>
