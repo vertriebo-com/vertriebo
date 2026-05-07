@@ -42,7 +42,7 @@ export default function FocusCards({ companies, activeFocus, onFilterClick }) {
             key={card.id}
             onClick={() => onFilterClick(isActive ? null : card.value)}
             className={`bg-white border-2 transition-all duration-200 rounded-2xl p-5 hover:shadow-md ${
-              isActive ? "border-primary shadow-lg" : "border-border hover:border-blue-300"
+              isActive ? "border-blue-500 shadow-md" : "border-[#E2E8F0] hover:border-blue-300"
             }`}
           >
             <div className="flex items-center justify-between mb-3">

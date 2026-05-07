@@ -72,7 +72,7 @@ export default function Layout() {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-screen overflow-hidden bg-[#F6F8FB]">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -147,10 +147,10 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0 bg-background">
+      {/* Main Content - Light Mode */}
+      <div className="flex-1 flex flex-col min-w-0 bg-[#F6F8FB]">
         {/* Top Bar Mobile */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-border">
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-[#E2E8F0]">
           {isSubPage ? (
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ChevronRight className="w-5 h-5 rotate-180" />
@@ -172,8 +172,10 @@ export default function Layout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 pb-20 lg:pb-6 lg:p-6" style={{ overscrollBehavior: "none", paddingLeft: "max(1rem, env(safe-area-inset-left))", paddingRight: "max(1rem, env(safe-area-inset-right))" }}>
-          <Outlet />
+        <main className="flex-1 overflow-y-auto p-5 lg:p-8" style={{ overscrollBehavior: "none", paddingLeft: "max(1.25rem, env(safe-area-inset-left))", paddingRight: "max(1.25rem, env(safe-area-inset-right))" }}>
+          <div className="max-w-7xl mx-auto">
+            <Outlet />
+          </div>
         </main>
       </div>
 

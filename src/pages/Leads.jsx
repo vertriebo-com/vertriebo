@@ -109,9 +109,9 @@ export default function Leads() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Leads</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-slate-900">Leads</h1>
+        <p className="text-sm text-slate-600 mt-1">
           {filtered.length} von {companies.length} Firmen · {filtered.filter(c => c.status === "Rückruf").length} Rückrufe offen
         </p>
       </div>
@@ -123,7 +123,7 @@ export default function Leads() {
       <PipelineBar companies={companies} activeStatus={statusFilter} onStatusClick={setStatusFilter} />
 
       {/* Search + Actions */}
-      <div className="bg-white border border-border rounded-2xl p-4 shadow-sm space-y-4">
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -131,11 +131,11 @@ export default function Leads() {
               placeholder="Firma, Branche oder Ort suchen..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-white border border-border"
+              className="pl-9 bg-white border border-[#E2E8F0] text-slate-900 placeholder:text-slate-400"
             />
           </div>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-40 bg-white">
+            <SelectTrigger className="w-full sm:w-40 bg-white border border-[#E2E8F0]">
               <SelectValue placeholder="Sortieren" />
             </SelectTrigger>
             <SelectContent>
@@ -144,19 +144,19 @@ export default function Leads() {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="gap-2 bg-white">
+          <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="gap-2 bg-white border border-[#E2E8F0]">
             <Filter className="w-3.5 h-3.5" /> Filter
           </Button>
           <div className="flex-1" />
-          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5 shadow-sm">
+          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
             <Plus className="w-3.5 h-3.5" /> Neuer Lead
           </Button>
           {isAdmin && (
-            <Button variant="outline" size="sm" className="gap-1.5 bg-white">
+            <Button variant="outline" size="sm" className="gap-1.5 bg-white border border-[#E2E8F0]">
               <TrendingUp className="w-3.5 h-3.5" /> Recherche
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={handleCsvExport} className="gap-1.5 bg-white">
+          <Button variant="outline" size="sm" onClick={handleCsvExport} className="gap-1.5 bg-white border border-[#E2E8F0]">
             <MoreVertical className="w-3.5 h-3.5" />
           </Button>
         </div>
@@ -196,19 +196,19 @@ export default function Leads() {
 
       {/* Leads List */}
       {filtered.length === 0 ? (
-        <div className="bg-white border border-border rounded-2xl p-16 text-center">
-          <Building2 className="w-16 h-16 mx-auto mb-4 text-slate-200" />
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-16 text-center">
+          <Building2 className="w-16 h-16 mx-auto mb-4 text-slate-300" />
           <h3 className="text-lg font-bold text-slate-900 mb-2">Keine Leads gefunden</h3>
           <p className="text-sm text-slate-600 mb-6">
             {companies.length === 0 ? "Noch keine Firmenkontakte vorhanden." : "Filter anpassen oder neuen Lead hinzufügen."}
           </p>
           {companies.length === 0 ? (
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button size="lg" onClick={() => setShowAdd(true)} className="gap-2 shadow-sm"><Plus className="w-4 h-4" /> Ersten Lead anlegen</Button>
-              {isAdmin && <Button variant="outline" size="lg" className="gap-2"><TrendingUp className="w-4 h-4" /> Firmen recherchieren</Button>}
+              <Button size="lg" onClick={() => setShowAdd(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"><Plus className="w-4 h-4" /> Ersten Lead anlegen</Button>
+              {isAdmin && <Button variant="outline" size="lg" className="gap-2 border border-[#E2E8F0]"><TrendingUp className="w-4 h-4" /> Firmen recherchieren</Button>}
             </div>
           ) : (
-            <Button variant="outline" onClick={() => { setStatusFilter(null); setFocusFilter(null); setSearch(""); }} className="gap-2">Filter zurücksetzen</Button>
+            <Button variant="outline" onClick={() => { setStatusFilter(null); setFocusFilter(null); setSearch(""); }} className="gap-2 border border-[#E2E8F0]">Filter zurücksetzen</Button>
           )}
         </div>
       ) : (

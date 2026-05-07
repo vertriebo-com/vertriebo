@@ -40,7 +40,7 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
   };
 
   return (
-    <div className="group bg-white border border-border rounded-2xl p-5 hover:shadow-lg hover:border-blue-300 transition-all duration-200">
+    <div className="group bg-white border border-[#E2E8F0] rounded-2xl p-5 hover:shadow-md hover:border-blue-300 transition-all duration-200">
       <div className="flex items-center gap-5">
         {/* Company Info - Left */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
