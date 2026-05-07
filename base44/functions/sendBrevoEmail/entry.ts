@@ -20,7 +20,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const PLATFORM_FROM_EMAIL = "info@huwa-gebaeudedienste.de"; // Brevo-verifizierter Fallback
 const PLATFORM_FROM_NAME  = "Vertriebo";
 
-async function sendViaBrevo({ to, subject, htmlBody, fromName, fromEmail }) {
+async function sendViaBrevo({ to, subject, htmlBody, fromName, fromEmail, replyTo }) {
   const apiKey = Deno.env.get("BREVO_API_KEY");
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {
     method: "POST",
@@ -34,6 +34,7 @@ async function sendViaBrevo({ to, subject, htmlBody, fromName, fromEmail }) {
       to: [{ email: to }],
       subject: subject,
       htmlContent: htmlBody,
+      replyTo: { email: replyTo || fromEmail, name: fromName },
     }),
   });
   const data = await response.json();
@@ -66,10 +67,12 @@ Deno.serve(async (req) => {
     orgSettings.forEach(s => { settingsMap[s.key] = s.value; });
 
     const fromName  = settingsMap["email_from_name"]  || settingsMap["company_name"] || PLATFORM_FROM_NAME;
-    const fromEmail = settingsMap["email_from_email"] || PLATFORM_FROM_EMAIL;
+    // Key: email_sender_email (set during onboarding/settings)
+    const fromEmail = settingsMap["email_sender_email"] || settingsMap["email_from_email"] || PLATFORM_FROM_EMAIL;
+    const replyTo   = settingsMap["email_reply_to"] || fromEmail;
 
     // ── E-Mail senden ────────────────────────────────────────────────────────
-    const result = await sendViaBrevo({ to, subject, htmlBody: body, fromName, fromEmail });
+    const result = await sendViaBrevo({ to, subject, htmlBody: body, fromName, fromEmail, replyTo });
     console.log(`[sendBrevoEmail] Gesendet org=${organization_id} to=${to} from=${fromEmail} messageId=${result.messageId}`);
 
     // ── UsageLog: emails_sent inkrementieren (aktueller Monat) ───────────────

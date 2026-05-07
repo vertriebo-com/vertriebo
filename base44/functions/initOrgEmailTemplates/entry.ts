@@ -1,3 +1,37 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// initOrgEmailTemplates — Erstellt 6 personalisierte E-Mail-Vorlagen pro Organisation
+//
+// ── ARCHITEKTUR (mandantenfähig) ─────────────────────────────────────────────
+//   Jede Vorlage trägt organization_id → strikte Isolation zwischen Mandanten.
+//   Idempotent: Vorlagen werden nur erstellt, wenn sie noch nicht existieren.
+//
+// ── DATENBASIS PRO VORLAGE ───────────────────────────────────────────────────
+//   OrganizationSettings Keys die verwendet werden:
+//     company_name       → Firmenname
+//     email_from_name    → Absendername
+//     industry_name      → Branche
+//     email_telefon      → Telefon für CTA + Signatur
+//     email_reply_to     → E-Mail in Signatur
+//     email_website      → Website in Signatur
+//     email_adresse      → Adresse in Signatur
+//     organization_email_signature → fertige HTML-Signatur (gespeichert bei Onboarding)
+//     lead_plz_city      → Region (für Erstansprache)
+//
+// ── SKALIERUNG & ERWEITERUNG ─────────────────────────────────────────────────
+//   Phase 1 (JETZT):  Brevo zentral + org-spezifischer fromName/replyTo/Logo
+//   Phase 2 (LATER):  SMTP pro Org: smtp_host, smtp_user, smtp_pass in OrganizationSettings
+//   Phase 3 (LATER):  Gmail OAuth  via app-user connector (integration_type: "gmail")
+//   Phase 4 (LATER):  MS365 OAuth  via app-user connector (integration_type: "outlook")
+//   Phase 5 (LATER):  Automatische Follow-up-Agenten via entity-automation (ContactLog create)
+//   Phase 6 (LATER):  E-Mail-Antworten → Inbound Webhook → ContactLog + company_id matching
+//   Phase 7 (LATER):  Queue-/Batch-Versand → UsageLog rate limiting + job queue entity
+//
+// ── CROSS-TENANT SICHERHEIT ──────────────────────────────────────────────────
+//   EmailTemplate.filter({ organization_id }) = strikte Isolation.
+//   SendEmailDialog lädt NUR Vorlagen der eigenen Org.
+//   Kein globaler list()-Aufruf in der gesamten Template-Pipeline.
+// ═══════════════════════════════════════════════════════════════════════════════
+
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 Deno.serve(async (req) => {

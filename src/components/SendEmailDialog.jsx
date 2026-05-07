@@ -171,6 +171,28 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
   const handleSend = async () => {
     setSending(true);
     await doSend(company.email);
+
+    // ContactLog automatisch erstellen
+    try {
+      const me = await base44.auth.me();
+      let orgIdForLog = orgId;
+      if (!orgIdForLog) {
+        const orgs = await base44.entities.Organization.filter({ owner_email: me.email });
+        orgIdForLog = orgs?.[0]?.id || null;
+      }
+      await base44.entities.ContactLog.create({
+        organization_id: orgIdForLog,
+        company_id: company.id,
+        typ: "E-Mail",
+        ergebnis: "Angebot gesendet",
+        naechster_schritt: `E-Mail gesendet: ${betreff}`,
+        notiz: `Vorlage: ${tpl?.label || "Individuell"}`,
+        user_email: me.email,
+      });
+    } catch (e) {
+      console.warn("ContactLog konnte nicht erstellt werden:", e.message);
+    }
+
     toast.success(`E-Mail an ${company.email} gesendet!`);
     setSending(false);
     onSend();
