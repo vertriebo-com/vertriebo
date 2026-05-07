@@ -146,7 +146,6 @@ export default function Leads() {
         if (priorityFilter === "Niedrig" && score >= 30) return false;
       }
       if (assignedFilter !== "Alle" && c.assigned_to !== assignedFilter) return false;
-      if (showNewOnly && !c.notizen?.startsWith("⚡")) return false;
       if (search) {
         const s = search.toLowerCase();
         return (
