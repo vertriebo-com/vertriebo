@@ -56,6 +56,12 @@ async function checkAccess(req, { organization_id, action }={}) {
   catch { return _deny('organization_not_found','Organisation nicht gefunden.'); }
   const organization = orgs[0]||null;
   if (!organization) return _deny('organization_not_found','Organisation nicht gefunden.');
+
+  // Owner der Organisation darf immer billing machen (z.B. direkt nach Onboarding)
+  if (organization.owner_email === user.email) {
+    return _allow({ reason:'org_owner', user, organization, member: members[0]||null, role:'organization_admin' });
+  }
+
   const member = members[0]||null;
   if (!member) return _deny('not_a_member','Kein Mitglied dieser Organisation.');
   if (member.status!=='active') return _deny('member_inactive',`Mitglied-Status: "${member.status}".`);
