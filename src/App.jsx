@@ -21,7 +21,7 @@ import Documents from './pages/Documents';
 import CalendarView from './pages/CalendarView';
 import DuplicatesPage from './pages/DuplicatesPage';
 import Landing from './pages/Landing';
-import Onboarding from './pages/Onboarding';
+import Onboarding from './pages/Onboarding.jsx';
 import Impressum from './pages/Impressum';
 import Datenschutz from './pages/Datenschutz';
 import AGB from './pages/AGB';
