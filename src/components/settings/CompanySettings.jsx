@@ -1,31 +1,78 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Building2, Save, Loader2, MapPin, Target, Users, Phone, Globe, Mail } from "lucide-react";
+import { Building2, Save, Loader2, MapPin, Target, Users, Phone, Globe, Mail, AlertTriangle, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import SettingsSection from "./SettingsSection";
 
-const ZIELKUNDEN_OPTIONS = [
-  "Hausverwaltungen","Büros","Arztpraxen","Restaurants","Immobilienfirmen",
-  "Gewerbekunden","Industrie","Logistik","Schulen / Bildungseinrichtungen","Krankenhäuser / Kliniken",
-];
+// ─── Zielkunden → Google Places Suchbegriffe Mapping ─────────────────────────
+// Wird von generateLeads genutzt: Einstellungen → aktive Lead-Suche
+export const ZIELKUNDEN_SEARCH_MAPPING = {
+  "Hausverwaltungen":              ["Hausverwaltung", "Immobilienverwaltung", "WEG Verwaltung", "Property Management", "Wohnungsverwaltung"],
+  "Büros":                         ["Büro", "Unternehmen", "Gewerbe", "Kanzlei", "Beratung"],
+  "Arztpraxen":                    ["Arztpraxis", "Zahnarzt", "Physiotherapie", "Praxis", "Ärztehaus"],
+  "Restaurants":                   ["Restaurant", "Café", "Gastronomie", "Bistro", "Imbiss"],
+  "Immobilienfirmen":              ["Immobilienmakler", "Immobilienbüro", "Immobilienunternehmen", "Makler"],
+  "Gewerbekunden":                 ["Gewerbebetrieb", "Handwerk", "Werkstatt", "Produktion", "Fabrik"],
+  "Industrie":                     ["Industrieunternehmen", "Produktionsstätte", "Lager", "Logistik", "Fertigung"],
+  "Logistik":                      ["Spedition", "Lagerhaus", "Logistikzentrum", "Fulfillment", "Transport"],
+  "Schulen / Bildungseinrichtungen": ["Schule", "Gymnasium", "Berufsschule", "Kindergarten", "Bildungszentrum"],
+  "Krankenhäuser / Kliniken":      ["Krankenhaus", "Klinik", "Pflegeheim", "Altenheim", "Reha"],
+};
+
+const ZIELKUNDEN_OPTIONS = Object.keys(ZIELKUNDEN_SEARCH_MAPPING);
+
 const DIENSTLEISTUNGEN_OPTIONS = [
   "Gebäudereinigung","Büroreinigung","Treppenhausreinigung","Fensterreinigung",
   "Hausmeisterdienst","Entrümpelung","Gartenpflege","Winterdienst",
   "Sicherheitsdienst","IT-Service","Catering","Logistik / Transport",
 ];
+
 const INDUSTRIES = [
   "Gebäudereinigung","Sicherheitsdienst","IT-Service","Gartenbau",
   "Catering","Handwerk","Spedition / Logistik","Gesundheit / Medizin","Immobilien","Lager / Fulfillment",
 ];
 
+// Plan → max Radius in km
+const PLAN_RADIUS_LIMITS = {
+  starter:      25,
+  professional: 50,
+  gold:         100,
+  agency:       null, // unbegrenzt
+};
+
+function getPlanRadiusLimit(planName) {
+  if (!planName) return null;
+  const lower = planName.toLowerCase();
+  if (lower.includes("agency")) return PLAN_RADIUS_LIMITS.agency;
+  if (lower.includes("gold")) return PLAN_RADIUS_LIMITS.gold;
+  if (lower.includes("professional")) return PLAN_RADIUS_LIMITS.professional;
+  if (lower.includes("starter")) return PLAN_RADIUS_LIMITS.starter;
+  return null;
+}
+
+function normalizeUrl(val) {
+  const v = val.trim();
+  if (!v) return "";
+  if (v.startsWith("http://") || v.startsWith("https://")) return v;
+  return "https://" + v;
+}
+
+function isValidUrl(val) {
+  if (!val) return true; // optional field
+  try { new URL(normalizeUrl(val)); return true; } catch { return false; }
+}
+
 export default function CompanySettings({ org: orgProp }) {
   const [org, setOrg] = useState(orgProp || null);
   const [orgId, setOrgId] = useState(orgProp?.id || null);
-  const [loading, setLoading] = useState(!orgProp);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [members, setMembers] = useState([]); // OrganizationMember list
+  const [plan, setPlan] = useState(null);
 
   // Organization fields
   const [firmenname, setFirmenname] = useState("");
@@ -34,6 +81,7 @@ export default function CompanySettings({ org: orgProp }) {
   // OrganizationSettings fields
   const [telefon, setTelefon] = useState("");
   const [website, setWebsite] = useState("");
+  const [websiteError, setWebsiteError] = useState("");
   const [adresse, setAdresse] = useState("");
   const [plz, setPlz] = useState("");
   const [radius, setRadius] = useState("25");
@@ -48,7 +96,7 @@ export default function CompanySettings({ org: orgProp }) {
   const [anrufeProWoche, setAnrufeProWoche] = useState("30");
   const [termineProWoche, setTermineProWoche] = useState("3");
   const [followUpTage, setFollowUpTage] = useState("3");
-  const [standardVertriebler, setStandardVertriebler] = useState("");
+  const [standardVertriebler, setStandardVertriebler] = useState("none");
 
   useEffect(() => { loadData(); }, []);
 
@@ -73,16 +121,26 @@ export default function CompanySettings({ org: orgProp }) {
     const currentOrgId = await resolveOrg();
     if (!currentOrgId) { setLoading(false); return; }
 
-    const [orgs, settings] = await Promise.all([
+    const [orgs, settings, orgMembers] = await Promise.all([
       base44.entities.Organization.filter({ id: currentOrgId }),
       base44.entities.OrganizationSettings.filter({ organization_id: currentOrgId }),
+      base44.entities.OrganizationMember.filter({ organization_id: currentOrgId, status: "active" }),
     ]);
+
     const currentOrg = orgs[0] || null;
     if (currentOrg) {
       setOrg(currentOrg);
       setFirmenname(currentOrg.name || "");
       setIndustry(currentOrg.industry || "");
+
+      // Load plan for radius limit
+      if (currentOrg.plan_id) {
+        const plans = await base44.entities.Plan.filter({ id: currentOrg.plan_id });
+        setPlan(plans[0] || null);
+      }
     }
+
+    setMembers(orgMembers);
 
     const map = {};
     settings.forEach(s => { map[s.key] = s.value; });
@@ -93,65 +151,91 @@ export default function CompanySettings({ org: orgProp }) {
     setPlz(currentOrg?.service_area_plz || map.lead_plz || "");
     setRadius(currentOrg?.service_area_radius_km ? String(currentOrg.service_area_radius_km) : map.lead_radius_km || "25");
     setPlzCity(map.lead_plz_city || "");
-
     setZielkunden(map.zielkunden ? map.zielkunden.split(", ").filter(Boolean) : []);
     setDienstleistungen(map.dienstleistungen ? map.dienstleistungen.split(", ").filter(Boolean) : []);
     setKontakteProWoche(map.sales_goal_contacts_per_week || "20");
     setAnrufeProWoche(map.sales_goal_calls_per_week || "30");
     setTermineProWoche(map.sales_goal_appointments_per_week || "3");
     setFollowUpTage(map.sales_goal_followup_days || "3");
-    setStandardVertriebler(map.sales_default_rep || "");
+    setStandardVertriebler(map.sales_default_rep || "none");
 
     setLoading(false);
   };
 
   const saveSettingKey = async (currentOrgId, existingMap, key, value) => {
-    if (!value && value !== "0") return;
+    const strVal = String(value ?? "");
     if (existingMap[key]) {
-      await base44.entities.OrganizationSettings.update(existingMap[key], { value: String(value) });
+      await base44.entities.OrganizationSettings.update(existingMap[key], { value: strVal });
+    } else if (strVal) {
+      await base44.entities.OrganizationSettings.create({ organization_id: currentOrgId, key, value: strVal });
+    }
+  };
+
+  const handleWebsiteChange = (val) => {
+    setWebsite(val);
+    if (val && !isValidUrl(val)) {
+      setWebsiteError("Bitte eine gültige URL eingeben, z.B. https://www.beispiel.de");
     } else {
-      await base44.entities.OrganizationSettings.create({ organization_id: currentOrgId, key, value: String(value) });
+      setWebsiteError("");
+    }
+  };
+
+  const handleRadiusChange = (val) => {
+    const maxKm = getPlanRadiusLimit(plan?.name);
+    if (maxKm !== null && parseInt(val) > maxKm) {
+      toast.warning(`Ihr Plan erlaubt max. ${maxKm} km Suchradius.`);
+      setRadius(String(maxKm));
+    } else {
+      setRadius(val);
     }
   };
 
   const handleSave = async () => {
     if (!firmenname.trim()) { toast.error("Firmenname ist Pflichtfeld."); return; }
+    if (website && !isValidUrl(website)) { toast.error("Bitte eine gültige Website-URL eingeben."); return; }
+
     setSaving(true);
     const currentOrgId = await resolveOrg();
     if (!currentOrgId) { toast.error("Keine Organisation gefunden."); setSaving(false); return; }
 
-    // 1. Update Organization entity
+    const normalizedWebsite = normalizeUrl(website);
+
+    // Build search keywords from selected Zielkunden
+    const zielkundenKeywords = zielkunden
+      .flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z])
+      .join(", ");
+
     await base44.entities.Organization.update(currentOrgId, {
       name: firmenname.trim(),
-      industry: industry,
+      industry,
       service_area_plz: plz,
       service_area_radius_km: parseFloat(radius) || 25,
     });
 
-    // 2. Update OrganizationSettings
     const existing = await base44.entities.OrganizationSettings.filter({ organization_id: currentOrgId });
     const existingMap = {};
     existing.forEach(s => { existingMap[s.key] = s.id; });
 
     const settingsToSave = {
-      company_name: firmenname.trim(),
-      industry_name: industry,
-      email_telefon: telefon,
-      company_phone: telefon,
-      email_website: website,
-      company_website: website,
-      email_adresse: adresse,
-      company_address: adresse,
-      lead_plz: plz,
-      lead_radius_km: radius,
-      ...(plzCity ? { lead_plz_city: plzCity } : {}),
-      zielkunden: zielkunden.join(", "),
-      dienstleistungen: dienstleistungen.join(", "),
-      sales_goal_contacts_per_week: kontakteProWoche,
-      sales_goal_calls_per_week: anrufeProWoche,
+      company_name:                    firmenname.trim(),
+      industry_name:                   industry,
+      email_telefon:                   telefon,
+      company_phone:                   telefon,
+      email_website:                   normalizedWebsite,
+      company_website:                 normalizedWebsite,
+      email_adresse:                   adresse,
+      company_address:                 adresse,
+      lead_plz:                        plz,
+      lead_radius_km:                  radius,
+      lead_plz_city:                   plzCity,
+      zielkunden:                      zielkunden.join(", "),
+      zielkunden_keywords:             zielkundenKeywords, // ← für generateLeads nutzbar
+      dienstleistungen:                dienstleistungen.join(", "),
+      sales_goal_contacts_per_week:    kontakteProWoche,
+      sales_goal_calls_per_week:       anrufeProWoche,
       sales_goal_appointments_per_week: termineProWoche,
-      sales_goal_followup_days: followUpTage,
-      sales_default_rep: standardVertriebler,
+      sales_goal_followup_days:        followUpTage,
+      sales_default_rep:               standardVertriebler === "none" ? "" : standardVertriebler,
     };
 
     await Promise.all(
@@ -174,6 +258,9 @@ export default function CompanySettings({ org: orgProp }) {
     if (v && !dienstleistungen.includes(v)) setDienstleistungen(prev => [...prev, v]);
     setCustomDienst("");
   };
+
+  const planRadiusLimit = getPlanRadiusLimit(plan?.name);
+  const radiusOverLimit = planRadiusLimit !== null && parseInt(radius) > planRadiusLimit;
 
   if (loading) return (
     <div className="flex items-center justify-center h-32">
@@ -207,7 +294,14 @@ export default function CompanySettings({ org: orgProp }) {
           </div>
           <div>
             <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><Globe className="w-3 h-3" /> Website</Label>
-            <Input value={website} onChange={e => setWebsite(e.target.value)} placeholder="www.meinefirma.de" />
+            <Input
+              value={website}
+              onChange={e => handleWebsiteChange(e.target.value)}
+              placeholder="https://www.beispiel.de"
+              type="url"
+              className={websiteError ? "border-destructive" : ""}
+            />
+            {websiteError && <p className="text-[11px] text-destructive mt-0.5">{websiteError}</p>}
           </div>
           <div className="sm:col-span-2">
             <Label className="text-xs font-semibold mb-1 block">Adresse</Label>
@@ -228,18 +322,37 @@ export default function CompanySettings({ org: orgProp }) {
             <Input value={plzCity} onChange={e => setPlzCity(e.target.value)} placeholder="Neuwied" />
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1 block">Suchradius: <span className="text-primary font-bold">{radius} km</span></Label>
-            <input type="range" min={5} max={100} step={5} value={radius}
-              onChange={e => setRadius(e.target.value)} className="w-full accent-primary mt-2" />
+            <Label className="text-xs font-semibold mb-1 block">
+              Suchradius: <span className={`font-bold ${radiusOverLimit ? "text-destructive" : "text-primary"}`}>{radius} km</span>
+            </Label>
+            <input
+              type="range" min={5} max={100} step={5} value={radius}
+              onChange={e => handleRadiusChange(e.target.value)}
+              className="w-full accent-primary mt-2"
+            />
+            {planRadiusLimit !== null && (
+              <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                <Info className="w-3 h-3" /> Ihr Plan erlaubt max. <strong>{planRadiusLimit} km</strong>
+              </p>
+            )}
           </div>
         </div>
+        {radiusOverLimit && (
+          <div className="flex items-center gap-2 mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            Der gewählte Radius überschreitet Ihr Plan-Limit. Bitte auf max. {planRadiusLimit} km reduzieren oder auf einen höheren Plan wechseln.
+          </div>
+        )}
       </SettingsSection>
 
       {/* Zielkunden */}
-      <SettingsSection icon={Users} title="Zielkunden & Dienstleistungen" description="Welche Kunden sprechen Sie an und welche Leistungen bieten Sie an?">
+      <SettingsSection icon={Users} title="Zielkunden & Dienstleistungen" description="Steuert Lead-Generierung, E-Mail-Vorlagen und KI-Skripte">
         <div className="space-y-4">
           <div>
-            <Label className="text-xs font-semibold mb-2 block">Ihre Zielkunden</Label>
+            <Label className="text-xs font-semibold mb-1 block">Ihre Zielkunden</Label>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Die Auswahl bestimmt automatisch die Suchbegriffe für die Lead-Generierung via Google Places.
+            </p>
             <div className="flex flex-wrap gap-2 mb-2">
               {ZIELKUNDEN_OPTIONS.map(v => (
                 <button key={v} type="button" onClick={() => toggleZielkunde(v)}
@@ -253,15 +366,26 @@ export default function CompanySettings({ org: orgProp }) {
                 </span>
               ))}
             </div>
-            <div className="flex gap-2">
+            {zielkunden.length > 0 && (
+              <div className="text-[11px] text-muted-foreground bg-muted/50 rounded-lg px-3 py-2">
+                <span className="font-semibold">Aktive Suchbegriffe:</span>{" "}
+                {zielkunden.flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z]).slice(0, 8).join(", ")}
+                {zielkunden.flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z]).length > 8 && " ..."}
+              </div>
+            )}
+            <div className="flex gap-2 mt-2">
               <Input value={customZielkunde} onChange={e => setCustomZielkunde(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && addCustomZielkunde()}
                 placeholder="Eigene Zielgruppe..." className="text-sm h-8" />
               <Button variant="outline" size="sm" onClick={addCustomZielkunde} className="shrink-0">+ Hinzufügen</Button>
             </div>
           </div>
+
           <div>
-            <Label className="text-xs font-semibold mb-2 block">Ihre Dienstleistungen</Label>
+            <Label className="text-xs font-semibold mb-1 block">Ihre Dienstleistungen</Label>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              Werden automatisch in E-Mail-Vorlagen, KI-Anrufskripten und Follow-up-Texten verwendet.
+            </p>
             <div className="flex flex-wrap gap-2 mb-2">
               {DIENSTLEISTUNGEN_OPTIONS.map(v => (
                 <button key={v} type="button" onClick={() => toggleDienst(v)}
@@ -287,7 +411,7 @@ export default function CompanySettings({ org: orgProp }) {
 
       {/* Vertriebsziele */}
       <SettingsSection icon={Target} title="Vertriebsziele" description="Wöchentliche Ziele und Standard-Einstellungen für das Vertriebsteam">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           {[
             { label: "Neue Kontakte/Woche", value: kontakteProWoche, set: setKontakteProWoche },
             { label: "Anrufe/Woche", value: anrufeProWoche, set: setAnrufeProWoche },
@@ -301,16 +425,31 @@ export default function CompanySettings({ org: orgProp }) {
             </div>
           ))}
         </div>
+
         <div>
-          <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><Mail className="w-3 h-3" /> Standard-Vertriebler (E-Mail)</Label>
-          <Input value={standardVertriebler} onChange={e => setStandardVertriebler(e.target.value)}
-            placeholder="vertriebler@meinefirma.de" type="email" />
-          <p className="text-[11px] text-muted-foreground mt-0.5">Neu generierte Leads werden automatisch zugewiesen</p>
+          <Label className="text-xs font-semibold mb-1 block flex items-center gap-1">
+            <Mail className="w-3 h-3" /> Standard-Vertriebler
+          </Label>
+          <Select value={standardVertriebler} onValueChange={setStandardVertriebler}>
+            <SelectTrigger>
+              <SelectValue placeholder="Vertriebler auswählen..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">— Keiner / manuell zuweisen</SelectItem>
+              {members.map(m => (
+                <SelectItem key={m.id} value={m.user_email}>
+                  {m.user_email}
+                  {m.role === "organization_admin" ? " (Admin)" : " (Vertriebler)"}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Neu generierte Leads werden automatisch diesem Vertriebler zugewiesen</p>
         </div>
       </SettingsSection>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving} className="gap-2">
+        <Button onClick={handleSave} disabled={saving || !!websiteError} className="gap-2">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? "Wird gespeichert..." : "Änderungen speichern"}
         </Button>

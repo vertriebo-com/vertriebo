@@ -1,21 +1,22 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Building2, Mail, FileText, Users, CreditCard } from "lucide-react";
+import { Loader2, Building2, Mail, FileText, Users, CreditCard, Info } from "lucide-react";
 import CompanySettings from "@/components/settings/CompanySettings";
 import EmailSettings from "@/components/settings/EmailSettings";
 import EmailTemplateSettings from "@/components/settings/EmailTemplateSettings";
 import UserManagement from "@/components/settings/UserManagement";
 import BillingSettings from "@/components/settings/BillingSettings";
 
-const TABS = [
-  { id: "company",    label: "Unternehmensprofil", icon: Building2 },
-  { id: "email",      label: "E-Mail & Absender",  icon: Mail },
-  { id: "templates",  label: "E-Mail-Vorlagen",     icon: FileText },
-  { id: "team",       label: "Team & Benutzer",     icon: Users },
-  { id: "billing",    label: "Abonnement",          icon: CreditCard },
-];
+// Tabs visible only to organization_admin
+const ADMIN_ONLY_TABS = new Set(["company", "email", "templates", "team", "billing"]);
 
-const ADMIN_ONLY_TABS = new Set(["billing"]);
+const TABS = [
+  { id: "company",    label: "Unternehmensprofil", icon: Building2, adminOnly: true },
+  { id: "email",      label: "E-Mail & Absender",  icon: Mail,      adminOnly: true },
+  { id: "templates",  label: "E-Mail-Vorlagen",     icon: FileText,  adminOnly: true },
+  { id: "team",       label: "Team & Benutzer",     icon: Users,     adminOnly: true },
+  { id: "billing",    label: "Abonnement",          icon: CreditCard, adminOnly: true },
+];
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("company");
@@ -67,7 +68,7 @@ export default function SettingsPage() {
 
   useEffect(() => { loadData(); }, []);
 
-  const visibleTabs = TABS.filter(tab => isAdmin || !ADMIN_ONLY_TABS.has(tab.id));
+  const visibleTabs = TABS.filter(tab => !tab.adminOnly || isAdmin);
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
@@ -106,10 +107,16 @@ export default function SettingsPage() {
 
       {/* Tab Content */}
       <div className="pt-1">
-        {activeTab === "company"   && <CompanySettings org={org} />}
-        {activeTab === "email"     && <EmailSettings org={org} />}
-        {activeTab === "templates" && <EmailTemplateSettings />}
-        {activeTab === "team"      && (
+        {!isAdmin && (
+          <div className="mb-4 flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 border border-border rounded-xl px-4 py-3">
+            <Info className="w-4 h-4 shrink-0" />
+            Als Vertriebler haben Sie keinen Zugriff auf Unternehmenseinstellungen. Wenden Sie sich an Ihren Admin.
+          </div>
+        )}
+        {activeTab === "company"   && isAdmin && <CompanySettings org={org} />}
+        {activeTab === "email"     && isAdmin && <EmailSettings org={org} />}
+        {activeTab === "templates" && isAdmin && <EmailTemplateSettings />}
+        {activeTab === "team"      && isAdmin && (
           <UserManagement
             users={users}
             currentUser={currentUser}
