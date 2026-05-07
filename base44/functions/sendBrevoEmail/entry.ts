@@ -17,7 +17,13 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 //     OrganizationSettings: smtp_host, smtp_user, smtp_pass, smtp_port
 //   - Queue-Unterstützung: organization_id + batch_id als Metadata
 
-const PLATFORM_FROM_EMAIL = "info@huwa-gebaeudedienste.de"; // Brevo-verifizierter Fallback
+// TODO [GO-LIVE]: Diese Domain muss auf eine verifizierte Vertriebo-Absenderdomain umgestellt werden.
+// Aktuell: info@huwa-gebaeudedienste.de (bei Brevo verifiziert, nur als temporärer MVP-Fallback).
+// Ziel: noreply@vertriebo.de oder mail@vertriebo.de bei Brevo als Sender verifizieren,
+//        dann diesen Wert hier ersetzen. Kein Code-Änderung in Funktionen nötig – nur dieser Konstante.
+// Mittelfristig: PLATFORM_FROM_EMAIL aus AppSettings laden (key: "platform_from_email") für
+//                zentrale Änderbarkeit ohne Code-Deploy.
+const PLATFORM_FROM_EMAIL = "info@huwa-gebaeudedienste.de"; // TODO: → noreply@vertriebo.de
 const PLATFORM_FROM_NAME  = "Vertriebo";
 
 async function sendViaBrevo({ to, subject, htmlBody, fromName, fromEmail, replyTo }) {

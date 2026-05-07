@@ -5,13 +5,18 @@ export default function Impressum() {
         <a href="/landing" className="text-sm text-primary hover:underline mb-8 inline-block">← Zurück</a>
         <h1 className="text-3xl font-bold mb-8">Impressum</h1>
 
+        {/* TODO [GO-LIVE]: Vertriebo-Betreiberangaben eintragen (Firmenname, Adresse, Handelsregister, USt-ID) */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-8 text-sm text-amber-800">
+          <strong>⚠️ Platzhalter:</strong> Diese Angaben müssen vor Go-Live durch die echten Vertriebo-Betreiberdaten ersetzt werden.
+        </div>
+
         <div className="prose prose-sm max-w-none space-y-6 text-foreground">
           <section>
             <h2 className="text-lg font-semibold mb-2">Angaben gemäß § 5 DDG</h2>
             <p className="text-muted-foreground">
-              Huwa Gebäudereinigung & Hausmeisterdienste<br />
-              Mittelweg 24<br />
-              56566 Neuwied<br />
+              Vertriebo – [Betreiber eintragen]<br />
+              [Straße und Hausnummer]<br />
+              [PLZ] [Ort]<br />
               Deutschland
             </p>
           </section>
@@ -19,24 +24,21 @@ export default function Impressum() {
           <section>
             <h2 className="text-lg font-semibold mb-2">Kontakt</h2>
             <p className="text-muted-foreground">
-              Telefon: 02601/9131820<br />
-              E-Mail: info@huwa-gebaeudedienste.de
+              E-Mail: [kontakt@vertriebo.de eintragen]
             </p>
           </section>
 
           <section>
             <h2 className="text-lg font-semibold mb-2">Umsatzsteuer-ID</h2>
             <p className="text-muted-foreground">
-                Steuernummer: 32/074/56310
+              [USt-IdNr. / Steuernummer eintragen]
             </p>
           </section>
 
           <section>
             <h2 className="text-lg font-semibold mb-2">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
             <p className="text-muted-foreground">
-              Huwa Gebäudereinigung & Hausmeisterdienste<br />
-              Mittelweg 24<br />
-              56566 Neuwied
+              [Name und Anschrift des Verantwortlichen]
             </p>
           </section>
 
@@ -47,8 +49,6 @@ export default function Impressum() {
               <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
                 https://ec.europa.eu/consumers/odr/
               </a>
-              <br />
-              Unsere E-Mail-Adresse finden Sie oben im Impressum.
               <br /><br />
               Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.
             </p>
@@ -64,7 +64,7 @@ export default function Impressum() {
           <section>
             <h2 className="text-lg font-semibold mb-2">Haftung für Links</h2>
             <p className="text-muted-foreground">
-              Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich.
+              Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen.
             </p>
           </section>
 
