@@ -100,7 +100,7 @@ const OnboardingGuard = ({ children }) => {
 };
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
 
   if (isLoadingPublicSettings || isLoadingAuth) return <Spinner />;
 
@@ -110,6 +110,11 @@ const AuthenticatedApp = () => {
       navigateToLogin();
       return null;
     }
+  }
+
+  // Not authenticated → back to landing
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
   }
 
   return (
