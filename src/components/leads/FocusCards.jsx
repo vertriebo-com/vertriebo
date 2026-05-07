@@ -41,21 +41,21 @@ export default function FocusCards({ companies, activeFocus, onFilterClick }) {
           <button
             key={card.id}
             onClick={() => onFilterClick(isActive ? null : card.value)}
-            className={`bg-white border-2 transition-all duration-200 rounded-2xl p-5 hover:shadow-md cursor-pointer ${
+            className={`bg-white border-2 transition-all duration-200 rounded-xl p-4 hover:shadow-md cursor-pointer ${
               isActive ? "border-blue-500 shadow-md ring-1 ring-blue-500" : "border-[#E2E8F0] hover:border-blue-400"
             }`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center shadow-sm`}>
-                <Icon className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-between mb-2">
+              <div className={`w-9 h-9 rounded-lg ${card.iconBg} flex items-center justify-center shadow-sm`}>
+                <Icon className="w-4.5 h-4.5 text-white" />
               </div>
               {count > 0 && (
-                <span className="text-2xl font-bold text-slate-900">{count}</span>
+                <span className="text-xl font-bold text-slate-900">{count}</span>
               )}
             </div>
             <div className="text-left">
-              <p className="text-sm font-bold text-slate-900 mb-0.5">{card.label}</p>
-              <p className="text-xs font-medium text-slate-600">
+              <p className="text-xs font-bold text-slate-900 mb-0.5">{card.label}</p>
+              <p className="text-[10px] font-semibold text-slate-600">
                 {count === 0 ? "Keine" : count === 1 ? "1 Lead" : `${count} Leads`}
               </p>
             </div>

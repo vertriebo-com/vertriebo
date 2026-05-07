@@ -24,6 +24,7 @@ export default function Leads() {
   const [assignedFilter, setAssignedFilter] = useState("Alle");
   const [showArchived, setShowArchived] = useState(false);
   const [members, setMembers] = useState([]);
+  const [showActions, setShowActions] = useState(false);
 
   const orgId = org?.id || null;
   const { data: companies = [], isLoading: loading, refetch } = useQuery({
@@ -151,14 +152,23 @@ export default function Leads() {
           <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
             <Plus className="w-3.5 h-3.5" /> Neuer Lead
           </Button>
-          {isAdmin && (
-            <Button variant="outline" size="sm" className="gap-1.5 bg-white border border-[#E2E8F0] text-slate-700 hover:bg-slate-50">
-              <TrendingUp className="w-3.5 h-3.5" /> Recherche
+          <div className="relative">
+            <Button variant="outline" size="sm" onClick={() => setShowActions(!showActions)} className="gap-1.5 bg-white border border-[#E2E8F0] text-slate-700 hover:bg-slate-50">
+              <MoreVertical className="w-3.5 h-3.5" /> Mehr
             </Button>
-          )}
-          <Button variant="outline" size="sm" onClick={handleCsvExport} className="gap-1.5 bg-white border border-[#E2E8F0] text-slate-700 hover:bg-slate-50">
-            <MoreVertical className="w-3.5 h-3.5" />
-          </Button>
+            {showActions && (
+              <div className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-xl overflow-hidden">
+                {isAdmin && (
+                  <button onClick={() => { setShowActions(false); /* Recherche logic */ }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                    <TrendingUp className="w-4 h-4" /> Recherche
+                  </button>
+                )}
+                <button onClick={() => { handleCsvExport(); setShowActions(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                  <Download className="w-4 h-4" /> CSV Export
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Extended Filters */}
