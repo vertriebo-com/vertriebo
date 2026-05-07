@@ -99,11 +99,28 @@ export const AuthProvider = ({ children }) => {
       const sessionKey = `activity_logged_${currentUser.email}`;
       if (!sessionStorage.getItem(sessionKey)) {
         sessionStorage.setItem(sessionKey, "1");
-        base44.entities.ActivityLog.create({
-          user_email: currentUser.email,
-          user_name: currentUser.full_name || currentUser.email,
-          event: "login"
-        }).catch(() => {});
+        // Org-ID für ActivityLog ermitteln (non-blocking)
+        (async () => {
+          try {
+            let orgId = null;
+            const orgs = await base44.entities.Organization.filter({ owner_email: currentUser.email });
+            let org = orgs?.[0] || null;
+            if (!org) {
+              const memberships = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email, status: "active" });
+              if (memberships?.[0]?.organization_id) {
+                const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+                org = memberOrgs?.[0] || null;
+              }
+            }
+            orgId = org?.id || null;
+            await base44.entities.ActivityLog.create({
+              organization_id: orgId,
+              user_email: currentUser.email,
+              user_name: currentUser.full_name || currentUser.email,
+              event: "login"
+            });
+          } catch (_) {}
+        })();
       }
     } catch (error) {
       console.error('User auth check failed:', error);

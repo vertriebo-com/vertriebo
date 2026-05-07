@@ -15,7 +15,19 @@ export default function ActivityOverview({ users }) {
 
   const loadLogs = async () => {
     setLoading(true);
-    const data = await base44.entities.ActivityLog.list("-created_date", 200);
+    const user = await base44.auth.me();
+    let org = null;
+    const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+    org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    if (!org) { setLoading(false); return; }
+    const data = await base44.entities.ActivityLog.filter({ organization_id: org.id }, "-created_date", 200);
     setLogs(data);
     setLoading(false);
   };

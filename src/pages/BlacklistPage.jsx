@@ -16,6 +16,7 @@ export default function BlacklistPage() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
+  const [orgId, setOrgId] = useState(null);
   const [form, setForm] = useState({ firmenname: "", grund: "", telefon: "", email: "" });
 
   useEffect(() => {
@@ -23,14 +24,28 @@ export default function BlacklistPage() {
   }, []);
 
   const loadData = async () => {
-    const data = await base44.entities.Blacklist.list("-created_date", 200);
+    const user = await base44.auth.me();
+    let org = null;
+    const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+    org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    if (!org) { setLoading(false); return; }
+    // Store orgId for handleAdd
+    setOrgId(org.id);
+    const data = await base44.entities.Blacklist.filter({ organization_id: org.id }, "-created_date", 200);
     setEntries(data);
     setLoading(false);
   };
 
   const handleAdd = async () => {
     if (!form.firmenname.trim()) { toast.error("Firmenname fehlt"); return; }
-    await base44.entities.Blacklist.create(form);
+    await base44.entities.Blacklist.create({ ...form, organization_id: orgId });
     toast.success("Zur Blacklist hinzugefügt");
     setForm({ firmenname: "", grund: "", telefon: "", email: "" });
     setShowAdd(false);

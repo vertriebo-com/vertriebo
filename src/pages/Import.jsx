@@ -54,14 +54,26 @@ export default function Import() {
     let duplicates = 0;
     let blacklisted = 0;
 
+    const me = await base44.auth.me();
+    let org = null;
+    const orgs = await base44.entities.Organization.filter({ owner_email: me.email });
+    org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    if (!org) { toast.error("Keine Organisation gefunden."); setImporting(false); return; }
+
     const [existingCompanies, blacklistEntries] = await Promise.all([
-      base44.entities.Company.list("-created_date", 1000),
-      base44.entities.Blacklist.list("-created_date", 500),
+      base44.entities.Company.filter({ organization_id: org.id }, "-created_date", 1000),
+      base44.entities.Blacklist.filter({ organization_id: org.id }, "-created_date", 500),
     ]);
 
     const existingNames = new Set(existingCompanies.map(c => c.name?.toLowerCase()));
     const blacklistNames = new Set(blacklistEntries.map(b => b.firmenname?.toLowerCase()));
-    const me = await base44.auth.me();
 
     for (const company of companies) {
       if (!company.name) continue;
@@ -78,6 +90,7 @@ export default function Import() {
 
       await base44.entities.Company.create({
         ...company,
+        organization_id: org.id,
         status: "Neu",
         quelle: "CSV Import",
         assigned_to: me.email,

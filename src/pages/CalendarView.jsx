@@ -41,15 +41,28 @@ export default function CalendarView() {
   const [selectedDay, setSelectedDay] = useState(null); // moment obj
 
   useEffect(() => {
-    Promise.all([
-      base44.entities.Company.list("-created_date", 500),
-      base44.entities.Task.list("-faellig_am", 300),
-    ]).then(([comps, t]) => {
+    (async () => {
+      if (!user) return;
+      let org = null;
+      const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+      org = orgs?.[0] || null;
+      if (!org) {
+        const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+        if (memberships?.[0]?.organization_id) {
+          const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+          org = memberOrgs?.[0] || null;
+        }
+      }
+      if (!org) { setLoading(false); return; }
+      const [comps, t] = await Promise.all([
+        base44.entities.Company.filter({ organization_id: org.id }, "-created_date", 500),
+        base44.entities.Task.filter({ organization_id: org.id }, "-faellig_am", 300),
+      ]);
       setCompanies(comps);
       setTasks(t);
       setLoading(false);
-    });
-  }, []);
+    })();
+  }, [user]);
 
   const myCompanies = filterCompanies(companies);
   const myTasks     = user?.role === "admin" ? tasks : tasks.filter(t => t.assigned_to === user?.email);

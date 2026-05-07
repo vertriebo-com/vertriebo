@@ -56,11 +56,24 @@ export default function MapView() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    base44.entities.Company.list("-created_date", 1000).then(comps => {
+    (async () => {
+      if (!user) return;
+      let org = null;
+      const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+      org = orgs?.[0] || null;
+      if (!org) {
+        const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+        if (memberships?.[0]?.organization_id) {
+          const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+          org = memberOrgs?.[0] || null;
+        }
+      }
+      if (!org) { setLoading(false); return; }
+      const comps = await base44.entities.Company.filter({ organization_id: org.id }, "-created_date", 1000);
       setCompanies(comps);
       setLoading(false);
-    });
-  }, []);
+    })();
+  }, [user]);
 
   const allCompanies = filterCompanies(companies);
   const filtered = allCompanies.filter(c => {

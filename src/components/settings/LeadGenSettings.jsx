@@ -26,13 +26,33 @@ export default function LeadGenSettings({ users }) {
   const [newKeyword, setNewKeyword] = useState("");
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [orgId, setOrgId] = useState(null);
 
   useEffect(() => {
     loadSettings();
   }, []);
 
+  const getOrg = async () => {
+    if (orgId) return orgId;
+    const user = await base44.auth.me();
+    let org = null;
+    const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+    org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    if (org) setOrgId(org.id);
+    return org?.id || null;
+  };
+
   const loadSettings = async () => {
-    const settings = await base44.entities.AppSettings.list();
+    const currentOrgId = await getOrg();
+    if (!currentOrgId) return;
+    const settings = await base44.entities.OrganizationSettings.filter({ organization_id: currentOrgId });
     const map = {};
     settings.forEach(s => { map[s.key] = s.value; });
     if (map.lead_radius) setRadius(map.lead_radius);
@@ -49,7 +69,9 @@ export default function LeadGenSettings({ users }) {
 
   const saveSettings = async () => {
     setSaving(true);
-    const existing = await base44.entities.AppSettings.list();
+    const currentOrgId = await getOrg();
+    if (!currentOrgId) { toast.error("Keine Organisation gefunden."); setSaving(false); return; }
+    const existing = await base44.entities.OrganizationSettings.filter({ organization_id: currentOrgId });
     const existingMap = {};
     existing.forEach(s => { existingMap[s.key] = s.id; });
 
@@ -67,9 +89,9 @@ export default function LeadGenSettings({ users }) {
     await Promise.all(
       Object.entries(toSave).map(([key, value]) => {
         if (existingMap[key]) {
-          return base44.entities.AppSettings.update(existingMap[key], { value });
+          return base44.entities.OrganizationSettings.update(existingMap[key], { value });
         } else {
-          return base44.entities.AppSettings.create({ key, value });
+          return base44.entities.OrganizationSettings.create({ organization_id: currentOrgId, key, value });
         }
       })
     );

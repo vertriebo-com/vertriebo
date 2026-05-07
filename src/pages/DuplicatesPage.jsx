@@ -38,7 +38,19 @@ export default function DuplicatesPage() {
 
   const findDuplicates = async () => {
     setLoading(true);
-    const companies = await base44.entities.Company.list("-created_date", 1000);
+    const user = await base44.auth.me();
+    let org = null;
+    const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+    org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    if (!org) { setLoading(false); return; }
+    const companies = await base44.entities.Company.filter({ organization_id: org.id }, "-created_date", 1000);
     const found = [];
     const used = new Set();
 
