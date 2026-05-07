@@ -162,6 +162,7 @@ Deno.serve(async (req) => {
       mode: 'subscription',
       customer: stripeCustomerId,
       payment_method_types: ['card'],
+      allow_promotion_codes: true,
       line_items: [{ price: plan.stripe_price_id, quantity: 1 }],
       success_url: successRedirect,
       cancel_url: cancelRedirect,
