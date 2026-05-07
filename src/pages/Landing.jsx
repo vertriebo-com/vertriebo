@@ -155,10 +155,10 @@ export default function Landing() {
                 <Zap className="w-3.5 h-3.5 fill-white" /> Für lokale Dienstleister
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6 text-slate-900 leading-tight">
-                Das Vertriebssystem für lokale Dienstleister,<br />die mehr Firmenkunden gewinnen wollen.
+                Neue Firmenkontakte finden. Vertrieb organisieren.<br />Rückrufe nie wieder vergessen.
               </h1>
               <p className="text-lg mb-3 text-slate-600 leading-relaxed font-medium">
-                Vertriebo zeigt Ihrem Team jeden Tag, welche Firmen kontaktiert, nachgefasst oder erneut angerufen werden müssen – priorisiert, organisiert und nachvollziehbar.
+                Vertriebo verbindet Firmenrecherche, Lead-Priorisierung, Aufgaben, E-Mails und Teamsteuerung in einem einfachen System.
               </p>
               <p className="text-sm mb-8 text-slate-500 font-medium">
                 Für Gebäudereinigung, Hausmeister, Handwerk & lokale B2B-Dienstleister.
@@ -336,56 +336,147 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* B) Problem → Lösung (kompakt) */}
+      {/* B) Was Vertriebo anders macht (6 Kernpunkte) */}
       <div className="bg-slate-50 border-y border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-16">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-3 text-slate-900">Schluss mit chaotischem Vertrieb</h2>
+            <h2 className="text-3xl font-bold mb-3 text-slate-900">Mehr Struktur im B2B-Vertrieb</h2>
             <p className="text-slate-600 max-w-2xl mx-auto">
-              Die meisten Dienstleister verlieren jeden Tag Chancen – nicht wegen schlechter Arbeit, sondern wegen fehlender Struktur.
+              Vertriebo ist kein normales CRM. Es hilft Ihnen aktiv, neue Firmenkunden zu finden und Ihren Vertrieb jeden Tag zu steuern – von der Recherche bis zum Nachfassen.
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-6 mb-10">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
             {[
-              { emoji: "📊", title: "Manuelle Suche", desc: "Firmen werden mühsam in Excel oder Google Maps gesucht" },
-              { emoji: "❌", title: "Vergessene Rückrufe", desc: "Wichtige Follow-ups gehen im Alltag unter" },
-              { emoji: "🎯", title: "Keine Prioritäten", desc: "Vertriebler wissen nicht, wen sie zuerst anrufen sollten" },
+              {
+                icon: "🔍",
+                title: "Automatische Firmenkontakt-Recherche",
+                desc: "Legen Sie Zielgebiet, Branche und Kundentyp fest – Vertriebo findet passende Firmenkontakte für Ihren Vertrieb.",
+                color: "border-blue-200 bg-blue-50",
+              },
+              {
+                icon: "⭐",
+                title: "Priorisierte Tagesliste",
+                desc: "Ihr Team sieht jeden Tag, welche Kontakte heute angerufen, nachgefasst oder erneut kontaktiert werden sollten.",
+                color: "border-amber-200 bg-amber-50",
+              },
+              {
+                icon: "📞",
+                title: "Rückrufe & Follow-ups",
+                desc: "Aus Gesprächen entstehen direkt Aufgaben und Erinnerungen – damit kein Kontakt verloren geht.",
+                color: "border-emerald-200 bg-emerald-50",
+              },
+              {
+                icon: "✉️",
+                title: "E-Mail-Vorlagen mit Branding",
+                desc: "Vorlagen, Signatur und Antwortadresse sind je Unternehmen anpassbar – professionell und einheitlich.",
+                color: "border-purple-200 bg-purple-50",
+              },
+              {
+                icon: "👥",
+                title: "Vertriebssteuerung für Teams",
+                desc: "Admins sehen Fortschritt, offene Aufgaben, Aktivität und Ergebnisse. Vertriebler sehen nur ihre eigenen Leads.",
+                color: "border-indigo-200 bg-indigo-50",
+              },
+              {
+                icon: "✅",
+                title: "Alles leicht bedienbar",
+                desc: "Keine komplizierte CRM-Einrichtung. Zielgebiet festlegen, Kontakte recherchieren, losarbeiten.",
+                color: "border-slate-200 bg-slate-50",
+              },
             ].map((item, i) => (
-              <div key={i} className="bg-white border border-red-200 rounded-xl p-5">
-                <div className="text-3xl mb-3">{item.emoji}</div>
-                <h3 className="font-bold text-red-900 mb-2">{item.title}</h3>
-                <p className="text-sm text-red-800">{item.desc}</p>
+              <div key={i} className={`border-2 rounded-xl p-5 ${item.color}`}>
+                <div className="text-3xl mb-3">{item.icon}</div>
+                <h3 className="font-bold text-slate-900 mb-2">{item.title}</h3>
+                <p className="text-sm text-slate-700 leading-relaxed">{item.desc}</p>
               </div>
             ))}
-          </div>
-          
-          <div className="bg-blue-600 rounded-2xl p-6 md:p-8 text-white">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
-                <Check className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold mb-2">Mit Vertriebo anders:</h3>
-                <p className="text-blue-100">
-                  Vertriebo zeigt Ihrem Team jeden Tag, welche Firmen kontaktiert, nachgefasst oder erneut angerufen werden müssen – automatisch priorisiert und sauber dokumentiert.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
       {/* C) So funktioniert Vertriebo (3 Schritte) */}
-      <div id="how-it-works">
-        <HowItWorks />
+      <div id="how-it-works" className="bg-white">
+        <div className="max-w-6xl mx-auto px-6 py-16">
+          <h2 className="text-3xl font-bold text-center mb-10 text-slate-900">So funktioniert Vertriebo</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                step: "1",
+                title: "Zielgebiet festlegen",
+                desc: "Wählen Sie Branche, PLZ-Gebiet und Radius. Vertriebo recherchiert automatisch passende Firmenkontakte in Ihrer Region.",
+                icon: "🎯",
+              },
+              {
+                step: "2",
+                title: "Kontakte priorisieren",
+                desc: "Das System bewertet alle Firmen nach Potenzial und erstellt täglich neue priorisierte Anruflisten für Ihr Team.",
+                icon: "⭐",
+              },
+              {
+                step: "3",
+                title: "Vertrieb steuern",
+                desc: "Ihr Team arbeitet die Tagesliste ab, loggt Kontakte und erhält automatische Erinnerungen für Rückrufe und Follow-ups.",
+                icon: "📊",
+              },
+            ].map((item) => (
+              <div key={item.step} className="relative">
+                <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 h-full hover:border-blue-400 transition-colors">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center">
+                      <span className="text-2xl">{item.icon}</span>
+                    </div>
+                    <div className="text-4xl font-black text-slate-200">{item.step}</div>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-3">{item.title}</h3>
+                  <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
+                </div>
+                {item.step !== "3" && (
+                  <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2 z-10">
+                    <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* D) Produkt-Screenshots mit echtem UI */}
       <ProductShowcase />
 
       {/* E) Zielgruppen (kompakt als Tags) */}
-      <TargetIndustriesCompact />
+      <div className="bg-white border-t border-slate-200">
+        <div className="max-w-6xl mx-auto px-6 py-12">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Für lokale Dienstleister</h2>
+            <p className="text-sm text-slate-600">
+              Vertriebo wurde von Vertriebsprofis entwickelt – für Betriebe, die aktiv neue Firmenkunden gewinnen wollen.
+            </p>
+          </div>
+          
+          {/* Kompakte Tag-Liste */}
+          <div className="flex flex-wrap justify-center gap-3">
+            {[
+              { icon: "🏢", name: "Gebäudereinigung" },
+              { icon: "🛡️", name: "Sicherheitsdienst" },
+              { icon: "🏠", name: "Hausmeisterdienste" },
+              { icon: "📦", name: "Entrümpelung" },
+              { icon: "🔨", name: "Handwerk" },
+              { icon: "💻", name: "IT-Service" },
+              { icon: "🌿", name: "Gartenbau" },
+              { icon: "🚚", name: "Logistik" },
+            ].map((ind) => (
+              <div key={ind.name} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-50 border border-slate-200">
+                <span className="text-base">{ind.icon}</span>
+                <span className="text-sm font-semibold text-slate-700">{ind.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* G) Preise */}
       <div id="pricing" className="max-w-6xl mx-auto px-6 py-20">
