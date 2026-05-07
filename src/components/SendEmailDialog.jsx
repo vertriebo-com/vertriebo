@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Mail, Send, Loader2, FlaskConical, CheckCircle2, ArrowLeft, Paperclip, X, ImagePlus, Trash2 } from "lucide-react";
 import ReactQuill from "react-quill";
 import { toast } from "sonner";
-import { TEMPLATES } from "./emailTemplates";
+import { TEMPLATES, dbTemplateToRuntimeTemplate, buildSignature } from "./emailTemplates";
 
 // ─── HTML Email Builder ───────────────────────────────────────────────────────
 function buildHtmlEmail({ bodyContent, subject, logoUrl, senderName }) {
@@ -324,6 +324,7 @@ export default function SendEmailDialog({ company }) {
   const [fromName, setFromName] = useState(null);
   const [orgId, setOrgId] = useState(null);
   const [orgLoaded, setOrgLoaded] = useState(false);
+  const [runtimeTemplates, setRuntimeTemplates] = useState(TEMPLATES);
   const hasEmail = !!company?.email;
 
   useEffect(() => {
@@ -342,11 +343,31 @@ export default function SendEmailDialog({ company }) {
         }
         if (!org) return;
         setOrgId(org.id);
-        const settings = await base44.entities.OrganizationSettings.filter({ organization_id: org.id });
+
+        const [settings, dbTemplates] = await Promise.all([
+          base44.entities.OrganizationSettings.filter({ organization_id: org.id }),
+          base44.entities.EmailTemplate.filter({ organization_id: org.id }),
+        ]);
+
         const map = {};
         settings.forEach(s => { map[s.key] = s.value; });
         if (map.email_logo_url) setLogoUrl(map.email_logo_url);
         setFromName(map.email_from_name || map.company_name || org.name || null);
+
+        // Build signature for injecting into DB templates if needed
+        const sig = map.organization_email_signature || buildSignature({
+          firmenname: map.company_name || org.name,
+          absendername: map.email_from_name,
+          telefon: map.email_telefon,
+          email: map.email_reply_to || user.email,
+          website: map.email_website,
+          adresse: map.email_adresse,
+        });
+
+        if (dbTemplates?.length > 0) {
+          setRuntimeTemplates(dbTemplates.map(t => dbTemplateToRuntimeTemplate(t, sig)));
+        }
+
         setOrgLoaded(true);
       })();
     }
@@ -377,7 +398,7 @@ export default function SendEmailDialog({ company }) {
             {!selectedTemplate ? (
               <div className="space-y-2 pt-1">
                 <p className="text-xs text-muted-foreground mb-3">Vorlage auswählen:</p>
-                {TEMPLATES.map(tpl => (
+                {runtimeTemplates.map(tpl => (
                   <button
                     key={tpl.id}
                     onClick={() => setSelectedTemplate(tpl)}

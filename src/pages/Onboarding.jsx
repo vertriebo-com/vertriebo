@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import EmailSetupStep from "@/components/onboarding/EmailSetupStep";
 
 const INDUSTRIES = [
   { icon: "🧹", key: "reinigung", name: "Gebäudereinigung", keywords: ["Bürogebäude", "Immobilienverwaltung", "Arztpraxis", "Rechtsanwalt", "Steuerberatung", "Zahnarztpraxis", "Lager", "Produktionshalle", "Bank", "Versicherung"] },
@@ -20,14 +21,13 @@ const INDUSTRIES = [
   { icon: "📦", key: "lager", name: "Lager / Fulfillment", keywords: ["Online-Händler", "Großhändler", "Hersteller", "Pharmaunternehmen", "Elektronikhändler", "Modehändler", "Lebensmittelhandel", "Automobilzulieferer", "Sportartikel", "Kosmetik"] },
 ];
 
-const STEPS = ["Branche", "Standort", "Fertig"];
+// Step labels – index matters: 0=Branche, 1=Standort, 2=E-Mail, 3=Fertig
+const STEPS = ["Branche", "Standort", "E-Mail", "Fertig"];
 
 export default function Onboarding() {
   const navigate = useNavigate();
   const urlParams = new URLSearchParams(window.location.search);
-  const plan = urlParams.get("plan") || "Starter";
   const planId = urlParams.get("plan_id") || null;
-  const planName = urlParams.get("plan_name") || null;
 
   const [step, setStep] = useState(0);
   const [selectedIndustry, setSelectedIndustry] = useState(null);
@@ -38,6 +38,8 @@ export default function Onboarding() {
   const [plzCity, setPlzCity] = useState("");
   const [saving, setSaving] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [currentOrg, setCurrentOrg] = useState(null);
 
   useEffect(() => {
     base44.auth.isAuthenticated().then(async (authed) => {
@@ -46,7 +48,6 @@ export default function Onboarding() {
         return;
       }
 
-      // Nach erfolgreichem Checkout: onboarding_done prüfen und ggf. zum Dashboard
       const urlParams2 = new URLSearchParams(window.location.search);
       if (urlParams2.get("checkout") === "success") {
         try {
@@ -57,7 +58,6 @@ export default function Onboarding() {
             window.location.replace("/dashboard");
             return;
           }
-          // Webhook noch nicht angekommen – kurz warten und nochmal prüfen
           await new Promise(r => setTimeout(r, 3000));
           const orgs2 = await base44.entities.Organization.filter({ owner_email: user.email });
           const org2 = orgs2?.[0];
@@ -65,10 +65,10 @@ export default function Onboarding() {
             window.location.replace("/dashboard");
             return;
           }
-          // Trotzdem weitermachen – Webhook kommt bald
         } catch (e) { /* ignore */ }
       }
-      // Wenn bereits onboarded (org.onboarding_done = true) und plan_id vorhanden → direkt Checkout
+
+      // Already onboarded + plan_id → direct checkout
       if (planId) {
         try {
           const user = await base44.auth.me();
@@ -93,10 +93,11 @@ export default function Onboarding() {
               return;
             }
           }
-        } catch (e) {
-          // Fehler ignorieren, normales Onboarding zeigen
-        }
+        } catch (e) { /* ignore */ }
       }
+
+      const user = await base44.auth.me();
+      setCurrentUser(user);
       setAuthChecked(true);
     });
   }, []);
@@ -119,23 +120,22 @@ export default function Onboarding() {
     setPlzLoading(false);
   };
 
-  const handleFinish = async () => {
+  // Step 1 → Step 2: save location data and create/update org
+  const handleLocationNext = async () => {
     if (!firmenname.trim() || !plz.trim()) {
       toast.error("Bitte Firmenname und PLZ eingeben.");
       return;
     }
     setSaving(true);
     try {
-      const user = await base44.auth.me();
+      const user = currentUser;
 
-      // Geocode PLZ
       const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?postalcode=${plz}&country=de&format=json&limit=1`);
       const geoData = await geoRes.json();
       const lat = geoData?.[0]?.lat || "50.4265";
       const lng = geoData?.[0]?.lon || "7.4620";
       const city = geoData?.[0]?.display_name?.split(",")[0] || "";
 
-      // Organisation anlegen oder updaten
       let orgs = await base44.entities.Organization.filter({ owner_email: user.email });
       let org = orgs?.[0];
       if (!org) {
@@ -149,9 +149,16 @@ export default function Onboarding() {
           service_area_plz: plz,
           service_area_radius_km: parseInt(radius),
         });
+      } else {
+        await base44.entities.Organization.update(org.id, {
+          name: firmenname,
+          industry: selectedIndustry?.name || "",
+          service_area_plz: plz,
+          service_area_radius_km: parseInt(radius),
+        });
       }
 
-      // Member-Eintrag sicherstellen
+      // Member-Eintrag
       const members = await base44.entities.OrganizationMember.filter({ organization_id: org.id, user_email: user.email });
       if (!members?.[0]) {
         await base44.entities.OrganizationMember.create({
@@ -162,8 +169,7 @@ export default function Onboarding() {
         });
       }
 
-      // OrganizationSettings für Lead-Generierung (per Org, nicht global)
-      const orgSettingsKey = `lead_config_${org.id}`;
+      // Lead/Geo settings
       const existingOrgSettings = await base44.entities.OrganizationSettings.filter({ organization_id: org.id });
       const existingMap = {};
       existingOrgSettings.forEach(s => { existingMap[s.key] = s.id; });
@@ -176,26 +182,39 @@ export default function Onboarding() {
         lead_plz_city: city,
         lead_count: "25",
         lead_keywords: JSON.stringify(selectedIndustry?.keywords || []),
+        company_name: firmenname,
+        industry_name: selectedIndustry?.name || "",
       };
 
       await Promise.all(
         Object.entries(toSave).map(([key, value]) => {
           if (existingMap[key]) {
             return base44.entities.OrganizationSettings.update(existingMap[key], { organization_id: org.id, key, value });
-          } else {
-            return base44.entities.OrganizationSettings.create({ organization_id: org.id, key, value });
           }
+          return base44.entities.OrganizationSettings.create({ organization_id: org.id, key, value });
         })
       );
 
-      // Checkout starten wenn plan_id vorhanden
+      setCurrentOrg(org);
+      setStep(2); // → E-Mail step
+    } catch (e) {
+      toast.error("Fehler: " + e.message);
+    }
+    setSaving(false);
+  };
+
+  // Step 2 → Step 3: email data already saved by EmailSetupStep, now finalize
+  const handleEmailNext = async () => {
+    setSaving(true);
+    try {
+      const org = currentOrg;
+
       if (planId) {
         const res = await base44.functions.invoke("createCheckoutSession", {
           organization_id: org.id,
           plan_id: planId,
         });
         if (res.data?.url) {
-          // onboarding_done wird ERST nach erfolgreichem Checkout via Webhook gesetzt
           window.location.href = res.data.url;
           return;
         } else {
@@ -205,7 +224,7 @@ export default function Onboarding() {
         }
       }
 
-      // Kein Plan (direkter Abschluss ohne Zahlung) → onboarding_done setzen
+      // No payment required → mark onboarding done, generate leads + templates
       await base44.entities.Organization.update(org.id, {
         name: firmenname,
         onboarding_done: true,
@@ -215,10 +234,11 @@ export default function Onboarding() {
         service_area_radius_km: parseInt(radius),
       });
 
-      // Auto-generate first leads (non-blocking, org-spezifisch)
+      // Non-blocking: generate leads + email templates
       base44.functions.invoke("generateLeads", { organization_id: org.id, count: 25 }).catch(() => {});
+      base44.functions.invoke("initOrgEmailTemplates", { organization_id: org.id }).catch(() => {});
 
-      setStep(2);
+      setStep(3);
     } catch (e) {
       toast.error("Fehler: " + e.message);
     }
@@ -338,15 +358,26 @@ export default function Onboarding() {
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(0)}>Zurück</Button>
-              <Button onClick={handleFinish} disabled={saving} className="flex-1 gap-2">
-                {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Wird eingerichtet...</> : <>Fertig & Leads generieren <ArrowRight className="w-4 h-4" /></>}
+              <Button onClick={handleLocationNext} disabled={saving} className="flex-1 gap-2">
+                {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Wird gespeichert...</> : <>Weiter <ArrowRight className="w-4 h-4" /></>}
               </Button>
             </div>
           </div>
         )}
 
-        {/* Step 2: Fertig */}
-        {step === 2 && (
+        {/* Step 2: E-Mail & Kommunikation */}
+        {step === 2 && currentOrg && (
+          <EmailSetupStep
+            firmenname={firmenname}
+            userEmail={currentUser?.email}
+            orgId={currentOrg.id}
+            onBack={() => setStep(1)}
+            onNext={handleEmailNext}
+          />
+        )}
+
+        {/* Step 3: Fertig */}
+        {step === 3 && (
           <div className="bg-card border border-border rounded-2xl p-8 text-center">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-primary" />
@@ -355,13 +386,16 @@ export default function Onboarding() {
             <p className="text-muted-foreground mb-2">
               Dein System ist konfiguriert für <strong>{selectedIndustry?.icon} {selectedIndustry?.name}</strong>.
             </p>
-            <p className="text-sm text-muted-foreground mb-8">
-              25 neue Leads wurden bereits für dich generiert. Dein erster Morgenreport kommt morgen früh – powered by Vertriebo.
-            </p>
+            <div className="text-sm text-muted-foreground mb-8 space-y-1">
+              <p>✅ 25 neue Leads werden generiert</p>
+              <p>✅ 6 personalisierte E-Mail-Vorlagen erstellt</p>
+              <p>✅ Signatur & Absenderdaten gespeichert</p>
+              <p className="text-xs mt-3">Dein erster Morgenreport kommt morgen früh – powered by Vertriebo.</p>
+            </div>
             {planId ? (
               <p className="text-sm text-muted-foreground">Du wirst gleich zum Checkout weitergeleitet...</p>
             ) : (
-              <Button onClick={() => navigate("/")} className="gap-2" size="lg">
+              <Button onClick={() => navigate("/dashboard")} className="gap-2" size="lg">
                 Zum Dashboard <ArrowRight className="w-4 h-4" />
               </Button>
             )}
