@@ -3,8 +3,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
-import { Loader2, ImagePlus, Trash2, Mail, Phone, Globe, MapPin, User } from "lucide-react";
+import { Loader2, ImagePlus, Trash2, Mail, Phone, Globe, MapPin, User, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+
+function normalizeUrl(val) {
+  const v = (val || "").trim();
+  if (!v) return "";
+  if (v.startsWith("http://") || v.startsWith("https://")) return v;
+  if (v.includes(".")) return "https://" + v;
+  return "";
+}
+
+function isValidUrl(val) {
+  if (!val) return true;
+  try { new URL(normalizeUrl(val) || "invalid"); return true; } catch { return false; }
+}
+
+function isLikelyPlainText(val) {
+  if (!val) return false;
+  const v = val.trim();
+  return v.includes(" ") && !v.includes(".");
+}
 
 // ─── Signature Preview ────────────────────────────────────────────────────────
 function SignaturePreview({ sig }) {
@@ -51,6 +70,7 @@ export default function EmailSetupStep({ firmenname, userEmail, onBack, onNext, 
   const [absenderEmail, setAbsenderEmail] = useState(userEmail || "");
   const [telefon, setTelefon] = useState("");
   const [website, setWebsite] = useState("");
+  const [websiteError, setWebsiteError] = useState("");
   const [adresse, setAdresse] = useState("");
   const [logoUrl, setLogoUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -60,13 +80,26 @@ export default function EmailSetupStep({ firmenname, userEmail, onBack, onNext, 
   const logoInputRef = useRef(null);
 
   // Live-generated signature (before custom edit)
-  const autoSignature = buildSignatureHtml({ absendername, firmenname, telefon, email: replyTo || absenderEmail, website, adresse });
+  const cleanWebsite = normalizeUrl(website);
+  const autoSignature = buildSignatureHtml({ absendername, firmenname, telefon, email: replyTo || absenderEmail, website: cleanWebsite, adresse });
   const displaySignature = customSignature !== null ? customSignature : autoSignature;
 
   // Reset custom signature when fields change (unless user manually edited)
   const handleFieldChange = (setter) => (val) => {
     setter(val);
-    if (customSignature !== null) setCustomSignature(null); // re-auto-generate
+    if (customSignature !== null) setCustomSignature(null);
+  };
+
+  const handleWebsiteChange = (val) => {
+    setWebsite(val);
+    setCustomSignature(null);
+    if (isLikelyPlainText(val)) {
+      setWebsiteError("Das ist kein URL. Bitte eine echte Web-Adresse eingeben, z.B. https://www.meinefirma.de");
+    } else if (val && !isValidUrl(val)) {
+      setWebsiteError("Ungültige URL. Beispiel: https://www.meinefirma.de");
+    } else {
+      setWebsiteError("");
+    }
   };
 
   const handleLogoUpload = async (e) => {
@@ -80,17 +113,21 @@ export default function EmailSetupStep({ firmenname, userEmail, onBack, onNext, 
   };
 
   const handleSave = async () => {
+    if (websiteError) { toast.error("Bitte die Website-URL korrigieren."); return; }
     setSaving(true);
     const existingSettings = await base44.entities.OrganizationSettings.filter({ organization_id: orgId });
     const existingMap = {};
     existingSettings.forEach(s => { existingMap[s.key] = s.id; });
+
+    const cleanWebsite = normalizeUrl(website);
 
     const toSave = {
       email_from_name: absendername,
       email_reply_to: replyTo,
       email_sender_email: absenderEmail,
       email_telefon: telefon,
-      email_website: website,
+      email_website: cleanWebsite,
+      company_website: cleanWebsite,
       email_adresse: adresse,
       organization_email_signature: displaySignature,
       ...(logoUrl ? { email_logo_url: logoUrl } : {}),
@@ -183,11 +220,17 @@ export default function EmailSetupStep({ firmenname, userEmail, onBack, onNext, 
               <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 value={website}
-                onChange={e => handleFieldChange(setWebsite)(e.target.value)}
-                placeholder="www.meinefirma.de"
-                className="pl-9"
+                onChange={e => handleWebsiteChange(e.target.value)}
+                placeholder="https://www.meinefirma.de"
+                className={`pl-9 ${websiteError ? "border-destructive" : ""}`}
               />
             </div>
+            {websiteError && <p className="text-[11px] text-destructive mt-0.5">{websiteError}</p>}
+            {!websiteError && website && normalizeUrl(website) && (
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Gespeichert als: {normalizeUrl(website)}
+              </p>
+            )}
           </div>
         </div>
 
