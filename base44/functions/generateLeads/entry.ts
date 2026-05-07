@@ -122,17 +122,40 @@ Deno.serve(async (req) => {
     const periodEnd = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59).toISOString();
     let currentUsageLogs = [];
     try { currentUsageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_start: periodStart }); } catch(_) {}
-    const currentGenerations = currentUsageLogs[0]?.lead_generations_used || 0;
+    const usageLog = currentUsageLogs[0] || null;
+    const currentGenerations = usageLog?.lead_generations_used || 0;
+    const currentLeadsCreated = usageLog?.leads_created || 0;
 
-    // ── 2. checkAccess ──────────────────────────────────────────────────────
+    // ── 2. checkAccess: Recherche-Läufe prüfen ──────────────────────────────
     const access = await checkAccess(req, { organization_id, action:'generate_leads', check_limit:'max_lead_generations_per_month', current_usage:currentGenerations });
     if (!access.allowed) {
-      console.warn(`[generateLeads] Access denied: ${access.reason}`);
+      console.warn(`[generateLeads] Access denied (generations): ${access.reason}`);
       return Response.json({ error: access.message, reason: access.reason }, { status: 403 });
     }
 
-    const user = access.user;
+    // ── 2b. Recherche-Credits prüfen (max_leads_per_month) ───────────────────
+    //   1 Recherche-Credit = 1 recherchierter Firmenkontakt
+    //   max_leads_per_month begrenzt die Gesamtanzahl der Kontakte pro Monat
+    const plan = access.plan;
     const targetCount = count || 25;
+    if (plan && plan.max_leads_per_month !== -1) {
+      const remaining = plan.max_leads_per_month - currentLeadsCreated;
+      if (remaining <= 0) {
+        console.warn(`[generateLeads] Keine Recherche-Credits mehr: ${currentLeadsCreated}/${plan.max_leads_per_month}`);
+        return Response.json({
+          error: `Keine Recherche-Credits mehr verfügbar. Limit: ${plan.max_leads_per_month}/Monat, verbraucht: ${currentLeadsCreated}.`,
+          reason: 'research_credits_exhausted',
+          used: currentLeadsCreated,
+          limit: plan.max_leads_per_month,
+        }, { status: 403 });
+      }
+      // Anzahl der zu generierenden Leads auf verbleibende Credits begrenzen
+      if (remaining < targetCount) {
+        console.info(`[generateLeads] Credits-Cap: Nur noch ${remaining} Recherche-Credits verfügbar, ${targetCount} angefordert.`);
+      }
+    }
+
+    const user = access.user;
     const assignTo = assign_to || user.email;
     const apiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
     if (!apiKey) return Response.json({ error: 'GOOGLE_PLACES_API_KEY not set' }, { status: 500 });
@@ -157,18 +180,27 @@ Deno.serve(async (req) => {
     const blacklistNames = new Set(blacklist.map(b => b.firmenname?.toLowerCase().trim()));
 
     // ── 4. Google Places API ────────────────────────────────────────────────
+    // Tatsächlichen targetCount auf Credits begrenzen (falls Credit-Cap greift)
+    const effectiveTarget = (plan && plan.max_leads_per_month !== -1)
+      ? Math.min(targetCount, plan.max_leads_per_month - currentLeadsCreated)
+      : targetCount;
+
+    let googlePlacesRequests = 0;
+    let placeDetailsRequests = 0;
     const candidates = [];
     const shuffledTypes = BUSINESS_TYPES.sort(()=>Math.random()-0.5);
     const shuffledKeywords = KEYWORD_SEARCHES.sort(()=>Math.random()-0.5);
     for (const type of shuffledTypes.slice(0,5)) {
-      if (candidates.length >= targetCount*2) break;
+      if (candidates.length >= effectiveTarget*2) break;
       const data = await fetchPlaces(apiKey,type,null,centerLat,centerLng,radiusMeters);
+      googlePlacesRequests++;
       if (data.results) candidates.push(...data.results);
       await new Promise(r=>setTimeout(r,200));
     }
     for (const keyword of shuffledKeywords.slice(0,4)) {
-      if (candidates.length >= targetCount*3) break;
+      if (candidates.length >= effectiveTarget*3) break;
       const data = await fetchPlaces(apiKey,null,keyword,centerLat,centerLng,radiusMeters);
+      googlePlacesRequests++;
       if (data.results) candidates.push(...data.results);
       await new Promise(r=>setTimeout(r,200));
     }
@@ -182,12 +214,12 @@ Deno.serve(async (req) => {
 
     let created=0, skipped=0;
     for (const place of unique) {
-      if (created >= targetCount) break;
+      if (created >= effectiveTarget) break;
       const nameL = place.name?.toLowerCase().trim();
       if (!nameL || existingNames.has(nameL) || blacklistNames.has(nameL)) { skipped++; continue; }
       if ((place.types||[]).some(t=>EXCLUDED_TYPES.has(t)) || EXCLUDED_NAMES.some(kw=>nameL.includes(kw))) { skipped++; continue; }
       let details=null;
-      try { details=await getPlaceDetails(apiKey,place.place_id); await new Promise(r=>setTimeout(r,150)); } catch(_) {}
+      try { details=await getPlaceDetails(apiKey,place.place_id); placeDetailsRequests++; await new Promise(r=>setTimeout(r,150)); } catch(_) {}
       const lat=place.geometry?.location?.lat, lng=place.geometry?.location?.lng;
       const distKm=lat&&lng ? calcDistance(centerLat,centerLng,lat,lng) : null;
       const addr=(details?.formatted_address||place.vicinity||"");
@@ -211,20 +243,41 @@ Deno.serve(async (req) => {
     }
     await base44.asServiceRole.entities.WeeklyBatch.update(batch.id, { anzahl_firmen:created });
 
-    // ── 6. UsageLog: lead_generations_used + leads_created ──────────────────
+    // ── 6. UsageLog: alle relevanten Werte tracken ───────────────────────────
+    //   lead_generations_used = Recherche-Läufe (wie oft gesucht)
+    //   leads_created         = Recherche-Credits verbraucht (1 pro Kontakt)
+    //   google_places_requests = Nearbysearch-API-Calls
+    //   place_details_requests = Place Details-API-Calls
+    //   estimated_external_cost_cent: 0.017€/Nearbysearch + 0.017€/Details (Google Preise)
+    const googleCostCent = Math.round((googlePlacesRequests + placeDetailsRequests) * 1.7); // ~0.017€ pro Request
     try {
-      if (currentUsageLogs[0]) {
-        await base44.asServiceRole.entities.UsageLog.update(currentUsageLogs[0].id, {
-          lead_generations_used: (currentUsageLogs[0].lead_generations_used||0)+1,
-          leads_created: (currentUsageLogs[0].leads_created||0)+created,
+      if (usageLog) {
+        await base44.asServiceRole.entities.UsageLog.update(usageLog.id, {
+          lead_generations_used: (usageLog.lead_generations_used||0)+1,
+          leads_created: (usageLog.leads_created||0)+created,
+          google_places_requests: (usageLog.google_places_requests||0)+googlePlacesRequests,
+          place_details_requests: (usageLog.place_details_requests||0)+placeDetailsRequests,
+          estimated_external_cost_cent: (usageLog.estimated_external_cost_cent||0)+googleCostCent,
         });
       } else {
-        await base44.asServiceRole.entities.UsageLog.create({ organization_id, period_start:periodStart, period_end:periodEnd, lead_generations_used:1, leads_created:created });
+        await base44.asServiceRole.entities.UsageLog.create({
+          organization_id, period_start:periodStart, period_end:periodEnd,
+          lead_generations_used:1, leads_created:created,
+          google_places_requests:googlePlacesRequests,
+          place_details_requests:placeDetailsRequests,
+          estimated_external_cost_cent:googleCostCent,
+        });
       }
     } catch (e) { console.warn('[generateLeads] UsageLog failed:', e.message); }
 
-    console.info(`[generateLeads] org=${organization_id} user=${user.email} created=${created} skipped=${skipped}`);
-    return Response.json({ success:true, batch_id:batch.id, created, skipped, week:weekNumber, radius_km:radiusKm, source:"Google Places API" });
+    console.info(`[generateLeads] org=${organization_id} user=${user.email} created=${created} skipped=${skipped} api_calls=${googlePlacesRequests+placeDetailsRequests} cost_cent=${googleCostCent}`);
+    return Response.json({
+      success:true, batch_id:batch.id, created, skipped,
+      week:weekNumber, radius_km:radiusKm, source:"Google Places API",
+      api_calls: { nearby_search: googlePlacesRequests, place_details: placeDetailsRequests },
+      research_credits_used: created,
+      estimated_cost_cent: googleCostCent,
+    });
 
   } catch (error) {
     console.error('[generateLeads] Error:', error.message);
