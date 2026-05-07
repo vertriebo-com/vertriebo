@@ -118,8 +118,8 @@ export default function SettingsPage() {
     <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">Einstellungen</h1>
-        <p className="text-sm font-medium text-slate-700 mt-2">
+        <h1 className="text-3xl font-extrabold text-slate-900">Einstellungen</h1>
+        <p className="text-sm font-semibold text-slate-800 mt-2">
           {isAdmin
             ? "Verwalten Sie Ihr Unternehmen, Kommunikation, Team und Abonnement."
             : "Verwalten Sie Ihr persönliches Profil."}
