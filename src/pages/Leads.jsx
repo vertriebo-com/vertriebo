@@ -126,16 +126,16 @@ export default function Leads() {
       <div className="bg-white border border-border rounded-2xl p-4 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
               placeholder="Firma, Branche oder Ort suchen..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-background"
+              className="pl-9 bg-white border border-border"
             />
           </div>
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full sm:w-40">
+            <SelectTrigger className="w-full sm:w-40 bg-white">
               <SelectValue placeholder="Sortieren" />
             </SelectTrigger>
             <SelectContent>
@@ -144,7 +144,7 @@ export default function Leads() {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="gap-2">
+          <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="gap-2 bg-white">
             <Filter className="w-3.5 h-3.5" /> Filter
           </Button>
           <div className="flex-1" />
@@ -152,11 +152,11 @@ export default function Leads() {
             <Plus className="w-3.5 h-3.5" /> Neuer Lead
           </Button>
           {isAdmin && (
-            <Button variant="outline" size="sm" className="gap-1.5">
+            <Button variant="outline" size="sm" className="gap-1.5 bg-white">
               <TrendingUp className="w-3.5 h-3.5" /> Recherche
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={handleCsvExport} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={handleCsvExport} className="gap-1.5 bg-white">
             <MoreVertical className="w-3.5 h-3.5" />
           </Button>
         </div>

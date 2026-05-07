@@ -8,17 +8,17 @@
   :root {
     --font-inter: 'Inter', sans-serif;
     
-    /* Light Mode - Modern SaaS */
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    /* Light Mode - HubSpot/Pipedrive Style */
+    --background: 216 33% 97%; /* #F6F8FB */
+    --foreground: 222 47% 11%; /* #0F172A */
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 222 47% 11%; /* #0F172A */
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
     
     /* Vertriebo Blue - Primary */
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 221 83% 53%; /* #2563EB */
+    --primary-foreground: 0 0% 100%;
     
     /* Subtle Secondary */
     --secondary: 210 40% 96%;
@@ -26,7 +26,7 @@
     
     /* Muted */
     --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted-foreground: 217 19% 47%; /* #64748B */
     
     /* Accent - Teal/Green for success */
     --accent: 160 84% 39%;
@@ -34,11 +34,11 @@
     
     /* Destructive */
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
     
     /* Borders & Inputs */
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
+    --border: 214 32% 89%; /* #E2E8F0 */
+    --input: 214 32% 89%;
     --ring: 221 83% 53%;
     
     /* Charts */
@@ -50,14 +50,14 @@
     
     --radius: 0.75rem;
     
-    /* Sidebar - Dark for contrast */
-    --sidebar-background: 222 47% 11%;
+    /* Sidebar - Refined Dark */
+    --sidebar-background: 222 47% 7%; /* #0F172A */
     --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 19% 18%;
+    --sidebar-accent: 217 19% 15%;
     --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 217 19% 18%;
+    --sidebar-border: 217 19% 15%;
     --sidebar-ring: 221 83% 53%;
     
     /* Success & Warning */

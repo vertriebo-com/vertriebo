@@ -40,8 +40,8 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
   };
 
   return (
-    <div className="group bg-white border border-border rounded-2xl p-5 hover:shadow-lg hover:border-primary/20 transition-all duration-200">
-      <div className="flex items-center gap-4">
+    <div className="group bg-white border border-border rounded-2xl p-5 hover:shadow-lg hover:border-blue-300 transition-all duration-200">
+      <div className="flex items-center gap-5">
         {/* Company Info - Left */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${
@@ -55,7 +55,7 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
           <div className="min-w-0 flex-1">
             <Link 
               to={`/leads/${company.id}`} 
-              className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors truncate block mb-1"
+              className="text-[15px] font-semibold text-slate-900 hover:text-blue-600 transition-colors truncate block mb-1"
             >
               {company.name}
             </Link>
@@ -73,7 +73,7 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
         {/* Contact Info - Center Left */}
         <div className="hidden lg:flex items-center gap-6 min-w-[200px]">
           {company.telefon ? (
-            <a href={`tel:${company.telefon}`} className="flex items-center gap-2 text-sm text-slate-600 hover:text-blue-600 transition-colors group/contact">
+            <a href={`tel:${company.telefon}`} className="flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors group/contact">
               <div className="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center group-hover/contact:bg-emerald-100 transition-colors">
                 <Phone className="w-4 h-4 text-emerald-600" />
               </div>
@@ -86,31 +86,31 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
 
         {/* Status & Priority - Center */}
         <div className="hidden md:flex items-center gap-3 min-w-[180px]">
-        <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
-          company.status === "Rückruf" ? "bg-amber-50 text-amber-700 border-amber-200" :
-          company.status === "Termin" ? "bg-purple-50 text-purple-700 border-purple-200" :
-          company.status === "Angebot" ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
-          company.status === "Gewonnen" ? "bg-green-50 text-green-700 border-green-200" :
-          company.status === "Verloren" ? "bg-slate-50 text-slate-600 border-slate-200" :
-          "bg-blue-50 text-blue-700 border-blue-200"
-        }`}>
-          {company.status}
-        </div>
-        <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${priorityColor}`}>
-          {priorityLabel}
-        </div>
+          <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${
+            company.status === "Rückruf" ? "bg-amber-50 text-amber-700 border-amber-200" :
+            company.status === "Termin" ? "bg-purple-50 text-purple-700 border-purple-200" :
+            company.status === "Angebot" ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
+            company.status === "Gewonnen" ? "bg-green-50 text-green-700 border-green-200" :
+            company.status === "Verloren" ? "bg-slate-50 text-slate-600 border-slate-200" :
+            "bg-blue-50 text-blue-700 border-blue-200"
+          }`}>
+            {company.status}
+          </div>
+          <div className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${priorityColor}`}>
+            {priorityLabel}
+          </div>
         </div>
 
         {/* Next Step / Last Contact - Center Right */}
         <div className="hidden xl:flex items-center gap-4 min-w-[200px]">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Nächster Schritt</span>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 text-xs font-medium text-slate-500 mb-1">
+              <Calendar className="w-3.5 h-3.5" />
+              <span>Nächster Schritt</span>
+            </div>
+            <p className="text-sm font-semibold text-slate-900">Anrufen</p>
+            <p className="text-xs text-slate-500">Heute fällig</p>
           </div>
-          <p className="text-sm font-semibold text-slate-900">Anrufen</p>
-          <p className="text-xs text-slate-500">Heute fällig</p>
-        </div>
         </div>
 
         {/* Vertriebler - Right */}
@@ -137,10 +137,10 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
           <div className="flex items-center gap-1.5">
             <Link
               to={`/leads/${company.id}`}
-              className="p-2.5 rounded-lg bg-muted/50 border border-border/50 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+              className="px-4 py-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 transition-colors text-sm font-medium"
               title="Details"
             >
-              <ChevronRight className="w-4 h-4" />
+              Details
             </Link>
             {company.telefon && (
               <a
@@ -163,16 +163,16 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
             <div className="relative">
               <button
                 onClick={() => setShowActions(!showActions)}
-                className="p-2.5 rounded-lg bg-muted/50 border border-border/50 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
-                title="Mehr Aktionen"
+                className="p-2.5 rounded-lg bg-white border border-border text-slate-600 hover:bg-slate-50 transition-colors"
+                title="Mehr"
               >
                 <MoreHorizontal className="w-4 h-4" />
               </button>
               
               {showActions && (
                 <div className="absolute right-0 top-full mt-2 z-50 w-56 bg-white border border-border rounded-xl shadow-xl overflow-hidden">
-                  <div className="px-3 py-2 border-b border-border bg-muted/30">
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Schnell-Log</span>
+                  <div className="px-3 py-2 border-b border-border bg-slate-50">
+                    <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide">Schnell-Log</span>
                   </div>
                   <div className="p-1.5">
                     {QUICK_LOG_ACTIONS.map((action, idx) => (
@@ -186,10 +186,25 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
                     ))}
                   </div>
                   <div className="border-t border-border p-1.5">
-                    <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-foreground hover:bg-muted/50 transition-colors">
+                    <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                       <Calendar className="w-3.5 h-3.5" />
                       Aufgabe erstellen
                     </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm("Lead wirklich löschen?")) {
+                            base44.entities.Company.delete(company.id).then(() => {
+                              toast.success("Lead gelöscht");
+                              onLogged?.();
+                            });
+                          }
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        Löschen
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

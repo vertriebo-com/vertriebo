@@ -148,9 +148,9 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 bg-background">
         {/* Top Bar Mobile */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-card border-b border-border">
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-border">
           {isSubPage ? (
             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
               <ChevronRight className="w-5 h-5 rotate-180" />

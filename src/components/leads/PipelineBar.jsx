@@ -20,8 +20,8 @@ export default function PipelineBar({ companies, activeStatus, onStatusClick }) 
   return (
     <div className="bg-white border border-border rounded-2xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-foreground">Pipeline</h3>
-        <span className="text-xs text-muted-foreground">{total} Leads</span>
+        <h3 className="text-sm font-bold text-slate-900">Pipeline</h3>
+        <span className="text-xs font-medium text-slate-500">{total} Leads</span>
       </div>
       
       <div className="grid grid-cols-7 gap-2">
@@ -35,26 +35,26 @@ export default function PipelineBar({ companies, activeStatus, onStatusClick }) 
               key={stage.status}
               onClick={() => onStatusClick(isActive ? null : stage.status)}
               className={`flex flex-col items-center p-2.5 rounded-xl transition-all ${
-                isActive ? `${stage.bg} ${stage.text} ring-1 ring-current` : "hover:bg-muted/30"
+                isActive ? `${stage.bg} ${stage.text} ring-2 ring-current` : "hover:bg-slate-50"
               }`}
             >
-              <div className={`w-7 h-7 rounded-lg ${stage.color} flex items-center justify-center mb-1.5`}>
+              <div className={`w-7 h-7 rounded-lg ${stage.color} flex items-center justify-center mb-1.5 shadow-sm`}>
                 <Icon className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className={`text-sm font-bold ${isActive ? stage.text : "text-foreground"}`}>{count}</span>
-              <span className="text-[9px] font-medium text-muted-foreground mt-0.5">{stage.status}</span>
+              <span className={`text-base font-bold ${isActive ? stage.text : "text-slate-900"}`}>{count}</span>
+              <span className="text-[10px] font-medium text-slate-500 mt-0.5">{stage.status}</span>
             </button>
           );
         })}
       </div>
       
       {/* Progress Line */}
-      <div className="mt-4 h-1.5 bg-muted rounded-full overflow-hidden flex">
+      <div className="mt-4 h-2 bg-slate-100 rounded-full overflow-hidden flex">
         {PIPELINE_STAGES.map(stage => {
           const count = counts[stage.status] || 0;
           const percentage = total > 0 ? (count / total) * 100 : 0;
           return (
-            <div key={stage.status} className={`${stage.color} opacity-80`} style={{ width: `${percentage}%` }} />
+            <div key={stage.status} className={`${stage.color}`} style={{ width: `${percentage}%` }} />
           );
         })}
       </div>

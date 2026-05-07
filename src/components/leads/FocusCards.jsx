@@ -41,8 +41,8 @@ export default function FocusCards({ companies, activeFocus, onFilterClick }) {
           <button
             key={card.id}
             onClick={() => onFilterClick(isActive ? null : card.value)}
-            className={`bg-card border transition-all duration-200 rounded-2xl p-5 hover:shadow-md ${
-              isActive ? `border-primary ring-1 ring-primary shadow-lg ${card.bg}` : "border-border hover:border-primary/30"
+            className={`bg-white border-2 transition-all duration-200 rounded-2xl p-5 hover:shadow-md ${
+              isActive ? "border-primary shadow-lg" : "border-border hover:border-blue-300"
             }`}
           >
             <div className="flex items-center justify-between mb-3">
@@ -50,12 +50,12 @@ export default function FocusCards({ companies, activeFocus, onFilterClick }) {
                 <Icon className="w-5 h-5 text-white" />
               </div>
               {count > 0 && (
-                <span className={`text-2xl font-bold ${card.text}`}>{count}</span>
+                <span className="text-2xl font-bold text-slate-900">{count}</span>
               )}
             </div>
             <div className="text-left">
-              <p className="text-sm font-semibold text-foreground mb-0.5">{card.label}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm font-semibold text-slate-900 mb-0.5">{card.label}</p>
+              <p className="text-xs text-slate-500">
                 {count === 0 ? "Keine" : count === 1 ? "1 Lead" : `${count} Leads`}
               </p>
             </div>
