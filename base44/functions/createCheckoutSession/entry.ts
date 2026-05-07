@@ -161,7 +161,7 @@ Deno.serve(async (req) => {
     const sessionParams = {
       mode: 'subscription',
       customer: stripeCustomerId,
-      payment_method_types: ['card', 'klarna', 'sepa_debit', 'giropay', 'sofort'],
+      payment_method_types: ['card', 'klarna'],
       allow_promotion_codes: true,
       line_items: [{ price: plan.stripe_price_id, quantity: 1 }],
       success_url: successRedirect,
