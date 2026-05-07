@@ -159,9 +159,9 @@ export default function Leads() {
             {showActions && (
               <div className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-xl overflow-hidden">
                 {isAdmin && (
-                  <button onClick={() => { setShowActions(false); /* Recherche logic */ }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                    <TrendingUp className="w-4 h-4" /> Recherche
-                  </button>
+                  <a href="/import" onClick={() => setShowActions(false)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                    <TrendingUp className="w-4 h-4" /> Firmen recherchieren
+                  </a>
                 )}
                 <button onClick={() => { handleCsvExport(); setShowActions(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                   <Download className="w-4 h-4" /> CSV Export
@@ -213,10 +213,10 @@ export default function Leads() {
             {companies.length === 0 ? "Noch keine Firmenkontakte vorhanden." : "Filter anpassen oder neuen Lead hinzufügen."}
           </p>
           {companies.length === 0 ? (
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button size="lg" onClick={() => setShowAdd(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"><Plus className="w-4 h-4" /> Ersten Lead anlegen</Button>
-              {isAdmin && <Button variant="outline" size="lg" className="gap-2 border border-[#E2E8F0]"><TrendingUp className="w-4 h-4" /> Firmen recherchieren</Button>}
-            </div>
+           <div className="flex flex-col sm:flex-row gap-3 justify-center">
+             <Button size="lg" onClick={() => setShowAdd(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"><Plus className="w-4 h-4" /> Ersten Lead anlegen</Button>
+             {isAdmin && <a href="/import"><Button variant="outline" size="lg" className="gap-2 border border-[#E2E8F0]"><TrendingUp className="w-4 h-4" /> Firmen recherchieren</Button></a>}
+           </div>
           ) : (
             <Button variant="outline" onClick={() => { setStatusFilter(null); setFocusFilter(null); setSearch(""); }} className="gap-2 border border-[#E2E8F0]">Filter zurücksetzen</Button>
           )}
