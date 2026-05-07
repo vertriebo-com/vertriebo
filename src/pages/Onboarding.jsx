@@ -40,12 +40,52 @@ export default function Onboarding() {
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    base44.auth.isAuthenticated().then(authed => {
+    base44.auth.isAuthenticated().then(async (authed) => {
       if (!authed) {
         base44.auth.redirectToLogin(window.location.href);
-      } else {
-        setAuthChecked(true);
+        return;
       }
+      // Wenn bereits onboarded und plan_id vorhanden → direkt Checkout starten
+      if (planId) {
+        try {
+          const settings = await base44.entities.AppSettings.list();
+          const alreadyOnboarded = settings?.find(s => s.key === "onboarding_done")?.value === "true";
+          if (alreadyOnboarded) {
+            const user = await base44.auth.me();
+            let orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+            let org = orgs?.[0];
+            if (!org) {
+              org = await base44.entities.Organization.create({
+                name: user.full_name || user.email,
+                owner_email: user.email,
+                status: "active",
+                billing_status: "trialing",
+              });
+            }
+            // Member-Eintrag sicherstellen
+            const members = await base44.entities.OrganizationMember.filter({ organization_id: org.id, user_email: user.email });
+            if (!members?.[0]) {
+              await base44.entities.OrganizationMember.create({
+                organization_id: org.id,
+                user_email: user.email,
+                role: "organization_admin",
+                status: "active",
+              });
+            }
+            const res = await base44.functions.invoke("createCheckoutSession", {
+              organization_id: org.id,
+              plan_id: planId,
+            });
+            if (res.data?.url) {
+              window.location.href = res.data.url;
+              return;
+            }
+          }
+        } catch (e) {
+          // Fehler ignorieren, normales Onboarding zeigen
+        }
+      }
+      setAuthChecked(true);
     });
   }, []);
 
