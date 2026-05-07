@@ -52,7 +52,6 @@ export default function SalesGoalsStep({ onBack, onNext, industryName }) {
   };
 
   const handleNext = () => {
-    setSaving(true);
     const data = {
       zielkunden: selectedZielkunden,
       dienstleistungen: selectedDienste,
@@ -62,7 +61,6 @@ export default function SalesGoalsStep({ onBack, onNext, industryName }) {
       sales_goal_followup_days: followUpTage,
       sales_default_rep: standardVertriebler,
     };
-    setSaving(false);
     onNext(data);
   };
 

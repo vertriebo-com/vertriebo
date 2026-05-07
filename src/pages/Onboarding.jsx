@@ -195,13 +195,11 @@ export default function Onboarding() {
   };
 
   // ── Step 3: Email Setup ───────────────────────────────────────────────────
-  const handleEmailNext = async () => {
-    // Initialize email templates after email setup
-    try {
-      await base44.functions.invoke("initOrgEmailTemplates", { organization_id: org.id });
-    } catch (e) {
+  const handleEmailNext = async (_emailData) => {
+    // Initialize email templates after email setup (fire & forget)
+    base44.functions.invoke("initOrgEmailTemplates", { organization_id: org.id }).catch(e => {
       console.warn("initOrgEmailTemplates failed:", e.message);
-    }
+    });
     setCurrentStep(4);
   };
 
