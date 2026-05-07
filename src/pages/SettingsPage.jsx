@@ -111,7 +111,7 @@ export default function SettingsPage() {
     : [{ label: "Profil", tabs: SALES_REP_TABS }];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 py-6 space-y-6 bg-white">
       <div className="mb-4">
         <h1 className="text-3xl font-bold text-slate-900">Einstellungen</h1>
         <p className="text-sm font-medium text-slate-700 mt-2">
