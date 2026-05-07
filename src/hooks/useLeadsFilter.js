@@ -6,11 +6,17 @@ export function useLeadsFilter() {
   const [org, setOrg] = useState(null);
   const [blacklist, setBlacklist] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
         const u = await base44.auth.me();
+        if (!u) {
+          setError("Nicht angemeldet");
+          setLoading(false);
+          return;
+        }
         setUser(u);
 
         // Eigene Organisation laden
@@ -33,6 +39,7 @@ export function useLeadsFilter() {
         }
       } catch (e) {
         console.error("useLeadsFilter error:", e);
+        setError(e.message || "Fehler beim Laden");
       } finally {
         setLoading(false);
       }
@@ -54,5 +61,5 @@ export function useLeadsFilter() {
       return true;
     });
 
-  return { user, org, filterCompanies, blacklist, loading };
+  return { user, org, filterCompanies, blacklist, loading, error };
 }

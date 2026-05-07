@@ -23,12 +23,12 @@ import { Button } from "@/components/ui/button";
 import moment from "moment";
 
 export default function Dashboard() {
-  const { user, org, filterCompanies, loading: filterLoading } = useLeadsFilter();
+  const { user, org, filterCompanies, loading: filterLoading, error: filterError } = useLeadsFilter();
   if (user && !user.org) user.org = org;
 
   const orgId = user?.org?.id || null;
 
-  const { data: companies = [], isLoading: loadingCompanies } = useQuery({
+  const { data: companies = [], isLoading: loadingCompanies, error: companiesError } = useQuery({
     queryKey: ["companies", orgId],
     queryFn: () => orgId
       ? base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 500)
@@ -37,7 +37,7 @@ export default function Dashboard() {
     staleTime: 60_000,
   });
 
-  const { data: tasks = [], isLoading: loadingTasks } = useQuery({
+  const { data: tasks = [], isLoading: loadingTasks, error: tasksError } = useQuery({
     queryKey: ["tasks", orgId],
     queryFn: () => orgId
       ? base44.entities.Task.filter({ organization_id: orgId }, "-faellig_am", 100)
@@ -47,11 +47,29 @@ export default function Dashboard() {
   });
 
   const loading = loadingCompanies || loadingTasks || filterLoading;
+  const error = filterError || companiesError || tasksError;
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-red-600 font-semibold mb-2">Fehler beim Laden</p>
+          <p className="text-sm text-muted-foreground">{error.message || error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90"
+          >
+            Neu laden
+          </button>
+        </div>
       </div>
     );
   }
