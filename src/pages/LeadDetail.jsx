@@ -21,12 +21,17 @@ import {
   Clock,
   ChevronRight,
   PhoneCall,
-  Flame
+  Flame,
+  Target,
+  Lightbulb,
+  Calendar,
+  FileText,
+  TrendingUp,
+  Star
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import MobileSelect from "@/components/MobileSelect";
 import StatusBadge from "../components/StatusBadge";
 import CallScriptDialog from "../components/CallScriptDialog";
 import AddContactLogDialog from "../components/AddContactLogDialog";
@@ -72,6 +77,7 @@ export default function LeadDetail() {
   const [showSonstigesDialog, setShowSonstigesDialog] = useState(false);
   const [sonstigesNotiz, setSonstigesNotiz] = useState("");
   const [sonstigesSaving, setSonstigesSaving] = useState(false);
+  const [showKiDialog, setShowKiDialog] = useState(false);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -155,6 +161,69 @@ export default function LeadDetail() {
     toast.success(nowDone ? "Aufgabe erledigt ✓" : "Aufgabe wieder geöffnet");
   };
 
+  // KI-Vorschlag generieren (einfach, regelbasiert)
+  const getKiVorschlag = () => {
+    if (!company) return null;
+    const daysSinceLastContact = company.last_contact_date 
+      ? moment().diff(moment(company.last_contact_date), "days")
+      : null;
+
+    if (company.status === "Neu" || !company.last_contact_date) {
+      return {
+        title: "Erstkontakt herstellen",
+        description: "Rufen Sie heute an und stellen Sie Ihr Unternehmen vor. Nutzen Sie den Branchen-Einstieg.",
+        action: "Anrufen",
+        icon: PhoneCall,
+        color: "text-blue-600 bg-blue-50 border-blue-200",
+      };
+    }
+    if (company.status === "Rückruf" && daysSinceLastContact >= 1) {
+      return {
+        title: "Rückruf durchführen",
+        description: "Letzter Kontakt war vor " + daysSinceLastContact + " Tagen. Jetzt zurückrufen.",
+        action: "Anrufen",
+        icon: Phone,
+        color: "text-amber-600 bg-amber-50 border-amber-200",
+      };
+    }
+    if (company.status === "Termin" && daysSinceLastContact >= 3) {
+      return {
+        title: "Termin nachfassen",
+        description: "Nach dem Termin jetzt Angebot oder Unterlagen nachsenden.",
+        action: "E-Mail senden",
+        icon: Mail,
+        color: "text-purple-600 bg-purple-50 border-purple-200",
+      };
+    }
+    if (company.status === "Angebot" && daysSinceLastContact >= 5) {
+      return {
+        title: "Angebot nachfassen",
+        description: "Das Angebot liegt seit " + daysSinceLastContact + " Tagen vor. Jetzt Rückmeldung einholen.",
+        action: "Anrufen",
+        icon: PhoneCall,
+        color: "text-orange-600 bg-orange-50 border-orange-200",
+      };
+    }
+    if (daysSinceLastContact && daysSinceLastContact >= 14 && company.status !== "Gewonnen" && company.status !== "Verloren") {
+      return {
+        title: "Kontakt pflegen",
+        description: "Länger kein Kontakt gehabt. Kurze Nachfrage per E-Mail oder Anruf.",
+        action: "Kontaktieren",
+        icon: MessageSquare,
+        color: "text-gray-600 bg-gray-50 border-gray-200",
+      };
+    }
+    return {
+      title: "Weiterhin beobachten",
+      description: "Kein dringender Handlungsbedarf. Lead im Auge behalten.",
+      action: null,
+      icon: Star,
+      color: "text-muted-foreground bg-muted border-border",
+    };
+  };
+
+  const kiVorschlag = getKiVorschlag();
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
@@ -172,12 +241,11 @@ export default function LeadDetail() {
   const doneTasks = tasks.filter(t => t.erledigt);
 
   return (
-    <div className="space-y-5 max-w-4xl">
+    <div className="space-y-5">
 
-      {/* ── Hero Header ── */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        {/* Colored top stripe */}
-        <div className={`h-1.5 w-full ${company.is_hot ? "bg-gradient-to-r from-orange-400 to-red-500" : "bg-gradient-to-r from-primary to-blue-400"}`} />
+      {/* Header */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+        <div className={`h-1 w-full ${company.is_hot ? "bg-gradient-to-r from-orange-400 to-red-500" : "bg-gradient-to-r from-primary to-blue-400"}`} />
         <div className="p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link to="/leads">
@@ -199,236 +267,290 @@ export default function LeadDetail() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 pl-10 sm:pl-0">
+          <div className="flex items-center gap-2">
             <StatusBadge status={company.status} />
-            <MobileSelect
-              value={company.status}
-              onValueChange={handleStatusChange}
-              options={[
-                ...STATUSES.map(s => ({ value: s, label: s })),
-                { value: "__sonstiges__", label: "📝 Sonstiges (Notiz)" },
-              ]}
-              placeholder="Status"
-              triggerClassName="w-36 h-8 text-xs"
-            />
+            <PriorityBadge priority={company.priority_score >= 60 ? "Hoch" : company.priority_score >= 30 ? "Mittel" : "Niedrig"} />
           </div>
         </div>
 
-        {/* Quick action bar */}
+        {/* Quick Actions */}
         <div className="px-5 pb-4 flex flex-wrap gap-2">
           {company.telefon && (
-            <a href={`tel:${company.telefon}`} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium bg-green-50 text-green-700 border border-green-200 px-3 rounded-md hover:bg-green-100 transition-colors">
-              <Phone className="w-3.5 h-3.5" /> {company.telefon}
+            <a href={`tel:${company.telefon}`} className="inline-flex items-center gap-1.5 h-9 text-sm font-medium bg-green-50 text-green-700 border border-green-200 px-3 rounded-lg hover:bg-green-100 transition-colors">
+              <Phone className="w-4 h-4" /> Anrufen
             </a>
           )}
           <CallScriptDialog company={company} />
           <SendEmailDialog company={company} />
-          <button onClick={handleEnrich} disabled={enriching} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium border border-border bg-background px-3 rounded-md hover:bg-muted transition-colors disabled:opacity-50">
-            {enriching ? <span className="w-3 h-3 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin inline-block" /> : <Sparkles className="w-3.5 h-3.5" />}
+          <Button variant="outline" size="sm" onClick={() => setShowAddTask(true)} className="gap-1.5">
+            <Calendar className="w-3.5 h-3.5" /> Aufgabe
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowAddLog(true)} className="gap-1.5">
+            <MessageSquare className="w-3.5 h-3.5" /> Kontakt
+          </Button>
+          <button onClick={handleEnrich} disabled={enriching} className="inline-flex items-center gap-1.5 h-9 text-sm font-medium border border-border bg-background px-3 rounded-lg hover:bg-muted transition-colors disabled:opacity-50">
+            {enriching ? <span className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin inline-block" /> : <Sparkles className="w-3.5 h-3.5" />}
             Anreichern
           </button>
-          <button onClick={handleBlacklist} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium border border-border bg-background px-3 rounded-md hover:bg-muted transition-colors">
+          <button onClick={() => setShowKiDialog(true)} className="inline-flex items-center gap-1.5 h-9 text-sm font-medium border border-primary/30 bg-primary/5 text-primary px-3 rounded-lg hover:bg-primary/10 transition-colors">
+            <Lightbulb className="w-3.5 h-3.5" /> KI-Tipp
+          </button>
+          <button onClick={handleBlacklist} className="inline-flex items-center gap-1.5 h-9 text-sm font-medium border border-border bg-background px-3 rounded-lg hover:bg-muted transition-colors">
             <Ban className="w-3.5 h-3.5" /> Blacklist
           </button>
-          <button onClick={handleDelete} className="inline-flex items-center gap-1.5 h-8 text-xs font-medium border border-destructive/30 bg-background text-destructive px-3 rounded-md hover:bg-destructive/5 transition-colors">
+          <button onClick={handleDelete} className="inline-flex items-center gap-1.5 h-9 text-sm font-medium border border-destructive/30 bg-background text-destructive px-3 rounded-lg hover:bg-destructive/5 transition-colors">
             <Trash2 className="w-3.5 h-3.5" /> Löschen
           </button>
         </div>
       </div>
 
-      {/* ── Two-column grid ── */}
-      <div className="grid md:grid-cols-2 gap-5">
+      {/* 3-Spalten-Layout */}
+      <div className="grid lg:grid-cols-3 gap-5">
 
-        {/* Firmendaten */}
-        <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <Building2 className="w-3.5 h-3.5" /> Firmendaten
-          </h3>
-          <div className="space-y-3">
-            {company.ansprechpartner && (
-              <div className="flex items-center gap-3">
-                <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                  <User className="w-3.5 h-3.5 text-muted-foreground" />
+        {/* Linke Spalte: Firmendaten */}
+        <div className="space-y-5">
+          <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-4">
+              <Building2 className="w-3.5 h-3.5" /> Firmendaten
+            </h3>
+            <div className="space-y-3">
+              {company.ansprechpartner && (
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{company.ansprechpartner}</p>
+                    <p className="text-xs text-muted-foreground">Ansprechpartner</p>
+                  </div>
                 </div>
-                <span className="text-sm">{company.ansprechpartner}</span>
-              </div>
-            )}
-            {company.adresse && (
-              <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+              )}
+              {company.adresse && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm">{company.adresse}</p>
+                    <p className="text-xs text-muted-foreground">{company.plz} {company.ort}</p>
+                    {company.entfernung_km && <p className="text-xs text-muted-foreground">{company.entfernung_km} km entfernt</p>}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm">{company.adresse}</p>
-                  <p className="text-sm text-muted-foreground">{company.plz} {company.ort}</p>
-                  {company.entfernung_km && <p className="text-xs text-muted-foreground">{company.entfernung_km} km entfernt</p>}
+              )}
+              {company.telefon && (
+                <a href={`tel:${company.telefon}`} className="flex items-center gap-3 group">
+                  <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                    <Phone className="w-4 h-4 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-green-700 group-hover:underline">{company.telefon}</p>
+                    <p className="text-xs text-muted-foreground">Telefon</p>
+                  </div>
+                </a>
+              )}
+              {company.email && (
+                <a href={`mailto:${company.email}`} className="flex items-center gap-3 group">
+                  <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                    <Mail className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-700 group-hover:underline truncate">{company.email}</p>
+                    <p className="text-xs text-muted-foreground">E-Mail</p>
+                  </div>
+                </a>
+              )}
+              {company.website && (
+                <a href={company.website.startsWith("http") ? company.website : `https://${company.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <Globe className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-primary group-hover:underline truncate">{company.website}</p>
+                    <p className="text-xs text-muted-foreground">Website</p>
+                  </div>
+                </a>
+              )}
+              {company.assigned_to && (
+                <div className="flex items-center gap-3 pt-3 border-t border-border">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                    <User className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{company.assigned_to}</p>
+                    <p className="text-xs text-muted-foreground">Zuständiger Vertriebler</p>
+                  </div>
                 </div>
-              </div>
-            )}
-            {company.telefon && (
-              <a href={`tel:${company.telefon}`} className="flex items-center gap-3 group">
-                <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-                  <Phone className="w-3.5 h-3.5 text-green-600" />
-                </div>
-                <span className="text-sm text-green-700 group-hover:underline">{company.telefon}</span>
-              </a>
-            )}
-            {company.email && (
-              <a href={`mailto:${company.email}`} className="flex items-center gap-3 group">
-                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                  <Mail className="w-3.5 h-3.5 text-blue-600" />
-                </div>
-                <span className="text-sm text-blue-700 group-hover:underline truncate">{company.email}</span>
-              </a>
-            )}
-            {company.website && (
-              <a href={company.website.startsWith("http") ? company.website : `https://${company.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 group">
-                <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                  <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                </div>
-                <span className="text-sm text-primary group-hover:underline truncate">{company.website}</span>
-              </a>
-            )}
-          </div>
-          {company.aktueller_dienstleister && (
-            <div className="mt-2 pt-4 border-t border-border">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Aktueller Dienstleister</p>
-              <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                <span className="text-sm font-medium text-amber-800">🏢 {company.aktueller_dienstleister}</span>
-              </div>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* Notizen */}
-        <div className="bg-card border border-border rounded-2xl p-5 space-y-3 flex flex-col">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-            <MessageSquare className="w-3.5 h-3.5" /> Notizen
-          </h3>
-          <textarea
-            value={notizen}
-            onChange={e => setNotizen(e.target.value)}
-            rows={6}
-            placeholder="Notizen hier eingeben..."
-            className="flex-1 w-full rounded-xl border border-input bg-muted/30 px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
-          />
-          {notizen !== (company.notizen || "") && (
-            <Button size="sm" onClick={handleSaveNotizen} disabled={notizenSaving} className="self-end text-xs h-8">
-              {notizenSaving ? "Speichert..." : "Speichern"}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* ── Aufgaben ── */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ListTodo className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold">Aufgaben</h3>
-            {openTasks.length > 0 && (
-              <span className="bg-primary/10 text-primary text-[10px] font-bold px-1.5 py-0.5 rounded-full">{openTasks.length} offen</span>
-            )}
-          </div>
-          <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8" onClick={() => setShowAddTask(true)}>
-            <Plus className="w-3 h-3" /> Aufgabe
-          </Button>
-        </div>
-        <div className="divide-y divide-border">
-          {tasks.map(task => {
-            const isOverdue = !task.erledigt && task.faellig_am && moment(task.faellig_am).isBefore(moment());
-            return (
-              <div key={task.id} className={`px-5 py-3.5 flex items-center gap-3 transition-colors ${task.erledigt ? "opacity-50" : "hover:bg-muted/20"}`}>
-                <button onClick={() => toggleTask(task)} className="flex-shrink-0">
-                  {task.erledigt
-                    ? <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                    : <Circle className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
-                  }
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${task.erledigt ? "line-through text-muted-foreground" : ""}`}>{task.titel}</p>
-                  {task.faellig_am && (
-                    <div className={`flex items-center gap-1 mt-0.5 text-xs ${isOverdue ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
-                      <Clock className="w-3 h-3" />
-                      {isOverdue ? "Überfällig – " : ""}{moment(task.faellig_am).format("DD.MM.YYYY HH:mm")}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] bg-muted px-2 py-0.5 rounded font-medium text-muted-foreground">{task.typ}</span>
-                  <PriorityBadge priority={task.prioritaet} />
+            {company.aktueller_dienstleister && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">Aktueller Dienstleister</p>
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <span className="text-sm font-medium text-amber-800">🏢 {company.aktueller_dienstleister}</span>
                 </div>
               </div>
-            );
-          })}
-          {tasks.length === 0 && (
-            <div className="px-5 py-10 text-center">
-              <ListTodo className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground">Keine Aufgaben vorhanden</p>
-              <button onClick={() => setShowAddTask(true)} className="mt-2 text-xs text-primary hover:underline">Aufgabe erstellen</button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Kontakthistorie ── */}
-      <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <History className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold">Kontakthistorie</h3>
-            {contactLogs.length > 0 && (
-              <span className="bg-muted text-muted-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">{contactLogs.length}</span>
             )}
           </div>
-          <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8" onClick={() => setShowAddLog(true)}>
-            <Plus className="w-3 h-3" /> Kontakt
-          </Button>
+
+          {/* Notizen */}
+          <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-3">
+              <MessageSquare className="w-3.5 h-3.5" /> Notizen
+            </h3>
+            <textarea
+              value={notizen}
+              onChange={e => setNotizen(e.target.value)}
+              rows={6}
+              placeholder="Notizen hier eingeben..."
+              className="w-full rounded-lg border border-input bg-muted/30 px-3 py-2.5 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+            />
+            {notizen !== (company.notizen || "") && (
+              <Button size="sm" onClick={handleSaveNotizen} disabled={notizenSaving} className="w-full mt-2">
+                {notizenSaving ? "Speichert..." : "Speichern"}
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Timeline */}
-        <div className="divide-y divide-border">
-          {contactLogs.map((log, idx) => (
-            <div key={log.id} className="px-5 py-4 hover:bg-muted/10 transition-colors">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 text-base">
-                  {TYP_ICONS[log.typ] || "💬"}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold">{log.typ}</span>
-                      {log.ergebnis && (
-                        <span className={`text-[10px] font-medium border px-2 py-0.5 rounded-full ${ERGEBNIS_STYLES[log.ergebnis] || "bg-muted text-muted-foreground border-border"}`}>
-                          {log.ergebnis}
-                        </span>
+        {/* Mittlere Spalte: Timeline */}
+        <div className="lg:col-span-2 space-y-5">
+          
+          {/* Nächste Aktionen + KI-Vorschlag */}
+          <div className="grid sm:grid-cols-2 gap-5">
+            {/* Nächste Aktionen */}
+            <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-4">
+                <Target className="w-3.5 h-3.5" /> Nächste Aktionen
+              </h3>
+              <div className="space-y-3">
+                {openTasks.length > 0 ? (
+                  openTasks.slice(0, 3).map(task => {
+                    const isOverdue = task.faellig_am && moment(task.faellig_am).isBefore(moment());
+                    return (
+                      <div key={task.id} className={`flex items-center gap-3 p-3 rounded-lg border ${isOverdue ? "bg-red-50 border-red-200" : "bg-muted/50 border-border"}`}>
+                        <button onClick={() => toggleTask(task)} className="flex-shrink-0">
+                          {task.erledigt
+                            ? <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                            : <Circle className={`w-5 h-5 ${isOverdue ? "text-red-500" : "text-muted-foreground"}`} />
+                          }
+                        </button>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium ${isOverdue ? "text-red-900" : ""}`}>{task.titel}</p>
+                          {task.faellig_am && (
+                            <p className={`text-xs ${isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                              {isOverdue ? "Überfällig: " : ""}{moment(task.faellig_am).format("DD.MM.")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-6">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-foreground">Alle Aufgaben erledigt!</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Keine offenen Aufgaben</p>
+                  </div>
+                )}
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowAddTask(true)} className="w-full mt-3 gap-1.5">
+                <Plus className="w-3.5 h-3.5" /> Neue Aufgabe
+              </Button>
+            </div>
+
+            {/* KI-Vorschlag */}
+            <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-4">
+                <Lightbulb className="w-3.5 h-3.5" /> KI-Empfehlung
+              </h3>
+              {kiVorschlag && (
+                <div className={`flex flex-col gap-3 p-4 rounded-lg border ${kiVorschlag.color}`}>
+                  <div className="flex items-center gap-2">
+                    <kiVorschlag.icon className="w-5 h-5" />
+                    <span className="text-sm font-bold">{kiVorschlag.title}</span>
+                  </div>
+                  <p className="text-xs leading-relaxed">{kiVorschlag.description}</p>
+                  {kiVorschlag.action && (
+                    <div className="flex gap-2">
+                      {kiVorschlag.action === "Anrufen" && company.telefon && (
+                        <a href={`tel:${company.telefon}`} className="flex-1 text-center text-xs font-medium bg-white border border-current px-3 py-1.5 rounded hover:bg-muted/50 transition-colors">
+                          📞 Anrufen
+                        </a>
+                      )}
+                      {kiVorschlag.action === "E-Mail senden" && (
+                        <button onClick={() => setShowKiDialog(true)} className="flex-1 text-center text-xs font-medium bg-white border border-current px-3 py-1.5 rounded hover:bg-muted/50 transition-colors">
+                          ✉️ E-Mail
+                        </button>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground flex-shrink-0">{moment(log.created_date).format("DD.MM.YY HH:mm")}</span>
-                  </div>
-                  {log.notiz && <p className="text-sm text-foreground mt-1.5 leading-relaxed">{log.notiz}</p>}
-                  {log.naechster_schritt && (
-                    <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                      <ChevronRight className="w-3 h-3" /> {log.naechster_schritt}
-                    </p>
                   )}
-                  {log.user_email && <p className="text-[10px] text-muted-foreground mt-1.5">{log.user_email}</p>}
-
                 </div>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setShowKiDialog(true)} className="w-full mt-3 gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Alle KI-Tipps
+              </Button>
+            </div>
+          </div>
+
+          {/* Kontakthistorie */}
+          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm">
+            <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4 text-primary" />
+                <h3 className="text-sm font-semibold">Kontakthistorie</h3>
+                {contactLogs.length > 0 && (
+                  <span className="bg-muted text-muted-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full">{contactLogs.length}</span>
+                )}
               </div>
+              <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8" onClick={() => setShowAddLog(true)}>
+                <Plus className="w-3 h-3" /> Kontakt
+              </Button>
             </div>
-          ))}
-          {contactLogs.length === 0 && (
-            <div className="px-5 py-10 text-center">
-              <PhoneCall className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
-              <p className="text-sm text-muted-foreground">Noch kein Kontakt dokumentiert</p>
-              <button onClick={() => setShowAddLog(true)} className="mt-2 text-xs text-primary hover:underline">Kontakt hinzufügen</button>
+
+            {/* Timeline */}
+            <div className="divide-y divide-border">
+              {contactLogs.map((log, idx) => (
+                <div key={log.id} className="px-5 py-4 hover:bg-muted/10 transition-colors">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 text-base">
+                      {TYP_ICONS[log.typ] || "💬"}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold">{log.typ}</span>
+                          {log.ergebnis && (
+                            <span className={`text-[10px] font-medium border px-2 py-0.5 rounded-full ${ERGEBNIS_STYLES[log.ergebnis] || "bg-muted text-muted-foreground border-border"}`}>
+                              {log.ergebnis}
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-muted-foreground flex-shrink-0">{moment(log.created_date).format("DD.MM.YY HH:mm")}</span>
+                      </div>
+                      {log.notiz && <p className="text-sm text-foreground mt-1.5 leading-relaxed">{log.notiz}</p>}
+                      {log.naechster_schritt && (
+                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                          <ChevronRight className="w-3 h-3" /> {log.naechster_schritt}
+                        </p>
+                      )}
+                      {log.user_email && <p className="text-[10px] text-muted-foreground mt-1.5">{log.user_email}</p>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {contactLogs.length === 0 && (
+                <div className="px-5 py-10 text-center">
+                  <PhoneCall className="w-8 h-8 mx-auto mb-2 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground">Noch kein Kontakt dokumentiert</p>
+                  <button onClick={() => setShowAddLog(true)} className="mt-2 text-xs text-primary hover:underline">Kontakt hinzufügen</button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Sonstiges Dialog */}
+      {/* Dialogs */}
       <Dialog open={showSonstigesDialog} onOpenChange={setShowSonstigesDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -453,6 +575,46 @@ export default function LeadDetail() {
               <button onClick={handleSonstigesSubmit} disabled={sonstigesSaving || !sonstigesNotiz.trim()} className="text-sm px-4 py-1.5 rounded-md bg-primary text-primary-foreground font-medium disabled:opacity-40 transition-colors">
                 {sonstigesSaving ? "Speichert..." : "Speichern"}
               </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showKiDialog} onOpenChange={setShowKiDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-primary" /> KI-Empfehlungen
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className={`p-4 rounded-lg border ${kiVorschlag?.color || "bg-muted border-border"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                {kiVorschlag && <kiVorschlag.icon className="w-5 h-5" />}
+                <span className="text-sm font-bold">{kiVorschlag?.title || "Keine Empfehlung"}</span>
+              </div>
+              <p className="text-xs leading-relaxed">{kiVorschlag?.description || "Für diesen Lead gibt es aktuell keine dringende Empfehlung."}</p>
+            </div>
+            
+            <div className="bg-muted/50 border border-border rounded-lg p-3">
+              <p className="text-xs font-semibold mb-2">Gesprächseinstieg:</p>
+              <p className="text-xs text-muted-foreground italic">
+                "Guten Tag, hier ist [Ihr Name] von Vertriebo. Wir unterstützen lokale Dienstleister dabei, mehr Kunden zu gewinnen. Haben Sie gerade kurz Zeit?"
+              </p>
+            </div>
+
+            <div className="bg-muted/50 border border-border rounded-lg p-3">
+              <p className="text-xs font-semibold mb-2">Follow-up-Vorschlag:</p>
+              <p className="text-xs text-muted-foreground">
+                {company.status === "Neu" 
+                  ? "Nach Erstkontakt: E-Mail mit Unterlagen senden und Termin vereinbaren."
+                  : company.status === "Rückruf"
+                  ? "Rückruf durchführen und Bedarf klären."
+                  : company.status === "Angebot"
+                  ? "Angebot nachfassen und Entscheidung einholen."
+                  : "Regelmäßigen Kontakt halten und Beziehung pflegen."
+                }
+              </p>
             </div>
           </div>
         </DialogContent>
