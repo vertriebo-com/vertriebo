@@ -45,7 +45,7 @@ const SALES_REP_TABS = [
 // Spinner helper
 const Spinner = () => (
   <div className="flex items-center justify-center h-64">
-    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+    <Loader2 className="w-8 h-8 animate-spin text-primary" />
   </div>
 );
 
@@ -112,9 +112,9 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Einstellungen</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
+      <div className="mb-4">
+        <h1 className="text-3xl font-bold text-foreground">Einstellungen</h1>
+        <p className="text-sm text-slate-600 font-medium mt-2">
           {isAdmin
             ? "Verwalten Sie Ihr Unternehmensprofil, E-Mail-Einstellungen und Ihr Team."
             : "Verwalten Sie Ihr persönliches Profil."}
@@ -192,27 +192,27 @@ export default function SettingsPage() {
         {/* Sales Rep: Mein Profil */}
         {activeTab === "profile" && (
           <div className="space-y-4">
-            <div className="bg-card border border-border rounded-xl p-5">
-              <h3 className="text-sm font-semibold mb-1">Mein Konto</h3>
-              <p className="text-sm text-muted-foreground mb-3">Ihre persönlichen Kontodaten.</p>
+            <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-foreground mb-1">Mein Konto</h3>
+              <p className="text-xs text-slate-600 mb-3 font-medium">Ihre persönlichen Kontodaten.</p>
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground w-24 shrink-0">Name:</span>
-                  <span className="font-medium">{currentUser?.full_name || "—"}</span>
+                  <span className="text-slate-600 w-24 shrink-0 font-medium">Name:</span>
+                  <span className="font-semibold text-foreground">{currentUser?.full_name || "—"}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground w-24 shrink-0">E-Mail:</span>
-                  <span className="font-medium">{currentUser?.email}</span>
+                  <span className="text-slate-600 w-24 shrink-0 font-medium">E-Mail:</span>
+                  <span className="font-semibold text-foreground">{currentUser?.email}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground w-24 shrink-0">Rolle:</span>
-                  <span className="font-medium">{role === "organization_admin" ? "Admin" : "Vertriebler"}</span>
+                  <span className="text-slate-600 w-24 shrink-0 font-medium">Rolle:</span>
+                  <span className="font-semibold text-foreground">{role === "organization_admin" ? "Admin" : "Vertriebler"}</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-start gap-3 bg-muted/50 border border-border rounded-xl px-4 py-3">
-              <Info className="w-4 h-4 shrink-0 mt-0.5 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
+            <div className="flex items-start gap-3 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+              <Info className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
+              <p className="text-sm text-slate-600 font-medium">
                 Unternehmensprofil, E-Mail-Vorlagen, Team-Verwaltung und Abonnement sind nur für Admins zugänglich.
                 Bitte wenden Sie sich an Ihren Administrator für Änderungen.
               </p>

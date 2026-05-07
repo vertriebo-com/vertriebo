@@ -80,36 +80,38 @@ export default function BlacklistPage() {
 
   return (
     <div className="space-y-5 max-w-3xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">Blacklist</h1>
-          <p className="text-sm text-muted-foreground">{entries.length} Einträge</p>
-        </div>
+      <div className="mb-2">
+        <h1 className="text-3xl font-bold text-foreground">Blacklist</h1>
+        <p className="text-sm text-slate-600 font-medium mt-2">{entries.length} Einträge gesperrt</p>
+      </div>
+
+      <div className="flex justify-end">
         <Button onClick={() => setShowAdd(true)} className="gap-2">
-          <Plus className="w-4 h-4" /> Hinzufügen
+          <Plus className="w-4 h-4" /> Eintrag hinzufügen
         </Button>
       </div>
 
       <div className="space-y-2">
         {entries.map(entry => (
-          <div key={entry.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+          <div key={entry.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">{entry.firmenname}</p>
-              {entry.grund && <p className="text-xs text-muted-foreground">Grund: {entry.grund}</p>}
+              <p className="text-sm font-semibold text-foreground">{entry.firmenname}</p>
+              {entry.grund && <p className="text-xs text-slate-600 mt-0.5 font-medium">Grund: {entry.grund}</p>}
               <div className="flex gap-4 mt-1">
-                {entry.telefon && <span className="text-xs text-muted-foreground">{entry.telefon}</span>}
-                {entry.email && <span className="text-xs text-muted-foreground">{entry.email}</span>}
+                {entry.telefon && <span className="text-xs text-slate-600 font-medium">{entry.telefon}</span>}
+                {entry.email && <span className="text-xs text-slate-600 font-medium">{entry.email}</span>}
               </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => handleRemove(entry.id)} className="text-destructive hover:text-destructive">
+            <Button variant="ghost" size="icon" onClick={() => handleRemove(entry.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
               <Trash2 className="w-4 h-4" />
             </Button>
           </div>
         ))}
         {entries.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground">
-            <Ban className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">Keine Einträge auf der Blacklist</p>
+          <div className="bg-white border border-slate-200 rounded-xl p-16 text-center shadow-sm">
+            <Ban className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-sm font-semibold text-foreground">Keine Einträge auf der Blacklist</p>
+            <p className="text-xs text-slate-600 mt-1 font-medium">Alle Firmen sind kontaktierbar</p>
           </div>
         )}
       </div>
@@ -117,24 +119,24 @@ export default function BlacklistPage() {
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Zur Blacklist hinzufügen</DialogTitle>
+            <DialogTitle className="text-foreground">Zur Blacklist hinzufügen</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
-              <Label>Firmenname *</Label>
+              <Label className="text-foreground">Firmenname *</Label>
               <Input value={form.firmenname} onChange={e => setForm(p => ({ ...p, firmenname: e.target.value }))} />
             </div>
             <div>
-              <Label>Grund</Label>
+              <Label className="text-foreground">Grund</Label>
               <Input value={form.grund} onChange={e => setForm(p => ({ ...p, grund: e.target.value }))} placeholder="z.B. Kein Interesse" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Telefon</Label>
+                <Label className="text-foreground">Telefon</Label>
                 <Input value={form.telefon} onChange={e => setForm(p => ({ ...p, telefon: e.target.value }))} />
               </div>
               <div>
-                <Label>E-Mail</Label>
+                <Label className="text-foreground">E-Mail</Label>
                 <Input value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
               </div>
             </div>

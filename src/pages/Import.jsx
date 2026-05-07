@@ -119,13 +119,13 @@ export default function Import() {
         <p className="text-sm text-slate-600 font-medium mt-2">Kontakte aus CSV oder Excel importieren</p>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl p-8">
+      <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm">
         <div className="text-center">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Upload className="w-8 h-8 text-primary" />
           </div>
-          <h3 className="text-lg font-semibold mb-1">Datei hochladen</h3>
-          <p className="text-sm text-muted-foreground mb-6">
+          <h3 className="text-lg font-semibold text-foreground mb-2">Datei hochladen</h3>
+          <p className="text-sm text-slate-600 mb-6 font-medium">
             CSV oder Excel mit Spalten: Name, Branche, Adresse, PLZ, Ort, Telefon, E-Mail, Website, Ansprechpartner
           </p>
           <label className="inline-block">
@@ -147,32 +147,32 @@ export default function Import() {
       </div>
 
       {results && (
-        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
-          <h3 className="text-sm font-semibold">Import-Ergebnis</h3>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-3">
+          <h3 className="text-sm font-semibold text-foreground">Import-Ergebnis</h3>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm">Gesamt: {results.total}</span>
+              <FileText className="w-4 h-4 text-slate-500" />
+              <span className="text-sm font-medium text-foreground">Gesamt: {results.total}</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span className="text-sm">Importiert: {results.imported}</span>
+              <span className="text-sm font-medium text-foreground">Importiert: {results.imported}</span>
             </div>
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-500" />
-              <span className="text-sm">Dubletten: {results.duplicates}</span>
+              <span className="text-sm font-medium text-foreground">Dubletten: {results.duplicates}</span>
             </div>
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-red-500" />
-              <span className="text-sm">Blacklisted: {results.blacklisted}</span>
+              <span className="text-sm font-medium text-foreground">Blacklisted: {results.blacklisted}</span>
             </div>
           </div>
         </div>
       )}
 
-      <div className="bg-muted/50 border border-border rounded-xl p-5">
-        <h3 className="text-sm font-semibold mb-2">Hinweise</h3>
-        <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-foreground mb-2">Hinweise</h3>
+        <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside font-medium">
           <li>Dubletten werden automatisch erkannt und übersprungen</li>
           <li>Firmen auf der Blacklist werden nicht importiert</li>
           <li>Die erste Zeile wird als Kopfzeile interpretiert</li>
