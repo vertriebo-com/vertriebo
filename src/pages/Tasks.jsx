@@ -101,11 +101,11 @@ export default function Tasks() {
           Aktualisieren...
         </div>
       )}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
         <div>
-          <h1 className="text-xl font-bold">Aufgaben</h1>
-          <p className="text-sm text-muted-foreground">
-            {openCount} offen{overdueCount > 0 && `, ${overdueCount} überfällig`}
+          <h1 className="text-3xl font-bold text-foreground">Aufgaben</h1>
+          <p className="text-sm text-slate-600 font-medium mt-1">
+            {openCount} offen{overdueCount > 0 && ` · ${overdueCount} überfällig`}
           </p>
         </div>
         <Select value={filter} onValueChange={setFilter}>
@@ -140,25 +140,25 @@ export default function Tasks() {
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <p className={`text-sm font-medium ${task.erledigt ? "line-through text-muted-foreground" : ""}`}>
+                  <p className={`text-sm font-medium ${task.erledigt ? "line-through text-slate-400" : "text-foreground"}`}>
                     {task.titel}
                   </p>
                   <PriorityBadge priority={task.prioritaet} />
-                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded">{task.typ}</span>
+                  <span className="text-[10px] font-medium bg-slate-100 text-slate-700 px-2 py-1 rounded">{task.typ}</span>
                 </div>
                 {task.company_name && (
-                  <Link to={`/leads/${task.company_id}`} className="text-xs text-primary hover:underline">
+                  <Link to={`/leads/${task.company_id}`} className="text-xs text-primary font-medium hover:underline mt-1 block">
                     {task.company_name}
                   </Link>
                 )}
                 {task.faellig_am && (
-                  <div className="flex items-center gap-1 mt-1">
+                  <div className="flex items-center gap-1 mt-2">
                     {isOverdue ? (
                       <AlertTriangle className="w-3 h-3 text-red-500" />
                     ) : (
-                      <Clock className="w-3 h-3 text-muted-foreground" />
+                      <Clock className="w-3 h-3 text-slate-400" />
                     )}
-                    <span className={`text-xs ${isOverdue ? "text-red-600 font-medium" : "text-muted-foreground"}`}>
+                    <span className={`text-xs font-medium ${isOverdue ? "text-red-600" : "text-slate-600"}`}>
                       {moment(task.faellig_am).format("DD.MM.YYYY HH:mm")}
                     </span>
                   </div>
@@ -168,9 +168,10 @@ export default function Tasks() {
           );
         })}
         {filtered.length === 0 && (
-          <div className="text-center py-16 text-muted-foreground">
-            <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">Keine Aufgaben</p>
+          <div className="bg-white border border-slate-200 rounded-xl text-center py-16">
+            <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-sm font-medium text-foreground">Alle Aufgaben erledigt!</p>
+            <p className="text-xs text-slate-600 mt-1">Keine ausstehenden Aufgaben</p>
           </div>
         )}
       </div>

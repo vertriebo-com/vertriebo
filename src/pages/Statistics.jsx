@@ -88,9 +88,9 @@ export default function Statistics() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-bold">Statistiken</h1>
-        <p className="text-sm text-muted-foreground">Übersicht über alle Vertriebsaktivitäten</p>
+      <div className="mb-2">
+        <h1 className="text-3xl font-bold text-foreground">Statistiken</h1>
+        <p className="text-sm text-slate-600 font-medium mt-2">Übersicht über alle Vertriebsaktivitäten</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -102,8 +102,8 @@ export default function Statistics() {
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Status Pie */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <h3 className="text-sm font-semibold mb-4">Lead-Status Verteilung</h3>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Lead-Status Verteilung</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -119,8 +119,8 @@ export default function Statistics() {
         </div>
 
         {/* Contact Bar */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <h3 className="text-sm font-semibold mb-4">Kontaktarten</h3>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Kontaktarten</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={contactTypeData}>
@@ -135,21 +135,24 @@ export default function Statistics() {
       </div>
 
       {/* Conversion per Branche */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
-        <h3 className="text-sm font-semibold mb-1">Conversion-Rate nach Branche</h3>
-        <p className="text-xs text-muted-foreground mb-4">Nur Branchen mit mind. 2 Leads</p>
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-foreground mb-1">Conversion-Rate nach Branche</h3>
+        <p className="text-xs text-slate-600 mb-4">Nur Branchen mit mind. 2 Leads</p>
         {brancheData.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-8">Noch nicht genug Daten</p>
+          <div className="text-center py-8">
+            <p className="text-sm font-medium text-foreground">Noch nicht genug Daten</p>
+            <p className="text-xs text-slate-600 mt-1">Mehr Leads erforderlich für Statistiken</p>
+          </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {brancheData.map(b => (
               <div key={b.name} className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground w-44 truncate shrink-0">{b.name}</span>
-                <div className="flex-1 bg-muted rounded-full h-2">
+                <span className="text-xs font-medium text-slate-700 w-44 truncate shrink-0">{b.name}</span>
+                <div className="flex-1 bg-slate-100 rounded-full h-2">
                   <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${b.rate}%` }} />
                 </div>
-                <span className="text-xs font-semibold w-12 text-right">{b.rate}%</span>
-                <span className="text-xs text-muted-foreground w-16 text-right">{b.gewonnen}/{b.total}</span>
+                <span className="text-xs font-bold text-foreground w-12 text-right">{b.rate}%</span>
+                <span className="text-xs text-slate-600 w-16 text-right">{b.gewonnen}/{b.total}</span>
               </div>
             ))}
           </div>

@@ -105,61 +105,61 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header with greeting */}
-      <div className="mb-2">
-        <h1 className="text-3xl font-bold text-foreground">
+      <div className="mb-4">
+        <h1 className="text-4xl font-bold text-foreground">
           {moment().hour() < 12 ? "Guten Morgen" : moment().hour() < 18 ? "Guten Tag" : "Guten Abend"}, {user?.full_name?.split(" ")[0] || "Vertriebler"} 👋
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Hier ist dein Plan für heute – {moment().format("dddd, D. MMMM YYYY")}
+        <p className="text-sm text-slate-600 mt-2 font-medium">
+          {moment().format("dddd, D. MMMM YYYY")}
         </p>
       </div>
 
       {/* Quick Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Rückrufe</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{pipelineStats.rueckruf}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Rückrufe</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{pipelineStats.rueckruf}</p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-              <PhoneCall className="w-5 h-5 text-amber-600" />
+            <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center">
+              <PhoneCall className="w-6 h-6 text-amber-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Heutige Aufgaben</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{todayTasks.length}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Heute</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{todayTasks.length}</p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-blue-600" />
+            <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+              <Calendar className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Heiße Leads</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{hotLeads.length}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Heiße Leads</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{hotLeads.length}</p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-              <Star className="w-5 h-5 text-orange-600" />
+            <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
+              <Star className="w-6 h-6 text-orange-600" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Woche</p>
-              <p className="text-2xl font-bold text-foreground mt-1">{contactsThisWeek}/{weeklyGoal}</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Diese Woche</p>
+              <p className="text-3xl font-bold text-foreground mt-2">{contactsThisWeek}/{weeklyGoal}</p>
             </div>
-            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-emerald-600" />
+            <div className="w-12 h-12 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-emerald-600" />
             </div>
           </div>
         </div>
@@ -167,21 +167,21 @@ export default function Dashboard() {
 
       {/* Weekly Progress Bar */}
       <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold">Wochenziel</h2>
+            <h2 className="text-sm font-semibold text-foreground">Wochenziel</h2>
           </div>
-          <span className="text-sm font-bold text-primary">{weeklyProgress}%</span>
+          <span className="text-lg font-bold text-primary">{weeklyProgress}%</span>
         </div>
-        <div className="h-3 bg-muted rounded-full overflow-hidden">
+        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
           <div 
             className="h-full bg-gradient-to-r from-primary to-emerald-500 rounded-full transition-all duration-500"
             style={{ width: `${weeklyProgress}%` }}
           />
         </div>
-        <p className="text-xs text-muted-foreground mt-2">
-          {contactsThisWeek} Kontakte diese Woche · Noch {weeklyGoal - contactsThisWeek} bis zum Ziel
+        <p className="text-xs text-slate-600 mt-3 font-medium">
+          {contactsThisWeek} Kontakte · {weeklyGoal - contactsThisWeek} bis zum Ziel
         </p>
       </div>
 
@@ -189,10 +189,10 @@ export default function Dashboard() {
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Today's Priorities */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-500" />
-              <h2 className="text-sm font-semibold">Heute wichtig</h2>
+              <h2 className="text-sm font-semibold text-foreground">Heute wichtig</h2>
             </div>
           </div>
           <div className="p-5 space-y-3">
@@ -205,27 +205,27 @@ export default function Dashboard() {
                 </div>
               </div>
             )}
-            
+
             {todayTasks.length > 0 ? (
               <div className="space-y-2">
                 {todayTasks.slice(0, 3).map(task => (
-                  <div key={task.id} className="flex items-center gap-3 p-3 bg-muted/50 border border-border rounded-lg">
+                  <div key={task.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-lg hover:bg-slate-100 transition-colors">
                     <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{task.titel}</p>
-                      <p className="text-xs text-muted-foreground">{task.company_name || "Allgemein"}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{task.titel}</p>
+                      <p className="text-xs text-slate-600">{task.company_name || "Allgemein"}</p>
                     </div>
                     <Link to={`/tasks`}>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                      <ArrowRight className="w-4 h-4 text-slate-400 hover:text-primary transition-colors" />
                     </Link>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-6">
-                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
-                <p className="text-sm font-medium text-foreground">Alle Aufgaben erledigt!</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Keine Aufgaben für heute</p>
+              <div className="text-center py-8">
+                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-foreground">Alle Aufgaben erledigt!</p>
+                <p className="text-xs text-slate-600 mt-1">Keine Aufgaben für heute</p>
               </div>
             )}
           </div>
@@ -233,21 +233,21 @@ export default function Dashboard() {
 
         {/* Hot Leads */}
         <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Star className="w-4 h-4 text-orange-500" />
-              <h2 className="text-sm font-semibold">Heiße Leads</h2>
+              <h2 className="text-sm font-semibold text-foreground">Heiße Leads</h2>
             </div>
             <Link to="/leads">
-              <Button variant="ghost" size="sm" className="text-xs gap-1 h-7">
+              <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 text-slate-600 hover:text-foreground">
                 Alle <ArrowRight className="w-3 h-3" />
               </Button>
             </Link>
           </div>
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-slate-100">
             {hotLeads.length > 0 ? (
               hotLeads.map(company => (
-                <Link key={company.id} to={`/leads/${company.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/50 transition-colors">
+                <Link key={company.id} to={`/leads/${company.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
                   <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-400/20 to-red-500/20 border border-orange-400/30 flex items-center justify-center shrink-0">
                     {company.is_hot ? (
                       <Star className="w-4 h-4 text-orange-500" />
@@ -256,15 +256,17 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{company.name}</p>
-                    <p className="text-xs text-muted-foreground">{company.branche || "Keine Branche"}</p>
+                    <p className="text-sm font-medium text-foreground truncate">{company.name}</p>
+                    <p className="text-xs text-slate-600">{company.branche || "Keine Branche"}</p>
                   </div>
                   <StatusBadge status={company.status} />
                 </Link>
               ))
             ) : (
-              <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-                Keine heißen Leads vorhanden
+              <div className="px-5 py-12 text-center">
+                <Star className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-medium text-foreground">Keine heißen Leads</p>
+                <p className="text-xs text-slate-600 mt-1">Alle Leads sehen gut aus</p>
               </div>
             )}
           </div>
@@ -273,8 +275,8 @@ export default function Dashboard() {
 
       {/* Pipeline Overview */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-        <div className="px-5 py-4 border-b border-border">
-          <h2 className="text-sm font-semibold">Pipeline-Übersicht</h2>
+        <div className="px-5 py-4 border-b border-slate-100">
+          <h2 className="text-sm font-semibold text-foreground">Pipeline-Übersicht</h2>
         </div>
         <div className="p-5">
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
@@ -289,11 +291,11 @@ export default function Dashboard() {
               <Link 
                 key={stage.label} 
                 to={`/leads?status=${stage.label}`}
-                className="flex flex-col items-center p-3 rounded-lg border border-border hover:bg-muted/50 hover:border-primary/40 transition-all"
+                className="flex flex-col items-center p-3 rounded-lg border border-slate-100 hover:bg-slate-50 hover:border-slate-300 transition-all"
               >
                 <div className={`w-3 h-3 rounded-full ${stage.color} mb-2`} />
                 <p className="text-lg font-bold text-foreground">{stage.count}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mt-0.5">{stage.label}</p>
+                <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide mt-1">{stage.label}</p>
               </Link>
             ))}
           </div>
@@ -302,26 +304,26 @@ export default function Dashboard() {
 
       {/* Recent Activities */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-semibold">Letzte Aktivitäten</h2>
+            <h2 className="text-sm font-semibold text-foreground">Letzte Aktivitäten</h2>
           </div>
           <Link to="/leads">
-            <Button variant="ghost" size="sm" className="text-xs gap-1 h-7">
+            <Button variant="ghost" size="sm" className="text-xs gap-1 h-7 text-slate-600 hover:text-foreground">
               Alle <ArrowRight className="w-3 h-3" />
             </Button>
           </Link>
         </div>
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-slate-100">
           {myCompanies.slice(0, 5).map(company => (
-            <Link key={company.id} to={`/leads/${company.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/50 transition-colors">
+            <Link key={company.id} to={`/leads/${company.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
               <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-primary/20 to-blue-600/10 border border-primary/20 flex items-center justify-center shrink-0">
                 <Building2 className="w-4 h-4 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{company.name}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-sm font-medium text-foreground truncate">{company.name}</p>
+                <p className="text-xs text-slate-600">
                   {company.last_contact_date 
                     ? `Letzter Kontakt: ${moment(company.last_contact_date).format("DD.MM.")}`
                     : "Neuer Lead"}

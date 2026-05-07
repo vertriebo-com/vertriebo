@@ -117,12 +117,12 @@ export default function CalendarView() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-primary" /> Kalender
+          <h1 className="text-3xl font-bold flex items-center gap-2 text-foreground">
+            <Calendar className="w-6 h-6 text-primary" /> Kalender
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-slate-600 font-medium mt-2">
             {view === "week"
               ? `KW ${startOfWeek.isoWeek()} · ${startOfWeek.format("D. MMM")} – ${startOfWeek.clone().add(6, "days").format("D. MMM YYYY")}`
               : currentMonth.format("MMMM YYYY")}
@@ -152,8 +152,8 @@ export default function CalendarView() {
 
       {/* Termin-Banner */}
       {termins.length > 0 && (
-        <div className="bg-white border border-slate-200 rounded-xl p-3">
-          <p className="text-xs font-semibold text-purple-700 uppercase tracking-wider mb-2">🗓 Offene Termine</p>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+          <p className="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-3">🗓 Offene Termine</p>
           <div className="flex flex-wrap gap-2">
             {termins.map(c => (
               <Link key={c.id} to={`/leads/${c.id}`}

@@ -114,9 +114,9 @@ export default function Import() {
 
   return (
     <div className="space-y-6 max-w-2xl">
-      <div>
-        <h1 className="text-xl font-bold">CSV Import</h1>
-        <p className="text-sm text-muted-foreground">Firmen aus CSV oder Excel importieren</p>
+      <div className="mb-2">
+        <h1 className="text-3xl font-bold text-foreground">CSV Import</h1>
+        <p className="text-sm text-slate-600 font-medium mt-2">Kontakte aus CSV oder Excel importieren</p>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl p-8">

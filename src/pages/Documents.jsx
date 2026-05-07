@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { FileText, Upload, Trash2, Download, FolderOpen } from "lucide-react";
-import HuwaBroschuereGenerator from "@/components/HuwaBroschuereGenerator";
-import BranchenFlyerGenerator from "@/components/BranchenFlyerGenerator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -97,32 +95,19 @@ export default function Documents() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
         <div>
-          <h1 className="text-xl font-bold">Dokumente</h1>
-          <p className="text-sm text-muted-foreground">Wichtige Unterlagen für das Vertriebsteam</p>
-        </div>
-        <HuwaBroschuereGenerator />
-      </div>
-
-      {/* Branchen Flyer */}
-      <BranchenFlyerGenerator />
-
-      {/* Broschüre Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-5 py-4 flex items-start gap-3">
-        <FileText className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
-        <div>
-          <p className="text-sm font-semibold text-blue-800">Unternehmensbroschüre</p>
-          <p className="text-xs text-blue-600 mt-0.5">Professionelle 1-seitige PDF-Broschüre für Ihr Unternehmen – Leistungen, Vorteile, Kontakt. Einfach generieren und beim Kunden dalassen.</p>
+          <h1 className="text-3xl font-bold text-foreground">Dokumente</h1>
+          <p className="text-sm text-slate-600 font-medium mt-2">Verwaltung von Dokumenten und Unterlagen</p>
         </div>
       </div>
 
       {/* Upload (nur Admin) */}
       {isAdmin && (
-        <div className="bg-white border border-slate-200 rounded-xl">
-          <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
             <Upload className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold">Dokument hochladen</h3>
+            <h3 className="text-sm font-semibold text-foreground">Dokument hochladen</h3>
           </div>
           <div className="px-5 py-4 space-y-3">
             <div className="grid sm:grid-cols-2 gap-3">
@@ -171,35 +156,35 @@ export default function Documents() {
       )}
 
       {/* Dokumentenliste */}
-      <div className="bg-white border border-slate-200 rounded-xl">
-        <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
           <FolderOpen className="w-4 h-4 text-primary" />
-          <h3 className="text-sm font-semibold">Alle Dokumente ({documents.length})</h3>
+          <h3 className="text-sm font-semibold text-foreground">Dokumente ({documents.length})</h3>
         </div>
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-slate-100">
           {documents.map(doc => (
-            <div key={doc.id} className="px-5 py-4 flex items-center gap-3">
-              <div className="w-9 h-9 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0">
-                <FileText className="w-4 h-4 text-red-500" />
+            <div key={doc.id} className="px-5 py-4 flex items-center gap-3 hover:bg-slate-50 transition-colors">
+              <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0 border border-red-100">
+                <FileText className="w-5 h-5 text-red-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{doc.titel}</p>
+                <p className="text-sm font-medium text-foreground truncate">{doc.titel}</p>
                 {doc.beschreibung && (
-                  <p className="text-xs text-muted-foreground truncate">{doc.beschreibung}</p>
+                  <p className="text-xs text-slate-600 truncate mt-0.5">{doc.beschreibung}</p>
                 )}
-                <p className="text-[11px] text-muted-foreground/60 mt-0.5">{doc.dateiname}</p>
+                <p className="text-[11px] text-slate-500 mt-1">{doc.dateiname}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${KATEGORIE_COLORS[doc.kategorie] || KATEGORIE_COLORS["Sonstiges"]}`}>
+                <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full border ${KATEGORIE_COLORS[doc.kategorie] || KATEGORIE_COLORS["Sonstiges"]}`}>
                   {doc.kategorie}
                 </span>
                 <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" title="Herunterladen">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-600 hover:text-foreground" title="Herunterladen">
                     <Download className="w-4 h-4" />
                   </Button>
                 </a>
                 {isAdmin && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(doc.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(doc.id)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}
@@ -207,9 +192,10 @@ export default function Documents() {
             </div>
           ))}
           {documents.length === 0 && (
-            <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-              <FileText className="w-10 h-10 mx-auto mb-2 opacity-30" />
-              Noch keine Dokumente hochgeladen.
+            <div className="px-5 py-16 text-center">
+              <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-sm font-medium text-foreground">Keine Dokumente vorhanden</p>
+              <p className="text-xs text-slate-600 mt-1">Laden Sie ein Dokument hoch, um es hier anzuzeigen</p>
             </div>
           )}
         </div>
