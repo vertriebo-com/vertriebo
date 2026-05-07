@@ -166,14 +166,8 @@ async function handleCheckoutCompleted(base44, session) {
     await base44.asServiceRole.entities.Organization.update(organizationId, {
       billing_status: billingStatus,
       plan_id: resolvedPlanId || org.plan_id,
-      // Onboarding als abgeschlossen markieren nach erfolgreichem Checkout
-      onboarding_done: true,
-      onboarding_completed_at: new Date().toISOString(),
       ...(stripeSub.trial_end ? { trial_ends_at: new Date(stripeSub.trial_end * 1000).toISOString() } : {}),
     });
-
-    // Erste Leads generieren für diese Organisation (non-blocking)
-    base44.asServiceRole.functions.invoke("generateLeads", { organization_id: organizationId, count: 25 }).catch(() => {});
   }
 
   if (userEmail) {
