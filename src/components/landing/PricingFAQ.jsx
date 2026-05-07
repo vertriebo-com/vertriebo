@@ -10,6 +10,10 @@ const FAQS = [
     answer: "Recherche-Credits werden für recherchierte oder angereicherte Firmenkontakte verwendet. Ein recherchierter Firmenkontakt verbraucht in der Regel einen Credit. Recherche-Läufe sind gestartete Suchvorgänge – je nach Ergebnis können dabei mehrere Credits verbraucht werden.",
   },
   {
+    question: "Sind Recherche-Credits garantierte Kundenanfragen?",
+    answer: "Nein. Recherche-Credits beziehen sich auf recherchierte oder angereicherte Firmenkontakte. Vertriebo liefert Kontakte und Struktur für Ihren Vertrieb, garantiert aber keine Kundenanfragen oder Abschlüsse.",
+  },
+  {
     question: "Was sind KI-Aktionen?",
     answer: "KI-Aktionen umfassen z. B. Lead-Bewertung, E-Mail-Entwürfe, Gesprächseinstiege, Follow-up-Vorschläge und Vertriebs-Coaching. Jede KI-gestützte Funktion verbraucht eine KI-Aktion.",
   },
