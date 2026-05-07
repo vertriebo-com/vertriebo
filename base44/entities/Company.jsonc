@@ -114,6 +114,31 @@
         "API"
       ],
       "default": "Manuell"
+    },
+    "matched_target_customer_type": {
+      "type": "string",
+      "title": "Passt zu Zielgruppe"
+    },
+    "matched_service_context": {
+      "type": "string",
+      "title": "Service-Kontext"
+    },
+    "relevance_score": {
+      "type": "number",
+      "title": "Relevanz-Score (0-100)",
+      "default": 0
+    },
+    "relevance_reason": {
+      "type": "string",
+      "title": "Relevanz-Begr\u00fcndung"
+    },
+    "source_query": {
+      "type": "string",
+      "title": "Quellsuche"
+    },
+    "excluded_reason": {
+      "type": "string",
+      "title": "Ausschluss-Grund"
     }
   },
   "required": [
