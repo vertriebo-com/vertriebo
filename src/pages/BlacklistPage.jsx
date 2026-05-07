@@ -45,6 +45,12 @@ export default function BlacklistPage() {
 
   const handleAdd = async () => {
     if (!form.firmenname.trim()) { toast.error("Firmenname fehlt"); return; }
+    // Nur Admins dürfen Blacklist-Einträge erstellen
+    const me = await base44.auth.me();
+    if (me.role !== "admin" && me.role !== "organization_admin") {
+      toast.error("Nur Admins dürfen Einträge zur Blacklist hinzufügen.");
+      return;
+    }
     await base44.entities.Blacklist.create({ ...form, organization_id: orgId });
     toast.success("Zur Blacklist hinzugefügt");
     setForm({ firmenname: "", grund: "", telefon: "", email: "" });
@@ -53,6 +59,12 @@ export default function BlacklistPage() {
   };
 
   const handleRemove = async (id) => {
+    // Nur Admins dürfen Blacklist-Einträge löschen
+    const me = await base44.auth.me();
+    if (me.role !== "admin" && me.role !== "organization_admin") {
+      toast.error("Nur Admins dürfen Einträge von der Blacklist entfernen.");
+      return;
+    }
     await base44.entities.Blacklist.delete(id);
     toast.success("Von Blacklist entfernt");
     loadData();

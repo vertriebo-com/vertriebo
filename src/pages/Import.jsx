@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Upload, FileText, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,8 +7,16 @@ import { toast } from "sonner";
 export default function Import() {
   const [importing, setImporting] = useState(false);
   const [results, setResults] = useState(null);
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    base44.auth.me().then(setUser);
+  }, []);
+
+  const isAdmin = user?.role === "admin" || user?.role === "organization_admin";
 
   const handleFileUpload = async (e) => {
+    if (!isAdmin) { toast.error("Nur Admins dürfen Importe ausführen."); return; }
     const file = e.target.files?.[0];
     if (!file) return;
 

@@ -33,11 +33,25 @@ export default function Documents() {
   }, []);
 
   const loadData = async () => {
-    const [me, docs] = await Promise.all([
-      base44.auth.me(),
-      base44.entities.Document.list("-created_date", 100),
-    ]);
+    const me = await base44.auth.me();
     setUser(me);
+
+    // Organisation ermitteln
+    let orgId = null;
+    const orgs = await base44.entities.Organization.filter({ owner_email: me.email });
+    let org = orgs?.[0] || null;
+    if (!org) {
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
+      if (memberships?.[0]?.organization_id) {
+        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+        org = memberOrgs?.[0] || null;
+      }
+    }
+    orgId = org?.id || null;
+
+    const docs = orgId
+      ? await base44.entities.Document.filter({ organization_id: orgId }, "-created_date", 100)
+      : [];
     setDocuments(docs);
     setLoading(false);
   };
@@ -50,12 +64,14 @@ export default function Documents() {
 
     setUploading(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file: selectedFile });
+    
     await base44.entities.Document.create({
       titel: titel.trim(),
       beschreibung: beschreibung.trim(),
       kategorie,
       file_url,
       dateiname: selectedFile.name,
+      organization_id: user.org?.id,
     });
     toast.success("Dokument erfolgreich hochgeladen!");
     setTitel(""); setBeschreibung(""); setKategorie("Sonstiges"); setSelectedFile(null);
@@ -65,6 +81,7 @@ export default function Documents() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Dokument wirklich löschen?")) return;
+    if (!isAdmin) { toast.error("Nur Admins dürfen Dokumente löschen."); return; }
     await base44.entities.Document.delete(id);
     setDocuments(prev => prev.filter(d => d.id !== id));
     toast.success("Dokument gelöscht.");
