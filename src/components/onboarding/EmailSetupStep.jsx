@@ -148,52 +148,52 @@ export default function EmailSetupStep({ firmenname, userEmail, onBack, onNext, 
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6">
-      <h2 className="text-xl font-bold mb-1">E-Mail & Kommunikation</h2>
-      <p className="text-sm text-muted-foreground mb-6">
+    <div className="bg-white border border-slate-200 rounded-2xl p-6">
+      <h2 className="text-lg font-bold text-slate-900 mb-1">E-Mail & Kommunikation</h2>
+      <p className="text-sm font-medium text-slate-600 mb-6">
         Diese Daten werden für alle ausgehenden E-Mails, Vorlagen und Signaturen verwendet.
       </p>
 
       <div className="space-y-4 mb-6">
         {/* Absendername */}
         <div>
-          <Label className="text-xs mb-1 block font-semibold">Absendername *</Label>
+          <Label className="text-xs mb-2 block font-semibold text-slate-900">Absendername *</Label>
           <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <Input
               value={absendername}
               onChange={e => handleFieldChange(setAbsendername)(e.target.value)}
               placeholder={`z.B. Max Mustermann von ${firmenname || "Muster GmbH"}`}
-              className="pl-9"
+              className="pl-9 bg-white text-slate-900 placeholder:text-slate-400 border-slate-300"
             />
           </div>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Erscheint als Absender in allen E-Mails</p>
+          <p className="text-[11px] text-slate-600 font-medium mt-0.5">Erscheint als Absender in allen E-Mails</p>
         </div>
 
         {/* E-Mail Felder */}
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs mb-1 block font-semibold">Absender-E-Mail</Label>
+            <Label className="text-xs mb-2 block font-semibold text-slate-900">Absender-E-Mail</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <Input
                 value={absenderEmail}
                 onChange={e => handleFieldChange(setAbsenderEmail)(e.target.value)}
                 placeholder="info@meinefirma.de"
-                className="pl-9"
+                className="pl-9 bg-white text-slate-900 placeholder:text-slate-400 border-slate-300"
                 type="email"
               />
             </div>
           </div>
           <div>
-            <Label className="text-xs mb-1 block font-semibold">Reply-To E-Mail</Label>
+            <Label className="text-xs mb-2 block font-semibold text-slate-900">Reply-To E-Mail</Label>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <Input
                 value={replyTo}
                 onChange={e => handleFieldChange(setReplyTo)(e.target.value)}
                 placeholder="antworten@meinefirma.de"
-                className="pl-9"
+                className="pl-9 bg-white text-slate-900 placeholder:text-slate-400 border-slate-300"
                 type="email"
               />
             </div>
@@ -203,31 +203,31 @@ export default function EmailSetupStep({ firmenname, userEmail, onBack, onNext, 
         {/* Telefon + Website */}
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs mb-1 block font-semibold">Telefon (für Signatur)</Label>
+            <Label className="text-xs mb-2 block font-semibold text-slate-900">Telefon (für Signatur)</Label>
             <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <Input
                 value={telefon}
                 onChange={e => handleFieldChange(setTelefon)(e.target.value)}
                 placeholder="z.B. 0800 / 123456"
-                className="pl-9"
+                className="pl-9 bg-white text-slate-900 placeholder:text-slate-400 border-slate-300"
               />
             </div>
           </div>
           <div>
-            <Label className="text-xs mb-1 block font-semibold">Website</Label>
+            <Label className="text-xs mb-2 block font-semibold text-slate-900">Website</Label>
             <div className="relative">
-              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <Input
                 value={website}
                 onChange={e => handleWebsiteChange(e.target.value)}
                 placeholder="https://www.meinefirma.de"
-                className={`pl-9 ${websiteError ? "border-destructive" : ""}`}
+                className={`pl-9 bg-white text-slate-900 placeholder:text-slate-400 border-slate-300 ${websiteError ? "border-red-500" : ""}`}
               />
             </div>
-            {websiteError && <p className="text-[11px] text-destructive mt-0.5">{websiteError}</p>}
+            {websiteError && <p className="text-[11px] text-red-600 font-medium mt-0.5">{websiteError}</p>}
             {!websiteError && website && normalizeUrl(website) && (
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-[11px] text-slate-600 font-medium mt-0.5">
                 Gespeichert als: {normalizeUrl(website)}
               </p>
             )}
@@ -236,29 +236,29 @@ export default function EmailSetupStep({ firmenname, userEmail, onBack, onNext, 
 
         {/* Adresse */}
         <div>
-          <Label className="text-xs mb-1 block font-semibold">Firmenadresse (optional)</Label>
+          <Label className="text-xs mb-2 block font-semibold text-slate-900">Firmenadresse (optional)</Label>
           <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <Input
               value={adresse}
               onChange={e => handleFieldChange(setAdresse)(e.target.value)}
               placeholder="Musterstraße 1, 12345 Musterstadt"
-              className="pl-9"
+              className="pl-9 bg-white text-slate-900 placeholder:text-slate-400 border-slate-300"
             />
           </div>
         </div>
 
         {/* Logo Upload */}
-        <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-xl">
-          <div className="w-20 h-10 rounded-lg border border-border bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+          <div className="w-20 h-10 rounded-lg border border-slate-300 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center overflow-hidden shrink-0">
             {logoUrl
               ? <img src={logoUrl} alt="Logo" className="max-h-9 max-w-[76px] object-contain" />
               : <span className="text-white/50 text-[9px] font-medium text-center leading-tight px-1">Kein Logo</span>
             }
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold">E-Mail Logo (optional)</p>
-            <p className="text-[11px] text-muted-foreground">Erscheint im Header aller E-Mails</p>
+            <p className="text-xs font-semibold text-slate-900">E-Mail Logo (optional)</p>
+            <p className="text-[11px] text-slate-600 font-medium">Erscheint im Header aller E-Mails</p>
           </div>
           <div className="flex gap-1.5">
             <button
@@ -282,32 +282,32 @@ export default function EmailSetupStep({ firmenname, userEmail, onBack, onNext, 
       {/* Signature Preview */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <Label className="text-xs font-semibold">Automatisch generierte Signatur</Label>
+          <Label className="text-xs font-semibold text-slate-900">Automatisch generierte Signatur</Label>
           <button
             onClick={() => setEditingSignature(!editingSignature)}
-            className="text-xs text-primary hover:underline"
+            className="text-xs text-blue-600 hover:underline font-medium"
           >
             {editingSignature ? "Vorschau" : "Bearbeiten"}
           </button>
         </div>
-        <div className="border border-border rounded-xl overflow-hidden">
-          <div className="bg-muted/50 px-3 py-1.5 border-b border-border">
-            <span className="text-[11px] text-muted-foreground">So wird Ihre Standard-Signatur aussehen</span>
+        <div className="border border-slate-200 rounded-xl overflow-hidden">
+          <div className="bg-slate-50 px-3 py-1.5 border-b border-slate-200">
+            <span className="text-[11px] text-slate-600 font-medium">So wird Ihre Standard-Signatur aussehen</span>
           </div>
           {editingSignature ? (
-            <textarea
-              className="w-full p-3 text-xs font-mono bg-background border-0 outline-none resize-none"
-              rows={8}
-              value={customSignature !== null ? customSignature : autoSignature}
-              onChange={e => setCustomSignature(e.target.value)}
-            />
+           <textarea
+             className="w-full p-3 text-xs font-mono bg-white text-slate-900 border-0 outline-none resize-none"
+             rows={8}
+             value={customSignature !== null ? customSignature : autoSignature}
+             onChange={e => setCustomSignature(e.target.value)}
+           />
           ) : (
-            <SignaturePreview sig={displaySignature} />
+           <SignaturePreview sig={displaySignature} />
           )}
-        </div>
-        <p className="text-[11px] text-muted-foreground mt-1">
+          </div>
+          <p className="text-[11px] text-slate-600 font-medium mt-1">
           Die Signatur wird automatisch aus Ihren Angaben generiert. Sie können sie jederzeit anpassen.
-        </p>
+          </p>
       </div>
 
       <div className="flex gap-2">

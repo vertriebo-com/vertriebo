@@ -1,5 +1,30 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+// ─── Branchen-Mapping für Relevanzprüfung ─────────────────────────────────────
+const LEAD_SEARCH_KEYWORDS_BY_INDUSTRY = {
+  "Gebäudereinigung": ["Hausverwaltung","Bürogebäude","Gewerbeimmobilien","Büroreinigung","Immobilienverwaltung","Kanzlei","Arztpraxis","Zahnarztpraxis","Praxis","Fitnessstudio","Autohaus","Werkstatt"],
+  "Sicherheitsdienst": ["Gewerbeobjekt","Lagerhalle","Lager","Baustelle","Veranstaltungsstätte","Industriebetrieb","Fabrik","Objektschutz","Geschäft","Laden"],
+  "IT-Service": ["IT Unternehmen","Büro","Bürogebäude","Unternehmen","Mittelstand","Kanzlei","Steuerberatung","Praxis","Makler"],
+  "Gartenbau": ["Gartenbau","Landschaftsbau","Grünanlagen","Parks","Hausverwaltung","Wohnanlage"],
+  "Catering": ["Altenheim","Pflegeheim","Krankenhaus","Klinik","Schule","Kindergarten","Unternehmen","Büro"],
+  "Handwerk": ["Hausverwaltung","Immobilienverwaltung","Bauunternehmen","Architekturbüro","Facility Management","Bürogebäude","Wohnanlage"],
+  "Spedition / Logistik": ["Spedition","Logistikunternehmen","Transportfirma","Transportunternehmen","Kurierdienst","Paketdienst","Lagerlogistik","Fulfillment","Frachtunternehmen","Expressdienst","Lieferdienst","Umzugsunternehmen"],
+  "Gesundheit / Medizin": ["Arztpraxis","Zahnarztpraxis","Physiotherapie","Krankenhaus","Klinik","Medizinisches Zentrum","Zahnmedizin"],
+  "Immobilien": ["Immobilienmakler","Immobilienbüro","Immobilienunternehmen","Immobilienverwaltung","Makler","Hausverwaltung","Gewerbeimmobilien"],
+  "Lager / Fulfillment": ["Lager","Lagerhalle","Lagerlogistik","Fulfillment","Logistikzentrum","Verteilzentrum"],
+};
+
+function isLeadRelevantForIndustry(name, branche, industryName) {
+  if (!industryName || !LEAD_SEARCH_KEYWORDS_BY_INDUSTRY[industryName]) return true;
+  const allowedKeywords = LEAD_SEARCH_KEYWORDS_BY_INDUSTRY[industryName];
+  const nameLower = (name || "").toLowerCase();
+  const brancheLower = (branche || "").toLowerCase();
+  return allowedKeywords.some(kw => {
+    const kwLower = kw.toLowerCase();
+    return nameLower.includes(kwLower) || brancheLower.includes(kwLower);
+  });
+}
+
 // ─── Inline checkAccess ───────────────────────────────────────────────────────
 const ACTION_ROLES = {
   view_leads: ['organization_admin','sales_rep'], create_lead: ['organization_admin','sales_rep'],
@@ -160,12 +185,15 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("GOOGLE_PLACES_API_KEY");
     if (!apiKey) return Response.json({ error: 'GOOGLE_PLACES_API_KEY not set' }, { status: 500 });
 
-    // ── 3. Einstellungen und bestehende Daten der Organisation laden ─────────
-    const [settingsList, existingCompanies, blacklist] = await Promise.all([
+    // ── 3. Einstellungen, Organisation und bestehende Daten laden ──────────
+    const [settingsList, existingCompanies, blacklist, orgs] = await Promise.all([
       base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id }),
       base44.asServiceRole.entities.Company.filter({ organization_id }),
       base44.asServiceRole.entities.Blacklist.filter({ organization_id }),
+      base44.asServiceRole.entities.Organization.filter({ id: organization_id }),
     ]);
+    const org = orgs[0] || null;
+    const industryName = org?.industry || null;
     const settingsMap = {};
     settingsList.forEach(s => { settingsMap[s.key]=s.value; });
 
@@ -234,12 +262,14 @@ Deno.serve(async (req) => {
     const weekNumber=Math.ceil((days+new Date(now.getFullYear(),0,1).getDay()+1)/7);
     const batch = await base44.asServiceRole.entities.WeeklyBatch.create({ organization_id, kalenderwoche:weekNumber, jahr:now.getFullYear(), anzahl_firmen:0, assigned_to:assignTo, status:"Offen" });
 
-    let created=0, skipped=0;
+    let created=0, skipped=0, skippedIrrelevant=0;
     for (const place of unique) {
       if (created >= effectiveTarget) break;
       const nameL = place.name?.toLowerCase().trim();
       if (!nameL || existingNames.has(nameL) || blacklistNames.has(nameL)) { skipped++; continue; }
       if ((place.types||[]).some(t=>EXCLUDED_TYPES.has(t)) || EXCLUDED_NAMES.some(kw=>nameL.includes(kw))) { skipped++; continue; }
+      
+      // ── Relevanzprüfung: Passt die Firma zur gewählten Branche? ──────────────
       let details=null;
       try { details=await getPlaceDetails(apiKey,place.place_id); placeDetailsRequests++; await new Promise(r=>setTimeout(r,150)); } catch(_) {}
       const lat=place.geometry?.location?.lat, lng=place.geometry?.location?.lng;
@@ -251,6 +281,13 @@ Deno.serve(async (req) => {
       let branche=place.types?.map(t=>TYPE_MAP[t]).find(Boolean)||"Gewerbe";
       const nameLower=(place.name||"").toLowerCase();
       if (["software","systeme","digital","tech","web","data","cyber","cloud","it-"].some(kw=>nameLower.includes(kw))||nameLower.startsWith("it ")) branche="IT / Software";
+      
+      // Prüfe ob Firma relevant für die gewählte Branche ist
+      if (!isLeadRelevantForIndustry(place.name, branche, industryName)) {
+        skippedIrrelevant++;
+        continue;
+      }
+      
       const ratingsCount=details?.user_ratings_total??place.user_ratings_total??null;
       await base44.asServiceRole.entities.Company.create({
         organization_id, name:place.name, branche, adresse:addrParts[0]?.trim()||"",
@@ -294,13 +331,14 @@ Deno.serve(async (req) => {
       }
     } catch (e) { console.warn('[generateLeads] UsageLog failed:', e.message); }
 
-    console.info(`[generateLeads] org=${organization_id} user=${user.email} created=${created} skipped=${skipped} api_calls=${googlePlacesRequests+placeDetailsRequests} cost_cent=${googleCostCent}`);
+    console.info(`[generateLeads] org=${organization_id} user=${user.email} created=${created} skipped=${skipped} skipped_irrelevant=${skippedIrrelevant} api_calls=${googlePlacesRequests+placeDetailsRequests} cost_cent=${googleCostCent}`);
     return Response.json({
-      success:true, batch_id:batch.id, created, skipped,
-      week:weekNumber, radius_km:radiusKm, source:"Google Places API",
+      success:true, batch_id:batch.id, created, skipped, skipped_irrelevant: skippedIrrelevant,
+      week:weekNumber, radius_km:radiusKm, source:"Vertriebo", industry: industryName,
       api_calls: { nearby_search: googlePlacesRequests, place_details: placeDetailsRequests },
       research_credits_used: created,
       estimated_cost_cent: googleCostCent,
+      effective_target: effectiveTarget,
     });
 
   } catch (error) {
