@@ -25,6 +25,8 @@ export default function Leads() {
   const [showArchived, setShowArchived] = useState(false);
   const [members, setMembers] = useState([]);
   const [showActions, setShowActions] = useState(false);
+  const [showResearch, setShowResearch] = useState(false);
+  const [researching, setResearching] = useState(false);
 
   const orgId = org?.id || null;
   const { data: companies = [], isLoading: loading, refetch } = useQuery({
@@ -99,6 +101,16 @@ export default function Leads() {
     URL.revokeObjectURL(url);
   };
 
+  const handleStartResearch = async () => {
+    setResearching(true);
+    const res = await base44.functions.invoke("generateLeads", { organization_id: orgId });
+    if (res.data?.success) {
+      await refetch();
+      setShowResearch(false);
+    }
+    setResearching(false);
+  };
+
   if (loading || filterLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -159,9 +171,9 @@ export default function Leads() {
             {showActions && (
               <div className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-xl overflow-hidden">
                 {isAdmin && (
-                  <a href="/import" onClick={() => setShowActions(false)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
+                  <button onClick={() => { setShowActions(false); setShowResearch(true); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                     <TrendingUp className="w-4 h-4" /> Firmen recherchieren
-                  </a>
+                  </button>
                 )}
                 <button onClick={() => { handleCsvExport(); setShowActions(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                   <Download className="w-4 h-4" /> CSV Export
@@ -215,7 +227,7 @@ export default function Leads() {
           {companies.length === 0 ? (
            <div className="flex flex-col sm:flex-row gap-3 justify-center">
              <Button size="lg" onClick={() => setShowAdd(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm"><Plus className="w-4 h-4" /> Ersten Lead anlegen</Button>
-             {isAdmin && <a href="/import"><Button variant="outline" size="lg" className="gap-2 border border-[#E2E8F0]"><TrendingUp className="w-4 h-4" /> Firmen recherchieren</Button></a>}
+             {isAdmin && <Button variant="outline" size="lg" onClick={() => setShowResearch(true)} className="gap-2 border border-[#E2E8F0]"><TrendingUp className="w-4 h-4" /> Firmen recherchieren</Button>}
            </div>
           ) : (
             <Button variant="outline" onClick={() => { setStatusFilter(null); setFocusFilter(null); setSearch(""); }} className="gap-2 border border-[#E2E8F0]">Filter zurücksetzen</Button>
@@ -230,6 +242,35 @@ export default function Leads() {
       )}
 
       <AddCompanyDialog open={showAdd} onClose={() => setShowAdd(false)} onCreated={loadData} />
+
+      {/* Research Modal */}
+      {showResearch && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <h2 className="text-xl font-bold text-slate-900 mb-2">Firmen recherchieren</h2>
+            <p className="text-sm text-slate-600 mb-6">
+              Sucht automatisch nach neuen Firmenkontakten in Ihrem Suchgebiet basierend auf Ihren Zielkunden.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowResearch(false)} className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                Abbrechen
+              </button>
+              <button onClick={handleStartResearch} disabled={researching} className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors flex items-center justify-center gap-2">
+                {researching ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Läuft...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="w-4 h-4" /> Recherche starten
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
