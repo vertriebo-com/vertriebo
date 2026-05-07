@@ -22,11 +22,11 @@
     
     /* Subtle Secondary */
     --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary-foreground: 217 19% 27%; /* slate-700 */
     
     /* Muted */
     --muted: 210 40% 96%;
-    --muted-foreground: 217 19% 47%; /* #64748B */
+    --muted-foreground: 217 19% 35%; /* #475569 - dunkler für besseren Kontrast */
     
     /* Accent - Teal/Green for success */
     --accent: 160 84% 39%;
@@ -110,6 +110,38 @@
   button, a, [role="button"] {
     -webkit-user-select: none;
     user-select: none;
+  }
+  
+  /* Placeholder nur maximal text-slate-400 */
+  ::placeholder {
+    color: hsl(var(--muted-foreground) / 0.7);
+    opacity: 1;
+  }
+  
+  /* Globale Typografie-Klassen für konsistenten Kontrast */
+  .page-title {
+    @apply text-3xl font-bold text-slate-900;
+  }
+  .page-subtitle {
+    @apply text-sm font-medium text-slate-700;
+  }
+  .section-title {
+    @apply text-sm font-semibold text-slate-900;
+  }
+  .section-description {
+    @apply text-xs text-slate-600 font-medium;
+  }
+  .form-label {
+    @apply text-xs font-semibold text-slate-900;
+  }
+  .card-title {
+    @apply text-sm font-semibold text-slate-900;
+  }
+  .card-description {
+    @apply text-xs text-slate-600 font-medium;
+  }
+  .muted-text {
+    @apply text-slate-600;
   }
 }
 

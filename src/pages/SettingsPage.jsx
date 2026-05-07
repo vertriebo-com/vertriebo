@@ -129,7 +129,7 @@ export default function SettingsPage() {
               <div key={gi} className="flex items-end">
                 {gi > 0 && <div className="w-px h-6 bg-border self-end mb-0.5 mx-1" />}
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide px-1 mb-1">{group.label}</span>
+                  <span className="text-[10px] font-semibold text-slate-600 uppercase tracking-wide px-1 mb-1">{group.label}</span>
                   <div className="flex">
                     {group.tabs.map(tab => {
                       const Icon = tab.icon;
@@ -141,7 +141,7 @@ export default function SettingsPage() {
                           className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                             isActive
                               ? "border-primary text-primary"
-                              : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                              : "border-transparent text-slate-600 hover:text-slate-900 hover:border-border"
                           }`}
                         >
                           <Icon className="w-3.5 h-3.5" />
@@ -166,7 +166,7 @@ export default function SettingsPage() {
                   className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                     isActive
                       ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                      : "border-transparent text-slate-600 hover:text-slate-900 hover:border-border"
                   }`}
                 >
                   <Icon className="w-3.5 h-3.5" />
