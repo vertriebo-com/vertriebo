@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { Check, Zap, Building2, Phone, ArrowRight, Star, Info, Target, Mail, TrendingUp, Users, Shield, Calendar, FileText } from "lucide-react";
+import { Check, Zap, Building2, Phone, ArrowRight, Info, Target, Mail, TrendingUp, Users, Shield, Calendar, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import TargetIndustries from "@/components/landing/TargetIndustries";
+import AppScreenshots from "@/components/landing/AppScreenshots";
 
 const PLANS = [
   {
@@ -16,13 +18,13 @@ const PLANS = [
       "300 gespeicherte Firmenkontakte",
       "100 Recherche-Credits",
       "CRM & Pipeline",
-      "KI-Morgenreport",
+      "Basis-Reports",
       "500 E-Mails/Monat",
     ],
     footnotes: {
       leads: "Gespeicherte Kontakte in Ihrem CRM – Blacklist ausgenommen",
-      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places API",
-      emails: "E-Mails via Brevo inklusive (SPF/DKIM konfiguriert)",
+      credits: "Recherche-Credits werden für recherchierte oder angereicherte Firmenkontakte verwendet. Ein recherchierter Firmenkontakt verbraucht in der Regel einen Recherche-Credit.",
+      emails: "E-Mail-Versand über angebundenen Versanddienstleister, mit eigener Reply-To-Adresse.",
     },
   },
   {
@@ -37,14 +39,14 @@ const PLANS = [
       "1.500 gespeicherte Firmenkontakte",
       "750 Recherche-Credits",
       "Alle Starter-Features",
-      "Erweiterte Reports",
+      "KI-Morgenreport + Team-Auswertung",
       "Eigene E-Mail-Vorlagen",
       "2.000 E-Mails/Monat",
     ],
     footnotes: {
       leads: "Gespeicherte Kontakte in Ihrem CRM – Blacklist ausgenommen",
-      credits: "1 Credit = 1 automatischer Lead-Lauf via Google Places API",
-      emails: "E-Mails via Brevo inklusive",
+      credits: "Recherche-Credits werden für recherchierte oder angereicherte Firmenkontakte verwendet. Ein recherchierter Firmenkontakt verbraucht in der Regel einen Recherche-Credit.",
+      emails: "E-Mail-Versand über angebundenen Versanddienstleister, mit eigener Reply-To-Adresse.",
     },
   },
   {
@@ -64,9 +66,9 @@ const PLANS = [
     ],
     footnotes: {
       leads: "Gespeicherte Kontakte in Ihrem CRM",
-      credits: "1 Credit = 1 automatischer Lead-Lauf",
-      emails: "E-Mails via Brevo inklusive",
-      ai: "KI-Aktionen: Lead-Anreicherung, Scoring, Coaching",
+      credits: "Recherche-Credits werden für recherchierte oder angereicherte Firmenkontakte verwendet. Ein recherchierter Firmenkontakt verbraucht in der Regel einen Recherche-Credit.",
+      emails: "E-Mail-Versand über angebundenen Versanddienstleister, mit eigener Reply-To-Adresse.",
+      ai: "KI-Aktionen umfassen z. B. Lead-Bewertung, E-Mail-Entwürfe, Gesprächseinstiege, Follow-up-Vorschläge und Vertriebs-Coaching.",
     },
   },
   {
@@ -86,23 +88,12 @@ const PLANS = [
     ],
     footnotes: {
       leads: "Gespeicherte Kontakte in Ihrem CRM",
-      credits: "1 Credit = 1 automatischer Lead-Lauf",
-      emails: "E-Mails via Brevo inklusive",
-      ai: "KI-Aktionen: Lead-Anreicherung, Scoring, Coaching",
-      fairuse: "Agency-Plan unterliegt Fair-Use-Richtlinien",
+      credits: "Recherche-Credits werden für recherchierte oder angereicherte Firmenkontakte verwendet. Ein recherchierter Firmenkontakt verbraucht in der Regel einen Recherche-Credit.",
+      emails: "E-Mail-Versand über angebundenen Versanddienstleister, mit eigener Reply-To-Adresse.",
+      ai: "KI-Aktionen umfassen z. B. Lead-Bewertung, E-Mail-Entwürfe, Gesprächseinstiege, Follow-up-Vorschläge und Vertriebs-Coaching.",
+      fairuse: "Agency-Plan unterliegt Fair-Use-Richtlinien. Individuelle Limits nach Absprache.",
     },
   },
-];
-
-const INDUSTRIES = [
-  { icon: "🧹", name: "Gebäudereinigung" },
-  { icon: "🔒", name: "Sicherheitsdienst" },
-  { icon: "🏠", name: "Hausmeisterdienste" },
-  { icon: "📦", name: "Entrümpelung" },
-  { icon: "🔨", name: "Handwerksbetriebe" },
-  { icon: "💻", name: "IT-Service" },
-  { icon: "🌿", name: "Gartenbau" },
-  { icon: "🚚", name: "Spedition / Logistik" },
 ];
 
 function Footnote({ text }) {
@@ -194,9 +185,12 @@ export default function Landing() {
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 text-slate-900 leading-tight">
             Mehr Firmenkunden gewinnen –<br />ohne chaotische Listen und vergessene Rückrufe.
           </h1>
-          <p className="text-lg max-w-3xl mx-auto mb-10 text-slate-600 leading-relaxed">
+          <p className="text-lg max-w-3xl mx-auto mb-3 text-slate-600 leading-relaxed">
             Vertriebo findet passende Firmenkontakte, organisiert Ihre Vertriebsarbeit und zeigt Ihrem Team jeden Tag, 
             welche Leads als Nächstes dran sind.
+          </p>
+          <p className="text-sm max-w-2xl mx-auto text-slate-500 font-medium">
+            Ideal für Gebäudereinigung, Hausmeisterdienste, Handwerk, Entrümpelung und lokale B2B-Dienstleister.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
             <button
@@ -243,18 +237,18 @@ export default function Landing() {
             <h2 className="text-2xl font-bold text-slate-900 mb-6">Kenn Sie das?</h2>
             <div className="space-y-4">
               {[
-                "Firmenkontakte werden manuell in Excel gesucht",
-                "Rückrufe gehen im Tagesgeschäft unter",
-                "Vertriebler arbeiten ohne klare Prioritäten",
-                "E-Mail-Vorlagen fehlen oder sind veraltet",
-                "Follow-ups werden vergessen",
-                "Niemand sieht, was wirklich im Vertrieb passiert",
-              ].map((problem, i) => (
-                <div key={i} className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200">
-                  <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-white text-xs font-bold">✕</span>
+                { text: "Firmenkontakte werden manuell in Excel gesucht", icon: "✕" },
+                { text: "Rückrufe gehen im Tagesgeschäft unter", icon: "✕" },
+                { text: "Vertriebler arbeiten ohne klare Prioritäten", icon: "✕" },
+                { text: "E-Mail-Vorlagen fehlen oder sind veraltet", icon: "✕" },
+                { text: "Follow-ups werden vergessen", icon: "✕" },
+                { text: "Niemand sieht, was wirklich im Vertrieb passiert", icon: "✕" },
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-3 p-4 rounded-xl bg-white border border-slate-200">
+                  <div className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-red-600 text-xs font-bold">{item.icon}</span>
                   </div>
-                  <p className="text-sm text-red-900 font-medium">{problem}</p>
+                  <p className="text-sm text-slate-700 font-medium">{item.text}</p>
                 </div>
               ))}
             </div>
@@ -265,18 +259,18 @@ export default function Landing() {
             <h2 className="text-2xl font-bold text-slate-900 mb-6">Mit Vertriebo anders:</h2>
             <div className="space-y-4">
               {[
-                "Automatische Firmenkontakte-Recherche via Google Places",
-                "KI-priorisierte Leads – Sie wissen, wen Sie zuerst anrufen",
-                "Tägliche Aufgaben & Rückrufe – klar und verbindlich",
-                "E-Mail-Vorlagen & Signaturen – professionell & konsistent",
-                "Automatische Follow-ups – kein Lead geht verloren",
-                "Vertriebs-Reports – sehen Sie, was Ihr Team leistet",
-              ].map((solution, i) => (
-                <div key={i} className="flex items-start gap-3 p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Check className="w-3 h-3 text-white" />
+                { text: "Automatische Firmenkontakte-Recherche via Google Places", icon: <Check className="w-3 h-3" /> },
+                { text: "KI-priorisierte Leads – Sie wissen, wen Sie zuerst anrufen", icon: <Check className="w-3 h-3" /> },
+                { text: "Tägliche Aufgaben & Rückrufe – klar und verbindlich", icon: <Check className="w-3 h-3" /> },
+                { text: "E-Mail-Vorlagen & Signaturen – professionell & konsistent", icon: <Check className="w-3 h-3" /> },
+                { text: "Automatische Follow-ups – kein Lead geht verloren", icon: <Check className="w-3 h-3" /> },
+                { text: "Vertriebs-Reports – sehen Sie, was Ihr Team leistet", icon: <Check className="w-3 h-3" /> },
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-3 p-4 rounded-xl bg-white border border-slate-200">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-emerald-600">{item.icon}</span>
                   </div>
-                  <p className="text-sm text-emerald-900 font-medium">{solution}</p>
+                  <p className="text-sm text-slate-700 font-medium">{item.text}</p>
                 </div>
               ))}
             </div>
@@ -336,7 +330,7 @@ export default function Landing() {
               },
               {
                 icon: <Shield className="w-6 h-6 text-blue-600" />,
-                title: "DSGVO-konform",
+                title: "DSGVO-orientierte Mandantentrennung",
                 desc: "Jede Organisation hat ihre eigenen Daten. Keine Vermischung. Blacklist-Funktion schützt vor unerwünschten Kontakten.",
               },
             ].map(f => (
@@ -353,44 +347,10 @@ export default function Landing() {
       </div>
 
       {/* Zielgruppe */}
-      <div className="max-w-6xl mx-auto px-6 py-20">
-        <h2 className="text-3xl font-bold text-center mb-4 text-slate-900">Für lokale Dienstleister</h2>
-        <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
-          Vertriebo wurde von Vertriebsprofis für Dienstleister entwickelt.
-        </p>
-        
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {INDUSTRIES.map(ind => (
-            <div key={ind.name} className="flex flex-col items-center gap-3 p-6 rounded-xl bg-slate-50 border border-slate-200 hover:border-blue-400 transition-colors">
-              <span className="text-4xl">{ind.icon}</span>
-              <span className="text-sm font-semibold text-slate-900 text-center">{ind.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <TargetIndustries />
 
-      {/* App Screenshots Placeholder */}
-      <div className="bg-slate-900 py-20">
-        <div className="max-w-6xl mx-auto px-6">
-          <h2 className="text-3xl font-bold text-center mb-12 text-white">So arbeitet Ihr Team mit Vertriebo</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            {[
-              { title: "Dashboard", desc: "Tagesaufgaben & Prioritäten auf einen Blick" },
-              { title: "Leads-Übersicht", desc: "Alle Firmenkontakte mit Status & Priorität" },
-              { title: "LeadDetail", desc: "Komplette Historie, Aufgaben, E-Mails" },
-              { title: "E-Mail-Vorlagen", desc: "Professionelle Templates mit Logo" },
-            ].map((shot, i) => (
-              <div key={i} className="bg-slate-800 rounded-xl p-8 border border-slate-700">
-                <div className="aspect-video bg-slate-700 rounded-lg mb-4 flex items-center justify-center">
-                  <span className="text-slate-500 text-sm">Screenshot: {shot.title}</span>
-                </div>
-                <h3 className="font-bold text-white mb-1">{shot.title}</h3>
-                <p className="text-sm text-slate-400">{shot.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* App Screenshots */}
+      <AppScreenshots />
 
       {/* Pricing */}
       <div id="pricing" className="max-w-6xl mx-auto px-6 py-20">
@@ -414,21 +374,21 @@ export default function Landing() {
               <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
                 <strong className="text-blue-900">Recherche-Credits:</strong>
-                <span className="text-slate-700 ml-1">1 Credit = 1 automatischer Lead-Lauf via Google Places API. Keine garantierten Kundenanfragen.</span>
+                <span className="text-slate-700 ml-1">Werden für recherchierte oder angereicherte Firmenkontakte verwendet. Ein recherchierter Firmenkontakt verbraucht in der Regel einen Recherche-Credit. Recherche-Läufe sind gestartete Suchvorgänge – je nach Ergebnis können dabei mehrere Credits verbraucht werden.</span>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
                 <strong className="text-blue-900">KI-Aktionen:</strong>
-                <span className="text-slate-700 ml-1">Lead-Anreicherung, Scoring, Coaching – kombiniert KI & Web-Recherche.</span>
+                <span className="text-slate-700 ml-1">Umfassen z. B. Lead-Bewertung, E-Mail-Entwürfe, Gesprächseinstiege, Follow-up-Vorschläge und Vertriebs-Coaching.</span>
               </div>
             </div>
             <div className="flex items-start gap-2">
               <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
               <div>
                 <strong className="text-blue-900">E-Mail-Versand:</strong>
-                <span className="text-slate-700 ml-1">Alle E-Mails via Brevo inklusive (SPF/DKIM konfiguriert). Ihre Reply-To-Adresse.</span>
+                <span className="text-slate-700 ml-1">Über angebundenen Versanddienstleister (Brevo/SMTP). Antworten gehen an Ihre hinterlegte Reply-To-Adresse.</span>
               </div>
             </div>
           </div>
@@ -508,7 +468,7 @@ export default function Landing() {
             onClick={handleRegister}
             className="px-8 py-4 rounded-xl text-base font-bold text-blue-600 bg-white hover:bg-blue-50 transition-all shadow-lg"
           >
-            Kostenlos testen →
+            14 Tage kostenlos testen →
           </button>
         </div>
       </div>
