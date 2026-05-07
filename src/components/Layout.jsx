@@ -44,14 +44,24 @@ export default function Layout() {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [orgRole, setOrgRole] = useState(null);
 
   const isSubPage = SUB_PAGES.some(p => location.pathname.startsWith(p));
 
   useEffect(() => {
-    base44.auth.me().then(setUser);
+    (async () => {
+      const me = await base44.auth.me();
+      setUser(me);
+      if (!me) return;
+      // Plattform-Admin hat immer Zugriff
+      if (me.role === "admin") { setOrgRole("organization_admin"); return; }
+      // OrganizationMember-Rolle laden
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
+      setOrgRole(memberships?.[0]?.role || "sales_rep");
+    })();
   }, []);
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role === "admin" || orgRole === "organization_admin";
 
   const filteredNav = NAV_ITEMS.filter(
     (item) => !item.adminOnly || isAdmin
@@ -125,7 +135,9 @@ export default function Layout() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium truncate">{user.full_name || "Benutzer"}</p>
-                <p className="text-[10px] text-sidebar-foreground/50 capitalize">{user.role || "vertriebler"}</p>
+                <p className="text-[10px] text-sidebar-foreground/50 capitalize">
+                  {orgRole === "organization_admin" ? "Admin" : orgRole === "sales_rep" ? "Vertriebler" : user.role || "Vertriebler"}
+                </p>
               </div>
               <button onClick={handleLogout} className="text-sidebar-foreground/40 hover:text-sidebar-foreground transition-colors">
                 <LogOut className="w-4 h-4" />
