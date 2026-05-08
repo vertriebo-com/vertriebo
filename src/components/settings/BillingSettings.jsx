@@ -118,7 +118,7 @@ export default function BillingSettings({ org: orgProp, user }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-40">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
       </div>
     );
   }
@@ -184,7 +184,7 @@ export default function BillingSettings({ org: orgProp, user }) {
         </div>
 
         {/* Subscription Period */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-border">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200">
           <div>
             <p className="text-xs text-slate-600 font-medium mb-0.5">Aktuelle Periode</p>
             <p className="text-sm font-semibold text-slate-900">

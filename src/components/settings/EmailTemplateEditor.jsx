@@ -87,9 +87,9 @@ export default function EmailTemplateEditor({ tpl, idx, onSave, onDelete, onCanc
   };
 
   return (
-    <div className="border border-border rounded-xl overflow-hidden bg-background">
+    <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
       {/* Header */}
-      <div className="px-4 py-3 bg-muted/40 border-b border-border flex items-center justify-between gap-3">
+      <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap min-w-0">
           <Input
             value={name}
@@ -100,13 +100,13 @@ export default function EmailTemplateEditor({ tpl, idx, onSave, onDelete, onCanc
           <select
             value={typ}
             onChange={e => setTyp(e.target.value)}
-            className="h-7 text-xs rounded-md border border-input bg-background px-2 text-muted-foreground"
+            className="h-7 text-xs rounded-md border border-slate-200 bg-white px-2 text-slate-700 font-medium"
           >
             {TYP_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
           {tpl._isNew && <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold shrink-0">Neu</span>}
         </div>
-        <button onClick={() => onDelete(tpl)} className="text-muted-foreground hover:text-destructive transition-colors shrink-0">
+        <button onClick={() => onDelete(tpl)} className="text-slate-400 hover:text-destructive transition-colors shrink-0">
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -124,7 +124,7 @@ export default function EmailTemplateEditor({ tpl, idx, onSave, onDelete, onCanc
 
       {/* Platzhalter-Chips */}
       <div className="px-4 pb-2">
-        <p className="text-[11px] text-muted-foreground mb-1.5">Platzhalter einfügen (Klicken zum Einfügen an Cursorposition):</p>
+        <p className="text-[11px] text-slate-500 font-medium mb-1.5">Platzhalter einfügen (Klicken zum Einfügen an Cursorposition):</p>
         <div className="flex flex-wrap gap-1.5">
           {PLACEHOLDERS.map(p => (
             <button
@@ -141,7 +141,7 @@ export default function EmailTemplateEditor({ tpl, idx, onSave, onDelete, onCanc
 
       {/* Mode-Switcher */}
       <div className="px-4 pb-2">
-        <div className="inline-flex rounded-lg border border-border overflow-hidden text-xs">
+        <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-xs">
           {[
             { id: "text", icon: <span className="font-bold">Aa</span>, label: "Text" },
             { id: "preview", icon: <Eye className="w-3 h-3" />, label: "Vorschau" },
@@ -150,7 +150,7 @@ export default function EmailTemplateEditor({ tpl, idx, onSave, onDelete, onCanc
             <button
               key={m.id}
               onClick={() => setMode(m.id)}
-              className={`flex items-center gap-1 px-3 py-1.5 transition-colors ${mode === m.id ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}
+              className={`flex items-center gap-1 px-3 py-1.5 transition-colors ${mode === m.id ? "bg-primary text-white font-semibold" : "bg-white text-slate-500 hover:text-slate-900"}`}
             >
               {m.icon} {m.label}
             </button>
@@ -162,7 +162,7 @@ export default function EmailTemplateEditor({ tpl, idx, onSave, onDelete, onCanc
       </div>
 
       {/* Editor / Vorschau */}
-      <div className="mx-4 mb-3 border border-border rounded-lg overflow-hidden">
+      <div className="mx-4 mb-3 border border-slate-200 rounded-lg overflow-hidden">
         {mode === "preview" ? (
           <TemplatePreview betreff={betreff} body={body} />
         ) : (
@@ -171,7 +171,7 @@ export default function EmailTemplateEditor({ tpl, idx, onSave, onDelete, onCanc
             value={body}
             onChange={e => setBody(e.target.value)}
             rows={10}
-            className={`w-full p-3 text-sm bg-background border-0 outline-none resize-none ${mode === "html" ? "font-mono text-xs text-green-700 dark:text-green-400 bg-slate-950" : ""}`}
+            className={`w-full p-3 text-sm text-slate-900 border-0 outline-none resize-none ${mode === "html" ? "font-mono text-xs text-green-800 bg-slate-950 text-green-300" : "bg-white"}`}
             placeholder={mode === "html"
               ? "<p>HTML-Inhalt hier...</p>"
               : "E-Mail-Text hier eingeben.\n\nVerwenden Sie Platzhalter wie {{firmenname}} um Inhalte zu personalisieren.\n\nBeispiel:\nSehr geehrte Damen und Herren,\n\nals führendes Unternehmen im Bereich {{dienstleistungen}} möchten wir Ihnen gerne unsere Leistungen vorstellen..."}
@@ -183,7 +183,7 @@ export default function EmailTemplateEditor({ tpl, idx, onSave, onDelete, onCanc
       <div className="px-4 pb-4 flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           {!tpl._isNew && (
-            <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5 text-muted-foreground">
+            <Button variant="ghost" size="sm" onClick={handleReset} className="gap-1.5 text-slate-500 hover:text-slate-900">
               <RotateCcw className="w-3 h-3" /> Zurücksetzen
             </Button>
           )}

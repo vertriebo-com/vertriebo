@@ -205,7 +205,7 @@ export default function EmailSettings({ org: orgProp }) {
           <div>
             <Label className="text-xs font-semibold mb-1 block">
               Absendername *
-              <span className="text-muted-foreground font-normal ml-1">— erscheint beim Empfänger als „Von: ..."</span>
+              <span className="text-slate-500 font-normal ml-1">— erscheint beim Empfänger als „Von: ..."</span>
             </Label>
             <Input
               value={absendername}
@@ -217,7 +217,7 @@ export default function EmailSettings({ org: orgProp }) {
             <div>
               <Label className="text-xs font-semibold mb-1 block">
                 Absender-E-Mail
-                <span className="text-muted-foreground font-normal ml-1">— technische Absenderadresse</span>
+                <span className="text-slate-500 font-normal ml-1">— technische Absenderadresse</span>
               </Label>
               <Input
                 value={absenderEmail}
@@ -229,7 +229,7 @@ export default function EmailSettings({ org: orgProp }) {
             <div>
               <Label className="text-xs font-semibold mb-1 block">
                 Reply-To E-Mail
-                <span className="text-muted-foreground font-normal ml-1">— wohin gehen Antworten?</span>
+                <span className="text-slate-500 font-normal ml-1">— wohin gehen Antworten?</span>
               </Label>
               <Input
                 value={replyTo}
@@ -254,7 +254,7 @@ export default function EmailSettings({ org: orgProp }) {
               />
               {websiteError && <p className="text-[11px] text-destructive mt-0.5">{websiteError}</p>}
               {!websiteError && website && (
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-[11px] text-slate-500 font-medium mt-0.5">
                   Gespeichert als: {normalizeUrl(website)}
                 </p>
               )}
@@ -270,7 +270,7 @@ export default function EmailSettings({ org: orgProp }) {
       {/* Logo */}
       <SettingsSection icon={ImagePlus} title="E-Mail Logo" description="Erscheint im Header aller ausgehenden E-Mails">
         <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <div className="w-20 h-10 rounded-lg border border-border bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center overflow-hidden shrink-0">
+          <div className="w-20 h-10 rounded-lg border border-slate-200 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center overflow-hidden shrink-0">
             {logoUrl
               ? <img src={logoUrl} alt="Logo" className="max-h-9 max-w-[76px] object-contain" />
               : <span className="text-white/50 text-[9px] font-medium text-center leading-tight px-1">Kein Logo</span>
@@ -278,11 +278,11 @@ export default function EmailSettings({ org: orgProp }) {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-xs font-semibold">Logo (optional)</p>
-            <p className="text-[11px] text-muted-foreground">PNG oder JPG empfohlen</p>
+            <p className="text-[11px] text-slate-500 font-medium">PNG oder JPG empfohlen</p>
           </div>
           <div className="flex gap-1.5">
             <button onClick={() => logoInputRef.current?.click()} disabled={uploading}
-              className="inline-flex items-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
+              className="inline-flex items-center gap-1.5 text-xs font-semibold bg-primary text-white px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50">
               {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />}
               {uploading ? "..." : "Upload"}
             </button>
@@ -300,7 +300,7 @@ export default function EmailSettings({ org: orgProp }) {
       <SettingsSection icon={Mail} title="E-Mail-Signatur" description="Automatisch generiert aus Ihren Angaben – kann manuell angepasst werden">
         <div className="border border-slate-200 rounded-xl overflow-hidden">
           <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
-            <span className="text-[11px] text-muted-foreground">Vorschau der Standard-Signatur</span>
+            <span className="text-[11px] text-slate-500 font-medium">Vorschau der Standard-Signatur</span>
             <button onClick={() => setEditingSignature(!editingSignature)} className="text-xs text-primary hover:underline">
               {editingSignature ? "Vorschau" : "Manuell bearbeiten (HTML)"}
             </button>

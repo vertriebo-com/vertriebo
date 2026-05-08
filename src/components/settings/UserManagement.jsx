@@ -200,7 +200,7 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <p className="text-sm font-medium truncate">{platformUser?.full_name || "—"}</p>
+                      <p className="text-sm font-semibold text-slate-900 truncate">{platformUser?.full_name || "—"}</p>
                       {isMe && (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary shrink-0">
                           <Crown className="w-2.5 h-2.5" /> Du
@@ -226,7 +226,7 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
                   {!isMe && platformUser && (
                     <button
                       onClick={() => setDashboardUser(platformUser)}
-                      className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                      className="p-1.5 rounded-md hover:bg-primary/10 text-slate-400 hover:text-primary transition-colors"
                       title="Dashboard anzeigen"
                     >
                       <LayoutDashboard className="w-3.5 h-3.5" />
@@ -267,7 +267,7 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
           <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
             <Clock className="w-4 h-4 text-amber-500" />
-            <h3 className="text-sm font-semibold">Ausstehende Einladungen ({pendingInvites.length})</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Ausstehende Einladungen ({pendingInvites.length})</h3>
           </div>
           <div className="divide-y divide-slate-100">
             {pendingInvites.map(invite => (
@@ -278,7 +278,7 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
                   </div>
                   <div>
                     <p className="text-sm font-medium">{invite.email}</p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[11px] text-slate-500 font-medium">
                       Eingeladen als: {ROLE_LABELS[invite.role]?.label || invite.role}
                       {invite.expires_at && ` · Gültig bis ${new Date(invite.expires_at).toLocaleDateString("de-DE")}`}
                     </p>
@@ -306,8 +306,8 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
               <Trash2 className="w-4 h-4" /> Mitglied deaktivieren
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Soll <span className="font-semibold text-foreground">„{deleteUserName}"</span> wirklich deaktiviert werden? Der Benutzer verliert den Zugang zur Organisation.
+          <p className="text-sm text-slate-600 font-medium">
+            Soll <span className="font-semibold text-slate-900">„{deleteUserName}"</span> wirklich deaktiviert werden? Der Benutzer verliert den Zugang zur Organisation.
           </p>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>Abbrechen</Button>
