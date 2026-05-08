@@ -74,10 +74,8 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
     setLoading(false);
   };
 
-  const targetCustomers = [
-    ...((settings.target_customer_types || "").split(", ").filter(x => x.trim())),
-    ...((settings.custom_target_customer_types || "").split(", ").filter(x => x.trim())),
-  ];
+  // Liest den Key "zielkunden" (gespeichert von CompanySettings)
+  const targetCustomers = (settings.zielkunden || "").split(", ").filter(x => x.trim());
 
   const handleStartResearch = async () => {
     if (targetCustomers.length === 0) {
@@ -223,10 +221,13 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
         {!loading && !result && (
           <div className="space-y-4 py-2">
             <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
-              {settings?.service_area_city && (
+              {(settings?.lead_plz_city || settings?.lead_plz) && (
                 <div className="flex justify-between">
                   <span className="text-slate-600">Suchgebiet:</span>
-                  <span className="font-semibold text-slate-900">{settings.service_area_city} ({settings.service_area_radius_km} km)</span>
+                  <span className="font-semibold text-slate-900">
+                    {settings.lead_plz_city || settings.lead_plz}
+                    {settings.lead_radius_km && ` (${settings.lead_radius_km} km)`}
+                  </span>
                 </div>
               )}
               {targetCustomers.length > 0 && (
