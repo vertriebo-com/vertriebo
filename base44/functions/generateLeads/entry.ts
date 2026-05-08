@@ -518,7 +518,14 @@ Deno.serve(async (req) => {
       timestamp: new Date().toISOString(),
     };
 
-    await upsertUsageLog(base44, organization_id, usageDelta, lastReport);
+    // ─── UsageLog zuverlässig speichern (mit explizitem Fehler-Logging) ──────
+    try {
+      await upsertUsageLog(base44, organization_id, usageDelta, lastReport);
+      console.info(`[generateLeads] UsageLog erfolgreich aktualisiert: +1 Lauf, +${createdIds.length} Leads`);
+    } catch (usageErr) {
+      console.error(`[generateLeads] FEHLER beim UsageLog-Update: ${usageErr.message}`, usageErr.stack);
+      // Nicht abbrechen – Leads wurden bereits gespeichert, nur das Logging schlägt fehl
+    }
 
     // ─── Logging ──────────────────────────────────────────────────────────
     console.info(`[generateLeads] REPORT org=${organization_id}: raw=${raw_hits}, outside_radius=${skipped_outside_radius}, no_match=${skipped_no_match}, excluded=${skipped_excluded}, duplicate=${skipped_duplicate}, created=${createdIds.length}`);

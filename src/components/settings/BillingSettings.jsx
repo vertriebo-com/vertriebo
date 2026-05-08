@@ -82,14 +82,15 @@ export default function BillingSettings({ org: orgProp, user }) {
         setPlan(plans[0] || null);
       }
 
-      // Aktuellen UsageLog laden
+      // Aktuellen UsageLog laden – nach period_month filtern (zuverlässiger als period_start-Datumsvergleich)
       const now = new Date();
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       const usageLogs = await base44.entities.UsageLog.filter({
         organization_id: freshOrg.id,
-        period_start: periodStart,
+        period_month: periodMonth,
       });
       setUsageLog(usageLogs[0] || null);
+      console.log(`[BillingSettings] UsageLog für ${periodMonth}:`, usageLogs[0] || "nicht gefunden");
     } catch (e) {
       toast.error("Fehler beim Laden der Billing-Daten: " + e.message);
     } finally {

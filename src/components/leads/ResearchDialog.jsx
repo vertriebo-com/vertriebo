@@ -90,6 +90,15 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       });
 
       if (res.data?.success) {
+        // UsageLog frisch aus DB laden (nicht schätzen)
+        const periodMonth = new Date().toISOString().slice(0, 7);
+        const usageLogs = await base44.entities.UsageLog.filter({ organization_id: orgId, period_month: periodMonth });
+        if (usageLogs[0]) {
+          setUsageInfo({
+            lead_generations_used: usageLogs[0].lead_generations_used ?? 0,
+            leads_created: usageLogs[0].leads_created ?? 0,
+          });
+        }
         setResult({ success: true, data: res.data });
         onSuccess?.();
       } else {
@@ -148,62 +157,72 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
                 {/* Haupt-Statistik */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
-                  <div className="grid grid-cols-2 gap-3 pb-2 border-b border-slate-200">
+                  <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-200 text-center">
                     <div>
-                      <span className="text-slate-500 block text-[10px] font-semibold uppercase">Gespeichert</span>
-                      <span className="text-xl font-bold text-green-600">{result.data.summary?.saved ?? result.data.count}</span>
+                      <span className="text-slate-500 block text-[10px] font-semibold uppercase">Angefragt</span>
+                      <span className="text-lg font-bold text-slate-700">{result.data.requestedTarget}</span>
                     </div>
                     <div>
                       <span className="text-slate-500 block text-[10px] font-semibold uppercase">Roh-Treffer</span>
-                      <span className="text-xl font-bold text-slate-700">{result.data.summary?.raw_hits}</span>
+                      <span className="text-lg font-bold text-slate-700">{result.data.summary?.raw_hits ?? "–"}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px] font-semibold uppercase">Gespeichert</span>
+                      <span className="text-lg font-bold text-green-600">{result.data.summary?.saved ?? result.data.count}</span>
                     </div>
                   </div>
                   <div className="space-y-1 text-slate-600">
                     <div className="flex justify-between">
-                      <span>Dubletten:</span>
-                      <span className="font-semibold text-slate-900">{result.data.summary?.duplicates ?? result.data.summary?.skipped_duplicate ?? 0}</span>
+                      <span>Dubletten (übersprungen):</span>
+                      <span className="font-semibold text-slate-900">{result.data.summary?.duplicates ?? 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Ausgeschlossen:</span>
-                      <span className="font-semibold text-slate-900">{result.data.summary?.excluded ?? result.data.summary?.skipped_excluded ?? 0}</span>
+                      <span className="font-semibold text-slate-900">{result.data.summary?.excluded ?? 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Außerhalb Radius:</span>
-                      <span className="font-semibold text-slate-900">{result.data.summary?.outsideRadius ?? result.data.summary?.skipped_outside_radius ?? 0}</span>
+                      <span className="font-semibold text-slate-900">{result.data.summary?.outsideRadius ?? 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Nicht passend (Zielgruppe):</span>
+                      <span className="font-semibold text-slate-900">{result.data.summary?.noMatch ?? 0}</span>
                     </div>
                   </div>
+                  {result.data.search_queries?.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Ausgeführte Suchanfragen ({result.data.search_queries.length})</span>
+                      <div className="text-slate-600 space-y-0.5">
+                        {result.data.search_queries.map((q, i) => (
+                          <div key={i} className="truncate">• {q}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* Credits nach dem Lauf */}
-                {planLimits && (
+                {/* Credits nach dem Lauf – direkt aus DB */}
+                {planLimits && usageInfo && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
-                    <div className="font-semibold text-blue-900 mb-1">Credits diesen Monat (aktualisiert)</div>
-                    {(() => {
-                      const usedRuns = (usageInfo?.lead_generations_used ?? 0) + 1;
-                      const usedLeads = (usageInfo?.leads_created ?? 0) + (result.data.usage?.leads_created ?? result.data.count);
-                      return (
-                        <>
-                          <div className="flex justify-between text-blue-800">
-                            <span>Recherche-Läufe:</span>
-                            <span className="font-semibold">
-                              {usedRuns} / {planLimits.max_lead_generations_per_month === -1 ? "∞" : planLimits.max_lead_generations_per_month} genutzt
-                              {planLimits.max_lead_generations_per_month !== -1 && (
-                                <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_lead_generations_per_month - usedRuns)} verfügbar</span>
-                              )}
-                            </span>
-                          </div>
-                          <div className="flex justify-between text-blue-800">
-                            <span>Gespeicherte Kontakte:</span>
-                            <span className="font-semibold">
-                              {usedLeads} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month} genutzt
-                              {planLimits.max_leads_per_month !== -1 && (
-                                <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - usedLeads)} verfügbar</span>
-                              )}
-                            </span>
-                          </div>
-                        </>
-                      );
-                    })()}
+                    <div className="font-semibold text-blue-900 mb-1">Verbrauch diesen Monat (aktualisiert)</div>
+                    <div className="flex justify-between text-blue-800">
+                      <span>Recherche-Läufe:</span>
+                      <span className="font-semibold">
+                        {usageInfo.lead_generations_used} / {planLimits.max_lead_generations_per_month === -1 ? "∞" : planLimits.max_lead_generations_per_month}
+                        {planLimits.max_lead_generations_per_month !== -1 && (
+                          <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_lead_generations_per_month - usageInfo.lead_generations_used)} verfügbar</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-blue-800">
+                      <span>Gespeicherte Kontakte:</span>
+                      <span className="font-semibold">
+                        {usageInfo.leads_created} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month}
+                        {planLimits.max_leads_per_month !== -1 && (
+                          <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - usageInfo.leads_created)} verfügbar</span>
+                        )}
+                      </span>
+                    </div>
                   </div>
                 )}
               </>
