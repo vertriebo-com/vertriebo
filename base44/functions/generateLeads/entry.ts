@@ -279,6 +279,10 @@ function translateGoogleTypes(types = []) {
 // ─── Harte Relevanzprüfung ────────────────────────────────────────────────────
 // place: das Google Places Ergebnis-Objekt (mit name, types, editorial_summary etc.)
 // Gibt { isMatch, matchedTarget, score, reason } zurück
+//
+// Logik: Erst Positiv-Match für JEDE Zielgruppe prüfen. Wenn ein positiver Match
+// gefunden wird, direkt zurückgeben. Negative Keywords blocken nur dann, wenn
+// der Lead KEINER Zielgruppe positiv zugeordnet werden kann.
 function validateLeadForTarget({ place, targetCustomerTypes }) {
   const translatedTypes = translateGoogleTypes(place.types || []);
   const text = norm([
@@ -288,22 +292,10 @@ function validateLeadForTarget({ place, targetCustomerTypes }) {
     place.formatted_address,
   ].join(" "));
 
-  // Alle Zielgruppen parallel prüfen - sammle zuerst alle negativen Befunde
-  // (verhindert, dass eine Zielgruppe "gewinnt" obwohl das Objekt klar in eine Ausschluss-Kategorie fällt)
+  // Phase 1: Positive Matches suchen (Vorrang vor allem)
   for (const target of targetCustomerTypes) {
     const rule = TARGET_RULES[target];
-    if (!rule) continue;
 
-    // Negativprüfung hat absoluten Vorrang
-    const negHit = rule.negativeKeywords.find(k => text.includes(norm(k)));
-    if (negHit) {
-      return { isMatch: false, matchedTarget: null, score: 0, reason: `Negativbegriff "${negHit}" (${target})` };
-    }
-  }
-
-  // Erst nach globaler Negativprüfung → Positivprüfung
-  for (const target of targetCustomerTypes) {
-    const rule = TARGET_RULES[target];
     if (!rule) {
       // Kein Regelwerk → Fallback auf SEARCH_VARIANTS
       const variants = SEARCH_VARIANTS[target] || [target];
@@ -314,16 +306,37 @@ function validateLeadForTarget({ place, targetCustomerTypes }) {
       continue;
     }
 
-    // Sonderregel: immobilienmakler ohne verwaltungsbezug → ablehnen
+    // Sonderregel: immobilienmakler ohne verwaltungsbezug → ablehnen (gilt auch bei Positivprüfung)
     if (rule.specialRules?.includes("immobilienmakler_ohne_verwaltung")) {
       if (text.includes("immobilienmakler") && !text.includes("verwaltung")) {
-        return { isMatch: false, matchedTarget: null, score: 0, reason: `Immobilienmakler ohne Verwaltungsbezug (${target})` };
+        continue; // kein positiver Match für diese Zielgruppe
       }
     }
 
     const posHit = rule.positiveKeywords.find(k => text.includes(norm(k)));
     if (posHit) {
       return { isMatch: true, matchedTarget: target, score: 90, reason: `Keyword-Match "${posHit}" → ${target}` };
+    }
+  }
+
+  // Phase 2: Kein positiver Match gefunden → Negativprüfung (erklärt warum abgelehnt)
+  for (const target of targetCustomerTypes) {
+    const rule = TARGET_RULES[target];
+    if (!rule) continue;
+    const negHit = rule.negativeKeywords.find(k => text.includes(norm(k)));
+    if (negHit) {
+      return { isMatch: false, matchedTarget: null, score: 0, reason: `Negativbegriff "${negHit}" (${target})` };
+    }
+  }
+
+  // Sonderregel-Ablehnung für immobilienmakler
+  for (const target of targetCustomerTypes) {
+    const rule = TARGET_RULES[target];
+    if (!rule) continue;
+    if (rule.specialRules?.includes("immobilienmakler_ohne_verwaltung")) {
+      if (text.includes("immobilienmakler") && !text.includes("verwaltung")) {
+        return { isMatch: false, matchedTarget: null, score: 0, reason: `Immobilienmakler ohne Verwaltungsbezug (${target})` };
+      }
     }
   }
 
