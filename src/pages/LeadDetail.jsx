@@ -260,7 +260,7 @@ export default function LeadDetail() {
           <Button variant="outline" size="sm" onClick={() => setShowAddLog(true)} className="gap-1.5 bg-white border border-[#E2E8F0]">
             <MessageSquare className="w-3.5 h-3.5" /> Kontakt
           </Button>
-          <button onClick={handleEnrich} disabled={enriching} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-[#E2E8F0] bg-white px-3 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50">
+          <button onClick={handleEnrich} disabled={enriching} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-slate-200 px-3 rounded-lg transition-colors disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed enabled:bg-white enabled:hover:bg-slate-50">
             {enriching ? <span className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin inline-block" /> : <Sparkles className="w-3.5 h-3.5" />}
             Anreichern
           </button>

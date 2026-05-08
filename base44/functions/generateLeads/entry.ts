@@ -95,9 +95,14 @@ const TARGET_RULES = {
       "mietverwaltung", "property management", "objektverwaltung", "wohnungsverwaltung",
       "grundstuecksverwaltung", "verwaltungsgesellschaft", "facility management",
       "immobilien verwaltung", "wohnungseigentum",
-      // Google Types übersetzt (property_management_company → "hausverwaltung immobilienverwaltung")
-      // Diese kommen über translateGoogleTypes und müssen AUCH als positiveKeywords stehen:
+      // Google Types übersetzt
       "property_management", "immobilienbestand", "verwalter",
+      // Firmen mit "verwaltung" im Namen (z.B. "S & S Verwaltung GmbH", "KAISER Haus- & Vermögensverwaltung")
+      "vermoegensverwaltung", "vermögensverwaltung", "hausverwaltungs",
+      // Immobilien + Betreuung/Service/Vermietung Kombis (z.B. "V.I.B. Immobilien-Betreuungs-", "IVVB")
+      "immobilien-betreuung", "immobilien betreuung", "immobilien service",
+      "immobilien vermietung verwaltung", "immobilien-verwaltung",
+      "haus-verwaltung", "haus & vermoegensverwaltung",
     ],
     negativeKeywords: [
       "kanzlei", "rechtsanwalt", "anwalt", "steuerberater", "wirtschaftspruefung",
@@ -336,6 +341,17 @@ function validateLeadForTarget({ place, targetCustomerTypes, excludedTargetTypes
     if (posHit) {
       return { isMatch: true, matchedTarget: target, score: 90, reason: `Keyword-Match "${posHit}" → ${target}` };
     }
+
+    // Kombinations-Match: "immobilien" + "verwaltung" im Namen → Hausverwaltung (kein allein stehendes "verwaltung"!)
+    if (target === "Hausverwaltungen") {
+      const nameNorm = norm(place.name || "");
+      if ((nameNorm.includes("immobilien") && nameNorm.includes("verwaltung")) ||
+          (nameNorm.includes("haus") && nameNorm.includes("verwaltung")) ||
+          (nameNorm.includes("wohn") && nameNorm.includes("verwaltung")) ||
+          (nameNorm.includes("objekt") && nameNorm.includes("verwaltung"))) {
+        return { isMatch: true, matchedTarget: target, score: 85, reason: `Kombi-Match im Namen → ${target}` };
+      }
+    }
   }
 
   // Kein Positiv-Match in irgendeiner Zielgruppe
@@ -345,6 +361,78 @@ function validateLeadForTarget({ place, targetCustomerTypes, excludedTargetTypes
     score: 0,
     reason: firstRejectReason || "Kein Keyword-Match mit Zielgruppen",
   };
+}
+
+// ─── Nachbarstädte für kleine Orte generieren ─────────────────────────────────
+// Gibt bekannte Nachbarstädte zurück basierend auf PLZ/Stadtname
+function generateNeighborSearchCities(city, settings, coords) {
+  // Bekannte Städte-Cluster für Deutschland (PLZ-Präfixe → Nachbarstädte)
+  const PLZ_NEIGHBORS = {
+    "561": ["Koblenz", "Neuwied", "Andernach", "Mayen"],
+    "562": ["Koblenz", "Neuwied", "Bad Neuenahr-Ahrweiler"],
+    "563": ["Koblenz", "Cochem", "Zell an der Mosel"],
+    "564": ["Trier", "Konz"],
+    "565": ["Westerburg", "Montabaur", "Limburg an der Lahn"],
+    "566": ["Neuwied", "Linz am Rhein"],
+    "570": ["Siegen"],
+    "571": ["Siegen", "Olpe"],
+    "530": ["Bonn", "Bad Godesberg"],
+    "531": ["Bonn"],
+    "532": ["Bonn", "Euskirchen"],
+    "533": ["Bonn", "Meckenheim"],
+    "400": ["Düsseldorf", "Mettmann"],
+    "401": ["Düsseldorf"],
+    "402": ["Düsseldorf", "Ratingen"],
+    "403": ["Düsseldorf", "Neuss"],
+    "404": ["Düsseldorf", "Mönchengladbach"],
+    "405": ["Mönchengladbach"],
+    "500": ["Köln"],
+    "501": ["Köln", "Bergheim"],
+    "502": ["Köln", "Leverkusen"],
+    "600": ["Frankfurt am Main"],
+    "601": ["Frankfurt am Main"],
+    "602": ["Frankfurt am Main", "Offenbach am Main"],
+    "603": ["Frankfurt am Main", "Hanau"],
+    "700": ["Stuttgart"],
+    "701": ["Stuttgart", "Esslingen am Neckar"],
+    "800": ["München"],
+    "801": ["München"],
+    "802": ["München", "Dachau"],
+    "900": ["Nürnberg"],
+    "901": ["Nürnberg", "Fürth"],
+    "100": ["Berlin"],
+    "101": ["Berlin"],
+    "102": ["Berlin"],
+    "200": ["Hamburg"],
+    "201": ["Hamburg"],
+    "202": ["Hamburg"],
+    "300": ["Hannover"],
+    "301": ["Hannover"],
+  };
+
+  const plz = settings.lead_plz || settings.service_area_plz || "";
+  const prefix3 = plz.substring(0, 3);
+  const known = PLZ_NEIGHBORS[prefix3] || [];
+
+  // Fallback: wenn PLZ als Stadtname gesetzt, gib bekannte Großstädte in Region zurück
+  if (known.length === 0 && /^\d{5}$/.test(city)) {
+    // Generische Nachbarstädte basierend auf erster PLZ-Ziffer (Bundesland-Region)
+    const regionMap = {
+      "0": ["Leipzig", "Dresden", "Halle"],
+      "1": ["Berlin", "Potsdam"],
+      "2": ["Hamburg", "Lübeck", "Kiel"],
+      "3": ["Hannover", "Braunschweig", "Magdeburg"],
+      "4": ["Düsseldorf", "Köln", "Dortmund"],
+      "5": ["Köln", "Bonn", "Aachen"],
+      "6": ["Frankfurt am Main", "Wiesbaden", "Mainz"],
+      "7": ["Stuttgart", "Mannheim", "Freiburg im Breisgau"],
+      "8": ["München", "Augsburg", "Ingolstadt"],
+      "9": ["Nürnberg", "Regensburg", "Würzburg"],
+    };
+    return (regionMap[plz[0]] || []).slice(0, 2);
+  }
+
+  return known;
 }
 
 // ─── Haversine Distance ───────────────────────────────────────────────────────
@@ -555,8 +643,9 @@ Deno.serve(async (req) => {
 
     const apiCounters = { geocoding: 0, textSearch: 0, nearbySearch: 0, placeDetailsEssentials: 0, placeDetailsPro: 0 };
 
-    // Stadt-Koordinaten
-    const refUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(city + " Deutschland")}&key=${GOOGLE_PLACES_API_KEY}&language=de`;
+    // Stadt-Koordinaten (Geocode mit PLZ+Stadt für bessere Treffer)
+    const cityQuery = city + " Deutschland";
+    const refUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(cityQuery)}&key=${GOOGLE_PLACES_API_KEY}&language=de`;
     apiCounters.textSearch++;
     const refRes = await fetch(refUrl);
     const refData = await refRes.json();
@@ -566,23 +655,36 @@ Deno.serve(async (req) => {
     }
     if (!cityCoords) return Response.json({ error: `Stadt "${city}" nicht gefunden.`, success: false }, { status: 400 });
 
-    console.info(`[generateLeads] START org=${organization_id}, Stadt=${city}, Zielkunden=${targetCustomers.join("|")}${excludedTargets.length ? `, Ausschlüsse=${excludedTargets.join("|")}` : ""}, Radius=${radiusKm}km, effectiveTarget=${effectiveTarget}`);
+    // Wenn PLZ als Stadt gesetzt ist → Koordinaten aus gespeicherten Settings bevorzugen
+    const savedLat = parseFloat(settings.lead_lat || "0");
+    const savedLng = parseFloat(settings.lead_lng || "0");
+    if (savedLat && savedLng && /^\d{5}$/.test(city)) {
+      cityCoords = { lat: savedLat, lng: savedLng };
+    }
+
+    // Nachbarstädte für breitere Suche generieren (für kleine Orte im Radius)
+    const neighborCities = generateNeighborSearchCities(city, settings, cityCoords);
+    const allSearchCities = [city, ...neighborCities.slice(0, 3)]; // max 4 Städte
+
+    console.info(`[generateLeads] START org=${organization_id}, Stadt=${city}, Nachbarstädte=${neighborCities.slice(0,3).join("|")}, Zielkunden=${targetCustomers.join("|")}${excludedTargets.length ? `, Ausschlüsse=${excludedTargets.join("|")}` : ""}, Radius=${radiusKm}km, effectiveTarget=${effectiveTarget}`);
 
     // Existierende Firmen für Duplikat-Check
     const existing = await base44.asServiceRole.entities.Company.filter({ organization_id });
     const existingNames = new Set(existing.map(c => c.name?.toLowerCase()));
 
-    // Suchanfragen generieren
+    // Suchanfragen generieren – für jede Stadt + alle Varianten
     const searchQueryList = [];
     const seenQueries = new Set();
-    for (const type of targetCustomers) {
-      const variants = SEARCH_VARIANTS[type] || [type];
-      for (const variant of variants) {
-        const q = `${variant} ${city}`;
-        if (!seenQueries.has(q)) { seenQueries.add(q); searchQueryList.push({ query: q, type }); }
+    for (const searchCity of allSearchCities) {
+      for (const type of targetCustomers) {
+        const variants = SEARCH_VARIANTS[type] || [type];
+        for (const variant of variants) {
+          const q = `${variant} ${searchCity}`;
+          if (!seenQueries.has(q)) { seenQueries.add(q); searchQueryList.push({ query: q, type }); }
+        }
       }
     }
-    console.info(`[generateLeads] ${searchQueryList.length} Suchanfragen für ${city}`);
+    console.info(`[generateLeads] ${searchQueryList.length} Suchanfragen für ${allSearchCities.join(", ")}`);
 
     // Counters
     const createdIds = [];
