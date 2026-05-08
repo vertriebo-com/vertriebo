@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { TrendingUp, Loader2, AlertCircle, CheckCircle2, Info } from "lucide-react";
+import { TrendingUp, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -29,7 +29,8 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [result, setResult] = useState(null);
   const [settings, setSettings] = useState({});
   const [targetCount, setTargetCount] = useState(25);
-  const [showCostDetail, setShowCostDetail] = useState(false);
+  const [usageInfo, setUsageInfo] = useState(null);
+  const [planLimits, setPlanLimits] = useState(null);
 
   useEffect(() => {
     if (open && orgId) loadSettings();
@@ -38,10 +39,38 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const loadSettings = async () => {
     setLoading(true);
     setResult(null);
-    const settingsData = await base44.entities.OrganizationSettings.filter({ organization_id: orgId });
+
+    const [settingsData, orgs] = await Promise.all([
+      base44.entities.OrganizationSettings.filter({ organization_id: orgId }),
+      base44.entities.Organization.filter({ id: orgId }),
+    ]);
+
     const settingsMap = {};
     settingsData.forEach(s => { settingsMap[s.key] = s.value; });
     setSettings(settingsMap);
+
+    const org = orgs[0];
+    if (org?.plan_id) {
+      const [plans, usageLogs] = await Promise.all([
+        base44.entities.Plan.filter({ id: org.plan_id }),
+        base44.entities.UsageLog.filter({ organization_id: orgId, period_month: new Date().toISOString().slice(0, 7) }),
+      ]);
+      const plan = plans[0];
+      const usage = usageLogs[0];
+      if (plan) {
+        setPlanLimits({
+          max_lead_generations_per_month: plan.max_lead_generations_per_month ?? 100,
+          max_leads_per_month: plan.max_leads_per_month ?? 300,
+        });
+      }
+      if (usage) {
+        setUsageInfo({
+          lead_generations_used: usage.lead_generations_used ?? 0,
+          leads_created: usage.leads_created ?? 0,
+        });
+      }
+    }
+
     setLoading(false);
   };
 
@@ -142,44 +171,38 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   </div>
                 </div>
 
-                {/* Google Requests */}
-                {result.data.googleRequests && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="font-semibold text-blue-900">Google API Requests</span>
-                      <button onClick={() => setShowCostDetail(!showCostDetail)} className="text-blue-600 hover:underline flex items-center gap-1">
-                        <Info className="w-3 h-3" />
-                        {showCostDetail ? "Weniger" : "Details"}
-                      </button>
-                    </div>
-                    <div className="space-y-0.5 text-blue-800">
-                      <div className="flex justify-between">
-                        <span>Text Search:</span>
-                        <span className="font-mono font-semibold">{result.data.googleRequests.textSearch}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Place Details:</span>
-                        <span className="font-mono font-semibold">{result.data.googleRequests.placeDetailsEssentials}</span>
-                      </div>
-                    </div>
-                    {showCostDetail && result.data.googleSkuBreakdown && (
-                      <div className="mt-2 pt-2 border-t border-blue-200">
-                        <CostSummary
-                          skuBreakdown={result.data.googleSkuBreakdown}
-                          estimatedCostCent={result.data.usage?.estimated_external_cost_cent}
-                        />
-                      </div>
-                    )}
+                {/* Credits nach dem Lauf */}
+                {planLimits && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
+                    <div className="font-semibold text-blue-900 mb-1">Credits diesen Monat (aktualisiert)</div>
+                    {(() => {
+                      const usedRuns = (usageInfo?.lead_generations_used ?? 0) + 1;
+                      const usedLeads = (usageInfo?.leads_created ?? 0) + (result.data.usage?.leads_created ?? result.data.count);
+                      return (
+                        <>
+                          <div className="flex justify-between text-blue-800">
+                            <span>Recherche-Läufe:</span>
+                            <span className="font-semibold">
+                              {usedRuns} / {planLimits.max_lead_generations_per_month === -1 ? "∞" : planLimits.max_lead_generations_per_month} genutzt
+                              {planLimits.max_lead_generations_per_month !== -1 && (
+                                <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_lead_generations_per_month - usedRuns)} verfügbar</span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-blue-800">
+                            <span>Gespeicherte Kontakte:</span>
+                            <span className="font-semibold">
+                              {usedLeads} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month} genutzt
+                              {planLimits.max_leads_per_month !== -1 && (
+                                <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - usedLeads)} verfügbar</span>
+                              )}
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
-
-                {/* Credits */}
-                <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-900 text-center font-semibold">
-                  {result.data.usage?.leads_created ?? result.data.count} Recherche-Credits verbraucht
-                  {result.data.usage?.estimated_external_cost_cent != null && (
-                    <span className="ml-2 text-blue-700">(~{result.data.usage.estimated_external_cost_cent.toFixed(1)}¢ API-Kosten)</span>
-                  )}
-                </div>
               </>
             ) : (
               <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-red-50 border-red-200">
@@ -215,6 +238,33 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                 </div>
               )}
             </div>
+
+            {/* Credits-Übersicht */}
+            {planLimits && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
+                <div className="font-semibold text-blue-900 mb-1">Credits diesen Monat</div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-blue-800">
+                    <span>Recherche-Läufe:</span>
+                    <span className="font-semibold">
+                      {usageInfo?.lead_generations_used ?? 0} / {planLimits.max_lead_generations_per_month === -1 ? "∞" : planLimits.max_lead_generations_per_month} genutzt
+                      {planLimits.max_lead_generations_per_month !== -1 && (
+                        <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_lead_generations_per_month - (usageInfo?.lead_generations_used ?? 0))} verfügbar</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-blue-800">
+                    <span>Gespeicherte Kontakte:</span>
+                    <span className="font-semibold">
+                      {usageInfo?.leads_created ?? 0} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month} genutzt
+                      {planLimits.max_leads_per_month !== -1 && (
+                        <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - (usageInfo?.leads_created ?? 0))} verfügbar</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div>
               <p className="text-xs font-semibold text-slate-900 mb-2">Anzahl Firmenkontakte</p>
