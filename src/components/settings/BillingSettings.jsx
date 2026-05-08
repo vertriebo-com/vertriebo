@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
-  CreditCard, Zap, Mail, Brain, Search, Database,
+  CreditCard, Mail, Brain, Search, Database,
   AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, RefreshCw
 } from "lucide-react";
 
@@ -253,12 +253,7 @@ export default function BillingSettings({ org: orgProp, user }) {
           </p>
         )}
 
-        {usageLog?.estimated_external_cost_cent > 0 && (
-          <div className="mt-5 pt-4 border-t border-slate-200 flex items-center justify-between text-xs">
-            <span className="flex items-center gap-1.5 text-slate-600 font-medium"><Zap className="w-3.5 h-3.5" /> Geschätzte externe API-Kosten</span>
-            <span className="font-bold text-slate-900">{(usageLog.estimated_external_cost_cent / 100).toFixed(2)} €</span>
-          </div>
-        )}
+        {/* Geschätzte externe API-Kosten: nur intern sichtbar (Admin) */}
       </div>
 
       {/* Plan Limits Info */}

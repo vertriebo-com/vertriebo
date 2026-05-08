@@ -269,7 +269,7 @@ export default function EmailSettings({ org: orgProp }) {
 
       {/* Logo */}
       <SettingsSection icon={ImagePlus} title="E-Mail Logo" description="Erscheint im Header aller ausgehenden E-Mails">
-        <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-xl">
+        <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
           <div className="w-20 h-10 rounded-lg border border-border bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center overflow-hidden shrink-0">
             {logoUrl
               ? <img src={logoUrl} alt="Logo" className="max-h-9 max-w-[76px] object-contain" />
@@ -298,8 +298,8 @@ export default function EmailSettings({ org: orgProp }) {
 
       {/* Signatur */}
       <SettingsSection icon={Mail} title="E-Mail-Signatur" description="Automatisch generiert aus Ihren Angaben – kann manuell angepasst werden">
-        <div className="border border-border rounded-xl overflow-hidden">
-          <div className="bg-muted/50 px-3 py-2 border-b border-border flex items-center justify-between">
+        <div className="border border-slate-200 rounded-xl overflow-hidden">
+          <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex items-center justify-between">
             <span className="text-[11px] text-muted-foreground">Vorschau der Standard-Signatur</span>
             <button onClick={() => setEditingSignature(!editingSignature)} className="text-xs text-primary hover:underline">
               {editingSignature ? "Vorschau" : "Manuell bearbeiten (HTML)"}
@@ -307,7 +307,7 @@ export default function EmailSettings({ org: orgProp }) {
           </div>
           {editingSignature ? (
             <textarea
-              className="w-full p-3 text-xs font-mono bg-background border-0 outline-none resize-none"
+              className="w-full p-3 text-xs font-mono bg-white text-slate-900 border-0 outline-none resize-none"
               rows={8}
               value={customSignature !== null ? customSignature : autoSignature}
               onChange={e => setCustomSignature(e.target.value)}
@@ -317,7 +317,7 @@ export default function EmailSettings({ org: orgProp }) {
           )}
         </div>
         {customSignature !== null && (
-          <button onClick={() => setCustomSignature(null)} className="text-xs text-muted-foreground hover:text-foreground mt-1">
+          <button onClick={() => setCustomSignature(null)} className="text-xs text-slate-500 hover:text-slate-900 mt-1">
             ↺ Zurück zur automatischen Signatur
           </button>
         )}

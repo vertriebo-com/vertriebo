@@ -167,21 +167,21 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
       </SettingsSection>
 
       {/* Aktive Mitglieder */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold">Team-Mitglieder ({displayMembers.length})</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Team-Mitglieder ({displayMembers.length})</h3>
           </div>
-          <button onClick={() => { loadOrgData(); onRefresh(); }} className="text-muted-foreground hover:text-foreground">
+          <button onClick={() => { loadOrgData(); onRefresh(); }} className="text-slate-400 hover:text-slate-700">
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-slate-100">
           {displayMembers.length === 0 && (
-            <div className="px-5 py-6 text-center text-sm text-muted-foreground">
-              Noch keine Mitglieder gefunden.
-            </div>
+          <div className="px-5 py-6 text-center text-sm text-slate-500 font-medium">
+            Noch keine Mitglieder gefunden.
+          </div>
           )}
           {displayMembers.map(({ email, platformUser, member }) => {
             const isMe = email === currentUser?.email;
@@ -207,9 +207,9 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{email}</p>
+                    <p className="text-xs text-slate-500 truncate">{email}</p>
                     {lastActive && (
-                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                      <p className="text-[10px] text-slate-400 mt-0.5">
                         Zuletzt aktiv: {formatRelativeDate(lastActive)}
                       </p>
                     )}
@@ -264,12 +264,12 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
 
       {/* Ausstehende Einladungen */}
       {pendingInvites.length > 0 && (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-border flex items-center gap-2">
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-2">
             <Clock className="w-4 h-4 text-amber-500" />
             <h3 className="text-sm font-semibold">Ausstehende Einladungen ({pendingInvites.length})</h3>
           </div>
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-slate-100">
             {pendingInvites.map(invite => (
               <div key={invite.id} className="px-5 py-3 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
