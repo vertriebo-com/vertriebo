@@ -95,6 +95,9 @@ const TARGET_RULES = {
       "mietverwaltung", "property management", "objektverwaltung", "wohnungsverwaltung",
       "grundstuecksverwaltung", "verwaltungsgesellschaft", "facility management",
       "immobilien verwaltung", "wohnungseigentum",
+      // Google Types übersetzt (property_management_company → "hausverwaltung immobilienverwaltung")
+      // Diese kommen über translateGoogleTypes und müssen AUCH als positiveKeywords stehen:
+      "property_management", "immobilienbestand", "verwalter",
     ],
     negativeKeywords: [
       "kanzlei", "rechtsanwalt", "anwalt", "steuerberater", "wirtschaftspruefung",
@@ -284,11 +287,15 @@ function translateGoogleTypes(types = []) {
 // 4. Wenn kein Positiv-Match → abgelehnt (mit Begründung aus erster Negativregel).
 function validateLeadForTarget({ place, targetCustomerTypes, excludedTargetTypes = [] }) {
   const translatedTypes = translateGoogleTypes(place.types || []);
+  // Auch Google-Types direkt als Rohtext einbeziehen (z.B. "property_management_company")
+  const rawTypes = (place.types || []).join(" ");
   const text = norm([
     place.name,
     translatedTypes,
+    rawTypes,
     place.editorial_summary?.overview,
     place.formatted_address,
+    place.vicinity,
   ].join(" "));
 
   let firstRejectReason = null;
@@ -613,11 +620,15 @@ Deno.serve(async (req) => {
         if (existingNames.has(placeName.toLowerCase())) { skipped_duplicate++; continue; }
 
         // ─── HARTE RELEVANZPRÜFUNG ────────────────────────────────────────
+        // Wichtig: TextSearch-Ergebnisse haben editorial_summary oft NICHT.
+        // Daher nutzen wir auch den Google type "property_management_company"
+        // der durch translateGoogleTypes zu "hausverwaltung immobilienverwaltung" wird.
         const relevance = validateLeadForTarget({
           place,
           targetCustomerTypes: targetCustomers,
           excludedTargetTypes: excludedTargets,
         });
+        console.info(`[generateLeads] VALIDATE "${place.name}" types=${JSON.stringify(place.types)} → isMatch=${relevance.isMatch} reason="${relevance.reason}"`);
 
         if (!relevance.isMatch) {
           skipped_no_match++;

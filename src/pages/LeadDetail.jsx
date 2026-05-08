@@ -152,10 +152,36 @@ export default function LeadDetail() {
 
   const handleEnrich = async () => {
     setEnriching(true);
-    const res = await base44.functions.invoke("enrichCompany", { companyId: id });
-    const { found } = res.data;
-    found > 0 ? toast.success(`${found} Felder automatisch ergänzt!`) : toast.info("Keine neuen Daten gefunden.");
-    setEnriching(false); if (found > 0) loadData();
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout nach 30 Sekunden")), 30000));
+      const res = await Promise.race([
+        base44.functions.invoke("enrichCompany", { companyId: id }),
+        timeoutPromise,
+      ]);
+      const data = res.data;
+      if (data?.success === false) {
+        toast.error("Anreichern fehlgeschlagen: " + (data?.error || "Unbekannter Fehler"));
+      } else {
+        const found = data?.found || 0;
+        if (found > 0) {
+          const enriched = [
+            data?.telefon_added && "Telefon ergänzt",
+            data?.website_added && "Website ergänzt",
+            data?.adresse_added && "Adresse ergänzt",
+            data?.ansprechpartner_added && "Ansprechpartner gefunden",
+            data?.branche_added && "Branche erkannt",
+          ].filter(Boolean);
+          toast.success(enriched.length > 0 ? enriched.join(", ") : `${found} Felder automatisch ergänzt`);
+          loadData();
+        } else {
+          toast.info("Keine zusätzlichen Daten gefunden.");
+        }
+      }
+    } catch (e) {
+      toast.error("Anreichern fehlgeschlagen: " + (e?.message || "Unbekannter Fehler"));
+    } finally {
+      setEnriching(false);
+    }
   };
 
   const handleSaveNotizen = async () => {
