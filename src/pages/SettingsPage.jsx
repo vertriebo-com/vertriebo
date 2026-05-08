@@ -126,8 +126,8 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* Modern Navigation Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mb-8">
+      {/* Navigation Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
         {(isAdmin ? ADMIN_NAV_ITEMS : SALES_REP_NAV_ITEMS).map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -135,21 +135,21 @@ export default function SettingsPage() {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`flex flex-col items-start p-4 rounded-xl border-2 transition-all text-left ${
+              className={`flex flex-col items-start p-4 rounded-2xl border-2 transition-all text-left shadow-sm ${
                 isActive
-                  ? "border-primary bg-primary/5 shadow-sm"
-                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
+                  ? "border-blue-500 bg-blue-50 shadow-md"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-md"
               }`}
             >
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${
-                isActive ? "bg-primary text-white" : "bg-slate-100 text-slate-600"
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${
+                isActive ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-700"
               }`}>
                 <Icon className="w-4 h-4" />
               </div>
-              <span className={`text-sm font-semibold ${isActive ? "text-primary" : "text-slate-900"}`}>
+              <span className={`text-sm font-bold ${isActive ? "text-blue-700" : "text-slate-900"}`}>
                 {item.label}
               </span>
-              <span className="text-[11px] text-slate-600 mt-0.5 line-clamp-2">
+              <span className={`text-[11px] font-medium mt-0.5 line-clamp-2 ${isActive ? "text-blue-600" : "text-slate-600"}`}>
                 {item.description}
               </span>
             </button>

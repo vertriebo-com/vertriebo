@@ -141,7 +141,7 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
   return (
     <>
       {/* Einladen */}
-      <SettingsSection icon={UserPlus} title="Vertriebler einladen" description="Der Benutzer erhält eine E-Mail mit Login-Link und wird Ihrer Organisation hinzugefügt.">
+      <SettingsSection icon={UserPlus} title="Teammitglied einladen" description="Der Benutzer erhält eine E-Mail mit Login-Link und wird Ihrer Organisation hinzugefügt.">
         <div className="flex flex-col sm:flex-row gap-3">
           <Input
             placeholder="E-Mail-Adresse"
@@ -159,7 +159,7 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
               <SelectItem value="organization_admin">Admin</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={handleInvite} disabled={inviting} className="gap-2 whitespace-nowrap">
+          <Button onClick={handleInvite} disabled={inviting} className="gap-2 whitespace-nowrap h-11 px-5 text-sm font-semibold">
             <UserPlus className="w-4 h-4" />
             {inviting ? "Einladung..." : "Einladen"}
           </Button>
@@ -179,8 +179,12 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
         </div>
         <div className="divide-y divide-slate-100">
           {displayMembers.length === 0 && (
-          <div className="px-5 py-6 text-center text-sm text-slate-500 font-medium">
-            Noch keine Mitglieder gefunden.
+          <div className="px-5 py-12 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+              <Users className="w-6 h-6 text-slate-400" />
+            </div>
+            <p className="text-sm font-bold text-slate-700">Noch keine Mitglieder</p>
+            <p className="text-xs font-medium text-slate-500 mt-1">Laden Sie Ihr Team über das Formular oben ein.</p>
           </div>
           )}
           {displayMembers.map(({ email, platformUser, member }) => {
@@ -193,9 +197,9 @@ export default function UserManagement({ users, currentUser, onRefresh }) {
             const lastActive = member?.last_active_at || platformUser?.updated_date;
 
             return (
-              <div key={email} className="px-5 py-3.5 flex items-center justify-between gap-3">
+              <div key={email} className="px-5 py-4 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-700 shrink-0">
                     {platformUser?.full_name?.charAt(0)?.toUpperCase() || email.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">

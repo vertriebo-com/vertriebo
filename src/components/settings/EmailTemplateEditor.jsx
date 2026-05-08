@@ -113,7 +113,7 @@ export default function EmailTemplateEditor({ tpl, idx, onSave, onDelete, onCanc
 
       {/* Betreff */}
       <div className="px-4 pt-3 pb-2">
-        <Label className="text-xs font-semibold mb-1 block">Betreff *</Label>
+        <Label className="text-xs font-bold mb-1.5 block text-slate-800">Betreff *</Label>
         <Input
           value={betreff}
           onChange={e => setBetreff(e.target.value)}

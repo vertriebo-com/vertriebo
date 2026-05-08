@@ -203,7 +203,7 @@ export default function EmailSettings({ org: orgProp }) {
       <SettingsSection icon={User} title="Absender & Kontakt" description="Werden als Absender in allen ausgehenden E-Mails verwendet">
         <div className="space-y-3">
           <div>
-            <Label className="text-xs font-semibold mb-1 block">
+            <Label className="text-xs font-bold mb-1.5 block text-slate-800">
               Absendername *
               <span className="text-slate-500 font-normal ml-1">— erscheint beim Empfänger als „Von: ..."</span>
             </Label>
@@ -215,7 +215,7 @@ export default function EmailSettings({ org: orgProp }) {
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold mb-1 block">
+              <Label className="text-xs font-bold mb-1.5 block text-slate-800">
                 Absender-E-Mail
                 <span className="text-slate-500 font-normal ml-1">— technische Absenderadresse</span>
               </Label>
@@ -227,7 +227,7 @@ export default function EmailSettings({ org: orgProp }) {
               />
             </div>
             <div>
-              <Label className="text-xs font-semibold mb-1 block">
+              <Label className="text-xs font-bold mb-1.5 block text-slate-800">
                 Reply-To E-Mail
                 <span className="text-slate-500 font-normal ml-1">— wohin gehen Antworten?</span>
               </Label>
@@ -241,11 +241,11 @@ export default function EmailSettings({ org: orgProp }) {
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><Phone className="w-3 h-3" /> Telefon (für Signatur)</Label>
+              <Label className="text-xs font-bold mb-1.5 block flex items-center gap-1 text-slate-800"><Phone className="w-3 h-3" /> Telefon (für Signatur)</Label>
               <Input value={telefon} onChange={e => handleFieldChange(setTelefon)(e.target.value)} placeholder="0800 / 123456" />
             </div>
             <div>
-              <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><Globe className="w-3 h-3" /> Website</Label>
+              <Label className="text-xs font-bold mb-1.5 block flex items-center gap-1 text-slate-800"><Globe className="w-3 h-3" /> Website</Label>
               <Input
                 value={website}
                 onChange={e => handleWebsiteChange(e.target.value)}
@@ -261,7 +261,7 @@ export default function EmailSettings({ org: orgProp }) {
             </div>
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1 block flex items-center gap-1"><MapPin className="w-3 h-3" /> Firmenadresse (Signatur)</Label>
+            <Label className="text-xs font-bold mb-1.5 block flex items-center gap-1 text-slate-800"><MapPin className="w-3 h-3" /> Firmenadresse (Signatur)</Label>
             <Input value={adresse} onChange={e => handleFieldChange(setAdresse)(e.target.value)} placeholder="Musterstraße 1, 12345 Musterstadt" />
           </div>
         </div>
@@ -269,16 +269,16 @@ export default function EmailSettings({ org: orgProp }) {
 
       {/* Logo */}
       <SettingsSection icon={ImagePlus} title="E-Mail Logo" description="Erscheint im Header aller ausgehenden E-Mails">
-        <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-          <div className="w-20 h-10 rounded-lg border border-slate-200 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center overflow-hidden shrink-0">
+        <div className="flex items-center gap-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+          <div className="w-24 h-14 rounded-xl border-2 border-slate-200 bg-white flex items-center justify-center overflow-hidden shrink-0">
             {logoUrl
-              ? <img src={logoUrl} alt="Logo" className="max-h-9 max-w-[76px] object-contain" />
-              : <span className="text-white/50 text-[9px] font-medium text-center leading-tight px-1">Kein Logo</span>
+              ? <img src={logoUrl} alt="Logo" className="max-h-12 max-w-[88px] object-contain" />
+              : <span className="text-slate-400 text-[10px] font-semibold text-center leading-tight px-2">Kein Logo</span>
             }
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold">Logo (optional)</p>
-            <p className="text-[11px] text-slate-500 font-medium">PNG oder JPG empfohlen</p>
+            <p className="text-sm font-bold text-slate-900">Firmenlogo</p>
+            <p className="text-xs font-medium text-slate-600 mt-0.5">PNG oder JPG, empfohlen 200×60px</p>
           </div>
           <div className="flex gap-1.5">
             <button onClick={() => logoInputRef.current?.click()} disabled={uploading}
@@ -323,8 +323,8 @@ export default function EmailSettings({ org: orgProp }) {
         )}
       </SettingsSection>
 
-      <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving || !!websiteError} className="gap-2">
+      <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-slate-200 px-0 py-4 flex justify-end">
+        <Button onClick={handleSave} disabled={saving || !!websiteError} className="gap-2 h-11 px-6 text-sm font-semibold">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? "Wird gespeichert..." : "E-Mail-Einstellungen speichern"}
         </Button>

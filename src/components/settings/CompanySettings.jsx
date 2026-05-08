@@ -249,28 +249,30 @@ export default function CompanySettings({ org: orgProp }) {
 
   if (loading) return (
     <div className="flex items-center justify-center h-32">
-      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
     </div>
   );
 
   return (
     <div className="space-y-6">
       {/* Card 1: Firmendaten */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="mb-5">
-          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-primary" />
-            Firmendaten
-          </h3>
-          <p className="text-xs font-medium text-slate-600 mt-1">Grundlegende Unternehmensinformationen</p>
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+            <Building2 className="w-4 h-4 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Firmendaten</h3>
+            <p className="text-xs font-medium text-slate-600 mt-0.5">Grundlegende Unternehmensinformationen</p>
+          </div>
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
           <div className="sm:col-span-2">
-            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">Firmenname *</Label>
+            <Label className="text-xs font-bold mb-1.5 block text-slate-800">Firmenname *</Label>
             <Input value={firmenname} onChange={e => setFirmenname(e.target.value)} placeholder="Muster GmbH" />
           </div>
           <div className="sm:col-span-2">
-            <Label className="text-xs font-semibold mb-2 block text-slate-900">Branche</Label>
+            <Label className="text-xs font-bold mb-2 block text-slate-800">Branche</Label>
             <div className="flex flex-wrap gap-2">
               {INDUSTRIES.map(ind => (
                 <button key={ind} type="button" onClick={() => setIndustry(industry === ind ? "" : ind)}
@@ -307,26 +309,28 @@ export default function CompanySettings({ org: orgProp }) {
       </div>
 
       {/* Card 2: Suchgebiet */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="mb-5">
-          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary" />
-            Hauptstandort & Suchgebiet
-          </h3>
-          <p className="text-xs font-medium text-slate-600 mt-1">Wird für die Lead-Generierung verwendet</p>
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
+            <MapPin className="w-4 h-4 text-green-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Hauptstandort & Suchgebiet</h3>
+            <p className="text-xs font-medium text-slate-600 mt-0.5">Wird für die Lead-Generierung verwendet</p>
+          </div>
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
           <div>
-            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">PLZ *</Label>
+            <Label className="text-xs font-bold mb-1.5 block text-slate-800">PLZ *</Label>
             <Input value={plz} onChange={e => setPlz(e.target.value)} placeholder="56564" maxLength={5} />
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">Ort</Label>
+            <Label className="text-xs font-bold mb-1.5 block text-slate-800">Ort</Label>
             <Input value={plzCity} onChange={e => setPlzCity(e.target.value)} placeholder="Neuwied" />
           </div>
           <div>
-            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">
-              Suchradius: <span className={`font-bold ${radiusOverLimit ? "text-destructive" : "text-primary"}`}>{radius} km</span>
+            <Label className="text-xs font-bold mb-1.5 block text-slate-800">
+              Suchradius: <span className={`font-bold ${radiusOverLimit ? "text-red-600" : "text-blue-600"}`}>{radius} km</span>
             </Label>
             <input
               type="range" min={5} max={100} step={5} value={radius}
@@ -351,17 +355,19 @@ export default function CompanySettings({ org: orgProp }) {
       </div>
 
       {/* Card 3: Zielkunden & Leistungen */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="mb-5">
-          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <Users className="w-4 h-4 text-primary" />
-            Zielkunden & Dienstleistungen
-          </h3>
-          <p className="text-xs font-medium text-slate-600 mt-1">Steuert Lead-Generierung, E-Mail-Vorlagen und KI-Skripte</p>
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+            <Users className="w-4 h-4 text-purple-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Zielkunden & Dienstleistungen</h3>
+            <p className="text-xs font-medium text-slate-600 mt-0.5">Steuert Lead-Generierung, E-Mail-Vorlagen und KI-Skripte</p>
+          </div>
         </div>
         <div className="space-y-5">
           <div>
-            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">Ihre Zielkunden</Label>
+            <Label className="text-xs font-bold mb-1.5 block text-slate-800">Ihre Zielkunden</Label>
             <p className="text-[11px] text-slate-600 font-medium mb-2.5">
               Die Auswahl bestimmt automatisch die Suchbegriffe für die Lead-Generierung via Google Places.
             </p>
@@ -394,7 +400,7 @@ export default function CompanySettings({ org: orgProp }) {
           </div>
 
           <div>
-            <Label className="text-xs font-semibold mb-1.5 block text-slate-900">Ihre Dienstleistungen</Label>
+            <Label className="text-xs font-bold mb-1.5 block text-slate-800">Ihre Dienstleistungen</Label>
             <p className="text-[11px] text-slate-600 font-medium mb-2.5">
               Werden automatisch in E-Mail-Vorlagen, KI-Anrufskripten und Follow-up-Texten verwendet.
             </p>
@@ -422,13 +428,15 @@ export default function CompanySettings({ org: orgProp }) {
       </div>
 
       {/* Card 4: Vertriebsziele */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="mb-5">
-          <h3 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-            <Target className="w-4 h-4 text-primary" />
-            Vertriebsziele
-          </h3>
-          <p className="text-xs font-medium text-slate-600 mt-1">Wöchentliche Ziele und Standard-Einstellungen</p>
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+            <Target className="w-4 h-4 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Vertriebsziele</h3>
+            <p className="text-xs font-medium text-slate-600 mt-0.5">Wöchentliche Ziele und Standard-Einstellungen</p>
+          </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
           {[
@@ -438,7 +446,7 @@ export default function CompanySettings({ org: orgProp }) {
             { label: "Follow-up (Tage)", value: followUpTage, set: setFollowUpTage },
           ].map(item => (
             <div key={item.label}>
-              <Label className="text-[11px] text-slate-600 font-medium mb-1.5 block">{item.label}</Label>
+              <Label className="text-xs font-bold text-slate-800 mb-1.5 block">{item.label}</Label>
               <Input type="number" min="1" value={item.value}
                 onChange={e => item.set(e.target.value)} className="text-sm text-center font-semibold" />
             </div>
@@ -468,8 +476,8 @@ export default function CompanySettings({ org: orgProp }) {
       </div>
 
       {/* Save Button */}
-      <div className="flex justify-end pt-2">
-        <Button onClick={handleSave} disabled={saving || !!websiteError} className="gap-2 px-6">
+      <div className="sticky bottom-0 bg-white/95 backdrop-blur border-t border-slate-200 py-4 flex justify-end">
+        <Button onClick={handleSave} disabled={saving || !!websiteError} className="gap-2 px-6 h-11 text-sm font-semibold">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? "Wird gespeichert..." : "Änderungen speichern"}
         </Button>

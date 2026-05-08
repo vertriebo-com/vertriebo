@@ -29,22 +29,25 @@ function UsageBar({ label, icon: Icon, used, max, color = "bg-blue-500" }) {
   const isDanger = !isUnlimited && pct >= 95;
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="flex items-center gap-1.5 text-slate-700 font-medium">
-          <Icon className="w-4 h-4 text-slate-500" /> {label}
+    <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-2.5">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <Icon className="w-4 h-4 text-slate-600" /> {label}
         </span>
-        <span className="font-bold text-slate-900">
-          {isUnlimited ? <span className="text-emerald-600 font-semibold">∞ Unbegrenzt</span> : `${used} / ${max}`}
+        <span className={`text-sm font-bold ${isDanger ? "text-red-600" : isWarning ? "text-amber-600" : "text-slate-950"}`}>
+          {isUnlimited ? <span className="text-emerald-600">∞ Unbegrenzt</span> : `${used} / ${max}`}
         </span>
       </div>
       {!isUnlimited && (
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all ${isDanger ? "bg-red-500" : isWarning ? "bg-amber-500" : color}`}
             style={{ width: `${pct}%` }}
           />
         </div>
+      )}
+      {!isUnlimited && (
+        <p className="text-[11px] font-medium text-slate-500">{Math.max(0, max - used)} verbleibend</p>
       )}
     </div>
   );
@@ -145,12 +148,12 @@ export default function BillingSettings({ org: orgProp, user }) {
       )}
 
       {/* Plan & Status Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow space-y-4">
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Aktueller Plan</h3>
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Aktueller Plan</h3>
             <div className="flex items-center gap-2">
-              <span className="text-2xl font-extrabold">{plan?.name || "–"}</span>
+              <span className="text-2xl font-extrabold text-slate-950">{plan?.name || "–"}</span>
               <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border ${statusCfg.color}`}>
                 <StatusIcon className="w-3 h-3" /> {statusCfg.label}
               </span>
@@ -213,10 +216,10 @@ export default function BillingSettings({ org: orgProp, user }) {
 
       {/* Usage this month */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-5">
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">
           Verbrauch diesen Monat
         </h3>
-        <div className="space-y-4">
+        <div className="grid sm:grid-cols-2 gap-3">
           <UsageBar
             label="Recherche-Credits (Kontakte)"
             icon={Database}
@@ -248,9 +251,9 @@ export default function BillingSettings({ org: orgProp, user }) {
         </div>
 
         {!usageLog && (
-          <p className="text-xs text-slate-600 font-medium mt-4">
-            Noch kein Verbrauch in diesem Monat erfasst.
-          </p>
+          <div className="sm:col-span-2 text-center py-6">
+            <p className="text-sm font-semibold text-slate-600">Noch kein Verbrauch in diesem Monat erfasst.</p>
+          </div>
         )}
 
         {/* Geschätzte externe API-Kosten: nur intern sichtbar (Admin) */}
@@ -258,8 +261,8 @@ export default function BillingSettings({ org: orgProp, user }) {
 
       {/* Plan Limits Info */}
       {plan && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5">
-          <h3 className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-4">Plan-Limits</h3>
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Plan-Limits im Überblick</h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             {[
               { label: "Benutzer", value: plan.max_users === -1 ? "∞" : plan.max_users },
@@ -267,9 +270,9 @@ export default function BillingSettings({ org: orgProp, user }) {
               { label: "E-Mails/Monat", value: plan.max_emails_per_month === -1 ? "∞" : plan.max_emails_per_month },
               { label: "KI-Aktionen/Monat", value: plan.max_ai_scorings_per_month === -1 ? "∞" : plan.max_ai_scorings_per_month },
             ].map(item => (
-              <div key={item.label} className="bg-white border border-slate-200 rounded-xl p-3">
-                <div className="text-xl font-extrabold text-slate-900">{item.value}</div>
-                <div className="text-[11px] text-slate-600 font-medium mt-1">{item.label}</div>
+              <div key={item.label} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <div className="text-2xl font-extrabold text-slate-950">{item.value}</div>
+                <div className="text-[11px] font-semibold text-slate-600 mt-1">{item.label}</div>
               </div>
             ))}
           </div>

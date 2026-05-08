@@ -140,16 +140,16 @@ export default function EmailTemplateSettings() {
                 {expanded !== idx && (
                   <button
                     onClick={() => setExpanded(idx)}
-                    className="w-full flex items-center justify-between px-5 py-4 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors text-left"
+                    className="w-full flex items-center justify-between px-5 py-4 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:shadow-md transition-all text-left"
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
                         <Mail className="w-4 h-4 text-blue-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span className="text-sm font-semibold text-slate-900 truncate block">{tpl.name || "Neue Vorlage"}</span>
+                        <span className="text-sm font-bold text-slate-900 truncate block">{tpl.name || "Neue Vorlage"}</span>
                         {tpl.betreff && (
-                          <span className="text-[11px] text-slate-600 font-medium truncate block mt-0.5">{tpl.betreff}</span>
+                         <span className="text-xs text-slate-600 font-medium truncate block mt-0.5">{tpl.betreff}</span>
                         )}
                       </div>
                       {tpl.typ && (
