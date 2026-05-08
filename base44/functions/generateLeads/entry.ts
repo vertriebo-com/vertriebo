@@ -536,6 +536,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Keine Zielkunden definiert.', success: false }, { status: 400 });
     }
 
+    // Explizite User-Ausschlüsse (aus Einstellungen, z.B. "ausschlüsse: Kanzleien, Banken")
+    const excludedTargets = (settings.zielkunden_ausschluss || "")
+      .split(", ").filter(x => x.trim());
+
     const city = settings.lead_plz_city || settings.service_area_city || settings.lead_plz || "";
     if (!city) return Response.json({ error: 'Kein Suchgebiet definiert.', success: false }, { status: 400 });
 
@@ -555,7 +559,7 @@ Deno.serve(async (req) => {
     }
     if (!cityCoords) return Response.json({ error: `Stadt "${city}" nicht gefunden.`, success: false }, { status: 400 });
 
-    console.info(`[generateLeads] START org=${organization_id}, Stadt=${city}, Zielkunden=${targetCustomers.join("|")}, Radius=${radiusKm}km, effectiveTarget=${effectiveTarget}`);
+    console.info(`[generateLeads] START org=${organization_id}, Stadt=${city}, Zielkunden=${targetCustomers.join("|")}${excludedTargets.length ? `, Ausschlüsse=${excludedTargets.join("|")}` : ""}, Radius=${radiusKm}km, effectiveTarget=${effectiveTarget}`);
 
     // Existierende Firmen für Duplikat-Check
     const existing = await base44.asServiceRole.entities.Company.filter({ organization_id });
@@ -612,6 +616,7 @@ Deno.serve(async (req) => {
         const relevance = validateLeadForTarget({
           place,
           targetCustomerTypes: targetCustomers,
+          excludedTargetTypes: excludedTargets,
         });
 
         if (!relevance.isMatch) {
