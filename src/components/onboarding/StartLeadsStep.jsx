@@ -68,6 +68,9 @@ export default function StartLeadsStep({ org, onDone }) {
         toast.success(`${res.data.count} Firmenkontakte generiert!`);
       } else {
         setError(res.data?.error || "Fehler bei der Lead-Recherche");
+        if (res.data?.limitReached) {
+          setError("Plan-Limit erreicht: " + (res.data?.error || "Recherche nicht möglich."));
+        }
       }
     } catch (e) {
       setError("Fehler: " + e.message);

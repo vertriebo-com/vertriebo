@@ -6,19 +6,28 @@
       "type": "string",
       "title": "Organisation ID"
     },
+    "period_month": {
+      "type": "string",
+      "title": "Periode Monat (YYYY-MM)"
+    },
     "period_start": {
       "type": "string",
       "format": "date-time",
-      "title": "Periode Start (aus Stripe)"
+      "title": "Periode Start"
     },
     "period_end": {
       "type": "string",
       "format": "date-time",
-      "title": "Periode Ende (aus Stripe)"
+      "title": "Periode Ende"
+    },
+    "lead_generations_used": {
+      "type": "number",
+      "title": "Recherche-L\u00e4ufe genutzt",
+      "default": 0
     },
     "leads_created": {
       "type": "number",
-      "title": "Erstellte Leads",
+      "title": "Gespeicherte Leads",
       "default": 0
     },
     "ai_scorings_used": {
@@ -26,14 +35,14 @@
       "title": "KI-Scorings genutzt",
       "default": 0
     },
+    "ai_actions_used": {
+      "type": "number",
+      "title": "KI-Aktionen gesamt",
+      "default": 0
+    },
     "emails_sent": {
       "type": "number",
       "title": "E-Mails gesendet",
-      "default": 0
-    },
-    "lead_generations_used": {
-      "type": "number",
-      "title": "Lead-Generierungen genutzt",
       "default": 0
     },
     "users_count": {
@@ -41,30 +50,62 @@
       "title": "Aktive Nutzer (Snapshot)",
       "default": 0
     },
+    "google_geocoding_requests": {
+      "type": "number",
+      "title": "Google Geocoding Requests",
+      "default": 0
+    },
+    "google_places_text_search_requests": {
+      "type": "number",
+      "title": "Google Places Text Search Requests",
+      "default": 0
+    },
+    "google_places_nearby_search_requests": {
+      "type": "number",
+      "title": "Google Places Nearby Search Requests",
+      "default": 0
+    },
+    "google_place_details_essentials_requests": {
+      "type": "number",
+      "title": "Google Place Details Essentials Requests",
+      "default": 0
+    },
+    "google_place_details_pro_requests": {
+      "type": "number",
+      "title": "Google Place Details Pro Requests",
+      "default": 0
+    },
     "google_places_requests": {
       "type": "number",
-      "title": "Google Places API Requests",
+      "title": "Google Places Requests gesamt (legacy)",
       "default": 0
     },
     "place_details_requests": {
       "type": "number",
-      "title": "Place Details API Requests",
+      "title": "Place Details Requests gesamt (legacy)",
       "default": 0
     },
-    "ai_actions_used": {
-      "type": "number",
-      "title": "KI-Aktionen gesamt (Enrich + Score + Coach)",
-      "default": 0
+    "google_sku_breakdown": {
+      "type": "string",
+      "title": "Google SKU Breakdown (JSON)"
     },
     "estimated_external_cost_cent": {
       "type": "number",
-      "title": "Gesch. externe Kosten Periode (Cent)",
+      "title": "Gesch\u00e4tzte externe Kosten Periode (Cent)",
       "default": 0
+    },
+    "last_lead_generation_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Letzter Recherche-Lauf"
+    },
+    "last_lead_generation_report": {
+      "type": "string",
+      "title": "Letzter Recherche-Bericht (JSON)"
     }
   },
   "required": [
     "organization_id",
-    "period_start",
-    "period_end"
+    "period_month"
   ]
 }

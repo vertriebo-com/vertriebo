@@ -1,9 +1,27 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { TrendingUp, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { TrendingUp, Loader2, AlertCircle, CheckCircle2, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+
+function CostSummary({ skuBreakdown, estimatedCostCent }) {
+  if (!skuBreakdown || estimatedCostCent == null) return null;
+  return (
+    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
+      <div className="font-semibold text-slate-800 mb-1.5">Google API Kosten (geschätzt)</div>
+      {Object.entries(skuBreakdown).map(([sku, data]) => (
+        <div key={sku} className="flex justify-between text-slate-600">
+          <span>{sku.replace(/_/g, ' ')}</span>
+          <span className="font-mono">{data.requests}x → {data.estimated_cost_cent.toFixed(2)}¢</span>
+        </div>
+      ))}
+      <div className="flex justify-between font-bold text-slate-900 border-t border-slate-300 pt-1 mt-1">
+        <span>Gesamt</span>
+        <span className="font-mono">{estimatedCostCent.toFixed(2)}¢ (~{(estimatedCostCent / 100).toFixed(4)} €)</span>
+      </div>
+    </div>
+  );
+}
 
 export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [loading, setLoading] = useState(true);
@@ -11,26 +29,20 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [result, setResult] = useState(null);
   const [settings, setSettings] = useState({});
   const [targetCount, setTargetCount] = useState(25);
+  const [showCostDetail, setShowCostDetail] = useState(false);
 
   useEffect(() => {
-    if (open && orgId) {
-      loadSettings();
-    }
+    if (open && orgId) loadSettings();
   }, [open, orgId]);
 
   const loadSettings = async () => {
     setLoading(true);
     setResult(null);
-    try {
-      const settingsData = await base44.entities.OrganizationSettings.filter({ organization_id: orgId });
-      const settingsMap = {};
-      settingsData.forEach(s => { settingsMap[s.key] = s.value; });
-      setSettings(settingsMap);
-    } catch (err) {
-      toast.error("Fehler beim Laden der Einstellungen");
-    } finally {
-      setLoading(false);
-    }
+    const settingsData = await base44.entities.OrganizationSettings.filter({ organization_id: orgId });
+    const settingsMap = {};
+    settingsData.forEach(s => { settingsMap[s.key] = s.value; });
+    setSettings(settingsMap);
+    setLoading(false);
   };
 
   const targetCustomers = [
@@ -43,35 +55,19 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       toast.error("Bitte definieren Sie zuerst Zielkunden in den Einstellungen.");
       return;
     }
-
     setResearching(true);
-    try {
-      const res = await base44.functions.invoke("generateLeads", {
-        organization_id: orgId,
-        target_count: targetCount,
-      });
+    const res = await base44.functions.invoke("generateLeads", {
+      organization_id: orgId,
+      target_count: targetCount,
+    });
 
-      if (res.data?.success) {
-        setResult({
-          success: true,
-          count: res.data.count,
-          summary: res.data.summary,
-        });
-        onSuccess?.();
-      } else {
-        setResult({
-          success: false,
-          message: res.data?.error || "Recherche fehlgeschlagen",
-        });
-      }
-    } catch (err) {
-      setResult({
-        success: false,
-        message: err.message || "Ein Fehler ist aufgetreten",
-      });
-    } finally {
-      setResearching(false);
+    if (res.data?.success) {
+      setResult({ success: true, data: res.data });
+      onSuccess?.();
+    } else {
+      setResult({ success: false, message: res.data?.error || "Recherche fehlgeschlagen", limitReached: res.data?.limitReached });
     }
+    setResearching(false);
   };
 
   if (!open) return null;
@@ -79,122 +75,131 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-        
+
         {/* Header */}
         <div className="flex items-start gap-3 mb-4">
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
             <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="flex-1">
+          <div>
             <h2 className="text-lg font-bold text-slate-900">Neue Firmenkontakte recherchieren</h2>
             <p className="text-xs text-slate-600 mt-0.5 font-medium">
-              Vertriebo nutzt Ihre Zielgruppe, Leistungen und Ihr Gebiet, um passende Firmenkontakte vorzuschlagen.
+              Vertriebo nutzt Ihre Zielgruppe und Suchgebiet, um passende Firmenkontakte zu finden.
             </p>
           </div>
         </div>
 
-        {/* Loading State */}
         {loading && (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
           </div>
         )}
 
-        {/* Result State */}
+        {/* Result */}
         {!loading && result && (
-          <div className="space-y-4 py-4">
+          <div className="space-y-4 py-2">
             {result.success ? (
               <>
                 <div className={`flex items-start gap-3 p-4 rounded-xl border-2 ${
-                  result.count >= 20 ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
+                  result.data.count >= 10 ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
                 }`}>
-                  <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${result.count >= 20 ? "text-green-600" : "text-amber-600"}`} />
-                  <div className={`text-sm font-medium ${result.count >= 20 ? "text-green-900" : "text-amber-900"}`}>
-                    {result.count} Firmenkontakte gespeichert
+                  <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${result.data.count >= 10 ? "text-green-600" : "text-amber-600"}`} />
+                  <div className={`text-sm font-semibold ${result.data.count >= 10 ? "text-green-900" : "text-amber-900"}`}>
+                    {result.data.count} Firmenkontakte gespeichert
+                    {result.data.effectiveTarget < result.data.requestedTarget && (
+                      <span className="block text-xs font-normal mt-0.5">
+                        (Budget: {result.data.effectiveTarget} von {result.data.requestedTarget} angefragt)
+                      </span>
+                    )}
                   </div>
                 </div>
 
-                {result.summary && (
-                  <>
-                    <div className="space-y-2 text-xs bg-slate-50 p-3 rounded-lg">
-                      <div className="grid grid-cols-2 gap-3 mb-3 pb-3 border-b border-slate-200">
-                        <div>
-                          <span className="text-slate-600 block text-[10px] font-semibold uppercase">Gefunden (Roh)</span>
-                          <span className="text-lg font-bold text-slate-900">{result.summary.raw_hits}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-600 block text-[10px] font-semibold uppercase">Gespeichert</span>
-                          <span className="text-lg font-bold text-green-600">{result.summary.created}</span>
-                        </div>
-                      </div>
+                {/* Haupt-Statistik */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
+                  <div className="grid grid-cols-2 gap-3 pb-2 border-b border-slate-200">
+                    <div>
+                      <span className="text-slate-500 block text-[10px] font-semibold uppercase">Gespeichert</span>
+                      <span className="text-xl font-bold text-green-600">{result.data.summary?.saved ?? result.data.count}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-[10px] font-semibold uppercase">Roh-Treffer</span>
+                      <span className="text-xl font-bold text-slate-700">{result.data.summary?.raw_hits}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1 text-slate-600">
+                    <div className="flex justify-between">
+                      <span>Dubletten:</span>
+                      <span className="font-semibold text-slate-900">{result.data.summary?.duplicates ?? result.data.summary?.skipped_duplicate ?? 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Ausgeschlossen:</span>
+                      <span className="font-semibold text-slate-900">{result.data.summary?.excluded ?? result.data.summary?.skipped_excluded ?? 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Außerhalb Radius:</span>
+                      <span className="font-semibold text-slate-900">{result.data.summary?.outsideRadius ?? result.data.summary?.skipped_outside_radius ?? 0}</span>
+                    </div>
+                  </div>
+                </div>
 
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Dubletten:</span>
-                          <span className="font-semibold text-slate-900">{result.summary.skipped_duplicate}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Ausgeschlossen:</span>
-                          <span className="font-semibold text-slate-900">{result.summary.skipped_excluded}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Keine Übereinstimmung:</span>
-                          <span className="font-semibold text-slate-900">{result.summary.skipped_no_match}</span>
-                        </div>
+                {/* Google Requests */}
+                {result.data.googleRequests && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="font-semibold text-blue-900">Google API Requests</span>
+                      <button onClick={() => setShowCostDetail(!showCostDetail)} className="text-blue-600 hover:underline flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        {showCostDetail ? "Weniger" : "Details"}
+                      </button>
+                    </div>
+                    <div className="space-y-0.5 text-blue-800">
+                      <div className="flex justify-between">
+                        <span>Text Search:</span>
+                        <span className="font-mono font-semibold">{result.data.googleRequests.textSearch}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Place Details:</span>
+                        <span className="font-mono font-semibold">{result.data.googleRequests.placeDetailsEssentials}</span>
                       </div>
                     </div>
-
-                    {result.search_queries && result.search_queries.length > 0 && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <p className="text-xs font-semibold text-blue-900 uppercase mb-2">Suchbegriffe ({result.search_queries.length})</p>
-                        <div className="flex flex-wrap gap-1">
-                          {result.search_queries.map((q, i) => (
-                            <span key={i} className="text-xs bg-white border border-blue-200 text-blue-700 px-2 py-1 rounded">
-                              {q}
-                            </span>
-                          ))}
-                        </div>
+                    {showCostDetail && result.data.googleSkuBreakdown && (
+                      <div className="mt-2 pt-2 border-t border-blue-200">
+                        <CostSummary
+                          skuBreakdown={result.data.googleSkuBreakdown}
+                          estimatedCostCent={result.data.usage?.estimated_external_cost_cent}
+                        />
                       </div>
                     )}
-
-                    {result.count < 10 && (
-                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                        <p className="text-xs font-semibold text-amber-900 mb-2">💡 Weniger Kontakte als erwartet?</p>
-                        <ul className="text-xs text-amber-800 space-y-0.5">
-                          <li>• Vergrößern Sie den Suchradius</li>
-                          <li>• Wählen Sie mehr Zielkundengruppen aus</li>
-                          <li>• Führen Sie eine neue Recherche durch</li>
-                        </ul>
-                      </div>
-                    )}
-                  </>
+                  </div>
                 )}
 
+                {/* Credits */}
                 <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-900 text-center font-semibold">
-                  {result.count} Credits verbraucht
+                  {result.data.usage?.leads_created ?? result.data.count} Recherche-Credits verbraucht
+                  {result.data.usage?.estimated_external_cost_cent != null && (
+                    <span className="ml-2 text-blue-700">(~{result.data.usage.estimated_external_cost_cent.toFixed(1)}¢ API-Kosten)</span>
+                  )}
                 </div>
               </>
             ) : (
               <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-red-50 border-red-200">
                 <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                <div className="text-sm font-medium text-red-900">{result.message}</div>
+                <div>
+                  <div className="text-sm font-semibold text-red-900">{result.message}</div>
+                  {result.limitReached && (
+                    <div className="text-xs text-red-700 mt-1">Plan-Limit erreicht. Bitte nächsten Monat oder nach Plan-Upgrade erneut versuchen.</div>
+                  )}
+                </div>
               </div>
             )}
             <Button onClick={onClose} className="w-full">Schließen</Button>
           </div>
         )}
 
-        {/* Form State */}
+        {/* Form */}
         {!loading && !result && (
-          <div className="space-y-4 py-4">
-            {/* Settings Info */}
+          <div className="space-y-4 py-2">
             <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
-              {settings?.own_industry && (
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Ihre Branche:</span>
-                  <span className="font-semibold text-slate-900">{settings.own_industry}</span>
-                </div>
-              )}
               {settings?.service_area_city && (
                 <div className="flex justify-between">
                   <span className="text-slate-600">Suchgebiet:</span>
@@ -204,12 +209,13 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               {targetCustomers.length > 0 && (
                 <div>
                   <span className="text-slate-600 block mb-1">Zielkunden:</span>
-                  <span className="font-semibold text-slate-900 line-clamp-2">{targetCustomers.slice(0, 3).join(", ")}{targetCustomers.length > 3 ? ", ..." : ""}</span>
+                  <span className="font-semibold text-slate-900 line-clamp-2">
+                    {targetCustomers.slice(0, 3).join(", ")}{targetCustomers.length > 3 ? ", ..." : ""}
+                  </span>
                 </div>
               )}
             </div>
 
-            {/* Target Count */}
             <div>
               <p className="text-xs font-semibold text-slate-900 mb-2">Anzahl Firmenkontakte</p>
               <div className="grid grid-cols-3 gap-2">
@@ -227,39 +233,28 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   </button>
                 ))}
               </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Entspricht ca. {targetCount + Math.ceil(targetCount * 0.5)} Google API Requests (geschätzt)
+              </p>
             </div>
 
             {targetCustomers.length === 0 && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-900 font-medium">
-                ⚠️ Keine Zielkunden definiert. Definieren Sie diese zuerst in Ihren Einstellungen.
+                ⚠️ Keine Zielkunden definiert. Bitte zuerst in den Einstellungen konfigurieren.
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                disabled={researching}
-                className="flex-1"
-              >
-                Abbrechen
-              </Button>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" onClick={onClose} disabled={researching} className="flex-1">Abbrechen</Button>
               <Button
                 onClick={handleStartResearch}
                 disabled={researching || targetCustomers.length === 0}
                 className="flex-1 gap-2"
               >
                 {researching ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Läuft...
-                  </>
+                  <><Loader2 className="w-4 h-4 animate-spin" />Läuft...</>
                 ) : (
-                  <>
-                    <TrendingUp className="w-4 h-4" />
-                    Recherche starten
-                  </>
+                  <><TrendingUp className="w-4 h-4" />Recherche starten</>
                 )}
               </Button>
             </div>
