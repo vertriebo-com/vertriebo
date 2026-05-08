@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Plus, Filter, X, MoreVertical, Download, TrendingUp, Building2, Upload } from "lucide-react";
+import { Search, Plus, Filter, X, MoreVertical, Download, TrendingUp, Building2, Upload, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -115,11 +115,27 @@ export default function Leads() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-slate-900">Leads</h1>
-        <p className="text-sm font-medium text-slate-700 mt-1">
-          {filtered.length} von {companies.length} Firmen · {filtered.filter(c => c.status === "Rückruf").length} Rückrufe offen
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Leads</h1>
+          <p className="text-sm font-medium text-slate-700 mt-1">
+            {filtered.length} von {companies.length} Firmen · {filtered.filter(c => c.status === "Rückruf").length} Rückrufe offen
+          </p>
+        </div>
+        {isAdmin && (
+          <button
+            onClick={() => setShowResearch(true)}
+            className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-3 rounded-2xl shadow-md hover:shadow-lg transition-all group shrink-0"
+          >
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-bold leading-tight">Firmen recherchieren</div>
+              <div className="text-[11px] text-blue-200 font-medium leading-tight">KI-gestützte Lead-Suche</div>
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Focus Cards */}
@@ -158,20 +174,15 @@ export default function Leads() {
             <Plus className="w-3.5 h-3.5" /> Neuer Lead
           </Button>
           <div className="relative">
-            <Button variant="outline" size="sm" onClick={() => setShowActions(!showActions)} className="gap-1.5 bg-white border border-[#E2E8F0] text-slate-700 hover:bg-slate-50">
+            <Button variant="outline" size="sm" onClick={() => setShowActions(!showActions)} className="gap-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">
               <MoreVertical className="w-3.5 h-3.5" /> Mehr
             </Button>
             {showActions && (
-              <div className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
                 {isAdmin && (
-                  <>
-                    <button onClick={() => { setShowActions(false); setShowResearch(true); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors border-b border-[#E2E8F0]">
-                      <TrendingUp className="w-4 h-4" /> Firmen recherchieren
-                    </button>
-                    <a href="/import" onClick={() => setShowActions(false)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors border-b border-[#E2E8F0]">
-                      <Upload className="w-4 h-4" /> CSV importieren
-                    </a>
-                  </>
+                  <a href="/import" onClick={() => setShowActions(false)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors border-b border-slate-100">
+                    <Upload className="w-4 h-4" /> CSV importieren
+                  </a>
                 )}
                 <button onClick={() => { handleCsvExport(); setShowActions(false); }} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
                   <Download className="w-4 h-4" /> Exportieren
