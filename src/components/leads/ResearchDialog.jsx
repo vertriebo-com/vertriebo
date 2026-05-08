@@ -83,16 +83,21 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       return;
     }
     setResearching(true);
-    const res = await base44.functions.invoke("generateLeads", {
-      organization_id: orgId,
-      target_count: targetCount,
-    });
+    try {
+      const res = await base44.functions.invoke("generateLeads", {
+        organization_id: orgId,
+        target_count: targetCount,
+      });
 
-    if (res.data?.success) {
-      setResult({ success: true, data: res.data });
-      onSuccess?.();
-    } else {
-      setResult({ success: false, message: res.data?.error || "Recherche fehlgeschlagen", limitReached: res.data?.limitReached });
+      if (res.data?.success) {
+        setResult({ success: true, data: res.data });
+        onSuccess?.();
+      } else {
+        setResult({ success: false, message: res.data?.error || "Recherche fehlgeschlagen", limitReached: res.data?.limitReached });
+      }
+    } catch (e) {
+      const errMsg = e?.response?.data?.error || e?.message || "Unbekannter Fehler";
+      setResult({ success: false, message: errMsg, limitReached: e?.response?.data?.limitReached });
     }
     setResearching(false);
   };
