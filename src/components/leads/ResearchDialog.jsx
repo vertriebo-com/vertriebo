@@ -89,26 +89,34 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
         target_count: targetCount,
       });
 
+      console.log("[ResearchDialog] generateLeads response:", res.data);
+
       if (res.data?.success) {
-        // UsageLog frisch aus DB laden (nicht schätzen)
-        const periodMonth = new Date().toISOString().slice(0, 7);
-        const usageLogs = await base44.entities.UsageLog.filter({ organization_id: orgId, period_month: periodMonth });
-        if (usageLogs[0]) {
-          setUsageInfo({
-            lead_generations_used: usageLogs[0].lead_generations_used ?? 0,
-            leads_created: usageLogs[0].leads_created ?? 0,
-          });
-        }
         setResult({ success: true, data: res.data });
         onSuccess?.();
+        // UsageLog frisch aus DB laden – in separatem try/catch damit es nie den Report blockiert
+        try {
+          const periodMonth = new Date().toISOString().slice(0, 7);
+          const usageLogs = await base44.entities.UsageLog.filter({ organization_id: orgId, period_month: periodMonth });
+          if (usageLogs[0]) {
+            setUsageInfo({
+              lead_generations_used: usageLogs[0].lead_generations_used ?? 0,
+              leads_created: usageLogs[0].leads_created ?? 0,
+            });
+          }
+        } catch (usageErr) {
+          console.warn("[ResearchDialog] UsageLog refresh failed (non-critical):", usageErr.message);
+        }
       } else {
         setResult({ success: false, message: res.data?.error || "Recherche fehlgeschlagen", limitReached: res.data?.limitReached });
       }
     } catch (e) {
-      const errMsg = e?.response?.data?.error || e?.message || "Unbekannter Fehler";
+      console.error("[ResearchDialog] generateLeads error:", e);
+      const errMsg = e?.response?.data?.error || e?.message || "Unbekannter Fehler beim Starten der Recherche";
       setResult({ success: false, message: errMsg, limitReached: e?.response?.data?.limitReached });
+    } finally {
+      setResearching(false);
     }
-    setResearching(false);
   };
 
   if (!open) return null;
