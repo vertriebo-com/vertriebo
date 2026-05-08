@@ -229,6 +229,30 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   </div>
                 </div>
 
+                {/* Radius-Transparenz */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
+                  <div className="font-semibold text-blue-900 mb-1">Suchgebiet & Radius</div>
+                  <div className="flex justify-between text-blue-800">
+                    <span>Angefragter Radius:</span>
+                    <span className="font-semibold">{result.data.summary?.radiusKm ?? "–"} km um {result.data.summary?.searchCenterCity ?? "–"}</span>
+                  </div>
+                  <div className="text-blue-800">
+                    <span>Suchstädte: </span>
+                    <span className="font-semibold">{(result.data.summary?.searchCities ?? []).join(", ")}</span>
+                  </div>
+                  {(result.data.summary?.searchCities?.length ?? 0) > 1 && (
+                    <p className="text-[10px] text-blue-700 italic">
+                      Zur besseren Trefferquote wurden nahegelegene Orte im Umkreis automatisch berücksichtigt. Gespeichert werden nur Kontakte innerhalb von {result.data.summary?.radiusKm} km.
+                    </p>
+                  )}
+                  {result.data.summary?.maxSavedDistanceKm > 0 && (
+                    <div className="flex justify-between text-blue-800 pt-1 border-t border-blue-200">
+                      <span>Max. Entfernung gespeicherter Lead:</span>
+                      <span className="font-semibold">{result.data.summary.maxSavedDistanceKm} km</span>
+                    </div>
+                  )}
+                </div>
+
                 {/* Statistik */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
                   <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-200 text-center">
@@ -251,11 +275,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                       <span className="font-semibold text-slate-900">{result.data.summary?.duplicates ?? 0}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>Ausgeschlossen:</span>
-                      <span className="font-semibold text-slate-900">{result.data.summary?.excluded ?? 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Außerhalb Radius:</span>
+                      <span>Außerhalb Radius verworfen:</span>
                       <span className="font-semibold text-slate-900">{result.data.summary?.outsideRadius ?? 0}</span>
                     </div>
                     <div className="flex justify-between">
@@ -263,10 +283,40 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                       <span className="font-semibold text-slate-900">{result.data.summary?.noMatch ?? 0}</span>
                     </div>
                   </div>
+                  {result.data.summary?.outsideRadiusExamples?.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200">
+                      <span className="text-[10px] font-bold text-orange-600 uppercase block mb-1">
+                        Radius-Verwürfe ({result.data.summary.outsideRadiusExamples.length})
+                      </span>
+                      <div className="space-y-0.5">
+                        {result.data.summary.outsideRadiusExamples.map((ex, i) => (
+                          <div key={i} className="text-[10px]">
+                            <span className="font-semibold text-slate-700">{ex.name}</span>
+                            <span className="ml-1 text-orange-600">– {ex.distance_km} km (außerhalb {result.data.summary.radiusKm} km)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {result.data.summary?.savedExamples?.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200">
+                      <span className="text-[10px] font-bold text-green-700 uppercase block mb-1">
+                        Gespeicherte Beispiele
+                      </span>
+                      <div className="space-y-0.5">
+                        {result.data.summary.savedExamples.map((ex, i) => (
+                          <div key={i} className="text-[10px]">
+                            <span className="font-semibold text-slate-700">{ex.name}</span>
+                            <span className="ml-1 text-slate-500">{ex.city}{ex.distance_km !== null ? ` · ${ex.distance_km} km` : ""}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {result.data.summary?.noMatchExamples?.length > 0 && (
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                        Verworfene Beispiele ({result.data.summary.noMatchExamples.length})
+                        Zielgruppe-Verwürfe ({result.data.summary.noMatchExamples.length})
                       </span>
                       <div className="text-slate-500 space-y-0.5">
                         {result.data.summary.noMatchExamples.map((ex, i) => (
@@ -274,18 +324,6 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                             <span className="font-semibold text-slate-700">{ex.name}</span>
                             <span className="ml-1 text-slate-400">– {ex.reason}</span>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {result.data.search_queries?.length > 0 && (
-                    <div className="pt-2 border-t border-slate-200">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                        Suchanfragen ({result.data.search_queries.length})
-                      </span>
-                      <div className="text-slate-600 space-y-0.5">
-                        {result.data.search_queries.map((q, i) => (
-                          <div key={i} className="truncate">• {q}</div>
                         ))}
                       </div>
                     </div>
@@ -338,12 +376,16 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           <div className="space-y-4 py-2">
             <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
               {(settings?.lead_plz_city || settings?.lead_plz) && (
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Suchgebiet:</span>
-                  <span className="font-semibold text-slate-900">
-                    {settings.lead_plz_city || settings.lead_plz}
-                    {settings.lead_radius_km && ` (${settings.lead_radius_km} km)`}
-                  </span>
+                <div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Suchgebiet:</span>
+                    <span className="font-semibold text-slate-900">
+                      {settings.lead_radius_km ? `${settings.lead_radius_km} km` : "25 km"} um {settings.lead_plz_city || settings.lead_plz}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Zur besseren Trefferquote werden nahegelegene Orte im Umkreis automatisch berücksichtigt. Gespeichert werden nur Kontakte innerhalb des Radius.
+                  </p>
                 </div>
               )}
               {targetCustomers.length > 0 && (

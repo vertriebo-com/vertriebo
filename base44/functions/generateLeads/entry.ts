@@ -693,6 +693,9 @@ Deno.serve(async (req) => {
     let skipped_duplicate = 0;
     let skipped_no_match = 0;
     const skipped_no_match_examples = [];
+    const skipped_outside_radius_examples = [];
+    const savedExamples = []; // für Report: {name, city, distance_km}
+    let maxSavedDistanceKm = 0;
     const seenPlaceIds = new Set();
 
     // Suchlauf
@@ -708,12 +711,20 @@ Deno.serve(async (req) => {
         if (seenPlaceIds.has(place.place_id)) continue;
         seenPlaceIds.add(place.place_id);
 
-        // Geo-Check (ohne Details-Request)
+        // ─── HARTE DISTANZPRÜFUNG (eigene Haversine, nicht Google-Radius!) ──────
         const placeLat = place.geometry?.location?.lat;
         const placeLng = place.geometry?.location?.lng;
+        let distanceKm = null;
         if (placeLat && placeLng) {
-          const dist = calculateDistance(cityCoords.lat, cityCoords.lng, placeLat, placeLng);
-          if (dist > radiusKm) { skipped_outside_radius++; continue; }
+          distanceKm = calculateDistance(cityCoords.lat, cityCoords.lng, placeLat, placeLng);
+          if (distanceKm > radiusKm) {
+            skipped_outside_radius++;
+            if (skipped_outside_radius_examples.length < 10) {
+              skipped_outside_radius_examples.push({ name: place.name, city: place.vicinity || "", distance_km: Math.round(distanceKm * 10) / 10, reason: "outside radius" });
+            }
+            console.info(`[generateLeads] SKIP_RADIUS "${place.name}" – ${Math.round(distanceKm * 10) / 10}km > ${radiusKm}km`);
+            continue;
+          }
         }
 
         const placeName = place.name || "";
@@ -749,7 +760,8 @@ Deno.serve(async (req) => {
         const lat = details?.geometry?.location?.lat || placeLat;
         const lng = details?.geometry?.location?.lng || placeLng;
 
-        // Speichern
+        // Speichern – nur wenn Distanzprüfung bestanden!
+        const roundedDist = distanceKm !== null ? Math.round(distanceKm * 10) / 10 : null;
         const company = await base44.asServiceRole.entities.Company.create({
           organization_id,
           name: placeName,
@@ -769,11 +781,20 @@ Deno.serve(async (req) => {
           relevance_score: relevance.score,
           relevance_reason: relevance.reason,
           source_query: query,
+          distance_km: roundedDist,
+          search_center_city: city,
+          search_center_lat: cityCoords.lat,
+          search_center_lng: cityCoords.lng,
+          search_radius_km: radiusKm,
         });
 
         createdIds.push(company.id);
         existingNames.add(placeName.toLowerCase());
-        console.info(`[generateLeads] SAVED "${placeName}" (${relevance.matchedTarget}, Score=${relevance.score})`);
+        if (roundedDist !== null && roundedDist > maxSavedDistanceKm) maxSavedDistanceKm = roundedDist;
+        if (savedExamples.length < 10) {
+          savedExamples.push({ name: placeName, city: ort || city, distance_km: roundedDist });
+        }
+        console.info(`[generateLeads] SAVED "${placeName}" (${relevance.matchedTarget}, Score=${relevance.score}, dist=${roundedDist}km)`);
       }
     }
 
@@ -808,6 +829,12 @@ Deno.serve(async (req) => {
       duplicates: skipped_duplicate, noMatch: skipped_no_match,
       outsideRadius: skipped_outside_radius, rawHits: raw_hits,
       noMatchExamples: skipped_no_match_examples,
+      outsideRadiusExamples: skipped_outside_radius_examples,
+      savedExamples,
+      maxSavedDistanceKm,
+      radiusKm,
+      searchCenterCity: city,
+      searchCities: allSearchCities,
       estimatedCostCent, skuBreakdown,
       searchQueries: searchQueryList.map(q => q.query),
       timestamp: new Date().toISOString(),
@@ -837,6 +864,12 @@ Deno.serve(async (req) => {
         noMatch: skipped_no_match,
         noMatchExamples: skipped_no_match_examples,
         outsideRadius: skipped_outside_radius,
+        outsideRadiusExamples: skipped_outside_radius_examples,
+        savedExamples,
+        maxSavedDistanceKm,
+        radiusKm,
+        searchCenterCity: city,
+        searchCities: allSearchCities,
       },
       googleRequests: {
         geocoding: apiCounters.geocoding,

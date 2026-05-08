@@ -54,6 +54,26 @@
       "type": "number",
       "title": "Entfernung (km)"
     },
+    "distance_km": {
+      "type": "number",
+      "title": "Distanz vom Suchzentrum (km)"
+    },
+    "search_center_city": {
+      "type": "string",
+      "title": "Suchzentrum Stadt"
+    },
+    "search_center_lat": {
+      "type": "number",
+      "title": "Suchzentrum Lat"
+    },
+    "search_center_lng": {
+      "type": "number",
+      "title": "Suchzentrum Lng"
+    },
+    "search_radius_km": {
+      "type": "number",
+      "title": "Suchradius (km)"
+    },
     "status": {
       "type": "string",
       "title": "Status",
