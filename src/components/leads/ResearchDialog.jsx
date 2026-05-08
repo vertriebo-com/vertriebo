@@ -1,121 +1,152 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { TrendingUp, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { TrendingUp, Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-function CostSummary({ skuBreakdown, estimatedCostCent }) {
-  if (!skuBreakdown || estimatedCostCent == null) return null;
-  return (
-    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
-      <div className="font-semibold text-slate-800 mb-1.5">Google API Kosten (geschätzt)</div>
-      {Object.entries(skuBreakdown).map(([sku, data]) => (
-        <div key={sku} className="flex justify-between text-slate-600">
-          <span>{sku.replace(/_/g, ' ')}</span>
-          <span className="font-mono">{data.requests}x → {data.estimated_cost_cent.toFixed(2)}¢</span>
-        </div>
-      ))}
-      <div className="flex justify-between font-bold text-slate-900 border-t border-slate-300 pt-1 mt-1">
-        <span>Gesamt</span>
-        <span className="font-mono">{estimatedCostCent.toFixed(2)}¢ (~{(estimatedCostCent / 100).toFixed(4)} €)</span>
-      </div>
-    </div>
-  );
+function withTimeout(promise, ms = 45000, msg = "Recherche hat zu lange gedauert. Bitte erneut versuchen.") {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(msg)), ms)),
+  ]);
 }
 
 export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [loading, setLoading] = useState(true);
   const [researching, setResearching] = useState(false);
   const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
   const [settings, setSettings] = useState({});
   const [targetCount, setTargetCount] = useState(25);
   const [usageInfo, setUsageInfo] = useState(null);
   const [planLimits, setPlanLimits] = useState(null);
+  const [slowWarning, setSlowWarning] = useState(false);
+  const researchingRef = useRef(false); // guard against double-invoke
+  const slowTimerRef = useRef(null);
 
   useEffect(() => {
-    if (open && orgId) loadSettings();
+    if (open && orgId) {
+      setResult(null);
+      setError(null);
+      setResearching(false);
+      researchingRef.current = false;
+      loadSettings();
+    }
   }, [open, orgId]);
+
+  // Cleanup slow-warning timer on unmount
+  useEffect(() => () => clearTimeout(slowTimerRef.current), []);
 
   const loadSettings = async () => {
     setLoading(true);
-    setResult(null);
-
-    const [settingsData, orgs] = await Promise.all([
-      base44.entities.OrganizationSettings.filter({ organization_id: orgId }),
-      base44.entities.Organization.filter({ id: orgId }),
-    ]);
-
-    const settingsMap = {};
-    settingsData.forEach(s => { settingsMap[s.key] = s.value; });
-    setSettings(settingsMap);
-
-    const org = orgs[0];
-    if (org?.plan_id) {
-      const [plans, usageLogs] = await Promise.all([
-        base44.entities.Plan.filter({ id: org.plan_id }),
-        base44.entities.UsageLog.filter({ organization_id: orgId, period_month: new Date().toISOString().slice(0, 7) }),
+    try {
+      const [settingsData, orgs] = await Promise.all([
+        base44.entities.OrganizationSettings.filter({ organization_id: orgId }),
+        base44.entities.Organization.filter({ id: orgId }),
       ]);
-      const plan = plans[0];
-      const usage = usageLogs[0];
-      if (plan) {
-        setPlanLimits({
-          max_lead_generations_per_month: plan.max_lead_generations_per_month ?? 100,
-          max_leads_per_month: plan.max_leads_per_month ?? 300,
-        });
-      }
-      if (usage) {
-        setUsageInfo({
-          lead_generations_used: usage.lead_generations_used ?? 0,
-          leads_created: usage.leads_created ?? 0,
-        });
-      }
-    }
 
-    setLoading(false);
+      const settingsMap = {};
+      settingsData.forEach(s => { settingsMap[s.key] = s.value; });
+      setSettings(settingsMap);
+
+      const org = orgs[0];
+      if (org?.plan_id) {
+        const [plans, usageLogs] = await Promise.all([
+          base44.entities.Plan.filter({ id: org.plan_id }),
+          base44.entities.UsageLog.filter({ organization_id: orgId, period_month: new Date().toISOString().slice(0, 7) }),
+        ]);
+        if (plans[0]) {
+          setPlanLimits({
+            max_lead_generations_per_month: plans[0].max_lead_generations_per_month ?? 100,
+            max_leads_per_month: plans[0].max_leads_per_month ?? 300,
+          });
+        }
+        if (usageLogs[0]) {
+          setUsageInfo({
+            lead_generations_used: usageLogs[0].lead_generations_used ?? 0,
+            leads_created: usageLogs[0].leads_created ?? 0,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[ResearchDialog] loadSettings error:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Liest den Key "zielkunden" (gespeichert von CompanySettings)
+  const refreshUsageSafe = async () => {
+    try {
+      const periodMonth = new Date().toISOString().slice(0, 7);
+      const usageLogs = await base44.entities.UsageLog.filter({ organization_id: orgId, period_month: periodMonth });
+      if (usageLogs[0]) {
+        setUsageInfo({
+          lead_generations_used: usageLogs[0].lead_generations_used ?? 0,
+          leads_created: usageLogs[0].leads_created ?? 0,
+        });
+      }
+    } catch (err) {
+      console.warn("[ResearchDialog] UsageLog refresh skipped (non-critical):", err.message);
+    }
+  };
+
   const targetCustomers = (settings.zielkunden || "").split(", ").filter(x => x.trim());
 
   const handleStartResearch = async () => {
+    // Hard guard: keine Doppelausführung
+    if (researchingRef.current) {
+      console.warn("[ResearchDialog] Research already running, ignoring click.");
+      return;
+    }
     if (targetCustomers.length === 0) {
       toast.error("Bitte definieren Sie zuerst Zielkunden in den Einstellungen.");
       return;
     }
-    setResearching(true);
-    try {
-      const res = await base44.functions.invoke("generateLeads", {
-        organization_id: orgId,
-        target_count: targetCount,
-      });
 
-      console.log("[ResearchDialog] generateLeads response:", res.data);
+    researchingRef.current = true;
+    setResearching(true);
+    setError(null);
+    setSlowWarning(false);
+
+    // Slow-warning nach 20s
+    slowTimerRef.current = setTimeout(() => setSlowWarning(true), 20000);
+
+    console.log("[ResearchDialog] START research", { orgId, target_count: targetCount });
+
+    try {
+      const res = await withTimeout(
+        base44.functions.invoke("generateLeads", {
+          organization_id: orgId,
+          target_count: targetCount,
+        }),
+        45000
+      );
+
+      console.log("[ResearchDialog] RESULT", res.data);
 
       if (res.data?.success) {
+        // Ergebnis SOFORT setzen – nichts darf das blockieren
         setResult({ success: true, data: res.data });
+        console.log("[ResearchDialog] SET RESULT DONE");
         onSuccess?.();
-        // UsageLog frisch aus DB laden – in separatem try/catch damit es nie den Report blockiert
-        try {
-          const periodMonth = new Date().toISOString().slice(0, 7);
-          const usageLogs = await base44.entities.UsageLog.filter({ organization_id: orgId, period_month: periodMonth });
-          if (usageLogs[0]) {
-            setUsageInfo({
-              lead_generations_used: usageLogs[0].lead_generations_used ?? 0,
-              leads_created: usageLogs[0].leads_created ?? 0,
-            });
-          }
-        } catch (usageErr) {
-          console.warn("[ResearchDialog] UsageLog refresh failed (non-critical):", usageErr.message);
-        }
+
+        // UsageLog async im Hintergrund – darf den Report nie blockieren
+        setTimeout(() => refreshUsageSafe(), 0);
       } else {
-        setResult({ success: false, message: res.data?.error || "Recherche fehlgeschlagen", limitReached: res.data?.limitReached });
+        setError(res.data?.error || "Recherche fehlgeschlagen.");
+        if (res.data?.limitReached) {
+          setError((res.data?.error || "Recherche fehlgeschlagen.") + " (Plan-Limit erreicht)");
+        }
       }
     } catch (e) {
       console.error("[ResearchDialog] generateLeads error:", e);
-      const errMsg = e?.response?.data?.error || e?.message || "Unbekannter Fehler beim Starten der Recherche";
-      setResult({ success: false, message: errMsg, limitReached: e?.response?.data?.limitReached });
+      setError(e?.response?.data?.error || e?.message || "Recherche fehlgeschlagen. Bitte erneut versuchen.");
     } finally {
+      clearTimeout(slowTimerRef.current);
       setResearching(false);
+      researchingRef.current = false;
+      setSlowWarning(false);
+      console.log("[ResearchDialog] FINALLY research false");
     }
   };
 
@@ -138,14 +169,49 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           </div>
         </div>
 
+        {/* Settings loading */}
         {loading && (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
           </div>
         )}
 
+        {/* Research running overlay */}
+        {!loading && researching && (
+          <div className="flex flex-col items-center justify-center py-10 space-y-4">
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <p className="text-sm font-semibold text-slate-800">Recherche läuft…</p>
+            <p className="text-xs text-slate-500 text-center">
+              Google Places wird nach passenden Firmenkontakten durchsucht.
+            </p>
+            {slowWarning && (
+              <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 text-center font-medium">
+                Die Recherche dauert ungewöhnlich lange. Bitte warten oder danach erneut versuchen.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Error state */}
+        {!loading && !researching && error && (
+          <div className="space-y-4 py-2">
+            <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-red-50 border-red-200">
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="text-sm font-semibold text-red-900">{error}</div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose} className="flex-1">Schließen</Button>
+              <Button onClick={() => { setError(null); }} className="flex-1 gap-2">
+                <RefreshCw className="w-4 h-4" /> Erneut versuchen
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Result */}
-        {!loading && result && (
+        {!loading && !researching && !error && result && (
           <div className="space-y-4 py-2">
             {result.success ? (
               <>
@@ -163,7 +229,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   </div>
                 </div>
 
-                {/* Haupt-Statistik */}
+                {/* Statistik */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
                   <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-200 text-center">
                     <div>
@@ -199,7 +265,9 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   </div>
                   {result.data.search_queries?.length > 0 && (
                     <div className="pt-2 border-t border-slate-200">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Ausgeführte Suchanfragen ({result.data.search_queries.length})</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                        Suchanfragen ({result.data.search_queries.length})
+                      </span>
                       <div className="text-slate-600 space-y-0.5">
                         {result.data.search_queries.map((q, i) => (
                           <div key={i} className="truncate">• {q}</div>
@@ -209,10 +277,10 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   )}
                 </div>
 
-                {/* Credits nach dem Lauf – direkt aus DB */}
+                {/* Credits aus DB (nach Refresh) */}
                 {planLimits && usageInfo && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
-                    <div className="font-semibold text-blue-900 mb-1">Verbrauch diesen Monat (aktualisiert)</div>
+                    <div className="font-semibold text-blue-900 mb-1">Verbrauch diesen Monat</div>
                     <div className="flex justify-between text-blue-800">
                       <span>Recherche-Läufe:</span>
                       <span className="font-semibold">
@@ -237,20 +305,21 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             ) : (
               <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-red-50 border-red-200">
                 <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-sm font-semibold text-red-900">{result.message}</div>
-                  {result.limitReached && (
-                    <div className="text-xs text-red-700 mt-1">Plan-Limit erreicht. Bitte nächsten Monat oder nach Plan-Upgrade erneut versuchen.</div>
-                  )}
-                </div>
+                <div className="text-sm font-semibold text-red-900">{result.message}</div>
               </div>
             )}
-            <Button onClick={onClose} className="w-full">Schließen</Button>
+
+            <div className="flex gap-2">
+              <Button onClick={onClose} className="flex-1">Schließen</Button>
+              <Button variant="outline" onClick={() => { setResult(null); setError(null); }} className="flex-1 gap-2">
+                <RefreshCw className="w-4 h-4" /> Neue Recherche
+              </Button>
+            </div>
           </div>
         )}
 
-        {/* Form */}
-        {!loading && !result && (
+        {/* Form – only shown when not loading, not researching, no result, no error */}
+        {!loading && !researching && !result && !error && (
           <div className="space-y-4 py-2">
             <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
               {(settings?.lead_plz_city || settings?.lead_plz) && (
@@ -272,7 +341,6 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               )}
             </div>
 
-            {/* Credits-Übersicht */}
             {planLimits && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
                 <div className="font-semibold text-blue-900 mb-1">Credits diesen Monat</div>
@@ -328,17 +396,13 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             )}
 
             <div className="flex gap-2 pt-1">
-              <Button variant="outline" onClick={onClose} disabled={researching} className="flex-1">Abbrechen</Button>
+              <Button variant="outline" onClick={onClose} className="flex-1">Abbrechen</Button>
               <Button
                 onClick={handleStartResearch}
-                disabled={researching || targetCustomers.length === 0}
+                disabled={targetCustomers.length === 0}
                 className="flex-1 gap-2"
               >
-                {researching ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" />Läuft...</>
-                ) : (
-                  <><TrendingUp className="w-4 h-4" />Recherche starten</>
-                )}
+                <TrendingUp className="w-4 h-4" />Recherche starten
               </Button>
             </div>
           </div>
