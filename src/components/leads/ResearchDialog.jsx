@@ -263,6 +263,21 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                       <span className="font-semibold text-slate-900">{result.data.summary?.noMatch ?? 0}</span>
                     </div>
                   </div>
+                  {result.data.summary?.noMatchExamples?.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
+                        Verworfene Beispiele ({result.data.summary.noMatchExamples.length})
+                      </span>
+                      <div className="text-slate-500 space-y-0.5">
+                        {result.data.summary.noMatchExamples.map((ex, i) => (
+                          <div key={i} className="text-[10px]">
+                            <span className="font-semibold text-slate-700">{ex.name}</span>
+                            <span className="ml-1 text-slate-400">– {ex.reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {result.data.search_queries?.length > 0 && (
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">

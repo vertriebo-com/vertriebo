@@ -241,44 +241,93 @@ function norm(value) {
     .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
 }
 
-// ─── Harte Relevanzprüfung ────────────────────────────────────────────────────
-// Gibt { isMatch, matchedTarget, score, reason } zurück
-function validateLeadForTarget({ placeName, placeTypes, targetCustomerTypes }) {
-  const text = norm([placeName, placeTypes].join(" "));
+// Google Places types → lesbare Begriffe für Textprüfung
+const GOOGLE_TYPE_TRANSLATIONS = {
+  "lawyer": "rechtsanwalt kanzlei",
+  "attorney": "rechtsanwalt kanzlei",
+  "legal_services": "rechtsanwalt kanzlei",
+  "accounting": "steuerberater buchhaltung",
+  "finance": "bank finanzberatung",
+  "bank": "bank sparkasse",
+  "insurance_agency": "versicherung",
+  "real_estate_agency": "immobilienmakler",
+  "property_management_company": "hausverwaltung immobilienverwaltung",
+  "restaurant": "restaurant gastronomie",
+  "food": "restaurant lebensmittel",
+  "health": "arzt medizin",
+  "doctor": "arzt",
+  "dentist": "zahnarzt",
+  "hospital": "krankenhaus",
+  "pharmacy": "apotheke",
+  "grocery_or_supermarket": "supermarkt lebensmittel",
+  "store": "einzelhandel",
+  "clothing_store": "einzelhandel",
+  "software_company": "software it",
+  "gym": "fitnessstudio",
+  "school": "schule",
+  "lodging": "hotel",
+  "car_dealer": "autohaus",
+  "moving_company": "umzug",
+  "local_government_office": "behoerde amt",
+  "place_of_worship": "kirche",
+};
 
+function translateGoogleTypes(types = []) {
+  return types.map(t => GOOGLE_TYPE_TRANSLATIONS[t] || t.replace(/_/g, " ")).join(" ");
+}
+
+// ─── Harte Relevanzprüfung ────────────────────────────────────────────────────
+// place: das Google Places Ergebnis-Objekt (mit name, types, editorial_summary etc.)
+// Gibt { isMatch, matchedTarget, score, reason } zurück
+function validateLeadForTarget({ place, targetCustomerTypes }) {
+  const translatedTypes = translateGoogleTypes(place.types || []);
+  const text = norm([
+    place.name,
+    translatedTypes,
+    place.editorial_summary?.overview,
+    place.formatted_address,
+  ].join(" "));
+
+  // Alle Zielgruppen parallel prüfen - sammle zuerst alle negativen Befunde
+  // (verhindert, dass eine Zielgruppe "gewinnt" obwohl das Objekt klar in eine Ausschluss-Kategorie fällt)
+  for (const target of targetCustomerTypes) {
+    const rule = TARGET_RULES[target];
+    if (!rule) continue;
+
+    // Negativprüfung hat absoluten Vorrang
+    const negHit = rule.negativeKeywords.find(k => text.includes(norm(k)));
+    if (negHit) {
+      return { isMatch: false, matchedTarget: null, score: 0, reason: `Negativbegriff "${negHit}" (${target})` };
+    }
+  }
+
+  // Erst nach globaler Negativprüfung → Positivprüfung
   for (const target of targetCustomerTypes) {
     const rule = TARGET_RULES[target];
     if (!rule) {
-      // Kein explizites Regelwerk → prüfe via SEARCH_VARIANTS (fallback)
+      // Kein Regelwerk → Fallback auf SEARCH_VARIANTS
       const variants = SEARCH_VARIANTS[target] || [target];
       const matched = variants.find(v => text.includes(norm(v)));
       if (matched) {
-        return { isMatch: true, matchedTarget: target, score: 70, reason: `Suchbegriff-Match: "${matched}"` };
+        return { isMatch: true, matchedTarget: target, score: 70, reason: `Suchbegriff-Match "${matched}"` };
       }
       continue;
     }
 
-    // Negativprüfung hat Vorrang
-    const negHit = rule.negativeKeywords.find(k => text.includes(norm(k)));
-    if (negHit) {
-      return { isMatch: false, matchedTarget: null, score: 0, reason: `Negativbegriff "${negHit}" für Zielgruppe ${target}` };
-    }
-
-    // Sonderregel: immobilienmakler ohne "verwaltung" im Text → ablehnen
+    // Sonderregel: immobilienmakler ohne verwaltungsbezug → ablehnen
     if (rule.specialRules?.includes("immobilienmakler_ohne_verwaltung")) {
       if (text.includes("immobilienmakler") && !text.includes("verwaltung")) {
         return { isMatch: false, matchedTarget: null, score: 0, reason: `Immobilienmakler ohne Verwaltungsbezug (${target})` };
       }
     }
 
-    // Positivprüfung
     const posHit = rule.positiveKeywords.find(k => text.includes(norm(k)));
     if (posHit) {
       return { isMatch: true, matchedTarget: target, score: 90, reason: `Keyword-Match "${posHit}" → ${target}` };
     }
   }
 
-  return { isMatch: false, matchedTarget: null, score: 0, reason: "Kein Keyword-Match mit gewählten Zielgruppen" };
+  return { isMatch: false, matchedTarget: null, score: 0, reason: "Kein Keyword-Match mit Zielgruppen" };
 }
 
 // ─── Haversine Distance ───────────────────────────────────────────────────────
@@ -550,10 +599,8 @@ Deno.serve(async (req) => {
         if (existingNames.has(placeName.toLowerCase())) { skipped_duplicate++; continue; }
 
         // ─── HARTE RELEVANZPRÜFUNG ────────────────────────────────────────
-        const placeTypes = (place.types || []).join(" ");
         const relevance = validateLeadForTarget({
-          placeName,
-          placeTypes,
+          place,
           targetCustomerTypes: targetCustomers,
         });
 
