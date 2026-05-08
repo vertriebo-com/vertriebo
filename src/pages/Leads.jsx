@@ -47,7 +47,7 @@ export default function Leads() {
   }, [orgId]);
 
   const loadData = () => refetch();
-  const isAdmin = user?.role === "admin" || user?.role === "organization_admin";
+  const isAdmin = user?.role === "admin" || user?.org_role === "organization_admin" || (org && org.owner_email === user?.email);
 
   const applySort = (arr) => {
     const sorted = [...arr];
@@ -170,8 +170,8 @@ export default function Leads() {
             <Filter className="w-3.5 h-3.5" /> Filter
           </Button>
           <div className="flex-1" />
-          <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
-            <Plus className="w-3.5 h-3.5" /> Neuer Lead
+          <Button onClick={() => setShowAdd(true)} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-sm shrink-0">
+            <Plus className="w-4 h-4" /> Neuer Lead
           </Button>
           <div className="relative">
             <Button variant="outline" size="sm" onClick={() => setShowActions(!showActions)} className="gap-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">

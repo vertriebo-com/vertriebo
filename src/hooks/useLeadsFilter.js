@@ -32,6 +32,20 @@ export function useLeadsFilter() {
         }
         setOrg(organization);
 
+        // Org-Rolle ermitteln
+        if (organization && u.role !== "admin") {
+          const memberships2 = await base44.entities.OrganizationMember.filter({ user_email: u.email, organization_id: organization.id });
+          const member = memberships2?.[0];
+          if (member) {
+            // Setze role auf user-Objekt damit isAdmin-Check funktioniert
+            setUser(prev => ({ ...prev, org_role: member.role }));
+          } else if (organization.owner_email === u.email) {
+            setUser(prev => ({ ...prev, org_role: "organization_admin" }));
+          }
+        } else if (organization && organization.owner_email === u.email) {
+          setUser(prev => ({ ...prev, org_role: "organization_admin" }));
+        }
+
         // Blacklist nur für diese Organisation laden
         if (organization) {
           const bl = await base44.entities.Blacklist.filter({ organization_id: organization.id }, "-created_date", 500);
