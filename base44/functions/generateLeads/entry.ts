@@ -316,23 +316,27 @@ Deno.serve(async (req) => {
     const settings = {};
     settingsRecords.forEach(s => { settings[s.key] = s.value; });
 
-    const targetCustomers = [
-      ...((settings.target_customer_types || "").split(", ").filter(x => x.trim())),
-      ...((settings.custom_target_customer_types || "").split(", ").filter(x => x.trim())),
-    ];
+    // Keys: "zielkunden" (CompanySettings), fallback auf alte Keys
+    const targetCustomers = (
+      settings.zielkunden ||
+      settings.target_customer_types ||
+      ""
+    ).split(", ").filter(x => x.trim());
+
     if (targetCustomers.length === 0) {
-      return Response.json({ error: 'Keine Zielkunden definiert', success: false }, { status: 400 });
+      return Response.json({ error: 'Keine Zielkunden definiert. Bitte in den Einstellungen konfigurieren.', success: false }, { status: 400 });
     }
 
-    const excluded = [
-      ...((settings.excluded_customer_types || "").split(", ").filter(x => x.trim())),
-      ...((settings.custom_excluded_customer_types || "").split(", ").filter(x => x.trim())),
-    ];
+    const excluded = (
+      settings.excluded_customer_types || ""
+    ).split(", ").filter(x => x.trim());
 
-    const city = settings.service_area_city || "";
-    if (!city) return Response.json({ error: 'Kein Suchgebiet (Ort) definiert', success: false }, { status: 400 });
+    // city: "lead_plz_city" (CompanySettings), fallback auf alte Keys
+    const city = settings.lead_plz_city || settings.service_area_city || settings.lead_plz || "";
+    if (!city) return Response.json({ error: 'Kein Suchgebiet (Ort/PLZ) definiert. Bitte in den Einstellungen konfigurieren.', success: false }, { status: 400 });
 
-    const radiusKm = settings.service_area_radius_km ? parseFloat(settings.service_area_radius_km) : 25;
+    // radius: "lead_radius_km" (CompanySettings), fallback auf alte Keys
+    const radiusKm = parseFloat(settings.lead_radius_km || settings.service_area_radius_km || "25") || 25;
     const radiusMeters = Math.min(radiusKm * 1000, 50000);
 
     // ─── API-Counter-Objekt (wird für alle Calls weitergegeben) ──────────
