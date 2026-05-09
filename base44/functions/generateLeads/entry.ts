@@ -284,15 +284,77 @@ function translateGoogleTypes(types = []) {
   return types.map(t => GOOGLE_TYPE_TRANSLATIONS[t] || t.replace(/_/g, " ")).join(" ");
 }
 
+// ─── Hausverwaltung: Stufe-1 Keywords (sicherer Match, Score 90) ──────────────
+const HV_STAGE1_KEYWORDS = [
+  "hausverwaltung", "immobilienverwaltung", "weg verwaltung", "weg-verwaltung",
+  "mietverwaltung", "wohnungsverwaltung", "objektverwaltung", "grundstuecksverwaltung",
+  "grundstücksverwaltung", "property management", "immobilien verwaltung",
+  "immobilien-verwaltung", "haus- und vermoegensverwaltung", "haus & vermoegensverwaltung",
+  "haus und vermoegensverwaltung", "hausverwaltungs", "haus-verwaltung",
+  // Google Type → "hausverwaltung immobilienverwaltung" (via translateGoogleTypes)
+  "property_management", "immobilienbestand", "verwalter",
+  // Immobilien + Betreuung/Service mit Verwaltungsbezug
+  "immobilien-betreuung", "immobilien betreuung", "immobilien service",
+  "immobilien vermietung verwaltung",
+];
+
+// Stufe-2: "verwaltung" im Namen, aber kein klarer Kontext → zusätzliche Detail-Prüfung nötig
+// Stufe-2 Kontext-Keywords: wenn eines davon im gesamten Text vorkommt → Score 75, speichern
+const HV_STAGE2_CONTEXT_KEYWORDS = [
+  "immobilien", "wohnen", "wohnungen", "miethaus", "miete", "mieter",
+  "weg", "eigentuemer", "eigentümer", "wohnungseigentum",
+  "objektbetreuung", "hausgeld", "nebenkostenabrechnung",
+  "vermietung", "bewirtschaftung", "liegenschaft",
+];
+
+// Stufe-3: harte Ausschlüsse – auch für "verwaltung"-Treffer
+const HV_HARD_EXCLUDES = [
+  "stadtverwaltung", "gemeindeverwaltung", "kreisverwaltung", "bezirksverwaltung",
+  "finanzverwaltung", "steuerverwaltung", "personalverwaltung", "eventverwaltung",
+  "kanzleiverwaltung", "bundesverwaltung", "landesverwaltung", "behoerdenverwaltung",
+  "bank", "sparkasse", "volksbank", "commerzbank", "versicherung",
+  "kanzlei", "rechtsanwalt", "steuerberater", "notar",
+];
+
+// ─── Hausverwaltung 3-Stufen-Logik ────────────────────────────────────────────
+function validateHausverwaltung(place, text, nameNorm) {
+  // Stufe 3: harte Ausschlüsse prüfen (Vorrang vor allem)
+  const hardExclude = HV_HARD_EXCLUDES.find(k => text.includes(k));
+  if (hardExclude) {
+    return { isMatch: false, score: 0, reason: `Harter Ausschluss "${hardExclude}" (Hausverwaltungen)` };
+  }
+
+  // Immobilienmakler ohne Verwaltungsbezug → ablehnen
+  if (text.includes("immobilienmakler") && !text.includes("verwaltung")) {
+    return { isMatch: false, score: 0, reason: "Immobilienmakler ohne Verwaltungsbezug (Hausverwaltungen)" };
+  }
+
+  // Stufe 1: sicherer Match
+  const stage1Hit = HV_STAGE1_KEYWORDS.find(k => text.includes(k));
+  if (stage1Hit) {
+    return { isMatch: true, score: 90, reason: `Stufe-1 Keyword-Match "${stage1Hit}" → Hausverwaltungen` };
+  }
+
+  // Stufe 2: "verwaltung" im Namen + Kontext-Check
+  if (nameNorm.includes("verwaltung")) {
+    // Kontext-Keywords im Gesamttext prüfen
+    const contextHit = HV_STAGE2_CONTEXT_KEYWORDS.find(k => text.includes(k));
+    if (contextHit) {
+      return { isMatch: true, score: 75, reason: `Stufe-2 Verwaltung+Kontext "${contextHit}" → Hausverwaltungen` };
+    }
+    // Kein Kontext → nicht speichern
+    return { isMatch: false, score: 0, reason: "ambiguous_verwaltung_no_real_estate_context" };
+  }
+
+  // Kein Match
+  return { isMatch: false, score: 0, reason: null };
+}
+
 // ─── Harte Relevanzprüfung ────────────────────────────────────────────────────
 // Logik: Pro Zielgruppe separat prüfen.
-// 1. Positive Keywords einer Zielgruppe matchen → Lead wird für DIESE Zielgruppe gespeichert.
-// 2. Negative Keywords einer Zielgruppe disqualifizieren nur DIESE Zielgruppe, nicht andere.
-// 3. Explizite User-Ausschlüsse (excludedTargets) blockieren immer, auch bei Positiv-Match.
-// 4. Wenn kein Positiv-Match → abgelehnt (mit Begründung aus erster Negativregel).
+// Score >= 70 → speichern. Darunter → verwerfen.
 function validateLeadForTarget({ place, targetCustomerTypes, excludedTargetTypes = [] }) {
   const translatedTypes = translateGoogleTypes(place.types || []);
-  // Auch Google-Types direkt als Rohtext einbeziehen (z.B. "property_management_company")
   const rawTypes = (place.types || []).join(" ");
   const text = norm([
     place.name,
@@ -302,6 +364,7 @@ function validateLeadForTarget({ place, targetCustomerTypes, excludedTargetTypes
     place.formatted_address,
     place.vicinity,
   ].join(" "));
+  const nameNorm = norm(place.name || "");
 
   let firstRejectReason = null;
 
@@ -310,6 +373,18 @@ function validateLeadForTarget({ place, targetCustomerTypes, excludedTargetTypes
     if (excludedTargetTypes.includes(target)) continue;
 
     const rule = TARGET_RULES[target];
+
+    // Hausverwaltungen: eigene 3-Stufen-Logik
+    if (target === "Hausverwaltungen") {
+      const result = validateHausverwaltung(place, text, nameNorm);
+      if (result.isMatch && result.score >= 70) {
+        return { isMatch: true, matchedTarget: target, score: result.score, reason: result.reason };
+      }
+      if (!result.isMatch && result.reason && !firstRejectReason) {
+        firstRejectReason = result.reason;
+      }
+      continue;
+    }
 
     if (!rule) {
       // Kein Regelwerk → Fallback auf SEARCH_VARIANTS
@@ -321,42 +396,20 @@ function validateLeadForTarget({ place, targetCustomerTypes, excludedTargetTypes
       continue;
     }
 
-    // Sonderregel: Immobilienmakler ohne Verwaltungsbezug → für DIESE Zielgruppe disqualifiziert
-    if (rule.specialRules?.includes("immobilienmakler_ohne_verwaltung")) {
-      if (text.includes("immobilienmakler") && !text.includes("verwaltung")) {
-        if (!firstRejectReason) firstRejectReason = `Immobilienmakler ohne Verwaltungsbezug (${target})`;
-        continue;
-      }
-    }
-
     // Negativkeywords disqualifizieren nur DIESE Zielgruppe
     const negHit = rule.negativeKeywords.find(k => text.includes(norm(k)));
     if (negHit) {
       if (!firstRejectReason) firstRejectReason = `Negativbegriff "${negHit}" für ${target}`;
-      continue; // diese Zielgruppe übersprungen, nächste prüfen
+      continue;
     }
 
-    // Positiv-Match → Lead für genau diese Zielgruppe speichern
+    // Positiv-Match
     const posHit = rule.positiveKeywords.find(k => text.includes(norm(k)));
     if (posHit) {
       return { isMatch: true, matchedTarget: target, score: 90, reason: `Keyword-Match "${posHit}" → ${target}` };
     }
-
-    // Kombinations-Match: Verwaltungs-Firmen im Namen → Hausverwaltung
-    if (target === "Hausverwaltungen") {
-      const nameNorm = norm(place.name || "");
-      if ((nameNorm.includes("immobilien") && nameNorm.includes("verwaltung")) ||
-          (nameNorm.includes("haus") && nameNorm.includes("verwaltung")) ||
-          (nameNorm.includes("wohn") && nameNorm.includes("verwaltung")) ||
-          (nameNorm.includes("objekt") && nameNorm.includes("verwaltung")) ||
-          // Firmen mit "verwaltung" + Firmensuffix (z.B. "S & S Verwaltung GmbH", "SN.Verwaltung GmbH")
-          (nameNorm.includes("verwaltung") && (nameNorm.includes("gmbh") || nameNorm.includes(" ag") || nameNorm.includes("kg") || nameNorm.includes("ug") || nameNorm.includes("ohg") || nameNorm.endsWith("verwaltung")))) {
-        return { isMatch: true, matchedTarget: target, score: 80, reason: `Kombi-Match Verwaltungs-Firma → ${target}` };
-      }
-    }
   }
 
-  // Kein Positiv-Match in irgendeiner Zielgruppe
   return {
     isMatch: false,
     matchedTarget: null,
