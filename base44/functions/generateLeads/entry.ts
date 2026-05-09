@@ -840,10 +840,27 @@ Deno.serve(async (req) => {
     };
     const estimatedCostCent = Object.values(skuBreakdown).reduce((sum, s) => sum + s.estimated_cost_cent, 0);
 
+    // ─── Lauf-Typ bestimmen (für Credits & UI-Meldung) ────────────────────────
+    const newLeadsSaved = createdIds.length;
+    let runType = "normal"; // normal | duplicate_only | no_match | zero_result
+    if (newLeadsSaved === 0) {
+      if (skipped_duplicate > 0 && skipped_no_match === 0 && skipped_ambiguous === 0 && skipped_outside_radius === 0) {
+        runType = "duplicate_only";
+      } else if (raw_hits === 0) {
+        runType = "zero_result";
+      } else {
+        runType = "no_match";
+      }
+    }
+
+    // Credits nur verbrauchen wenn neue Leads gespeichert wurden
+    const chargedLeadGeneration = newLeadsSaved > 0;
+    const chargedLeads = newLeadsSaved;
+
     // UsageLog schreiben
     const usageDelta = {
-      lead_generations_used: 1,
-      leads_created: createdIds.length,
+      lead_generations_used: chargedLeadGeneration ? 1 : 0,
+      leads_created: chargedLeads,
       geocoding: apiCounters.geocoding,
       textSearch: apiCounters.textSearch,
       nearbySearch: apiCounters.nearbySearch,
@@ -854,7 +871,7 @@ Deno.serve(async (req) => {
     };
 
     const lastReport = {
-      requestedTarget: target_count, effectiveTarget, saved: createdIds.length,
+      requestedTarget: target_count, effectiveTarget, saved: newLeadsSaved,
       duplicates: skipped_duplicate, noMatch: skipped_no_match,
       ambiguous: skipped_ambiguous, ambiguousExamples: skipped_ambiguous_examples,
       outsideRadius: skipped_outside_radius, rawHits: raw_hits,
@@ -869,17 +886,19 @@ Deno.serve(async (req) => {
       searchCities: allSearchCities,
       estimatedCostCent, skuBreakdown,
       searchQueries: searchQueryList.map(q => q.query),
+      chargedLeadGeneration,
+      runType,
       timestamp: new Date().toISOString(),
     };
 
     try {
       await upsertUsageLog(base44, organization_id, usageDelta, lastReport);
-      console.info(`[generateLeads] UsageLog aktualisiert: +1 Lauf, +${createdIds.length} Leads`);
+      console.info(`[generateLeads] UsageLog: chargedRun=${chargedLeadGeneration}, +${chargedLeads} Leads, runType=${runType}`);
     } catch (usageErr) {
       console.error(`[generateLeads] UsageLog FEHLER: ${usageErr.message}`);
     }
 
-    console.info(`[generateLeads] REPORT org=${organization_id}: raw=${raw_hits}, outside_radius=${skipped_outside_radius}, no_match=${skipped_no_match}, duplicate=${skipped_duplicate}, created=${createdIds.length}`);
+    console.info(`[generateLeads] REPORT org=${organization_id}: raw=${raw_hits}, outside_radius=${skipped_outside_radius}, no_match=${skipped_no_match}, duplicate=${skipped_duplicate}, created=${newLeadsSaved}, runType=${runType}`);
     console.info(`[generateLeads] API calls: textSearch=${apiCounters.textSearch}, placeDetails=${apiCounters.placeDetailsEssentials}`);
     console.info(`[generateLeads] Kosten: ~${estimatedCostCent.toFixed(2)} Cent`);
 
@@ -887,10 +906,12 @@ Deno.serve(async (req) => {
       success: true,
       requestedTarget: target_count,
       effectiveTarget,
-      count: createdIds.length,
+      count: newLeadsSaved,
+      chargedLeadGeneration,
+      runType,
       summary: {
         raw_hits,
-        saved: createdIds.length,
+        saved: newLeadsSaved,
         duplicates: skipped_duplicate,
         excluded: 0,
         noMatch: skipped_no_match,
@@ -913,12 +934,12 @@ Deno.serve(async (req) => {
         placeDetailsEssentials: apiCounters.placeDetailsEssentials,
       },
       usage: {
-        lead_generations_used: 1,
-        leads_created: createdIds.length,
+        lead_generations_used: chargedLeadGeneration ? 1 : 0,
+        leads_created: chargedLeads,
         estimated_external_cost_cent: estimatedCostCent,
       },
       search_queries: searchQueryList.map(q => q.query),
-      details: `${raw_hits} Roh-Treffer, ${skipped_outside_radius} außerhalb Radius, ${skipped_no_match} nicht passend, ${skipped_ambiguous} unklare Verwaltungstreffer, ${skipped_duplicate} Dubletten, ${createdIds.length} gespeichert.`,
+      details: `${raw_hits} Roh-Treffer, ${skipped_outside_radius} außerhalb Radius, ${skipped_no_match} nicht passend, ${skipped_ambiguous} unklare Verwaltungstreffer, ${skipped_duplicate} Dubletten, ${newLeadsSaved} gespeichert. Credits verbraucht: ${chargedLeadGeneration ? "ja" : "nein"} (runType: ${runType})`,
     });
 
   } catch (error) {

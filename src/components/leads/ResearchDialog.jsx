@@ -215,19 +215,54 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           <div className="space-y-4 py-2">
             {result.success ? (
               <>
-                <div className={`flex items-start gap-3 p-4 rounded-xl border-2 ${
-                  result.data.count >= 10 ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
-                }`}>
-                  <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${result.data.count >= 10 ? "text-green-600" : "text-amber-600"}`} />
-                  <div className={`text-sm font-semibold ${result.data.count >= 10 ? "text-green-900" : "text-amber-900"}`}>
-                    {result.data.count} Firmenkontakte gespeichert
-                    {result.data.effectiveTarget < result.data.requestedTarget && (
-                      <span className="block text-xs font-normal mt-0.5">
-                        (Budget: {result.data.effectiveTarget} von {result.data.requestedTarget} angefragt)
-                      </span>
-                    )}
+                {/* ── Haupt-Statusbox je runType ── */}
+                {result.data.runType === "duplicate_only" ? (
+                  <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-blue-50 border-blue-200">
+                    <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-blue-500" />
+                    <div>
+                      <div className="text-sm font-semibold text-blue-900">Keine neuen Firmenkontakte gefunden</div>
+                      <div className="text-xs text-blue-800 mt-1 font-medium">
+                        Alle {result.data.summary?.duplicates} gefundenen Treffer sind bereits in Ihrer Leadliste vorhanden.
+                      </div>
+                      <div className="text-xs text-blue-700 mt-1.5 bg-blue-100 rounded-lg px-2 py-1 inline-block font-semibold">
+                        ✓ Kein Recherche-Credit verbraucht
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ) : result.data.runType === "no_match" || result.data.runType === "zero_result" ? (
+                  <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-amber-50 border-amber-200">
+                    <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" />
+                    <div>
+                      <div className="text-sm font-semibold text-amber-900">
+                        {result.data.runType === "zero_result"
+                          ? "Keine Treffer in Google gefunden"
+                          : "Keine passenden Firmenkontakte gefunden"}
+                      </div>
+                      <div className="text-xs text-amber-800 mt-1 font-medium">
+                        {result.data.runType === "zero_result"
+                          ? "Google hat für Ihr Suchgebiet keine Ergebnisse zurückgegeben. Bitte Radius oder Zielkunden überprüfen."
+                          : `${result.data.summary?.raw_hits} Treffer gefunden, aber keiner passte zur Zielgruppe oder war bereits vorhanden.`}
+                      </div>
+                      <div className="text-xs text-amber-700 mt-1.5 bg-amber-100 rounded-lg px-2 py-1 inline-block font-semibold">
+                        ✓ Kein Recherche-Credit verbraucht
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`flex items-start gap-3 p-4 rounded-xl border-2 ${
+                    result.data.count >= 10 ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
+                  }`}>
+                    <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${result.data.count >= 10 ? "text-green-600" : "text-amber-600"}`} />
+                    <div className={`text-sm font-semibold ${result.data.count >= 10 ? "text-green-900" : "text-amber-900"}`}>
+                      {result.data.count} Firmenkontakte gespeichert
+                      {result.data.effectiveTarget < result.data.requestedTarget && (
+                        <span className="block text-xs font-normal mt-0.5">
+                          (Budget: {result.data.effectiveTarget} von {result.data.requestedTarget} angefragt)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Radius-Transparenz */}
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
@@ -358,10 +393,10 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   )}
                 </div>
 
-                {/* Credits aus DB (nach Refresh) */}
-                {planLimits && usageInfo && (
+                {/* Credits aus DB (nach Refresh) – nur anzeigen wenn Credits verbraucht wurden */}
+                {planLimits && usageInfo && result.data.chargedLeadGeneration && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
-                    <div className="font-semibold text-blue-900 mb-1">Verbrauch diesen Monat</div>
+                    <div className="font-semibold text-blue-900 mb-1">Verbrauch diesen Monat (aktualisiert)</div>
                     <div className="flex justify-between text-blue-800">
                       <span>Recherche-Läufe:</span>
                       <span className="font-semibold">
