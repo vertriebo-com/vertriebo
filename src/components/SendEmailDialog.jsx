@@ -58,7 +58,7 @@ function LivePreview({ html }) {
   return (
     <iframe
       ref={iframeRef}
-      className="w-full border-0"
+      className="w-full border-0 rounded-b-xl"
       style={{ height: "380px" }}
       title="E-Mail Vorschau"
       sandbox="allow-same-origin"
@@ -76,7 +76,6 @@ function LogoUploader({ logoUrl, orgId, onLogoChange }) {
     if (!file) return;
     setUploading(true);
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
-    // Save per org
     const existing = await base44.entities.OrganizationSettings.filter({ organization_id: orgId, key: "email_logo_url" });
     if (existing.length > 0) {
       await base44.entities.OrganizationSettings.update(existing[0].id, { value: file_url });
@@ -96,28 +95,28 @@ function LogoUploader({ logoUrl, orgId, onLogoChange }) {
   };
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-muted/40 border border-border rounded-xl">
-      <div className="w-24 h-12 rounded-lg border border-border bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center overflow-hidden shrink-0">
+    <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+      <div className="w-24 h-12 rounded-lg border border-slate-200 bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center overflow-hidden shrink-0">
         {logoUrl
           ? <img src={logoUrl} alt="Logo" className="max-h-10 max-w-[88px] object-contain" />
           : <span className="text-white/60 text-[10px] font-medium text-center leading-tight px-1">Kein Logo</span>
         }
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold mb-0.5">E-Mail Logo</p>
-        <p className="text-[11px] text-muted-foreground">Erscheint im blauen Header aller E-Mails</p>
+        <p className="text-xs font-semibold text-slate-900 mb-0.5">E-Mail Logo</p>
+        <p className="text-[11px] text-slate-500">Erscheint im blauen Header aller E-Mails</p>
       </div>
       <div className="flex gap-1.5">
         <button
           onClick={() => inputRef.current?.click()}
           disabled={uploading}
-          className="inline-flex items-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 text-xs font-medium bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
         >
           {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImagePlus className="w-3 h-3" />}
           {uploading ? "..." : "Upload"}
         </button>
         {logoUrl && (
-          <button onClick={handleRemove} className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+          <button onClick={handleRemove} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         )}
@@ -164,15 +163,12 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
       subject: isTest ? `[TEST] ${betreff}` : betreff,
       body: fullHtml,
       organization_id: orgId,
-      // fromName kommt serverseitig aus OrganizationSettings
     });
   };
 
   const handleSend = async () => {
     setSending(true);
     await doSend(company.email);
-
-    // ContactLog automatisch erstellen
     try {
       const me = await base44.auth.me();
       let orgIdForLog = orgId;
@@ -192,7 +188,6 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
     } catch (e) {
       console.warn("ContactLog konnte nicht erstellt werden:", e.message);
     }
-
     toast.success(`E-Mail an ${company.email} gesendet!`);
     setSending(false);
     onSend();
@@ -210,7 +205,7 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
 
   return (
     <div className="flex flex-col gap-4">
-      <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-primary hover:underline self-start">
+      <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-blue-600 hover:underline self-start font-medium">
         <ArrowLeft className="w-3.5 h-3.5" /> Vorlage wechseln
       </button>
 
@@ -219,8 +214,8 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
 
       {/* Betreff */}
       <div>
-        <Label className="text-xs mb-1 block font-semibold">Betreff</Label>
-        <Input value={betreff} onChange={e => setBetreff(e.target.value)} className="text-sm" />
+        <Label className="text-xs mb-1.5 block font-semibold text-slate-700">Betreff</Label>
+        <Input value={betreff} onChange={e => setBetreff(e.target.value)} className="text-sm bg-white border-slate-200 text-slate-900 placeholder:text-slate-400" />
       </div>
 
       {/* Datum / Uhrzeit */}
@@ -228,14 +223,14 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
         <div className="flex gap-3">
           {tpl.hasDatum && (
             <div className="flex-1">
-              <Label className="text-xs mb-1 block">Datum</Label>
-              <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} className="text-sm" />
+              <Label className="text-xs mb-1.5 block font-semibold text-slate-700">Datum</Label>
+              <Input type="date" value={datum} onChange={e => setDatum(e.target.value)} className="text-sm bg-white border-slate-200 text-slate-900" />
             </div>
           )}
           {tpl.hasUhrzeit && (
             <div className="flex-1">
-              <Label className="text-xs mb-1 block">Uhrzeit</Label>
-              <Input type="time" value={uhrzeit} onChange={e => setUhrzeit(e.target.value)} className="text-sm" />
+              <Label className="text-xs mb-1.5 block font-semibold text-slate-700">Uhrzeit</Label>
+              <Input type="time" value={uhrzeit} onChange={e => setUhrzeit(e.target.value)} className="text-sm bg-white border-slate-200 text-slate-900" />
             </div>
           )}
         </div>
@@ -243,23 +238,39 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
 
       {/* Persönliche Ergänzung */}
       <div>
-        <Label className="text-xs mb-1 block">Persönliche Ergänzung (optional)</Label>
-        <Input value={notiz} onChange={e => setNotiz(e.target.value)} placeholder="z.B. Bezug auf unser Gespräch..." className="text-sm" />
+        <Label className="text-xs mb-1.5 block font-semibold text-slate-700">Persönliche Ergänzung <span className="font-normal text-slate-400">(optional)</span></Label>
+        <Input value={notiz} onChange={e => setNotiz(e.target.value)} placeholder="z.B. Bezug auf unser Gespräch..." className="text-sm bg-white border-slate-200 text-slate-900 placeholder:text-slate-400" />
       </div>
 
       {/* Tabs */}
       <div>
-        <div className="flex bg-muted rounded-xl p-1 gap-1 mb-3">
-          <button onClick={() => setTab("edit")} className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${tab === "edit" ? "bg-background shadow text-foreground" : "text-muted-foreground"}`}>
+        <div className="flex bg-slate-100 rounded-xl p-1 gap-1 mb-3">
+          <button
+            onClick={() => setTab("edit")}
+            className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${tab === "edit" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
+          >
             ✏️ Text bearbeiten
           </button>
-          <button onClick={() => setTab("preview")} className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${tab === "preview" ? "bg-background shadow text-foreground" : "text-muted-foreground"}`}>
+          <button
+            onClick={() => setTab("preview")}
+            className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-all ${tab === "preview" ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:text-slate-700"}`}
+          >
             👁️ Live-Vorschau
           </button>
         </div>
 
         {tab === "edit" ? (
-          <div className="border border-input rounded-xl overflow-hidden [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-border [&_.ql-toolbar]:bg-muted/50 [&_.ql-container]:border-0 [&_.ql-editor]:min-h-[200px] [&_.ql-editor]:text-sm [&_.ql-editor]:font-sans [&_.ql-editor]:leading-relaxed">
+          <div className="border border-slate-200 rounded-xl overflow-hidden
+            [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-slate-200
+            [&_.ql-toolbar]:bg-slate-50
+            [&_.ql-container]:border-0 [&_.ql-container]:bg-white
+            [&_.ql-editor]:min-h-[200px] [&_.ql-editor]:text-sm [&_.ql-editor]:font-sans
+            [&_.ql-editor]:leading-relaxed [&_.ql-editor]:text-slate-900 [&_.ql-editor]:bg-white
+            [&_.ql-editor.ql-blank::before]:text-slate-400
+            [&_.ql-toolbar_.ql-stroke]:stroke-slate-600
+            [&_.ql-toolbar_.ql-fill]:fill-slate-600
+            [&_.ql-toolbar_button:hover_.ql-stroke]:stroke-blue-600
+            [&_.ql-toolbar_button.ql-active_.ql-stroke]:stroke-blue-600">
             <ReactQuill
               theme="snow"
               value={customBody}
@@ -275,14 +286,14 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
             />
           </div>
         ) : (
-          <div className="border border-border rounded-xl overflow-hidden">
-            <div className="bg-muted/60 px-3 py-2 border-b border-border flex items-center gap-2">
+          <div className="border border-slate-200 rounded-xl overflow-hidden">
+            <div className="bg-slate-50 px-3 py-2 border-b border-slate-200 flex items-center gap-2">
               <div className="flex gap-1.5">
                 <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
                 <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
                 <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
               </div>
-              <span className="text-xs text-muted-foreground truncate flex-1">Von: {fromName || "Ihr Unternehmen"} &nbsp;|&nbsp; An: {company.email}</span>
+              <span className="text-xs text-slate-500 truncate flex-1">Von: {fromName || "Ihr Unternehmen"} &nbsp;|&nbsp; An: {company.email}</span>
             </div>
             <LivePreview html={fullHtml} />
           </div>
@@ -292,11 +303,11 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
       {/* Anhänge */}
       <div>
         <div className="flex items-center gap-2 mb-1.5">
-          <Label className="text-xs font-semibold">Anhänge</Label>
+          <Label className="text-xs font-semibold text-slate-700">Anhänge</Label>
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingFile}
-            className="inline-flex items-center gap-1 text-xs text-primary hover:underline disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline disabled:opacity-50 font-medium"
           >
             {uploadingFile ? <Loader2 className="w-3 h-3 animate-spin" /> : <Paperclip className="w-3 h-3" />}
             {uploadingFile ? "Lädt hoch..." : "Datei hinzufügen"}
@@ -306,10 +317,10 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {attachments.map((a, i) => (
-              <div key={i} className="flex items-center gap-1.5 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-xs">
-                <Paperclip className="w-3 h-3 text-muted-foreground" />
+              <div key={i} className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700">
+                <Paperclip className="w-3 h-3 text-slate-400" />
                 <span className="max-w-[120px] truncate">{a.name}</span>
-                <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive">
+                <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500">
                   <X className="w-3 h-3" />
                 </button>
               </div>
@@ -319,17 +330,18 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
       </div>
 
       {/* Actions */}
-      <div className="border-t border-border pt-4 space-y-2">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+      <div className="border-t border-slate-200 pt-4 space-y-2">
+        <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
           <Mail className="w-3.5 h-3.5" />
-          An: <span className="font-semibold text-foreground">{company.email}</span>
+          An: <span className="font-semibold text-slate-900">{company.email}</span>
         </div>
-        <Button variant="outline" size="sm" onClick={handleTestSend} disabled={testSending || testSent} className="w-full gap-2 text-xs h-9">
+        <Button variant="outline" size="sm" onClick={handleTestSend} disabled={testSending || testSent}
+          className="w-full gap-2 text-xs h-9 bg-white border-slate-200 text-slate-700 hover:bg-slate-50">
           {testSent ? <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Test gesendet!</>
            : testSending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sende Test...</>
            : <><FlaskConical className="w-3.5 h-3.5" /> Test-E-Mail an mich selbst senden</>}
         </Button>
-        <Button onClick={handleSend} disabled={sending} className="w-full gap-2 h-9">
+        <Button onClick={handleSend} disabled={sending} className="w-full gap-2 h-9 bg-blue-600 hover:bg-blue-700 text-white">
           {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           {sending ? "Wird gesendet..." : `An ${company.name} senden`}
         </Button>
@@ -376,7 +388,6 @@ export default function SendEmailDialog({ company }) {
         if (map.email_logo_url) setLogoUrl(map.email_logo_url);
         setFromName(map.email_from_name || map.company_name || org.name || null);
 
-        // Build signature for injecting into DB templates if needed
         const sig = map.organization_email_signature || buildSignature({
           firmenname: map.company_name || org.name,
           absendername: map.email_from_name,
@@ -402,16 +413,16 @@ export default function SendEmailDialog({ company }) {
       <button
         onClick={() => hasEmail ? setOpen(true) : toast.error("Keine E-Mail-Adresse hinterlegt")}
         title={hasEmail ? company.email : "Keine E-Mail vorhanden"}
-        className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-slate-200 bg-white px-3 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-slate-200 bg-white px-3 rounded-lg hover:bg-slate-50 transition-colors"
       >
         <Mail className="w-3.5 h-3.5" /> E-Mail
       </button>
 
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-xl max-h-[92vh] flex flex-col overflow-hidden">
+        <DialogContent className="max-w-xl max-h-[92vh] flex flex-col overflow-hidden bg-white border border-slate-200 shadow-xl rounded-2xl">
           <DialogHeader className="shrink-0">
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <Mail className="w-4 h-4 text-primary" />
+            <DialogTitle className="flex items-center gap-2 text-base text-slate-900">
+              <Mail className="w-4 h-4 text-blue-600" />
               E-Mail an {company.name}
             </DialogTitle>
           </DialogHeader>
@@ -419,15 +430,15 @@ export default function SendEmailDialog({ company }) {
           <div className="overflow-y-auto flex-1 pr-1 pb-2">
             {!selectedTemplate ? (
               <div className="space-y-2 pt-1">
-                <p className="text-xs text-muted-foreground mb-3">Vorlage auswählen:</p>
+                <p className="text-xs text-slate-500 font-medium mb-3">Vorlage auswählen:</p>
                 {runtimeTemplates.map(tpl => (
                   <button
                     key={tpl.id}
                     onClick={() => setSelectedTemplate(tpl)}
-                    className="w-full text-left px-4 py-3.5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all group"
+                    className="w-full text-left px-4 py-3.5 rounded-xl border border-slate-200 bg-white hover:border-blue-400 hover:bg-blue-50 transition-all group"
                   >
-                    <div className="font-semibold text-sm group-hover:text-primary">{tpl.label}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{tpl.description}</div>
+                    <div className="font-semibold text-sm text-slate-900 group-hover:text-blue-700">{tpl.label}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">{tpl.description}</div>
                   </button>
                 ))}
               </div>

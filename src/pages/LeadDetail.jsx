@@ -566,29 +566,31 @@ export default function LeadDetail() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className={`p-4 rounded-lg border ${company.status === "Neu" ? "text-blue-700 bg-blue-50 border-blue-200" : "text-slate-700 bg-slate-50 border-slate-200"}`}>
+            <div className={`p-4 rounded-xl border ${company.status === "Neu" ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"}`}>
               <div className="flex items-center gap-2 mb-2">
-                {company.status === "Neu" ? <PhoneCall className="w-5 h-5" /> : <Lightbulb className="w-5 h-5" />}
-                <span className="text-sm font-bold">{company.status === "Neu" ? "Erstkontakt herstellen" : "Weiterhin beobachten"}</span>
+                {company.status === "Neu" ? <PhoneCall className="w-5 h-5 text-blue-600" /> : <Lightbulb className="w-5 h-5 text-slate-500" />}
+                <span className={`text-sm font-bold ${company.status === "Neu" ? "text-blue-900" : "text-slate-900"}`}>
+                  {company.status === "Neu" ? "Erstkontakt herstellen" : "Weiterhin beobachten"}
+                </span>
               </div>
-              <p className="text-xs leading-relaxed">
-                {company.status === "Neu" 
+              <p className={`text-xs leading-relaxed ${company.status === "Neu" ? "text-blue-800" : "text-slate-700"}`}>
+                {company.status === "Neu"
                   ? "Rufen Sie heute an und stellen Sie Ihr Unternehmen vor. Nutzen Sie den Branchen-Einstieg."
                   : "Für diesen Lead gibt es aktuell keine dringende Empfehlung."}
               </p>
             </div>
-            
-            <div className="bg-slate-50 border border-[#E2E8F0] rounded-lg p-3">
-              <p className="text-xs font-bold mb-2">Gesprächseinstieg:</p>
-              <p className="text-xs text-slate-600 italic">
-                "Guten Tag, hier ist [Ihr Name] von Vertriebo. Wir unterstützen lokale Dienstleister dabei, mehr Kunden zu gewinnen. Haben Sie gerade kurz Zeit?"
+
+            <div className="bg-white border border-slate-200 rounded-xl p-3">
+              <p className="text-xs font-bold text-slate-900 mb-2">Gesprächseinstieg:</p>
+              <p className="text-xs text-slate-600 italic leading-relaxed">
+                „Guten Tag, hier ist [Ihr Name] von [Ihrem Unternehmen]. Wir helfen lokalen Betrieben dabei, mehr Kunden zu gewinnen. Haben Sie gerade kurz Zeit?"
               </p>
             </div>
 
-            <div className="bg-slate-50 border border-[#E2E8F0] rounded-lg p-3">
-              <p className="text-xs font-bold mb-2">Follow-up-Vorschlag:</p>
-              <p className="text-xs text-slate-600">
-                {company.status === "Neu" 
+            <div className="bg-white border border-slate-200 rounded-xl p-3">
+              <p className="text-xs font-bold text-slate-900 mb-2">Follow-up-Vorschlag:</p>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                {company.status === "Neu"
                   ? "Nach Erstkontakt: E-Mail mit Unterlagen senden und Termin vereinbaren."
                   : company.status === "Rückruf"
                   ? "Rückruf durchführen und Bedarf klären."

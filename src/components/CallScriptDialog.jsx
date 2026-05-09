@@ -1,13 +1,97 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { PhoneCall, Loader2, RefreshCw, Sparkles } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { PhoneCall, Loader2, RefreshCw, Sparkles, MessageCircle, Zap, Package, ShieldAlert, CheckCircle, Lightbulb } from "lucide-react";
+import { toast } from "sonner";
+
+// Section config: icon, color, label → matched by section number in LLM output
+const SECTION_CONFIG = [
+  { key: "einstieg",   icon: MessageCircle, bg: "bg-blue-50",   border: "border-blue-200",   icon_bg: "bg-blue-100",   icon_color: "text-blue-600",   label: "Einstieg" },
+  { key: "aufhaenger", icon: Zap,           bg: "bg-amber-50",  border: "border-amber-200",  icon_bg: "bg-amber-100",  icon_color: "text-amber-600",  label: "Aufhänger" },
+  { key: "angebot",    icon: Package,       bg: "bg-emerald-50",border: "border-emerald-200",icon_bg: "bg-emerald-100",icon_color: "text-emerald-600",label: "Unser Angebot" },
+  { key: "einwaende",  icon: ShieldAlert,   bg: "bg-rose-50",   border: "border-rose-200",   icon_bg: "bg-rose-100",   icon_color: "text-rose-600",   label: "Einwand-Antworten" },
+  { key: "abschluss",  icon: CheckCircle,   bg: "bg-purple-50", border: "border-purple-200", icon_bg: "bg-purple-100", icon_color: "text-purple-600", label: "Abschluss" },
+];
+
+// Parse LLM markdown output into sections
+function parseScript(raw) {
+  if (!raw) return [];
+  const lines = raw.split("\n");
+  const sections = [];
+  let current = null;
+
+  for (const line of lines) {
+    // Match "1. **Einstieg**" or "## Einstieg" or "**1. Einstieg**"
+    const headerMatch = line.match(/^(?:#{1,3}\s+|\d+\.\s+\*{0,2}|\*{0,2}\d+\.\s+)(?:\*{0,2})?(Einstieg|Aufhänger|Angebot|Unser Angebot|Einwand|Einwände|Einwand-Antworten|Abschluss)/i);
+    if (headerMatch) {
+      if (current) sections.push(current);
+      const label = headerMatch[1].toLowerCase();
+      let idx = 0;
+      if (label.includes("aufhäng") || label.includes("aufhang")) idx = 1;
+      else if (label.includes("angebot")) idx = 2;
+      else if (label.includes("einwand")) idx = 3;
+      else if (label.includes("abschluss")) idx = 4;
+      current = { idx, lines: [] };
+    } else if (current !== null && line.trim()) {
+      current.lines.push(line.replace(/^\*{1,2}|\*{1,2}$/g, "").trim());
+    }
+  }
+  if (current) sections.push(current);
+
+  // If parsing failed (no sections found), return raw as single block
+  if (sections.length === 0) return [{ idx: -1, lines: raw.split("\n").filter(l => l.trim()) }];
+  return sections;
+}
+
+function ScriptSection({ section }) {
+  const cfg = section.idx >= 0 ? SECTION_CONFIG[section.idx] : null;
+  const Icon = cfg?.icon || Lightbulb;
+
+  if (!cfg) {
+    // Fallback: raw text block
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4">
+        <div className="space-y-1.5">
+          {section.lines.map((line, i) => (
+            <p key={i} className="text-sm text-slate-700 leading-relaxed">{line}</p>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`rounded-xl border ${cfg.border} ${cfg.bg} p-4`}>
+      <div className="flex items-center gap-2.5 mb-3">
+        <div className={`w-7 h-7 rounded-lg ${cfg.icon_bg} flex items-center justify-center shrink-0`}>
+          <Icon className={`w-4 h-4 ${cfg.icon_color}`} />
+        </div>
+        <h3 className="text-sm font-bold text-slate-900">{cfg.label}</h3>
+        <span className={`ml-auto text-xs font-bold ${cfg.icon_color} opacity-60`}>{section.idx + 1}</span>
+      </div>
+      <div className="space-y-1.5 pl-1">
+        {section.lines.map((line, i) => {
+          const isBullet = /^[-•]/.test(line);
+          const cleaned = line.replace(/^[-•]\s*/, "");
+          if (isBullet) {
+            return (
+              <div key={i} className="flex items-start gap-2">
+                <span className={`mt-1.5 w-1.5 h-1.5 rounded-full ${cfg.icon_bg} ${cfg.icon_color} shrink-0 block`} style={{}} />
+                <p className="text-sm text-slate-700 leading-relaxed">{cleaned}</p>
+              </div>
+            );
+          }
+          return <p key={i} className="text-sm text-slate-700 leading-relaxed">{line}</p>;
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function CallScriptDialog({ company }) {
   const [open, setOpen] = useState(false);
-  const [script, setScript] = useState("");
+  const [sections, setSections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [orgSettings, setOrgSettings] = useState(null);
 
@@ -29,16 +113,16 @@ export default function CallScriptDialog({ company }) {
       const settingsRecords = await base44.entities.OrganizationSettings.filter({ organization_id: org.id });
       const map = {};
       settingsRecords.forEach(s => { map[s.key] = s.value; });
-      const settings = {
-        firmenname: map.company_name || org.name || "",
+      const s = {
+        firmenname: map.company_name || org.name || "[Ihr Firmenname]",
         adresse: map.company_address || "",
         telefon: map.company_phone || "",
         website: map.company_website || "",
-        dienstleistungen: map.dienstleistungen || "",
+        dienstleistungen: map.dienstleistungen || "[Ihre Dienstleistungen]",
         zielkunden: map.zielkunden || "",
       };
-      setOrgSettings(settings);
-      return settings;
+      setOrgSettings(s);
+      return s;
     } catch {
       return null;
     }
@@ -46,11 +130,11 @@ export default function CallScriptDialog({ company }) {
 
   const generateScript = async () => {
     setLoading(true);
-    setScript("");
+    setSections([]);
     const settings = await loadOrgSettings();
 
-    const firmenname = settings?.firmenname || "Unser Unternehmen";
-    const dienstleistungen = settings?.dienstleistungen || "Unsere Dienstleistungen";
+    const firmenname = settings?.firmenname || "[Ihr Firmenname]";
+    const dienstleistungen = settings?.dienstleistungen || "[Ihre Dienstleistungen]";
     const adresse = settings?.adresse || "";
     const telefon = settings?.telefon || "";
     const website = settings?.website || "";
@@ -61,15 +145,16 @@ export default function CallScriptDialog({ company }) {
       .slice(0, 3);
 
     const logContext = recentLogs.length > 0
-      ? recentLogs.map(l => `- ${l.typ} (${new Date(l.created_date).toLocaleDateString('de-DE')}): ${l.ergebnis}${l.notiz ? ' – ' + l.notiz : ''}`).join('\n')
-      : 'Kein bisheriger Kontakt';
+      ? recentLogs.map(l => `- ${l.typ} (${new Date(l.created_date).toLocaleDateString("de-DE")}): ${l.ergebnis}${l.notiz ? " – " + l.notiz : ""}`).join("\n")
+      : "Kein bisheriger Kontakt";
 
-    const result = await base44.integrations.Core.InvokeLLM({
-      model: "claude_sonnet_4_6",
-      prompt: `Du bist ein erfahrener Vertriebsprofi für ${firmenname}${adresse ? ` (${adresse}` : ""}${telefon ? `, Tel: ${telefon}` : ""}${website ? `, ${website}` : ""}${adresse ? ")" : ""}.
+    try {
+      const result = await base44.integrations.Core.InvokeLLM({
+        model: "claude_sonnet_4_6",
+        prompt: `Du bist ein erfahrener Vertriebsprofi für ${firmenname}${adresse ? ` (${adresse}` : ""}${telefon ? `, Tel: ${telefon}` : ""}${website ? `, ${website}` : ""}${adresse ? ")" : ""}.
 
 Das Unternehmen bietet folgende Leistungen an:
-${dienstleistungen || "verschiedene Dienstleistungen"}
+${dienstleistungen}
 
 Erstelle einen kurzen, natürlichen Gesprächsleitfaden für einen Kaltakquise-Anruf bei folgender Firma:
 
@@ -85,22 +170,27 @@ ${logContext}
 
 Wichtig: Passe den Leitfaden an die Branche der Zielfirma an. Wenn es bereits Kontakte gab, passe den Einstieg entsprechend an.
 
-Strukturiere den Leitfaden mit:
-1. **Einstieg** (Begrüßung & Vorstellung, 2 Sätze)
-2. **Aufhänger** (warum rufst du genau diese Firma an – branchenbezogen, 1-2 Sätze)
-3. **Unser Angebot** (welche Leistungen passen konkret zu dieser Firma, 2-3 Punkte)
-4. **Einwand-Antworten** (2 typische Einwände mit kurzer Antwort)
-5. **Abschluss** (Terminvereinbarung, 1-2 Sätze)
+Strukturiere EXAKT mit diesen Überschriften (keine anderen):
+1. Einstieg
+2. Aufhänger
+3. Unser Angebot
+4. Einwand-Antworten
+5. Abschluss
 
-Halte es praxisnah, locker und überzeugend. Auf Deutsch.`,
-    });
-    setScript(typeof result === "string" ? result : result?.text || JSON.stringify(result));
+Kurze, praxisnahe Texte. Auf Deutsch. Keine langen Absätze.`,
+      });
+      const raw = typeof result === "string" ? result : result?.text || JSON.stringify(result);
+      setSections(parseScript(raw));
+    } catch (e) {
+      toast.error("Leitfaden konnte nicht generiert werden");
+      console.error(e);
+    }
     setLoading(false);
   };
 
   const handleOpen = () => {
     setOpen(true);
-    if (!script) generateScript();
+    if (sections.length === 0) generateScript();
   };
 
   return (
@@ -110,33 +200,33 @@ Halte es praxisnah, locker und überzeugend. Auf Deutsch.`,
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-white border border-slate-200 shadow-xl rounded-2xl">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-white border border-slate-200 shadow-xl rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base text-slate-900">
               <PhoneCall className="w-4 h-4 text-purple-600" />
-              Gesprächsleitfaden — {company.name}
+              Gesprächsleitfaden
+              <span className="text-slate-400 font-normal">— {company.name}</span>
             </DialogTitle>
           </DialogHeader>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-500">
-              <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
-              <p className="text-sm font-medium">KI erstellt deinen Gesprächsleitfaden...</p>
+            <div className="flex flex-col items-center justify-center py-14 gap-3">
+              <Loader2 className="w-7 h-7 animate-spin text-purple-500" />
+              <p className="text-sm font-semibold text-slate-700">KI erstellt deinen Gesprächsleitfaden…</p>
+              <p className="text-xs text-slate-400">Passt Inhalte an {company.branche || "die Branche"} an</p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="prose prose-sm max-w-none text-sm leading-relaxed text-slate-800
-                [&_h1]:text-slate-900 [&_h2]:text-slate-900 [&_h3]:text-slate-900
-                [&_strong]:text-slate-900 [&_p]:text-slate-700 [&_li]:text-slate-700">
-                <ReactMarkdown>{script}</ReactMarkdown>
-              </div>
-              <div className="flex justify-end pt-2 border-t border-slate-200">
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs bg-white border-slate-300 text-slate-700" onClick={generateScript}>
+          ) : sections.length > 0 ? (
+            <div className="space-y-3 pb-1">
+              {sections.map((section, i) => (
+                <ScriptSection key={i} section={section} />
+              ))}
+              <div className="flex justify-end pt-1">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs bg-white border-slate-200 text-slate-600 hover:bg-slate-50" onClick={generateScript}>
                   <RefreshCw className="w-3 h-3" /> Neu generieren
                 </Button>
               </div>
             </div>
-          )}
+          ) : null}
         </DialogContent>
       </Dialog>
     </>
