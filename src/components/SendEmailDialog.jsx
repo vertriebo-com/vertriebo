@@ -330,21 +330,22 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
         )}
       </div>
 
-      {/* Actions */}
-      <div className="border-t border-slate-200 pt-4 space-y-2">
-        <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-          <Mail className="w-3.5 h-3.5" />
-          An: <span className="font-semibold text-slate-900">{company.email}</span>
+      {/* Actions — sticky footer */}
+      <div className="border-t border-slate-200 pt-4 pb-2 space-y-2 bg-white">
+        <div className="flex items-center gap-2 text-xs text-slate-500 mb-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+          <Mail className="w-3.5 h-3.5 shrink-0" />
+          <span>Empfänger:</span>
+          <span className="font-semibold text-slate-900">{company.email}</span>
         </div>
         <Button variant="outline" size="sm" onClick={handleTestSend} disabled={testSending || testSent}
           className="w-full gap-2 text-xs h-9 bg-white border-slate-200 text-slate-700 hover:bg-slate-50">
           {testSent ? <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Test gesendet!</>
            : testSending ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sende Test...</>
-           : <><FlaskConical className="w-3.5 h-3.5" /> Test-E-Mail an mich selbst senden</>}
+           : <><FlaskConical className="w-3.5 h-3.5" /> Test-E-Mail an mich senden (kein Log)</>}
         </Button>
         <Button onClick={handleSend} disabled={sending} className="w-full gap-2 h-9 bg-blue-600 hover:bg-blue-700 text-white">
           {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-          {sending ? "Wird gesendet..." : `An ${company.name} senden`}
+          {sending ? "Wird gesendet..." : `E-Mail an Lead senden`}
         </Button>
       </div>
     </div>
@@ -428,7 +429,7 @@ export default function SendEmailDialog({ company }) {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="overflow-y-auto flex-1 pr-1 pb-2">
+          <div className="overflow-y-auto flex-1 pr-1 pb-6">
             {!selectedTemplate ? (
               <div className="space-y-2 pt-1">
                 <p className="text-xs text-slate-500 font-medium mb-3">Vorlage auswählen:</p>
