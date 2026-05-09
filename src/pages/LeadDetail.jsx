@@ -34,6 +34,10 @@ export default function LeadDetail() {
   const [sonstigesNotiz, setSonstigesNotiz] = useState("");
   const [sonstigesSaving, setSonstigesSaving] = useState(false);
   const [showKiDialog, setShowKiDialog] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showBlacklistConfirm, setShowBlacklistConfirm] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [orgId, setOrgId] = useState(null);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -56,6 +60,9 @@ export default function LeadDetail() {
       orgId = org?.id || null;
 
       if (!orgId) { toast.error("Keine Organisation gefunden"); navigate("/"); return; }
+
+      setCurrentUser(me);
+      setOrgId(orgId);
 
       // Company mit Mandanten-Check laden
       const [comp, logs, allTasks] = await Promise.all([
@@ -124,38 +131,30 @@ export default function LeadDetail() {
   };
 
   const handleBlacklist = async () => {
-    if (!window.confirm("Firma wirklich auf Blacklist setzen?")) return;
-    const me = await base44.auth.me();
-    let orgId = company.organization_id || null;
-    if (!orgId) {
-      const orgs = await base44.entities.Organization.filter({ owner_email: me.email });
-      let org = orgs?.[0] || null;
-      if (!org) {
-        const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
-        if (memberships?.[0]?.organization_id) {
-          const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
-          org = memberOrgs?.[0] || null;
-        }
-      }
-      orgId = org?.id || null;
-    }
-    await base44.entities.Blacklist.create({ organization_id: orgId, firmenname: company.name, telefon: company.telefon, email: company.email, grund: "Manuell hinzugefügt" });
+    const currentOrgId = company.organization_id || orgId;
+    await base44.entities.Blacklist.create({ organization_id: currentOrgId, firmenname: company.name, telefon: company.telefon, email: company.email, grund: "Manuell hinzugefügt" });
     await base44.entities.Company.update(id, { is_blacklisted: true, status: "Verloren" });
-    toast.success("Firma auf Blacklist gesetzt"); navigate("/leads");
+    toast.success("Firma auf Blacklist gesetzt");
+    setShowBlacklistConfirm(false);
+    navigate("/leads");
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Firma wirklich löschen?")) return;
     await base44.entities.Company.delete(id);
-    toast.success("Firma gelöscht"); navigate("/leads");
+    toast.success("Firma gelöscht");
+    setShowDeleteConfirm(false);
+    navigate("/leads");
   };
+
+  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "organization_admin";
 
   const handleEnrich = async () => {
     setEnriching(true);
     try {
+      const currentOrgId = company.organization_id || orgId;
       const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout nach 30 Sekunden")), 30000));
       const res = await Promise.race([
-        base44.functions.invoke("enrichCompany", { companyId: id }),
+        base44.functions.invoke("enrichCompany", { companyId: id, organization_id: currentOrgId }),
         timeoutPromise,
       ]);
       const data = res.data;
@@ -267,12 +266,16 @@ export default function LeadDetail() {
           <button onClick={() => setShowKiDialog(true)} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-blue-200 bg-blue-50 text-blue-700 px-3 rounded-lg hover:bg-blue-100 transition-colors">
             <Lightbulb className="w-3.5 h-3.5" /> KI-Tipp
           </button>
-          <button onClick={handleBlacklist} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-[#E2E8F0] bg-white px-3 rounded-lg hover:bg-slate-50 transition-colors">
-            <Ban className="w-3.5 h-3.5" /> Blacklist
-          </button>
-          <button onClick={handleDelete} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-red-200 bg-white text-red-600 px-3 rounded-lg hover:bg-red-50 transition-colors">
-            <Trash2 className="w-3.5 h-3.5" /> Löschen
-          </button>
+          {isAdmin && (
+            <>
+              <button onClick={() => setShowBlacklistConfirm(true)} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-[#E2E8F0] bg-white px-3 rounded-lg hover:bg-slate-50 transition-colors">
+                <Ban className="w-3.5 h-3.5" /> Blacklist
+              </button>
+              <button onClick={() => setShowDeleteConfirm(true)} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-red-200 bg-white text-red-600 px-3 rounded-lg hover:bg-red-50 transition-colors">
+                <Trash2 className="w-3.5 h-3.5" /> Löschen
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -556,9 +559,9 @@ export default function LeadDetail() {
       </Dialog>
 
       <Dialog open={showKiDialog} onOpenChange={setShowKiDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-white border border-slate-200 shadow-xl rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-slate-900">
               <Lightbulb className="w-4 h-4 text-blue-600" /> KI-Empfehlungen
             </DialogTitle>
           </DialogHeader>
@@ -601,6 +604,42 @@ export default function LeadDetail() {
 
       <AddContactLogDialog open={showAddLog} onClose={() => setShowAddLog(false)} companyId={id} companyName={company.name} onCreated={loadData} />
       <AddTaskDialog open={showAddTask} onClose={() => setShowAddTask(false)} companyId={id} companyName={company.name} onCreated={loadData} />
+
+      {/* Blacklist Confirm */}
+      <Dialog open={showBlacklistConfirm} onOpenChange={setShowBlacklistConfirm}>
+        <DialogContent className="max-w-sm bg-white border border-slate-200 shadow-xl rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-900">
+              <Ban className="w-4 h-4 text-amber-600" /> Auf Blacklist setzen?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            <strong className="text-slate-900">{company?.name}</strong> wird auf die Blacklist gesetzt und als „Verloren" markiert. Diese Aktion kann manuell rückgängig gemacht werden.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowBlacklistConfirm(false)} className="bg-white text-slate-700 border-slate-300">Abbrechen</Button>
+            <Button onClick={handleBlacklist} className="bg-amber-600 hover:bg-amber-700 text-white">Blacklist setzen</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="max-w-sm bg-white border border-slate-200 shadow-xl rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-slate-900">
+              <Trash2 className="w-4 h-4 text-red-600" /> Firma löschen?
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-slate-600">
+            <strong className="text-slate-900">{company?.name}</strong> wird dauerhaft gelöscht. Alle zugehörigen Aufgaben und Kontaktlogs bleiben erhalten.
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)} className="bg-white text-slate-700 border-slate-300">Abbrechen</Button>
+            <Button onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">Endgültig löschen</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
