@@ -342,14 +342,16 @@ function validateLeadForTarget({ place, targetCustomerTypes, excludedTargetTypes
       return { isMatch: true, matchedTarget: target, score: 90, reason: `Keyword-Match "${posHit}" → ${target}` };
     }
 
-    // Kombinations-Match: "immobilien" + "verwaltung" im Namen → Hausverwaltung (kein allein stehendes "verwaltung"!)
+    // Kombinations-Match: Verwaltungs-Firmen im Namen → Hausverwaltung
     if (target === "Hausverwaltungen") {
       const nameNorm = norm(place.name || "");
       if ((nameNorm.includes("immobilien") && nameNorm.includes("verwaltung")) ||
           (nameNorm.includes("haus") && nameNorm.includes("verwaltung")) ||
           (nameNorm.includes("wohn") && nameNorm.includes("verwaltung")) ||
-          (nameNorm.includes("objekt") && nameNorm.includes("verwaltung"))) {
-        return { isMatch: true, matchedTarget: target, score: 85, reason: `Kombi-Match im Namen → ${target}` };
+          (nameNorm.includes("objekt") && nameNorm.includes("verwaltung")) ||
+          // Firmen mit "verwaltung" + Firmensuffix (z.B. "S & S Verwaltung GmbH", "SN.Verwaltung GmbH")
+          (nameNorm.includes("verwaltung") && (nameNorm.includes("gmbh") || nameNorm.includes(" ag") || nameNorm.includes("kg") || nameNorm.includes("ug") || nameNorm.includes("ohg") || nameNorm.endsWith("verwaltung")))) {
+        return { isMatch: true, matchedTarget: target, score: 80, reason: `Kombi-Match Verwaltungs-Firma → ${target}` };
       }
     }
   }
