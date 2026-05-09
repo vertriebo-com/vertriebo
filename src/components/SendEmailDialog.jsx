@@ -263,10 +263,10 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
           <div className="border border-slate-200 rounded-xl overflow-hidden
             [&_.ql-toolbar]:border-0 [&_.ql-toolbar]:border-b [&_.ql-toolbar]:border-slate-200
             [&_.ql-toolbar]:bg-slate-50
-            [&_.ql-container]:border-0 [&_.ql-container]:bg-white
+            [&_.ql-container]:border-0 [&_.ql-container]:bg-white [&_.ql-container]:min-h-[200px]
             [&_.ql-editor]:min-h-[200px] [&_.ql-editor]:text-sm [&_.ql-editor]:font-sans
             [&_.ql-editor]:leading-relaxed [&_.ql-editor]:text-slate-900 [&_.ql-editor]:bg-white
-            [&_.ql-editor.ql-blank::before]:text-slate-400
+            [&_.ql-editor.ql-blank::before]:text-slate-400 [&_.ql-editor.ql-blank::before]:not-italic
             [&_.ql-toolbar_.ql-stroke]:stroke-slate-600
             [&_.ql-toolbar_.ql-fill]:fill-slate-600
             [&_.ql-toolbar_button:hover_.ql-stroke]:stroke-blue-600
@@ -275,6 +275,7 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
               theme="snow"
               value={customBody}
               onChange={setCustomBody}
+              style={{ background: "#fff" }}
               modules={{
                 toolbar: [
                   ["bold", "italic", "underline"],
