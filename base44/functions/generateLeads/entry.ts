@@ -712,8 +712,10 @@ Deno.serve(async (req) => {
     let skipped_outside_radius = 0;
     let skipped_duplicate = 0;
     let skipped_no_match = 0;
+    let skipped_ambiguous = 0;
     const skipped_no_match_examples = [];
     const skipped_outside_radius_examples = [];
+    const skipped_ambiguous_examples = [];
     const savedExamples = []; // für Report: {name, city, distance_km}
     let maxSavedDistanceKm = 0;
     const seenPlaceIds = new Set();
@@ -764,9 +766,16 @@ Deno.serve(async (req) => {
         console.info(`[generateLeads] VALIDATE "${place.name}" types=${JSON.stringify(place.types)} → isMatch=${relevance.isMatch} reason="${relevance.reason}"`);
 
         if (!relevance.isMatch) {
-          skipped_no_match++;
-          if (skipped_no_match_examples.length < 10) {
-            skipped_no_match_examples.push({ name: placeName, reason: relevance.reason, query });
+          if (relevance.reason === "ambiguous_verwaltung_no_real_estate_context") {
+            skipped_ambiguous++;
+            if (skipped_ambiguous_examples.length < 15) {
+              skipped_ambiguous_examples.push({ name: placeName, reason: "Unklarer Verwaltungsbezug – kein Immobilien-/WEG-/Mietkontext erkennbar", query });
+            }
+          } else {
+            skipped_no_match++;
+            if (skipped_no_match_examples.length < 10) {
+              skipped_no_match_examples.push({ name: placeName, reason: relevance.reason, query });
+            }
           }
           console.info(`[generateLeads] SKIP "${placeName}" – ${relevance.reason}`);
           continue;
@@ -847,6 +856,7 @@ Deno.serve(async (req) => {
     const lastReport = {
       requestedTarget: target_count, effectiveTarget, saved: createdIds.length,
       duplicates: skipped_duplicate, noMatch: skipped_no_match,
+      ambiguous: skipped_ambiguous, ambiguousExamples: skipped_ambiguous_examples,
       outsideRadius: skipped_outside_radius, rawHits: raw_hits,
       noMatchExamples: skipped_no_match_examples,
       outsideRadiusExamples: skipped_outside_radius_examples,
@@ -885,6 +895,8 @@ Deno.serve(async (req) => {
         excluded: 0,
         noMatch: skipped_no_match,
         noMatchExamples: skipped_no_match_examples,
+        ambiguous: skipped_ambiguous,
+        ambiguousExamples: skipped_ambiguous_examples,
         outsideRadius: skipped_outside_radius,
         outsideRadiusExamples: skipped_outside_radius_examples,
         savedExamples,
@@ -906,7 +918,7 @@ Deno.serve(async (req) => {
         estimated_external_cost_cent: estimatedCostCent,
       },
       search_queries: searchQueryList.map(q => q.query),
-      details: `${raw_hits} Roh-Treffer, ${skipped_outside_radius} außerhalb Radius, ${skipped_no_match} nicht passend, ${skipped_duplicate} Dubletten, ${createdIds.length} gespeichert.`,
+      details: `${raw_hits} Roh-Treffer, ${skipped_outside_radius} außerhalb Radius, ${skipped_no_match} nicht passend, ${skipped_ambiguous} unklare Verwaltungstreffer, ${skipped_duplicate} Dubletten, ${createdIds.length} gespeichert.`,
     });
 
   } catch (error) {

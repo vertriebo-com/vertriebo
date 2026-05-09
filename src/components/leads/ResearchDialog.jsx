@@ -325,6 +325,22 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                       </div>
                     </div>
                   )}
+                  {result.data.summary?.ambiguous > 0 && (
+                    <div className="pt-2 border-t border-slate-200">
+                      <span className="text-[10px] font-bold text-amber-600 uppercase block mb-1">
+                        Unklare Verwaltungstreffer – nicht gespeichert ({result.data.summary.ambiguous})
+                      </span>
+                      <p className="text-[10px] text-amber-700 mb-1">Firmenname enthält „Verwaltung", aber kein Immobilien-/WEG-/Mietkontext erkennbar.</p>
+                      <div className="space-y-0.5">
+                        {result.data.summary.ambiguousExamples?.map((ex, i) => (
+                          <div key={i} className="text-[10px]">
+                            <span className="font-semibold text-slate-700">{ex.name}</span>
+                            <span className="ml-1 text-amber-600">– {ex.reason}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {result.data.summary?.noMatchExamples?.length > 0 && (
                     <div className="pt-2 border-t border-slate-200">
                       <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
