@@ -80,6 +80,8 @@ export default function CompanySettings({ org: orgProp }) {
   const [plz, setPlz] = useState("");
   const [radius, setRadius] = useState("25");
   const [plzCity, setPlzCity] = useState("");
+  const [targetLocations, setTargetLocations] = useState([]);
+  const [targetLocationsInput, setTargetLocationsInput] = useState("");
   const [zielkunden, setZielkunden] = useState([]);
   const [customZielkunde, setCustomZielkunde] = useState("");
   const [dienstleistungen, setDienstleistungen] = useState([]);
@@ -139,7 +141,8 @@ export default function CompanySettings({ org: orgProp }) {
     setAdresse(map.email_adresse || map.company_address || "");
     setPlz(currentOrg?.service_area_plz || map.lead_plz || "");
     setRadius(currentOrg?.service_area_radius_km ? String(currentOrg.service_area_radius_km) : map.lead_radius_km || "25");
-    setPlzCity(map.lead_plz_city || "");
+    setPlzCity(map.lead_plz_city || map.service_area_city || "");
+    setTargetLocations(map.target_locations ? map.target_locations.split(",").map(s => s.trim()).filter(Boolean) : []);
     setZielkunden(map.zielkunden ? map.zielkunden.split(", ").filter(Boolean) : []);
     setDienstleistungen(map.dienstleistungen ? map.dienstleistungen.split(", ").filter(Boolean) : []);
     setKontakteProWoche(map.sales_goal_contacts_per_week || "20");
@@ -213,6 +216,8 @@ export default function CompanySettings({ org: orgProp }) {
       lead_plz:                        plz,
       lead_radius_km:                  radius,
       lead_plz_city:                   plzCity,
+      service_area_city:               plzCity,
+      target_locations:                targetLocations.join(", "),
       zielkunden:                      zielkunden.join(", "),
       zielkunden_keywords:             zielkundenKeywords,
       dienstleistungen:                dienstleistungen.join(", "),
@@ -352,6 +357,45 @@ export default function CompanySettings({ org: orgProp }) {
             </div>
           </div>
         )}
+
+        {/* Zielstädte */}
+        <div className="mt-4 pt-4 border-t border-slate-200">
+          <Label className="text-xs font-bold mb-1 block text-slate-800">Zusätzliche Zielorte <span className="font-normal text-slate-500">(optional)</span></Label>
+          <p className="text-[11px] text-slate-500 mb-2">Städte/Regionen, die zusätzlich zum Umkreis durchsucht werden. Werden direkt als Suchgebiet genutzt.</p>
+          <div className="flex gap-2 mb-2">
+            <Input
+              value={targetLocationsInput}
+              onChange={e => setTargetLocationsInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && targetLocationsInput.trim()) {
+                  const v = targetLocationsInput.trim();
+                  if (!targetLocations.includes(v)) setTargetLocations(prev => [...prev, v]);
+                  setTargetLocationsInput("");
+                }
+              }}
+              placeholder="z.B. Köln, Neuwied, Berlin..."
+              className="text-sm h-9"
+            />
+            <Button variant="outline" size="sm" className="shrink-0 h-9" onClick={() => {
+              const v = targetLocationsInput.trim();
+              if (v && !targetLocations.includes(v)) setTargetLocations(prev => [...prev, v]);
+              setTargetLocationsInput("");
+            }}>+ Hinzufügen</Button>
+          </div>
+          {targetLocations.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {targetLocations.map(loc => (
+                <span key={loc} className="text-xs px-3 py-1.5 rounded-full border-2 border-blue-500 bg-blue-50 text-blue-700 font-semibold flex items-center gap-1">
+                  📍 {loc}
+                  <button type="button" onClick={() => setTargetLocations(prev => prev.filter(l => l !== loc))} className="ml-0.5 hover:text-destructive">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          {targetLocations.length === 0 && (
+            <p className="text-[11px] text-slate-400 italic">Ohne Zielorte sucht Vertriebo automatisch nahe Orte im Umkreis.</p>
+          )}
+        </div>
       </div>
 
       {/* Card 3: Zielkunden & Leistungen */}

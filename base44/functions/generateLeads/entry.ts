@@ -363,76 +363,28 @@ function validateLeadForTarget({ place, targetCustomerTypes, excludedTargetTypes
   };
 }
 
-// ─── Nachbarstädte für kleine Orte generieren ─────────────────────────────────
-// Gibt bekannte Nachbarstädte zurück basierend auf PLZ/Stadtname
-function generateNeighborSearchCities(city, settings, coords) {
-  // Bekannte Städte-Cluster für Deutschland (PLZ-Präfixe → Nachbarstädte)
-  const PLZ_NEIGHBORS = {
-    "561": ["Koblenz", "Neuwied", "Andernach", "Mayen"],
-    "562": ["Koblenz", "Neuwied", "Bad Neuenahr-Ahrweiler"],
-    "563": ["Koblenz", "Cochem", "Zell an der Mosel"],
-    "564": ["Trier", "Konz"],
-    "565": ["Westerburg", "Montabaur", "Limburg an der Lahn"],
-    "566": ["Neuwied", "Linz am Rhein"],
-    "570": ["Siegen"],
-    "571": ["Siegen", "Olpe"],
-    "530": ["Bonn", "Bad Godesberg"],
-    "531": ["Bonn"],
-    "532": ["Bonn", "Euskirchen"],
-    "533": ["Bonn", "Meckenheim"],
-    "400": ["Düsseldorf", "Mettmann"],
-    "401": ["Düsseldorf"],
-    "402": ["Düsseldorf", "Ratingen"],
-    "403": ["Düsseldorf", "Neuss"],
-    "404": ["Düsseldorf", "Mönchengladbach"],
-    "405": ["Mönchengladbach"],
-    "500": ["Köln"],
-    "501": ["Köln", "Bergheim"],
-    "502": ["Köln", "Leverkusen"],
-    "600": ["Frankfurt am Main"],
-    "601": ["Frankfurt am Main"],
-    "602": ["Frankfurt am Main", "Offenbach am Main"],
-    "603": ["Frankfurt am Main", "Hanau"],
-    "700": ["Stuttgart"],
-    "701": ["Stuttgart", "Esslingen am Neckar"],
-    "800": ["München"],
-    "801": ["München"],
-    "802": ["München", "Dachau"],
-    "900": ["Nürnberg"],
-    "901": ["Nürnberg", "Fürth"],
-    "100": ["Berlin"],
-    "101": ["Berlin"],
-    "102": ["Berlin"],
-    "200": ["Hamburg"],
-    "201": ["Hamburg"],
-    "202": ["Hamburg"],
-    "300": ["Hannover"],
-    "301": ["Hannover"],
-  };
-
-  const plz = settings.lead_plz || settings.service_area_plz || "";
-  const prefix3 = plz.substring(0, 3);
-  const known = PLZ_NEIGHBORS[prefix3] || [];
-
-  // Fallback: wenn PLZ als Stadtname gesetzt, gib bekannte Großstädte in Region zurück
-  if (known.length === 0 && /^\d{5}$/.test(city)) {
-    // Generische Nachbarstädte basierend auf erster PLZ-Ziffer (Bundesland-Region)
-    const regionMap = {
-      "0": ["Leipzig", "Dresden", "Halle"],
-      "1": ["Berlin", "Potsdam"],
-      "2": ["Hamburg", "Lübeck", "Kiel"],
-      "3": ["Hannover", "Braunschweig", "Magdeburg"],
-      "4": ["Düsseldorf", "Köln", "Dortmund"],
-      "5": ["Köln", "Bonn", "Aachen"],
-      "6": ["Frankfurt am Main", "Wiesbaden", "Mainz"],
-      "7": ["Stuttgart", "Mannheim", "Freiburg im Breisgau"],
-      "8": ["München", "Augsburg", "Ingolstadt"],
-      "9": ["Nürnberg", "Regensburg", "Würzburg"],
-    };
-    return (regionMap[plz[0]] || []).slice(0, 2);
+// ─── Dynamische Nachbarorte via Google Places Geocoding ───────────────────────
+// Sucht Städte/Orte im Umkreis des Hauptstandorts dynamisch über Google Places API
+async function findNearbyCities(cityCoords, radiusKm, mainCity, apiCounters) {
+  // Nur sinnvoll bei kleinem Radius (< 30 km) oder wenn keine Zielstädte gesetzt
+  // Suche nach "Stadt" im Radius, um nahe Orte zu finden
+  const searchRadius = Math.min(radiusKm * 1000, 50000);
+  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${cityCoords.lat},${cityCoords.lng}&radius=${searchRadius}&type=locality&language=de&key=${GOOGLE_PLACES_API_KEY}`;
+  apiCounters.nearbySearch++;
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!data.results) return [];
+    // Filtere den Hauptort heraus, nur nahe Orte mit eigenem Namen
+    const mainNorm = mainCity.toLowerCase().trim();
+    const cities = data.results
+      .map(r => r.name)
+      .filter(name => name && name.toLowerCase().trim() !== mainNorm)
+      .slice(0, 4);
+    return cities;
+  } catch {
+    return [];
   }
-
-  return known;
 }
 
 // ─── Haversine Distance ───────────────────────────────────────────────────────
@@ -635,8 +587,8 @@ Deno.serve(async (req) => {
     const excludedTargets = (settings.zielkunden_ausschluss || "")
       .split(", ").filter(x => x.trim());
 
-    const city = settings.lead_plz_city || settings.service_area_city || settings.lead_plz || "";
-    if (!city) return Response.json({ error: 'Kein Suchgebiet definiert.', success: false }, { status: 400 });
+    const city = settings.service_area_city || settings.lead_plz_city || settings.lead_plz || "";
+    if (!city) return Response.json({ error: 'Kein Suchgebiet definiert. Bitte Ort in den Einstellungen hinterlegen.', success: false }, { status: 400 });
 
     const radiusKm = parseFloat(settings.lead_radius_km || settings.service_area_radius_km || "25") || 25;
     const radiusMeters = Math.min(radiusKm * 1000, 50000);
@@ -662,11 +614,24 @@ Deno.serve(async (req) => {
       cityCoords = { lat: savedLat, lng: savedLng };
     }
 
-    // Nachbarstädte für breitere Suche generieren (für kleine Orte im Radius)
-    const neighborCities = generateNeighborSearchCities(city, settings, cityCoords);
-    const allSearchCities = [city, ...neighborCities.slice(0, 3)]; // max 4 Städte
+    // Zielstädte aus Settings laden (manuell vom User gesetzt)
+    const targetLocations = (settings.target_locations || "")
+      .split(",").map(s => s.trim()).filter(Boolean);
 
-    console.info(`[generateLeads] START org=${organization_id}, Stadt=${city}, Nachbarstädte=${neighborCities.slice(0,3).join("|")}, Zielkunden=${targetCustomers.join("|")}${excludedTargets.length ? `, Ausschlüsse=${excludedTargets.join("|")}` : ""}, Radius=${radiusKm}km, effectiveTarget=${effectiveTarget}`);
+    // Dynamische Nachbarorte via Google Places (nur wenn kein Zielstädte gesetzt und Radius < 50km)
+    let nearbyCities = [];
+    if (targetLocations.length === 0 && radiusKm <= 50) {
+      nearbyCities = await findNearbyCities(cityCoords, radiusKm, city, apiCounters);
+    }
+
+    // Suchstädte: Hauptort + manuelle Zielstädte + ggf. dynamische Nachbarorte
+    const allSearchCities = [
+      city,
+      ...targetLocations,
+      ...nearbyCities.slice(0, 2), // max 2 dynamische Nachbarorte
+    ].filter((v, i, arr) => arr.indexOf(v) === i); // Deduplizierung
+
+    console.info(`[generateLeads] START org=${organization_id}, Stadt=${city}, Zielstädte=${targetLocations.join("|")||"–"}, NachbarnDynamisch=${nearbyCities.join("|")||"–"}, AlleSuchstädte=${allSearchCities.join("|")}, Zielkunden=${targetCustomers.join("|")}${excludedTargets.length ? `, Ausschlüsse=${excludedTargets.join("|")}` : ""}, Radius=${radiusKm}km, effectiveTarget=${effectiveTarget}`);
 
     // Existierende Firmen für Duplikat-Check
     const existing = await base44.asServiceRole.entities.Company.filter({ organization_id });
@@ -834,6 +799,8 @@ Deno.serve(async (req) => {
       maxSavedDistanceKm,
       radiusKm,
       searchCenterCity: city,
+      targetLocations,
+      nearbyCitiesDynamic: nearbyCities,
       searchCities: allSearchCities,
       estimatedCostCent, skuBreakdown,
       searchQueries: searchQueryList.map(q => q.query),
@@ -869,6 +836,8 @@ Deno.serve(async (req) => {
         maxSavedDistanceKm,
         radiusKm,
         searchCenterCity: city,
+        targetLocations,
+        nearbyCitiesDynamic: nearbyCities,
         searchCities: allSearchCities,
       },
       googleRequests: {

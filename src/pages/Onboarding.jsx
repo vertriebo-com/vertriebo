@@ -60,6 +60,8 @@ export default function Onboarding() {
   const [plz, setPlz] = useState("");
   const [city, setCity] = useState("");
   const [radius, setRadius] = useState(25);
+  const [targetLocationsInput, setTargetLocationsInput] = useState("");
+  const [targetLocations, setTargetLocations] = useState([]);
 
   // Step 5: Email
   // Managed in EmailSetupStep
@@ -229,6 +231,7 @@ export default function Onboarding() {
         { key: "service_area_plz", value: plz.trim() },
         { key: "service_area_city", value: city.trim() },
         { key: "service_area_radius_km", value: String(radius) },
+        { key: "target_locations", value: targetLocations.join(", ") },
       ];
       for (const s of settings) {
         const existing = await base44.entities.OrganizationSettings.filter({ organization_id: org.id, key: s.key });
@@ -419,45 +422,96 @@ export default function Onboarding() {
             <h2 className="text-lg font-bold text-slate-900 mb-1">Wo möchten Sie Kunden gewinnen?</h2>
             <p className="text-sm font-medium text-slate-600 mb-6">Vertriebo sucht Leads im definierten Umkreis Ihres Standorts.</p>
 
-            <div className="space-y-4 mb-6">
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div>
-                  <Label className="text-xs font-semibold text-slate-900 mb-2 block">PLZ Ihres Standorts *</Label>
-                  <Input
-                    value={plz}
-                    onChange={e => setPlz(e.target.value)}
-                    placeholder="z.B. 56564"
-                    maxLength={5}
-                    className="bg-white text-slate-900 border-slate-300"
-                  />
+            <div className="space-y-5 mb-6">
+              {/* Hauptstandort */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <p className="text-xs font-bold text-slate-700 uppercase tracking-wide">Hauptstandort</p>
+                <p className="text-xs text-slate-500">Von welchem Standort aus arbeiten Sie?</p>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-900 mb-2 block">PLZ *</Label>
+                    <Input
+                      value={plz}
+                      onChange={e => setPlz(e.target.value)}
+                      placeholder="z.B. 20095"
+                      maxLength={5}
+                      className="bg-white text-slate-900 border-slate-300"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs font-semibold text-slate-900 mb-2 block">Ort *</Label>
+                    <Input
+                      value={city}
+                      onChange={e => setCity(e.target.value)}
+                      placeholder="z.B. Hamburg"
+                      className="bg-white text-slate-900 border-slate-300"
+                    />
+                  </div>
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold text-slate-900 mb-2 block">Ort *</Label>
-                  <Input
-                    value={city}
-                    onChange={e => setCity(e.target.value)}
-                    placeholder="z.B. Neuwied"
-                    className="bg-white text-slate-900 border-slate-300"
+                  <Label className="text-xs font-semibold text-slate-900 mb-2 block">
+                    Suchradius: <span className="text-blue-600 font-bold">{radius} km</span>
+                  </Label>
+                  <input
+                    type="range"
+                    min={5}
+                    max={100}
+                    step={5}
+                    value={radius}
+                    onChange={e => setRadius(Number(e.target.value))}
+                    className="w-full accent-blue-600"
                   />
+                  <div className="flex justify-between text-xs text-slate-500 mt-1">
+                    <span>5 km</span><span>50 km</span><span>100 km</span>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <Label className="text-xs font-semibold text-slate-900 mb-2 block">
-                  Suchradius: <span className="text-blue-600 font-bold">{radius} km</span>
-                </Label>
-                <input
-                  type="range"
-                  min={5}
-                  max={100}
-                  step={5}
-                  value={radius}
-                  onChange={e => setRadius(Number(e.target.value))}
-                  className="w-full accent-blue-600"
-                />
-                <div className="flex justify-between text-xs text-slate-600 font-medium mt-1">
-                  <span>5 km</span><span>50 km</span><span>100 km</span>
+              {/* Zielstädte */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <p className="text-xs font-bold text-slate-700 uppercase tracking-wide">Zusätzliche Zielorte <span className="normal-case font-normal text-slate-500">(optional)</span></p>
+                <p className="text-xs text-slate-500">In welchen Städten/Regionen möchten Sie Kunden gewinnen? Diese werden zusätzlich zum Umkreis durchsucht.</p>
+                <div className="flex gap-2">
+                  <Input
+                    value={targetLocationsInput}
+                    onChange={e => setTargetLocationsInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && targetLocationsInput.trim()) {
+                        const v = targetLocationsInput.trim();
+                        if (!targetLocations.includes(v)) setTargetLocations(prev => [...prev, v]);
+                        setTargetLocationsInput("");
+                      }
+                    }}
+                    placeholder="z.B. Köln, Berlin, München..."
+                    className="bg-white text-slate-900 border-slate-300 text-sm"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const v = targetLocationsInput.trim();
+                      if (v && !targetLocations.includes(v)) setTargetLocations(prev => [...prev, v]);
+                      setTargetLocationsInput("");
+                    }}
+                    className="shrink-0"
+                  >
+                    + Hinzufügen
+                  </Button>
                 </div>
+                {targetLocations.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {targetLocations.map(loc => (
+                      <span key={loc} className="text-xs px-3 py-1.5 rounded-full border-2 border-blue-500 bg-blue-50 text-blue-700 font-semibold flex items-center gap-1">
+                        📍 {loc}
+                        <button type="button" onClick={() => setTargetLocations(prev => prev.filter(l => l !== loc))} className="ml-0.5 hover:text-red-600">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {targetLocations.length === 0 && (
+                  <p className="text-xs text-slate-400 italic">Ohne Zielorte sucht Vertriebo automatisch in nahen Orten im Umkreis.</p>
+                )}
               </div>
             </div>
 

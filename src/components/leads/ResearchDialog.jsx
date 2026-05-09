@@ -236,13 +236,25 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                     <span>Angefragter Radius:</span>
                     <span className="font-semibold">{result.data.summary?.radiusKm ?? "–"} km um {result.data.summary?.searchCenterCity ?? "–"}</span>
                   </div>
+                  {(result.data.summary?.targetLocations?.length > 0) && (
+                    <div className="flex justify-between text-blue-800">
+                      <span>Manuelle Zielorte:</span>
+                      <span className="font-semibold">{result.data.summary.targetLocations.join(", ")}</span>
+                    </div>
+                  )}
+                  {(result.data.summary?.nearbyCitiesDynamic?.length > 0) && (
+                    <div className="flex justify-between text-blue-800">
+                      <span>Automatisch erkannte Orte:</span>
+                      <span className="font-semibold">{result.data.summary.nearbyCitiesDynamic.join(", ")}</span>
+                    </div>
+                  )}
                   <div className="text-blue-800">
-                    <span>Suchstädte: </span>
+                    <span>Alle Suchstädte: </span>
                     <span className="font-semibold">{(result.data.summary?.searchCities ?? []).join(", ")}</span>
                   </div>
                   {(result.data.summary?.searchCities?.length ?? 0) > 1 && (
                     <p className="text-[10px] text-blue-700 italic">
-                      Zur besseren Trefferquote wurden nahegelegene Orte im Umkreis automatisch berücksichtigt. Gespeichert werden nur Kontakte innerhalb von {result.data.summary?.radiusKm} km.
+                      Gespeichert werden nur Kontakte innerhalb von {result.data.summary?.radiusKm} km.
                     </p>
                   )}
                   {result.data.summary?.maxSavedDistanceKm > 0 && (
@@ -375,16 +387,23 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
         {!loading && !researching && !result && !error && (
           <div className="space-y-4 py-2">
             <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
-              {(settings?.lead_plz_city || settings?.lead_plz) && (
-                <div>
+              {(settings?.lead_plz_city || settings?.service_area_city || settings?.lead_plz) && (
+                <div className="space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Suchgebiet:</span>
+                    <span className="text-slate-600">Hauptstandort:</span>
                     <span className="font-semibold text-slate-900">
-                      {settings.lead_radius_km ? `${settings.lead_radius_km} km` : "25 km"} um {settings.lead_plz_city || settings.lead_plz}
+                      {settings.lead_radius_km || settings.service_area_radius_km || "25"} km um {settings.lead_plz_city || settings.service_area_city || settings.lead_plz}
                     </span>
                   </div>
+                  {settings.target_locations && settings.target_locations.trim() && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Zusätzliche Zielorte:</span>
+                      <span className="font-semibold text-slate-900 text-right max-w-[55%]">{settings.target_locations}</span>
+                    </div>
+                  )}
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Zur besseren Trefferquote werden nahegelegene Orte im Umkreis automatisch berücksichtigt. Gespeichert werden nur Kontakte innerhalb des Radius.
+                    Gespeichert werden nur Kontakte innerhalb des definierten Radius.
+                    {!settings.target_locations && " Nahe Orte im Umkreis werden automatisch berücksichtigt."}
                   </p>
                 </div>
               )}
