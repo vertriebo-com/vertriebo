@@ -210,7 +210,9 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
       </button>
 
       {/* Logo */}
-      <LogoUploader logoUrl={logoUrl} orgId={orgId} onLogoChange={onLogoChange} />
+      <div className="mt-1">
+        <LogoUploader logoUrl={logoUrl} orgId={orgId} onLogoChange={onLogoChange} />
+      </div>
 
       {/* Betreff */}
       <div>
@@ -421,7 +423,7 @@ export default function SendEmailDialog({ company }) {
       </button>
 
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-xl max-h-[92vh] flex flex-col overflow-hidden bg-white border border-slate-200 shadow-xl rounded-2xl">
+        <DialogContent className="max-w-xl max-h-[92vh] flex flex-col overflow-hidden bg-white border border-slate-200 shadow-xl rounded-2xl pt-6">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2 text-base text-slate-900">
               <Mail className="w-4 h-4 text-blue-600" />
