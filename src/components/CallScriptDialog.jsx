@@ -128,6 +128,30 @@ function ScriptCard({ sectionKey, data }) {
   );
 }
 
+// ─── UsageLog upsert helper ───────────────────────────────────────────────────
+async function incrementKiAction(orgId) {
+  const now = new Date();
+  const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const existing = await base44.entities.UsageLog.filter({ organization_id: orgId, period_month: periodMonth });
+  if (existing.length > 0) {
+    const log = existing[0];
+    await base44.entities.UsageLog.update(log.id, {
+      ai_actions_used: (log.ai_actions_used || 0) + 1,
+    });
+  } else {
+    const periodStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString();
+    const periodEnd = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)).toISOString();
+    await base44.entities.UsageLog.create({
+      organization_id: orgId,
+      period_month: periodMonth,
+      period_start: periodStart,
+      period_end: periodEnd,
+      ai_actions_used: 1,
+    });
+  }
+  console.info("[CallScript] UsageLog ki_actions_used +1 für org:", orgId);
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function CallScriptDialog({ company }) {
   const [open, setOpen] = useState(false);
@@ -135,9 +159,11 @@ export default function CallScriptDialog({ company }) {
   const [loading, setLoading] = useState(false);
   const [isFallback, setIsFallback] = useState(false);
   const [orgSettings, setOrgSettings] = useState(null);
+  const [orgId, setOrgId] = useState(null);
+  const [limitReached, setLimitReached] = useState(false);
 
   const loadOrgSettings = async () => {
-    if (orgSettings) return orgSettings;
+    if (orgSettings) return { settings: orgSettings, orgId };
     try {
       const user = await base44.auth.me();
       let org = null;
@@ -150,7 +176,8 @@ export default function CallScriptDialog({ company }) {
           org = memberOrgs?.[0] || null;
         }
       }
-      if (!org) return null;
+      if (!org) return { settings: null, orgId: null };
+
       const settingsRecords = await base44.entities.OrganizationSettings.filter({ organization_id: org.id });
       const map = {};
       settingsRecords.forEach(s => { map[s.key] = s.value; });
@@ -158,14 +185,34 @@ export default function CallScriptDialog({ company }) {
         firmenname: map.company_name || org.name || "[Ihr Firmenname]",
         dienstleistungen: map.dienstleistungen || "[Ihre Dienstleistungen]",
         zielkunden: map.zielkunden || "",
-        adresse: map.company_address || "",
-        website: map.company_website || "",
       };
       setOrgSettings(s);
-      return s;
+      setOrgId(org.id);
+      return { settings: s, orgId: org.id, org };
     } catch (e) {
       console.error("[CallScript] loadOrgSettings failed:", e?.message);
-      return null;
+      return { settings: null, orgId: null };
+    }
+  };
+
+  const checkKiLimit = async (resolvedOrgId, org) => {
+    if (!resolvedOrgId) return false;
+    try {
+      const now = new Date();
+      const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const [usageLogs, plans] = await Promise.all([
+        base44.entities.UsageLog.filter({ organization_id: resolvedOrgId, period_month: periodMonth }),
+        org?.plan_id ? base44.entities.Plan.filter({ id: org.plan_id }) : Promise.resolve([]),
+      ]);
+      const used = usageLogs[0]?.ai_actions_used || 0;
+      const max = plans[0]?.max_ai_scorings_per_month ?? 50;
+      if (max !== -1 && used >= max) {
+        console.warn(`[CallScript] KI-Limit erreicht: ${used}/${max}`);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
     }
   };
 
@@ -173,8 +220,17 @@ export default function CallScriptDialog({ company }) {
     setLoading(true);
     setScriptData(null);
     setIsFallback(false);
+    setLimitReached(false);
 
-    const settings = await loadOrgSettings();
+    const { settings, orgId: resolvedOrgId, org } = await loadOrgSettings();
+
+    // Limit-Check vor KI-Aufruf
+    const isLimitReached = await checkKiLimit(resolvedOrgId, org);
+    if (isLimitReached) {
+      setLimitReached(true);
+      setLoading(false);
+      return;
+    }
 
     const firmenname = settings?.firmenname || "[Ihr Firmenname]";
     const dienstleistungen = settings?.dienstleistungen || "[Ihre Dienstleistungen]";
@@ -193,6 +249,7 @@ export default function CallScriptDialog({ company }) {
       : "Kein bisheriger Kontakt";
 
     let parsed = null;
+    let kiSucceeded = false;
     try {
       const raw = await base44.integrations.Core.InvokeLLM({
         model: "claude_sonnet_4_6",
@@ -225,14 +282,18 @@ Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklärungen). Format:
 Texte kurz, praxisnah, auf Deutsch. Keine Markdown-Zeichen in den Texten.`,
       });
 
-      // raw könnte string oder object sein
       if (raw && typeof raw === "object" && raw.einstieg) {
         parsed = raw;
+        kiSucceeded = true;
         console.info("[CallScript] Direkt als Objekt erhalten ✓");
       } else if (typeof raw === "string") {
         parsed = extractJsonFromText(raw);
-        if (parsed) console.info("[CallScript] JSON aus String extrahiert ✓");
-        else console.warn("[CallScript] JSON-Extraktion fehlgeschlagen, verwende Fallback");
+        if (parsed && parsed.einstieg) {
+          kiSucceeded = true;
+          console.info("[CallScript] JSON aus String extrahiert ✓");
+        } else {
+          console.warn("[CallScript] JSON-Extraktion fehlgeschlagen, verwende Fallback");
+        }
       } else {
         console.warn("[CallScript] Unerwartetes Format:", typeof raw, raw);
       }
@@ -240,9 +301,19 @@ Texte kurz, praxisnah, auf Deutsch. Keine Markdown-Zeichen in den Texten.`,
       console.error("[CallScript] LLM-Aufruf fehlgeschlagen:", e?.message);
     }
 
+    // UsageLog nur bei erfolgreicher KI-Generierung
+    if (kiSucceeded && resolvedOrgId) {
+      try {
+        await incrementKiAction(resolvedOrgId);
+      } catch (e) {
+        console.error("[CallScript] UsageLog update fehlgeschlagen:", e?.message);
+      }
+    } else if (!kiSucceeded) {
+      console.warn("[CallScript] Fallback verwendet – kein KI-Credit verbraucht");
+    }
+
     // Fallback wenn kein valides JSON
     if (!parsed || !parsed.einstieg) {
-      console.warn("[CallScript] Verwende Fallback-Leitfaden");
       parsed = buildFallbackScript(company, settings);
       setIsFallback(true);
     } else {
@@ -279,6 +350,12 @@ Texte kurz, praxisnah, auf Deutsch. Keine Markdown-Zeichen in den Texten.`,
               <Loader2 className="w-7 h-7 animate-spin text-purple-500" />
               <p className="text-sm font-semibold text-slate-700">KI erstellt deinen Gesprächsleitfaden…</p>
               <p className="text-xs text-slate-400">Passt Inhalte an {company.branche || "die Branche"} an</p>
+            </div>
+          ) : limitReached ? (
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <AlertTriangle className="w-8 h-8 text-amber-500" />
+              <p className="text-sm font-bold text-slate-900">KI-Aktionslimit erreicht</p>
+              <p className="text-xs text-slate-500">Ihr monatliches KI-Kontingent ist aufgebraucht. Bitte warten Sie bis zum nächsten Monat oder upgraden Sie Ihren Plan.</p>
             </div>
           ) : scriptData ? (
             <div className="space-y-3 pb-4">
