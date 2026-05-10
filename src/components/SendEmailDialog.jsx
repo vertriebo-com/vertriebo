@@ -210,9 +210,7 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
       </button>
 
       {/* Logo */}
-      <div className="mt-1">
-        <LogoUploader logoUrl={logoUrl} orgId={orgId} onLogoChange={onLogoChange} />
-      </div>
+      <LogoUploader logoUrl={logoUrl} orgId={orgId} onLogoChange={onLogoChange} />
 
       {/* Betreff */}
       <div>
@@ -333,7 +331,7 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
       </div>
 
       {/* Actions — sticky footer */}
-      <div className="border-t border-slate-200 pt-4 pb-2 space-y-2 bg-white">
+      <div className="border-t border-slate-200 pt-4 pb-4 space-y-2 bg-white">
         <div className="flex items-center gap-2 text-xs text-slate-500 mb-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
           <Mail className="w-3.5 h-3.5 shrink-0" />
           <span>Empfänger:</span>
@@ -423,15 +421,15 @@ export default function SendEmailDialog({ company }) {
       </button>
 
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-xl max-h-[92vh] flex flex-col overflow-hidden bg-white border border-slate-200 shadow-xl rounded-2xl pt-6">
-          <DialogHeader className="shrink-0">
+        <DialogContent className="max-w-xl max-h-[92vh] flex flex-col overflow-hidden bg-white border border-slate-200 shadow-xl rounded-2xl p-0">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-3">
             <DialogTitle className="flex items-center gap-2 text-base text-slate-900">
               <Mail className="w-4 h-4 text-blue-600" />
               E-Mail an {company.name}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="overflow-y-auto flex-1 pr-1 pb-6">
+          <div className="overflow-y-auto flex-1 px-6 pb-8">
             {!selectedTemplate ? (
               <div className="space-y-2 pt-1">
                 <p className="text-xs text-slate-500 font-medium mb-3">Vorlage auswählen:</p>
