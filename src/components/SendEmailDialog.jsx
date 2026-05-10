@@ -158,17 +158,29 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
   };
 
   const doSend = async (toEmail, isTest = false) => {
-    await base44.functions.invoke("sendBrevoEmail", {
+    const res = await base44.functions.invoke("sendBrevoEmail", {
       to: toEmail,
       subject: isTest ? `[TEST] ${betreff}` : betreff,
       body: fullHtml,
       organization_id: orgId,
+      is_test: isTest,
     });
+    if (res.data?.error && !res.data?.success) {
+      const hint = res.data?.hint || res.data?.error;
+      throw new Error(hint);
+    }
+    return res;
   };
 
   const handleSend = async () => {
     setSending(true);
-    await doSend(company.email);
+    try {
+      await doSend(company.email);
+    } catch (e) {
+      toast.error(e.message || "E-Mail konnte nicht gesendet werden.");
+      setSending(false);
+      return;
+    }
     try {
       const me = await base44.auth.me();
       let orgIdForLog = orgId;
@@ -195,12 +207,17 @@ function EmailEditor({ tpl, company, logoUrl, orgId, fromName, onLogoChange, onB
 
   const handleTestSend = async () => {
     setTestSending(true);
-    const me = await base44.auth.me();
-    await doSend(me.email, true);
-    setTestSending(false);
-    setTestSent(true);
-    setTimeout(() => setTestSent(false), 3000);
-    toast.success(`Test-E-Mail an ${me.email} gesendet!`);
+    try {
+      const me = await base44.auth.me();
+      await doSend(me.email, true);
+      setTestSent(true);
+      setTimeout(() => setTestSent(false), 3000);
+      toast.success(`Test-E-Mail an ${me.email} gesendet!`);
+    } catch (e) {
+      toast.error(e.message || "Test-E-Mail konnte nicht gesendet werden.");
+    } finally {
+      setTestSending(false);
+    }
   };
 
   return (
