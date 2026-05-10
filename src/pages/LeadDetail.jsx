@@ -246,32 +246,68 @@ export default function LeadDetail() {
 
         {/* Quick Actions */}
         <div className="px-5 pb-4 flex flex-wrap gap-2">
-          {company.telefon && (
+          {company.telefon ? (
             <a href={`tel:${company.telefon}`} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 rounded-lg hover:bg-emerald-100 transition-colors">
               <Phone className="w-4 h-4" /> Anrufen
             </a>
+          ) : (
+            <span title="Keine Telefonnummer vorhanden" className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold bg-slate-100 text-slate-500 border border-slate-200 px-3 rounded-lg cursor-not-allowed">
+              <Phone className="w-4 h-4 text-slate-500" /> Anrufen
+            </span>
           )}
           <CallScriptDialog company={company} />
           <SendEmailDialog company={company} />
-          <Button variant="outline" size="sm" onClick={() => setShowAddTask(true)} className="gap-1.5 bg-white border border-[#E2E8F0]">
-            <Calendar className="w-3.5 h-3.5" /> Aufgabe
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowAddLog(true)} className="gap-1.5 bg-white border border-[#E2E8F0]">
-            <MessageSquare className="w-3.5 h-3.5" /> Kontakt
-          </Button>
-          <button onClick={handleEnrich} disabled={enriching} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-slate-200 px-3 rounded-lg transition-colors disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed enabled:bg-white enabled:hover:bg-slate-50">
-            {enriching ? <span className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin inline-block" /> : <Sparkles className="w-3.5 h-3.5" />}
-            Anreichern
+          <button
+            onClick={() => setShowAddTask(true)}
+            title="Neue Aufgabe erstellen"
+            className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold bg-white text-slate-800 border border-slate-200 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <Calendar className="w-3.5 h-3.5 text-slate-600" /> Aufgabe
           </button>
-          <button onClick={() => setShowKiDialog(true)} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-blue-200 bg-blue-50 text-blue-700 px-3 rounded-lg hover:bg-blue-100 transition-colors">
+          <button
+            onClick={() => setShowAddLog(true)}
+            title="Kontakt dokumentieren"
+            className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold bg-white text-slate-800 border border-slate-200 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-slate-600" /> Kontakt
+          </button>
+          <button
+            onClick={handleEnrich}
+            disabled={enriching}
+            title={enriching ? "Wird gerade angereichert…" : "Fehlende Daten automatisch ergänzen"}
+            className={`inline-flex items-center gap-1.5 h-9 text-sm font-semibold border px-3 rounded-lg transition-colors ${
+              enriching
+                ? "bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed"
+                : "bg-white text-slate-800 border-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            {enriching
+              ? <span className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin inline-block" />
+              : <Sparkles className="w-3.5 h-3.5 text-slate-600" />
+            }
+            {enriching ? "Läuft…" : "Anreichern"}
+          </button>
+          <button
+            onClick={() => setShowKiDialog(true)}
+            title="KI-Empfehlungen anzeigen"
+            className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-blue-200 bg-blue-50 text-blue-700 px-3 rounded-lg hover:bg-blue-100 transition-colors"
+          >
             <Lightbulb className="w-3.5 h-3.5" /> KI-Tipp
           </button>
           {isAdmin && (
             <>
-              <button onClick={() => setShowBlacklistConfirm(true)} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-[#E2E8F0] bg-white px-3 rounded-lg hover:bg-slate-50 transition-colors">
-                <Ban className="w-3.5 h-3.5" /> Blacklist
+              <button
+                onClick={() => setShowBlacklistConfirm(true)}
+                title="Firma auf Blacklist setzen"
+                className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-slate-200 bg-white text-slate-800 px-3 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                <Ban className="w-3.5 h-3.5 text-slate-600" /> Blacklist
               </button>
-              <button onClick={() => setShowDeleteConfirm(true)} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-red-200 bg-white text-red-600 px-3 rounded-lg hover:bg-red-50 transition-colors">
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                title="Firma dauerhaft löschen"
+                className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-red-200 bg-white text-red-600 px-3 rounded-lg hover:bg-red-50 transition-colors"
+              >
                 <Trash2 className="w-3.5 h-3.5" /> Löschen
               </button>
             </>
