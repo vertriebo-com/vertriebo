@@ -358,14 +358,14 @@ Texte kurz, praxisnah, auf Deutsch. Keine Markdown-Zeichen in den Texten.`,
           {loading ? (
             <div className="flex flex-col items-center justify-center py-14 gap-3">
               <Loader2 className="w-7 h-7 animate-spin text-purple-500" />
-              <p className="text-sm font-semibold text-slate-700">KI erstellt deinen Gesprächsleitfaden…</p>
-              <p className="text-xs text-slate-400">Passt Inhalte an {company.branche || "die Branche"} an</p>
+              <p className="text-sm font-semibold text-slate-700">Vertriebo erstellt deinen Gesprächsleitfaden…</p>
+              <p className="text-xs text-slate-400">Optimiert für {company.branche || "die Branche"}</p>
             </div>
           ) : limitReached ? (
             <div className="flex flex-col items-center gap-3 py-10 text-center">
               <AlertTriangle className="w-8 h-8 text-amber-500" />
-              <p className="text-sm font-bold text-slate-900">KI-Aktionslimit erreicht</p>
-              <p className="text-xs text-slate-500">Ihr monatliches KI-Kontingent ist aufgebraucht. Bitte warten Sie bis zum nächsten Monat oder upgraden Sie Ihren Plan.</p>
+              <p className="text-sm font-bold text-slate-900">Aktionslimit erreicht</p>
+              <p className="text-xs text-slate-500">Ihr monatliches Kontingent für Vertriebo-Aktionen ist aufgebraucht. Bitte warten Sie bis zum nächsten Monat oder upgraden Sie Ihren Plan.</p>
             </div>
           ) : scriptData ? (
             <div className="space-y-3 pb-4">
@@ -376,9 +376,9 @@ Texte kurz, praxisnah, auf Deutsch. Keine Markdown-Zeichen in den Texten.`,
                   : "bg-emerald-50 border-emerald-200 text-emerald-700"
               }`}>
                 {isFallback
-                  ? <><AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Standard-Leitfaden verwendet (KI-Antwort konnte nicht verarbeitet werden)</>
-                  : <><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> KI-Leitfaden generiert für {company.branche || company.name}</>
-                }
+                    ? <><AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Standard-Leitfaden</>
+                    : <><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> Vertriebo-Leitfaden erstellt für {company.branche || company.name}</>
+                  }
               </div>
 
               {SECTION_ORDER.map(key => scriptData[key] ? (

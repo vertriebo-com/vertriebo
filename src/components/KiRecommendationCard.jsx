@@ -48,7 +48,7 @@ export default function KiRecommendationCard({ company, orgId, onCompanyUpdated 
 
       if (data?.limit_reached && !data?.recommendation) {
         setLimitReached(true);
-        toast.error("KI-Aktionslimit erreicht. Bitte warten oder Plan upgraden.");
+        toast.error("Empfehlungslimit erreicht. Bitte warten oder Plan upgraden.");
         return;
       }
 
@@ -56,7 +56,7 @@ export default function KiRecommendationCard({ company, orgId, onCompanyUpdated 
         setLimitReached(true);
         setRecommendation(data.recommendation);
         setSource('cache');
-        toast.warning("KI-Limit erreicht – gespeicherte Empfehlung wird angezeigt.");
+        toast.warning("Limit erreicht – gespeicherte Empfehlung wird angezeigt.");
         return;
       }
 
@@ -70,9 +70,9 @@ export default function KiRecommendationCard({ company, orgId, onCompanyUpdated 
       setGeneratedAt(new Date().toISOString());
 
       if (data.source === 'llm') {
-        toast.success("KI-Empfehlung generiert ✓");
+        toast.success("Vertriebo-Empfehlung erstellt ✓");
       } else if (data.source === 'fallback') {
-        toast.info("Standard-Empfehlung verwendet (KI nicht verfügbar).");
+        toast.info("Vertriebo-Empfehlung verwendet.");
       }
       // Notify parent to refresh company data
       if (onCompanyUpdated) onCompanyUpdated();
@@ -96,33 +96,33 @@ export default function KiRecommendationCard({ company, orgId, onCompanyUpdated 
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-600 flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-purple-500" /> KI-Empfehlung
-        </h3>
-        {recommendation && !loading && (
-          <button
-            onClick={() => generate(true)}
-            disabled={loading || limitReached}
-            className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-700 disabled:opacity-40 transition-colors"
-            title="Neu generieren (kostet 1 KI-Aktion)"
-          >
-            <RefreshCw className="w-3 h-3" /> Neu
-          </button>
-        )}
-      </div>
+         <h3 className="text-xs font-bold uppercase tracking-wide text-slate-600 flex items-center gap-2">
+           <Sparkles className="w-3.5 h-3.5 text-purple-500" /> Vertriebo-Empfehlung
+         </h3>
+         {recommendation && !loading && (
+           <button
+             onClick={() => generate(true)}
+             disabled={loading || limitReached}
+             className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-700 disabled:opacity-40 transition-colors"
+             title="Neu generieren"
+           >
+             <RefreshCw className="w-3 h-3" /> Neu
+           </button>
+         )}
+       </div>
 
       {/* Content */}
       {loading ? (
         <div className="flex flex-col items-center gap-2 py-6">
-          <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
-          <p className="text-xs font-medium text-slate-600">KI analysiert Lead-Daten…</p>
-        </div>
+           <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+           <p className="text-xs font-medium text-slate-600">Vertriebo analysiert Lead-Daten…</p>
+         </div>
       ) : limitReached && !recommendation ? (
-        <div className="flex flex-col items-center gap-2 py-5 text-center">
-          <AlertTriangle className="w-6 h-6 text-amber-500" />
-          <p className="text-xs font-bold text-slate-900">KI-Aktionslimit erreicht</p>
-          <p className="text-[11px] text-slate-500">Bitte warten oder Plan upgraden.</p>
-        </div>
+         <div className="flex flex-col items-center gap-2 py-5 text-center">
+           <AlertTriangle className="w-6 h-6 text-amber-500" />
+           <p className="text-xs font-bold text-slate-900">Empfehlungslimit erreicht</p>
+           <p className="text-[11px] text-slate-500">Bitte warten oder Plan upgraden.</p>
+         </div>
       ) : recommendation ? (
         <div className="space-y-3">
           {/* Priority + Action */}
@@ -178,7 +178,7 @@ export default function KiRecommendationCard({ company, orgId, onCompanyUpdated 
           )}
           {limitReached && (
             <p className="text-[10px] text-amber-600 font-medium flex items-center gap-1">
-              <AlertTriangle className="w-3 h-3" /> KI-Limit erreicht – gespeicherte Empfehlung
+              <AlertTriangle className="w-3 h-3" /> Limit erreicht – gespeicherte Empfehlung
             </p>
           )}
         </div>
@@ -189,18 +189,18 @@ export default function KiRecommendationCard({ company, orgId, onCompanyUpdated 
             <Sparkles className="w-5 h-5 text-purple-400" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-slate-700">Noch keine Empfehlung</p>
-            <p className="text-[11px] text-slate-500 mt-0.5">KI analysiert Kontakthistorie, Aufgaben und Lead-Daten.</p>
-          </div>
-          <Button
-            size="sm"
-            onClick={() => generate(false)}
-            disabled={loading}
-            className="gap-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white"
-          >
-            <Sparkles className="w-3 h-3" /> Empfehlung generieren
-          </Button>
-          <p className="text-[10px] text-slate-400">Kostet 1 KI-Aktion</p>
+             <p className="text-xs font-semibold text-slate-700">Noch keine Empfehlung</p>
+             <p className="text-[11px] text-slate-500 mt-0.5">Vertriebo analysiert Kontakthistorie, Aufgaben und Lead-Daten.</p>
+           </div>
+           <Button
+             size="sm"
+             onClick={() => generate(false)}
+             disabled={loading}
+             className="gap-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white"
+           >
+             <Sparkles className="w-3 h-3" /> Empfehlung erstellen
+           </Button>
+           <p className="text-[10px] text-slate-400">Aktualisiert Ihren Kontakt-Status</p>
         </div>
       )}
     </div>

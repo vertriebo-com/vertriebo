@@ -222,28 +222,28 @@ export default function BillingSettings({ org: orgProp, user }) {
         </h3>
         <div className="grid sm:grid-cols-2 gap-3">
           <UsageBar
-            label="Gespeicherte Kontakte"
+            label="Gespeicherte Firmenkontakte"
             icon={Database}
             used={usageLog?.leads_created || 0}
             max={plan?.max_leads_per_month ?? -1}
             color="bg-blue-500"
           />
           <UsageBar
-            label="Lead-Recherchen"
+            label="Vertriebo-Recherchen"
             icon={Search}
             used={usageLog?.lead_generations_used || 0}
             max={plan?.max_lead_generations_per_month ?? -1}
             color="bg-indigo-500"
           />
           <UsageBar
-            label="Manuell dok. E-Mails"
+            label="Dokumentierte E-Mails"
             icon={Mail}
             used={usageLog?.manual_emails_logged || 0}
             max={-1}
             color="bg-green-500"
           />
           <UsageBar
-            label="KI-Aktionen (Leitfaden, Empfehlung, Anreicherung)"
+            label="Vertriebo-Aktionen"
             icon={Brain}
             used={usageLog?.ai_actions_used || 0}
             max={plan?.max_ai_scorings_per_month ?? -1}
