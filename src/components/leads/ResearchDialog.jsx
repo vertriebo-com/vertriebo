@@ -124,7 +124,9 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
       console.log("[ResearchDialog] RESULT", res.data);
 
-      if (res.data?.success) {
+      if (res.data?.parallelLockActive) {
+        setError(res.data.error || "Es läuft bereits eine Recherche. Bitte warten Sie kurz.");
+      } else if (res.data?.success) {
         // Ergebnis SOFORT setzen – nichts darf das blockieren
         setResult({ success: true, data: res.data });
         console.log("[ResearchDialog] SET RESULT DONE");

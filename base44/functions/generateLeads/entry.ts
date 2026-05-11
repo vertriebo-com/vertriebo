@@ -500,6 +500,49 @@ function extractAddressComponents(components = []) {
   return { plz, ort, adresse: [strasse, hausnummer].filter(Boolean).join(" ") };
 }
 
+// ─── Parallel-Run-Lock via OrganizationSettings ───────────────────────────────
+const LOCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 Minuten
+
+async function acquireLeadResearchLock(base44, organization_id, user_email) {
+  const existing = await base44.asServiceRole.entities.OrganizationSettings.filter({
+    organization_id, key: 'lead_research_running'
+  });
+  const startedAtRec = await base44.asServiceRole.entities.OrganizationSettings.filter({
+    organization_id, key: 'lead_research_started_at'
+  });
+
+  if (existing[0]?.value === 'true' && startedAtRec[0]?.value) {
+    const age = Date.now() - new Date(startedAtRec[0].value).getTime();
+    if (age < LOCK_TIMEOUT_MS) {
+      const lockedByRec = await base44.asServiceRole.entities.OrganizationSettings.filter({
+        organization_id, key: 'lead_research_locked_by'
+      });
+      return { acquired: false, lockedBy: lockedByRec[0]?.value || 'unbekannt', startedAt: startedAtRec[0].value };
+    }
+    console.warn(`[generateLeads] Stale lock gefunden (${Math.round(age/60000)}min alt) – wird überschrieben`);
+  }
+
+  const now = new Date().toISOString();
+  const upsert = async (key, value) => {
+    const rec = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id, key });
+    if (rec[0]) await base44.asServiceRole.entities.OrganizationSettings.update(rec[0].id, { value });
+    else await base44.asServiceRole.entities.OrganizationSettings.create({ organization_id, key, value });
+  };
+  await upsert('lead_research_running', 'true');
+  await upsert('lead_research_started_at', now);
+  await upsert('lead_research_locked_by', user_email);
+  return { acquired: true };
+}
+
+async function releaseLeadResearchLock(base44, organization_id) {
+  try {
+    const rec = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id, key: 'lead_research_running' });
+    if (rec[0]) await base44.asServiceRole.entities.OrganizationSettings.update(rec[0].id, { value: 'false' });
+  } catch (e) {
+    console.error('[generateLeads] Lock-Release fehlgeschlagen:', e.message);
+  }
+}
+
 // ─── Period Month Helper ──────────────────────────────────────────────────────
 function getPeriodMonth() {
   const now = new Date();
@@ -558,10 +601,15 @@ async function upsertUsageLog(base44, organization_id, delta, lastReport) {
 
 // ─── Main Handler ─────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
+  let _base44ForFinally = null;
+  let _orgIdForFinally = null;
+  let _lockAcquired = false;
   try {
     const base44 = createClientFromRequest(req);
+    _base44ForFinally = base44;
     const body = await req.json();
     const { organization_id, target_count = 25 } = body;
+    _orgIdForFinally = organization_id;
 
     if (!organization_id) return Response.json({ error: 'organization_id ist Pflichtparameter' }, { status: 400 });
 
@@ -686,6 +734,17 @@ Deno.serve(async (req) => {
       ...nearbyCities.slice(0, 2), // max 2 dynamische Nachbarorte
     ].filter((v, i, arr) => arr.indexOf(v) === i); // Deduplizierung
 
+    // ── Parallel-Lock setzen ────────────────────────────────────────────────
+    const lockResult = await acquireLeadResearchLock(base44, organization_id, access.user.email);
+    if (lockResult.acquired) _lockAcquired = true;
+    if (!lockResult.acquired) {
+      console.warn(`[generateLeads] Parallel-Lock aktiv für org=${organization_id}, gestartet von ${lockResult.lockedBy} um ${lockResult.startedAt}`);
+      return Response.json({
+        error: `Es läuft bereits eine Recherche für diese Organisation (gestartet ${new Date(lockResult.startedAt).toLocaleTimeString('de-DE')} von ${lockResult.lockedBy}). Bitte warten Sie kurz.`,
+        success: false, parallelLockActive: true,
+      }, { status: 429 });
+    }
+
     console.info(`[generateLeads] START org=${organization_id}, Stadt=${city}, Zielstädte=${targetLocations.join("|")||"–"}, NachbarnDynamisch=${nearbyCities.join("|")||"–"}, AlleSuchstädte=${allSearchCities.join("|")}, Zielkunden=${targetCustomers.join("|")}${excludedTargets.length ? `, Ausschlüsse=${excludedTargets.join("|")}` : ""}, Radius=${radiusKm}km, effectiveTarget=${effectiveTarget}`);
 
     // Existierende Firmen für Duplikat-Check
@@ -704,7 +763,16 @@ Deno.serve(async (req) => {
         }
       }
     }
-    console.info(`[generateLeads] ${searchQueryList.length} Suchanfragen für ${allSearchCities.join(", ")}`);
+    // ── Max-Query-Limit (Kostenschutz) ──────────────────────────────────────
+    const MAX_SEARCH_QUERIES_PER_RUN = 40;
+    const MAX_PLACE_DETAILS_PER_RUN = 80;
+    let queriesLimited = false;
+    if (searchQueryList.length > MAX_SEARCH_QUERIES_PER_RUN) {
+      console.warn(`[generateLeads] Query-Limit: ${searchQueryList.length} Anfragen → auf ${MAX_SEARCH_QUERIES_PER_RUN} begrenzt`);
+      searchQueryList.splice(MAX_SEARCH_QUERIES_PER_RUN);
+      queriesLimited = true;
+    }
+    console.info(`[generateLeads] ${searchQueryList.length} Suchanfragen für ${allSearchCities.join(", ")}${queriesLimited ? " (begrenzt)" : ""}`);
 
     // Counters
     const createdIds = [];
@@ -781,7 +849,11 @@ Deno.serve(async (req) => {
           continue;
         }
 
-        // Place Details (kostenpflichtig – erst nach Relevanzprüfung!)
+        // Place Details (kostenpflichtig – erst nach Relevanzprüfung + Limit-Check!)
+        if (apiCounters.placeDetailsEssentials >= MAX_PLACE_DETAILS_PER_RUN) {
+          console.warn(`[generateLeads] Place-Details-Limit (${MAX_PLACE_DETAILS_PER_RUN}) erreicht – Lauf beendet`);
+          break;
+        }
         const details = await getPlaceDetails(place.place_id, apiCounters);
         const { plz, ort, adresse } = extractAddressComponents(details?.address_components || []);
         const phone = details?.formatted_phone_number || "";
@@ -898,7 +970,7 @@ Deno.serve(async (req) => {
       console.error(`[generateLeads] UsageLog FEHLER: ${usageErr.message}`);
     }
 
-    console.info(`[generateLeads] REPORT org=${organization_id}: raw=${raw_hits}, outside_radius=${skipped_outside_radius}, no_match=${skipped_no_match}, duplicate=${skipped_duplicate}, created=${newLeadsSaved}, runType=${runType}`);
+    console.info(`[generateLeads] REPORT org=${organization_id}: raw=${raw_hits}, outside_radius=${skipped_outside_radius}, no_match=${skipped_no_match}, duplicate=${skipped_duplicate}, created=${newLeadsSaved}, runType=${runType}${queriesLimited ? " [QUERY-LIMIT AKTIV]" : ""}`);
     console.info(`[generateLeads] API calls: textSearch=${apiCounters.textSearch}, placeDetails=${apiCounters.placeDetailsEssentials}`);
     console.info(`[generateLeads] Kosten: ~${estimatedCostCent.toFixed(2)} Cent`);
 
@@ -909,6 +981,7 @@ Deno.serve(async (req) => {
       count: newLeadsSaved,
       chargedLeadGeneration,
       runType,
+      queriesLimited,
       summary: {
         raw_hits,
         saved: newLeadsSaved,
@@ -939,11 +1012,16 @@ Deno.serve(async (req) => {
         estimated_external_cost_cent: estimatedCostCent,
       },
       search_queries: searchQueryList.map(q => q.query),
-      details: `${raw_hits} Roh-Treffer, ${skipped_outside_radius} außerhalb Radius, ${skipped_no_match} nicht passend, ${skipped_ambiguous} unklare Verwaltungstreffer, ${skipped_duplicate} Dubletten, ${newLeadsSaved} gespeichert. Credits verbraucht: ${chargedLeadGeneration ? "ja" : "nein"} (runType: ${runType})`,
+      details: `${raw_hits} Roh-Treffer, ${skipped_outside_radius} außerhalb Radius, ${skipped_no_match} nicht passend, ${skipped_ambiguous} unklare Verwaltungstreffer, ${skipped_duplicate} Dubletten, ${newLeadsSaved} gespeichert. Credits verbraucht: ${chargedLeadGeneration ? "ja" : "nein"} (runType: ${runType})${queriesLimited ? " Suchanfragen wurden zur Kostenkontrolle begrenzt." : ""}`,
     });
 
   } catch (error) {
     console.error('[generateLeads] Error:', error.message, error.stack);
     return Response.json({ error: error.message, success: false }, { status: 500 });
+  } finally {
+    // Lock immer freigeben – auch bei Fehlern oder Timeouts
+    if (_lockAcquired && _base44ForFinally && _orgIdForFinally) {
+      await releaseLeadResearchLock(_base44ForFinally, _orgIdForFinally);
+    }
   }
 });

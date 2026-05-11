@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -161,6 +161,7 @@ export default function CallScriptDialog({ company }) {
   const [orgSettings, setOrgSettings] = useState(null);
   const [orgId, setOrgId] = useState(null);
   const [limitReached, setLimitReached] = useState(false);
+  const generatingRef = useRef(false);
 
   const loadOrgSettings = async () => {
     if (orgSettings) return { settings: orgSettings, orgId };
@@ -217,6 +218,8 @@ export default function CallScriptDialog({ company }) {
   };
 
   const generateScript = async () => {
+    if (generatingRef.current) return;
+    generatingRef.current = true;
     setLoading(true);
     setScriptData(null);
     setIsFallback(false);
@@ -251,9 +254,9 @@ export default function CallScriptDialog({ company }) {
     let parsed = null;
     let kiSucceeded = false;
     try {
-      const raw = await base44.integrations.Core.InvokeLLM({
+      const llmPromise = base44.integrations.Core.InvokeLLM({
         model: "claude_sonnet_4_6",
-        prompt: `Du erstellst einen strukturierten Gesprächsleitfaden als JSON für einen Kaltakquise-Anruf.
+        prompt: `Du erstellst einen strukturierten Gesprächsleitfaden als JSON für einen Kaltakquise-Anruf. ANTWORTE NUR MIT JSON.
 
 UNSER UNTERNEHMEN (wir rufen an):
 - Firmenname: ${firmenname}
@@ -281,6 +284,10 @@ Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklärungen). Format:
 
 Texte kurz, praxisnah, auf Deutsch. Keine Markdown-Zeichen in den Texten.`,
       });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("KI-Anfrage hat zu lange gedauert. Bitte erneut versuchen.")), 45000)
+      );
+      const raw = await Promise.race([llmPromise, timeoutPromise]);
 
       if (raw && typeof raw === "object" && raw.einstieg) {
         parsed = raw;
@@ -322,6 +329,7 @@ Texte kurz, praxisnah, auf Deutsch. Keine Markdown-Zeichen in den Texten.`,
 
     setScriptData(parsed);
     setLoading(false);
+    generatingRef.current = false;
   };
 
   const handleOpen = () => {

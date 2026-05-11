@@ -97,7 +97,24 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Sales Rep darf nur zugewiesene Leads anreichern' }, { status: 403 });
     }
 
-    // ── 4. LLM-Recherche ────────────────────────────────────────────────────
+    // ── 4. KI-Limit prüfen vor LLM ──────────────────────────────────────────
+    const now = new Date();
+    const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    let currentUsageLog = null;
+    try {
+      const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
+      currentUsageLog = usageLogs[0] || null;
+    } catch (_) {}
+
+    const aiUsed = (currentUsageLog?.ai_actions_used || 0);
+    const planLimits = access.limits;
+    const maxAi = planLimits?.max_ai_scorings_per_month ?? 50;
+    if (maxAi !== -1 && aiUsed >= maxAi) {
+      console.warn(`[enrichCompany] KI-Limit erreicht: ${aiUsed}/${maxAi} für org=${organization_id}`);
+      return Response.json({ error: `KI-Aktionslimit erreicht: ${aiUsed}/${maxAi} diesen Monat. Bitte warten Sie bis zum nächsten Monat oder upgraden Sie Ihren Plan.`, limitReached: true }, { status: 403 });
+    }
+
+    // ── 5. LLM-Recherche ────────────────────────────────────────────────────
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: `Recherchiere folgende Firma im Internet und gib mir die offiziellen Kontaktdaten zurück.
 
@@ -130,16 +147,18 @@ WICHTIG: Gib nur Felder zurück, die du mit Sicherheit gefunden hast. Wenn du ei
       await base44.asServiceRole.entities.Company.update(companyId, updates);
     }
 
-    // ── 5. UsageLog: ai_scorings_used ───────────────────────────────────────
+    // ── 6. UsageLog: ai_actions_used (period_month) ──────────────────────────
     try {
-      const now = new Date();
-      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
-      const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_start: periodStart });
-      if (usageLogs[0]) {
-        await base44.asServiceRole.entities.UsageLog.update(usageLogs[0].id, { ai_scorings_used: (usageLogs[0].ai_scorings_used || 0) + 1 });
+      if (currentUsageLog) {
+        await base44.asServiceRole.entities.UsageLog.update(currentUsageLog.id, {
+          ai_actions_used: (currentUsageLog.ai_actions_used || 0) + 1,
+        });
       } else {
-        await base44.asServiceRole.entities.UsageLog.create({ organization_id, period_start: periodStart, period_end: periodEnd, ai_scorings_used: 1 });
+        const periodStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString();
+        const periodEnd = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)).toISOString();
+        await base44.asServiceRole.entities.UsageLog.create({
+          organization_id, period_month: periodMonth, period_start: periodStart, period_end: periodEnd, ai_actions_used: 1,
+        });
       }
     } catch (e) { console.warn('[enrichCompany] UsageLog failed:', e.message); }
 

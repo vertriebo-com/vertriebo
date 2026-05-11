@@ -17,6 +17,7 @@ import AddTaskDialog from "../components/AddTaskDialog";
 import SendEmailDialog from "../components/SendEmailDialog";
 import { toast } from "sonner";
 import moment from "moment";
+import { useRef } from "react";
 
 export default function LeadDetail() {
   const { id } = useParams();
@@ -28,6 +29,7 @@ export default function LeadDetail() {
   const [showAddLog, setShowAddLog] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
   const [enriching, setEnriching] = useState(false);
+  const enrichingRef = useRef(false);
   const [notizen, setNotizen] = useState("");
   const [notizenSaving, setNotizenSaving] = useState(false);
   const [showSonstigesDialog, setShowSonstigesDialog] = useState(false);
@@ -163,6 +165,8 @@ export default function LeadDetail() {
   const isAdmin = currentUser?.role === "admin" || currentUser?.role === "organization_admin";
 
   const handleEnrich = async () => {
+    if (enrichingRef.current) return;
+    enrichingRef.current = true;
     setEnriching(true);
     try {
       const currentOrgId = company.organization_id || orgId;
@@ -194,6 +198,7 @@ export default function LeadDetail() {
       toast.error("Anreichern fehlgeschlagen: " + (e?.message || "Unbekannter Fehler"));
     } finally {
       setEnriching(false);
+      enrichingRef.current = false;
     }
   };
 
