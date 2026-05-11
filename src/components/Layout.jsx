@@ -84,9 +84,9 @@ export default function Layout() {
         }`}
       >
         {/* Logo */}
-        <div className="px-4 py-4 border-b border-slate-800">
+        <div className="px-4 py-5 border-b border-slate-800">
           <Link to="/dashboard" className="flex items-center">
-            <VertrieboLogo size="default" className="h-10 w-auto" />
+            <VertrieboLogo size="lg" className="h-12 w-auto" />
           </Link>
         </div>
 

@@ -2,8 +2,8 @@ export default function VertrieboLogo({ size = "default", className = "" }) {
   const sizes = {
     sm: "h-6 w-auto",
     default: "h-8 w-auto",
-    lg: "h-10 w-auto",
-    xl: "h-12 w-auto"
+    lg: "h-24 w-auto",
+    xl: "h-32 w-auto"
   };
 
   return (
@@ -15,7 +15,8 @@ export default function VertrieboLogo({ size = "default", className = "" }) {
       {/* Gold V */}
       <path
         d="M 250 200 L 400 600 L 350 600 L 200 200 Z M 350 200 L 500 600 L 450 600 L 300 200 Z"
-        fill="#D4A574" />
+        fill="#D4A574"
+        shapeRendering="crispEdges" />
       
 
       {/* Silver O */}
