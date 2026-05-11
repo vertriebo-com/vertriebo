@@ -471,8 +471,18 @@ export default function PlatformAdmin() {
                           note.severity === 'warning' ? 'bg-amber-50 border-amber-200' :
                           'bg-slate-50 border-slate-200'
                         }`}>
-                          <p className="font-semibold text-slate-900">{note.note}</p>
-                          <p className="text-slate-500 mt-1">{note.created_by} • {moment(note.created_date).fromNow()}</p>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                              note.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                              note.severity === 'warning' ? 'bg-amber-100 text-amber-700' :
+                              'bg-slate-100 text-slate-600'
+                            }`}>
+                              {note.severity === 'critical' ? 'Kritisch' : note.severity === 'warning' ? 'Warnung' : 'Info'}
+                            </span>
+                            <span className="text-slate-500">{moment(note.created_date).format('DD.MM.YYYY HH:mm')}</span>
+                          </div>
+                          <p className="font-semibold text-slate-900 mb-1">{note.note}</p>
+                          <p className="text-slate-500">{note.created_by}</p>
                         </div>
                       ))}
                     </div>
