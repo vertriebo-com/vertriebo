@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import MobileBottomNav from "./MobileBottomNav";
 import AppHeader from "./AppHeader";
+import VertrieboLogo from "./VertrieboLogo";
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import {
@@ -83,16 +84,10 @@ export default function Layout() {
         }`}
       >
         {/* Logo */}
-        <div className="px-4 py-5 border-b border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-lg">
-              <span className="text-white font-bold text-sm">V</span>
-            </div>
-            <div>
-              <h1 className="text-base font-bold tracking-tight text-white">Vertriebo</h1>
-              <p className="text-[10px] text-slate-400 font-medium">KI-Vertriebssystem</p>
-            </div>
-          </div>
+        <div className="px-4 py-4 border-b border-slate-800">
+          <Link to="/dashboard" className="flex items-center">
+            <VertrieboLogo size="default" className="h-7 w-auto" />
+          </Link>
         </div>
 
         {/* Navigation */}

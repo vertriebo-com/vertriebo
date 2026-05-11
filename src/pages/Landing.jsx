@@ -7,6 +7,7 @@ import HowItWorks from "@/components/landing/HowItWorks";
 import TargetIndustriesCompact from "@/components/landing/TargetIndustriesCompact";
 import ProductShowcase from "@/components/landing/ProductShowcase";
 import PricingFAQ from "@/components/landing/PricingFAQ";
+import VertrieboLogo from "@/components/VertrieboLogo";
 
 const PLANS = [
   {
@@ -129,11 +130,8 @@ export default function Landing() {
     <div className="min-h-screen bg-white">
       {/* Navbar */}
       <nav className="sticky top-0 z-50 bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/7fe9f4d4d_Logo1HUWA.png" alt="Vertriebo Logo" className="w-8 h-8 object-contain" />
-            <span className="text-slate-900 font-bold text-xl tracking-tight">Vertriebo</span>
-          </div>
+        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+          <VertrieboLogo size="lg" className="h-10 w-auto" />
           <div className="flex items-center gap-3">
             <button onClick={handleLogin} className="px-5 py-2 rounded-lg text-sm font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all">
               Login

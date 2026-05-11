@@ -4,6 +4,7 @@ import { Search, Plus, Bell, Building2, Map, ListTodo, CalendarCheck, FileText, 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from "@/api/base44Client";
+import VertrieboLogo from "@/components/VertrieboLogo";
 
 // Sub-pages that should show a back button on mobile
 const SUB_PAGES = ["/leads/", "/tasks/", "/documents/"];
@@ -145,18 +146,18 @@ export default function AppHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-[76px]">
           
-          {/* Links: Mobile Back oder Menü, Desktop Icon + Titel */}
-          <div className="flex items-center gap-4 flex-1 min-w-0">
+          {/* Links: Logo + Titel */}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Logo */}
+            <Link to="/dashboard" className="shrink-0 hidden sm:flex">
+              <VertrieboLogo size="sm" className="h-7 w-auto" />
+            </Link>
             {/* Mobile Back Button für Sub-Pages */}
             {isSubPage && (
               <button onClick={() => navigate(-1)} className="sm:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg">
                 <ChevronRight className="w-5 h-5 rotate-180" />
               </button>
             )}
-            {/* Desktop Icon */}
-            <div className="hidden sm:flex items-center justify-center w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 shrink-0">
-              <Icon className="w-5 h-5 text-blue-600" />
-            </div>
             {/* Titel */}
             <div className="min-w-0">
               <h1 className="text-lg font-bold text-slate-900 truncate">{config.title}</h1>
