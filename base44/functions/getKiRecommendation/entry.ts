@@ -14,9 +14,16 @@ Deno.serve(async (req) => {
     }
 
     // ── 1. Company laden & Zugehörigkeit prüfen ──────────────────────────────
-    const companies = await base44.asServiceRole.entities.Company.filter({ id: company_id, organization_id });
+    let companies = [];
+    try {
+      companies = await base44.asServiceRole.entities.Company.filter({ id: company_id, organization_id });
+    } catch (sdkErr) {
+      // SDK wirft bei ungültiger ID (z.B. "Invalid id value") → sauber als 404 zurückgeben
+      console.warn(`[getKiRecommendation] Company-Lookup SDK-Fehler: ${sdkErr.message}`);
+      return Response.json({ success: false, error: 'company_not_found' }, { status: 404 });
+    }
     const company = companies[0] || null;
-    if (!company) return Response.json({ error: 'Firma nicht gefunden' }, { status: 404 });
+    if (!company) return Response.json({ success: false, error: 'company_not_found' }, { status: 404 });
 
     // ── 2. Cache zurückgeben wenn vorhanden und kein force_regenerate ────────
     if (!force_regenerate && company.ki_recommendation) {
@@ -100,6 +107,7 @@ Deno.serve(async (req) => {
     let aiCharged = false;
 
     try {
+      console.info(`[getKiRecommendation] Starte LLM-Aufruf für company=${company.name}`);
       const llmPromise = base44.integrations.Core.InvokeLLM({
         model: 'claude_sonnet_4_6',
         prompt: `Du bist ein erfahrener B2B-Vertriebscoach. Analysiere diesen Lead und gib eine strukturierte Handlungsempfehlung zurück. Antworte NUR mit einem JSON-Objekt, kein Text davor oder danach.
@@ -161,15 +169,22 @@ Antworte EXAKT mit diesem JSON-Format (kein Markdown):
 
       const result = await Promise.race([llmPromise, timeoutPromise]);
 
-      if (result && result.priority && result.next_action && result.title) {
-        recommendation = result;
+      console.info(`[getKiRecommendation] LLM result type=${typeof result}, keys=${result ? Object.keys(result).join(',') : 'null'}`);
+
+      // SDK may wrap response_json_schema results in { response: {...} }
+      const parsed = (result && result.response && typeof result.response === 'object') ? result.response : result;
+
+      if (parsed && parsed.priority && parsed.next_action && parsed.title) {
+        recommendation = parsed;
         source = 'llm';
         aiCharged = true;
       } else {
+        console.warn(`[getKiRecommendation] Unvollständige KI-Antwort:`, JSON.stringify(result));
         throw new Error('Unvollständige KI-Antwort');
       }
     } catch (llmError) {
-      console.warn(`[getKiRecommendation] LLM fehlgeschlagen: ${llmError.message} – verwende Fallback`);
+      console.warn(`[getKiRecommendation] LLM fehlgeschlagen: ${llmError?.message || String(llmError)} – verwende Fallback`);
+      console.warn(`[getKiRecommendation] LLM error detail:`, JSON.stringify(llmError?.response?.data || llmError?.cause || {}));
       source = 'fallback';
       aiCharged = false;
 
@@ -260,7 +275,7 @@ Antworte EXAKT mit diesem JSON-Format (kein Markdown):
     return Response.json({ recommendation, source, ai_action_charged: aiCharged });
 
   } catch (error) {
-    console.error('[getKiRecommendation] Error:', error.message);
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error('[getKiRecommendation] Unhandled error:', error.message);
+    return Response.json({ success: false, error: 'internal_error', detail: error.message }, { status: 500 });
   }
 });
