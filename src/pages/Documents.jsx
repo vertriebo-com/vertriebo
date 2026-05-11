@@ -19,6 +19,7 @@ const KATEGORIE_COLORS = {
 export default function Documents() {
   const [documents, setDocuments] = useState([]);
   const [user, setUser] = useState(null);
+  const [orgId, setOrgId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [titel, setTitel] = useState("");
@@ -46,6 +47,7 @@ export default function Documents() {
       }
     }
     orgId = org?.id || null;
+    setOrgId(orgId);
 
     const docs = orgId
       ? await base44.entities.Document.filter({ organization_id: orgId }, "-created_date", 100)
@@ -77,11 +79,24 @@ export default function Documents() {
     setUploading(false);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (doc) => {
     if (!window.confirm("Dokument wirklich löschen?")) return;
-    if (!isAdmin) { toast.error("Nur Admins dürfen Dokumente löschen."); return; }
-    await base44.entities.Document.delete(id);
-    setDocuments(prev => prev.filter(d => d.id !== id));
+
+    // orgId aus dem Dokument oder lokal gespeichert
+    const docOrgId = doc.organization_id || orgId;
+    const res = await base44.functions.invoke("deleteDocument", {
+      document_id: doc.id,
+      organization_id: docOrgId,
+    });
+    if (res.data?.error === "forbidden") {
+      toast.error("Keine Berechtigung: Nur Admins dürfen Dokumente löschen.");
+      return;
+    }
+    if (res.data?.error) {
+      toast.error("Fehler: " + res.data.error);
+      return;
+    }
+    setDocuments(prev => prev.filter(d => d.id !== doc.id));
     toast.success("Dokument gelöscht.");
   };
 
@@ -184,7 +199,7 @@ export default function Documents() {
                   </Button>
                 </a>
                 {isAdmin && (
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(doc.id)}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50" onClick={() => handleDelete(doc)}>
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 )}

@@ -1,0 +1,65 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user) {
+      return Response.json({ error: 'unauthorized' }, { status: 401 });
+    }
+
+    const { company_id, organization_id } = await req.json();
+    if (!company_id || !organization_id) {
+      return Response.json({ error: 'missing_params' }, { status: 400 });
+    }
+
+    // Prüfen: User gehört zur Organisation und ist Admin
+    const members = await base44.asServiceRole.entities.OrganizationMember.filter({
+      organization_id,
+      user_email: user.email,
+      status: 'active',
+    });
+
+    const isAdmin =
+      user.role === 'admin' ||
+      members.some(m => ['admin', 'organization_admin'].includes(m.role));
+
+    if (!isAdmin) {
+      return Response.json({ error: 'forbidden' }, { status: 403 });
+    }
+
+    // Prüfen: Firma gehört zur Organisation
+    const companies = await base44.asServiceRole.entities.Company.filter({
+      id: company_id,
+      organization_id,
+    });
+
+    if (!companies.length) {
+      return Response.json({ error: 'not_found' }, { status: 404 });
+    }
+
+    const company = companies[0];
+
+    // Blacklist-Eintrag erstellen (falls noch nicht vorhanden)
+    await base44.asServiceRole.entities.Blacklist.create({
+      organization_id,
+      firmenname: company.name,
+      telefon: company.telefon || '',
+      email: company.email || '',
+      grund: 'Manuell hinzugefügt',
+    });
+
+    // Firma als blacklisted und Verloren markieren
+    await base44.asServiceRole.entities.Company.update(company_id, {
+      is_blacklisted: true,
+      status: 'Verloren',
+    });
+
+    console.log(`[blacklistCompany] OK: user=${user.email} company=${company_id} org=${organization_id}`);
+    return Response.json({ success: true });
+
+  } catch (error) {
+    console.error('[blacklistCompany] Fehler:', error.message);
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+});

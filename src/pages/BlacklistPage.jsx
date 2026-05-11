@@ -59,13 +59,18 @@ export default function BlacklistPage() {
   };
 
   const handleRemove = async (id) => {
-    // Nur Admins dürfen Blacklist-Einträge löschen
-    const me = await base44.auth.me();
-    if (me.role !== "admin" && me.role !== "organization_admin") {
-      toast.error("Nur Admins dürfen Einträge von der Blacklist entfernen.");
+    const res = await base44.functions.invoke("deleteBlacklistEntry", {
+      entry_id: id,
+      organization_id: orgId,
+    });
+    if (res.data?.error === "forbidden") {
+      toast.error("Keine Berechtigung: Nur Admins dürfen Einträge entfernen.");
       return;
     }
-    await base44.entities.Blacklist.delete(id);
+    if (res.data?.error) {
+      toast.error("Fehler: " + res.data.error);
+      return;
+    }
     toast.success("Von Blacklist entfernt");
     loadData();
   };

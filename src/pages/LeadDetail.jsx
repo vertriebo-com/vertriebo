@@ -132,15 +132,29 @@ export default function LeadDetail() {
 
   const handleBlacklist = async () => {
     const currentOrgId = company.organization_id || orgId;
-    await base44.entities.Blacklist.create({ organization_id: currentOrgId, firmenname: company.name, telefon: company.telefon, email: company.email, grund: "Manuell hinzugefügt" });
-    await base44.entities.Company.update(id, { is_blacklisted: true, status: "Verloren" });
+    const res = await base44.functions.invoke("blacklistCompany", {
+      company_id: id,
+      organization_id: currentOrgId,
+    });
+    if (res.data?.error) {
+      toast.error("Fehler: " + res.data.error);
+      return;
+    }
     toast.success("Firma auf Blacklist gesetzt");
     setShowBlacklistConfirm(false);
     navigate("/leads");
   };
 
   const handleDelete = async () => {
-    await base44.entities.Company.delete(id);
+    const currentOrgId = company.organization_id || orgId;
+    const res = await base44.functions.invoke("deleteCompany", {
+      company_id: id,
+      organization_id: currentOrgId,
+    });
+    if (res.data?.error) {
+      toast.error("Fehler: " + res.data.error);
+      return;
+    }
     toast.success("Firma gelöscht");
     setShowDeleteConfirm(false);
     navigate("/leads");
