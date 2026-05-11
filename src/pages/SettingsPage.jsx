@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Building2, Mail, FileText, Users, CreditCard, Info, User, Building, Phone, FileCheck, UserPlus, Zap } from "lucide-react";
+import { Loader2, Info, User, Building, Mail, FileCheck, Users, Zap } from "lucide-react";
 import CompanySettings from "@/components/settings/CompanySettings";
 import EmailSettings from "@/components/settings/EmailSettings";
 import EmailTemplateSettings from "@/components/settings/EmailTemplateSettings";

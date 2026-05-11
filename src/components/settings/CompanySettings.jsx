@@ -157,8 +157,10 @@ export default function CompanySettings({ org: orgProp }) {
   const saveSettingKey = async (currentOrgId, existingMap, key, value) => {
     const strVal = String(value ?? "");
     if (existingMap[key]) {
+      // Always update existing records (including clearing them)
       await base44.entities.OrganizationSettings.update(existingMap[key], { value: strVal });
     } else if (strVal) {
+      // Only create new records if there's a value
       await base44.entities.OrganizationSettings.create({ organization_id: currentOrgId, key, value: strVal });
     }
   };
