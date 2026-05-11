@@ -149,6 +149,7 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
   // ── 3. Organization check (required for non-platform users) ─────────────────
   if (!organization_id) return deny('missing_organization_id', 'Keine organisation_id angegeben.');
 
+  // Safe organization lookup with SDK error handling
   let orgs, members;
   try {
     [orgs, members] = await Promise.all([
@@ -158,12 +159,18 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
         user_email: user.email,
       }),
     ]);
-  } catch {
-    return deny('organization_not_found', `Organisation "${organization_id}" nicht gefunden.`);
+  } catch (err) {
+    console.warn('[checkAccess] Invalid organization lookup', {
+      organization_id,
+      error: err?.message,
+    });
+    return deny('invalid_organization_id', `Ungültige Organisation: "${organization_id}".`);
   }
 
   const organization = orgs[0] || null;
-  if (!organization) return deny('organization_not_found', `Organisation "${organization_id}" nicht gefunden.`);
+  if (!organization) {
+    return deny('organization_not_found', `Organisation "${organization_id}" nicht gefunden.`);
+  }
 
   if (organization.status === 'suspended') {
     return deny('organization_suspended', `Organisation ist gesperrt: ${organization.suspended_reason || 'kein Grund angegeben'}.`);
