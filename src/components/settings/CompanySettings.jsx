@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import IndustryChangeConfirmDialog from "./IndustryChangeConfirmDialog";
+import { INDUSTRY_PRESETS, getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
+import { useState, useEffect } from "react";
 
 // ─── Zielkunden → Google Places Suchbegriffe Mapping ─────────────────────────
 export const ZIELKUNDEN_SEARCH_MAPPING = {
@@ -29,10 +32,8 @@ const DIENSTLEISTUNGEN_OPTIONS = [
   "Sicherheitsdienst","IT-Service","Catering","Logistik / Transport",
 ];
 
-const INDUSTRIES = [
-  "Gebäudereinigung","Sicherheitsdienst","IT-Service","Gartenbau",
-  "Catering","Handwerk","Spedition / Logistik","Gesundheit / Medizin","Immobilien","Lager / Fulfillment",
-];
+// Branchen direkt aus der Taxonomie laden
+const INDUSTRIES = INDUSTRY_PRESETS.map(p => p.label);
 
 const PLAN_RADIUS_LIMITS = {
   starter:      25,
@@ -91,6 +92,8 @@ export default function CompanySettings({ org: orgProp }) {
   const [termineProWoche, setTermineProWoche] = useState("3");
   const [followUpTage, setFollowUpTage] = useState("3");
   const [standardVertriebler, setStandardVertriebler] = useState("none");
+  const [showIndustryChangeDialog, setShowIndustryChangeDialog] = useState(false);
+  const [pendingIndustryChange, setPendingIndustryChange] = useState(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -262,6 +265,47 @@ export default function CompanySettings({ org: orgProp }) {
     setSaving(false);
   };
 
+  // Branchenwechsel mit auto-update Logik für Zielkunden
+  const handleIndustryChange = (newIndustryLabel) => {
+    const newIndustryId = getIndustryIdByLabel(newIndustryLabel);
+    const newPreset = getIndustryPreset(newIndustryId);
+
+    // Wenn neue Branche hat Vorschläge und Nutzer hat bereits Zielkunden gesetzt
+    // → Dialog zeigen
+    if (newPreset && zielkunden.length > 0) {
+      setPendingIndustryChange({
+        oldLabel: industry,
+        newLabel: newIndustryLabel,
+        newPreset: newPreset
+      });
+      setShowIndustryChangeDialog(true);
+    } else {
+      // Keine Zielkunden gesetzt oder neue Branche — direkt aktualisieren
+      applyIndustryChange(newIndustryLabel, true);
+    }
+  };
+
+  const applyIndustryChange = (newIndustryLabel, applySuggestions = true) => {
+    const newIndustryId = getIndustryIdByLabel(newIndustryLabel);
+    const newPreset = getIndustryPreset(newIndustryId);
+
+    setIndustry(newIndustryLabel);
+
+    if (newPreset && applySuggestions) {
+      // Auto-update Zielkunden von Preset
+      setZielkunden(newPreset.targetCustomerTypes);
+      toast.success(`Zielkunden für ${newIndustryLabel} aktualisiert`);
+    }
+  };
+
+  const handleIndustryChangeConfirm = async (applySuggestions) => {
+    if (pendingIndustryChange) {
+      applyIndustryChange(pendingIndustryChange.newLabel, applySuggestions);
+    }
+    setShowIndustryChangeDialog(false);
+    setPendingIndustryChange(null);
+  };
+
   const toggleZielkunde = (v) => setZielkunden(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const toggleDienst = (v) => setDienstleistungen(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const addCustomZielkunde = () => {
@@ -304,10 +348,17 @@ export default function CompanySettings({ org: orgProp }) {
           </div>
           <div className="sm:col-span-2">
             <Label className="text-xs font-bold mb-2 block text-slate-800">Branche</Label>
+            <p className="text-[11px] text-slate-500 mb-2.5 font-medium">
+              Die Branche bestimmt automatisch vorgeschlagene Zielkunden und Suchbegriffe.
+            </p>
             <div className="flex flex-wrap gap-2">
               {INDUSTRIES.map(ind => (
-                <button key={ind} type="button" onClick={() => setIndustry(industry === ind ? "" : ind)}
-                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${industry === ind ? "border-primary bg-primary/10 text-primary" : "border-slate-200 text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}>
+                <button
+                  key={ind}
+                  type="button"
+                  onClick={() => handleIndustryChange(industry === ind ? "" : ind)}
+                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${industry === ind ? "border-primary bg-primary/10 text-primary" : "border-slate-200 text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}
+                >
                   {ind}
                 </button>
               ))}
@@ -552,6 +603,22 @@ export default function CompanySettings({ org: orgProp }) {
           {saving ? "Wird gespeichert..." : "Änderungen speichern"}
         </Button>
       </div>
+
+      {/* Industry Change Confirmation Dialog */}
+      {pendingIndustryChange && (
+        <IndustryChangeConfirmDialog
+          isOpen={showIndustryChangeDialog}
+          oldIndustry={pendingIndustryChange.oldLabel}
+          newIndustry={pendingIndustryChange.newLabel}
+          currentTargetCustomers={zielkunden}
+          suggestedTargetCustomers={pendingIndustryChange.newPreset.targetCustomerTypes}
+          onConfirm={handleIndustryChangeConfirm}
+          onCancel={() => {
+            setShowIndustryChangeDialog(false);
+            setPendingIndustryChange(null);
+          }}
+        />
+      )}
     </div>
   );
 }
