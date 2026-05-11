@@ -1,0 +1,33 @@
+{
+  "name": "SupportNote",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisations ID"
+    },
+    "created_by": {
+      "type": "string",
+      "title": "Erstellt von (E-Mail)"
+    },
+    "note": {
+      "type": "string",
+      "title": "Notiz"
+    },
+    "severity": {
+      "type": "string",
+      "title": "Schweregrad",
+      "enum": [
+        "info",
+        "warning",
+        "critical"
+      ],
+      "default": "info"
+    }
+  },
+  "required": [
+    "organization_id",
+    "created_by",
+    "note"
+  ]
+}

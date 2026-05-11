@@ -10,6 +10,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import PlatformRouteGuard from './components/PlatformRouteGuard';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
+import PlatformAdmin from './pages/PlatformAdmin';
 import Leads from './pages/Leads';
 import LeadDetail from './pages/LeadDetail';
 import Tasks from './pages/Tasks';
@@ -161,7 +162,7 @@ const AuthenticatedApp = () => {
   return (
     <OnboardingGuard>
       <Routes>
-        <Route path="/platform/admin" element={<PlatformRouteGuard><Dashboard /></PlatformRouteGuard>} />
+        <Route path="/platform/admin" element={<PlatformRouteGuard><PlatformAdmin /></PlatformRouteGuard>} />
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<AnimatedRoutes><Dashboard /></AnimatedRoutes>} />
           <Route path="/leads" element={<AnimatedRoutes><Leads /></AnimatedRoutes>} />

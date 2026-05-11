@@ -14,7 +14,26 @@
       "type": "string",
       "title": "Inhaber E-Mail"
     },
-    "status": {
+    "organization_type": {
+      "type": "string",
+      "title": "Organisationstyp",
+      "enum": [
+        "direct_customer",
+        "agency",
+        "agency_client"
+      ],
+      "default": "direct_customer"
+    },
+    "parent_agency_id": {
+      "type": "string",
+      "title": "\u00dcbergeordnete Agentur ID"
+    },
+    "is_agency_plan_enabled": {
+      "type": "boolean",
+      "title": "Agency-Plan aktiviert",
+      "default": false
+    },
+    "platform_status": {
       "type": "string",
       "title": "Plattform-Status",
       "enum": [
@@ -23,6 +42,19 @@
         "pending"
       ],
       "default": "pending"
+    },
+    "suspended_reason": {
+      "type": "string",
+      "title": "Sperrungsgrund"
+    },
+    "suspended_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Gesperrt am"
+    },
+    "suspended_by": {
+      "type": "string",
+      "title": "Gesperrt von (E-Mail)"
     },
     "billing_status": {
       "type": "string",
@@ -37,15 +69,6 @@
         "incomplete_expired"
       ],
       "default": "trialing"
-    },
-    "suspended_reason": {
-      "type": "string",
-      "title": "Sperrungsgrund"
-    },
-    "suspended_at": {
-      "type": "string",
-      "format": "date-time",
-      "title": "Gesperrt am"
     },
     "stripe_customer_id": {
       "type": "string",

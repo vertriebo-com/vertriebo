@@ -1,0 +1,55 @@
+{
+  "name": "PlatformAuditLog",
+  "type": "object",
+  "properties": {
+    "actor_email": {
+      "type": "string",
+      "title": "Akteur E-Mail"
+    },
+    "actor_role": {
+      "type": "string",
+      "title": "Akteur Rolle"
+    },
+    "action": {
+      "type": "string",
+      "title": "Aktion"
+    },
+    "target_type": {
+      "type": "string",
+      "title": "Zieltyp",
+      "enum": [
+        "organization",
+        "agency",
+        "agency_client",
+        "support_note"
+      ]
+    },
+    "target_id": {
+      "type": "string",
+      "title": "Ziel ID"
+    },
+    "organization_id": {
+      "type": "string",
+      "title": "Organisations ID"
+    },
+    "parent_agency_id": {
+      "type": "string",
+      "title": "\u00dcbergeordnete Agentur ID"
+    },
+    "metadata": {
+      "type": "string",
+      "title": "Metadaten (JSON)"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Grund"
+    }
+  },
+  "required": [
+    "actor_email",
+    "action",
+    "target_type",
+    "target_id",
+    "organization_id"
+  ]
+}

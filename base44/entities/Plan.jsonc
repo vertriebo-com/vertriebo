@@ -6,6 +6,15 @@
       "type": "string",
       "title": "Planname"
     },
+    "plan_type": {
+      "type": "string",
+      "title": "Plan-Typ",
+      "enum": [
+        "standard",
+        "agency"
+      ],
+      "default": "standard"
+    },
     "stripe_price_id": {
       "type": "string",
       "title": "Stripe Price ID"
@@ -42,6 +51,16 @@
       "type": "number",
       "title": "Max. Recherche-Credits/Monat",
       "default": 100
+    },
+    "supports_suborganizations": {
+      "type": "boolean",
+      "title": "Unterst\u00fctzt Unterorganisationen",
+      "default": false
+    },
+    "max_suborganizations": {
+      "type": "number",
+      "title": "Max. Unterorganisationen (-1 = unbegrenzt)",
+      "default": 0
     },
     "has_advanced_reports": {
       "type": "boolean",
