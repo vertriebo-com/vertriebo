@@ -25,9 +25,9 @@ const STATUS_LABELS = {
 };
 
 const BILLING_LABELS = {
-  active: { label: 'Zahlend', color: 'bg-emerald-50 text-emerald-700' },
-  trialing: { label: 'Trial', color: 'bg-blue-50 text-blue-700' },
-  past_due: { label: 'Rückstand', color: 'bg-amber-50 text-amber-700' },
+  active: { label: 'Aktiv / Zahlend', color: 'bg-emerald-50 text-emerald-700' },
+  trialing: { label: 'Testphase', color: 'bg-blue-50 text-blue-700' },
+  past_due: { label: 'Zahlung offen', color: 'bg-amber-50 text-amber-700' },
   unpaid: { label: 'Unbezahlt', color: 'bg-red-50 text-red-700' },
   canceled: { label: 'Gekündigt', color: 'bg-slate-50 text-slate-700' },
   incomplete: { label: 'Unvollständig', color: 'bg-slate-50 text-slate-700' },
@@ -136,8 +136,11 @@ export default function PlatformAdmin() {
     }
   };
 
-  const getPlanName = (planId) => {
-    return plans.find(p => p.id === planId)?.name || 'N/A';
+  const getPlanName = (planId, billingStatus) => {
+    if (!planId) {
+      return billingStatus === 'trialing' ? 'Testphase' : 'Kein Plan';
+    }
+    return plans.find(p => p.id === planId)?.name || 'Nicht zugeordnet';
   };
 
   const getAgencyStats = (agencyId) => {
@@ -152,13 +155,49 @@ export default function PlatformAdmin() {
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Shield className="w-8 h-8 text-slate-900" />
-            <h1 className="text-3xl font-bold text-slate-900">Platform Admin Center</h1>
-          </div>
-          <p className="text-sm text-slate-600">Verwaltung aller Organisationen und Agenturen</p>
-        </div>
+         <div className="mb-8">
+           <div className="flex items-center gap-3 mb-2">
+             <Shield className="w-8 h-8 text-slate-900" />
+             <h1 className="text-3xl font-bold text-slate-900">Platform Admin Center</h1>
+           </div>
+           <p className="text-sm text-slate-600">Verwaltung aller Organisationen und Agenturen</p>
+         </div>
+
+         {/* KPI Overview */}
+         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+           <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
+             <p className="text-xs text-slate-500 font-medium mb-1">Gesamt Organisationen</p>
+             <p className="text-2xl font-bold text-slate-900">{organizations.length}</p>
+           </div>
+           <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
+             <p className="text-xs text-slate-500 font-medium mb-1">Aktiv</p>
+             <p className="text-2xl font-bold text-emerald-700">{organizations.filter(o => !o.platform_status || o.platform_status === 'active').length}</p>
+           </div>
+           <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
+             <p className="text-xs text-slate-500 font-medium mb-1">Gesperrt</p>
+             <p className="text-2xl font-bold text-red-700">{organizations.filter(o => o.platform_status === 'suspended').length}</p>
+           </div>
+           <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
+             <p className="text-xs text-slate-500 font-medium mb-1">Onboarding offen</p>
+             <p className="text-2xl font-bold text-amber-700">{organizations.filter(o => !o.onboarding_done).length}</p>
+           </div>
+           <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
+             <p className="text-xs text-slate-500 font-medium mb-1">Testphase</p>
+             <p className="text-2xl font-bold text-blue-700">{organizations.filter(o => o.billing_status === 'trialing').length}</p>
+           </div>
+           <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
+             <p className="text-xs text-slate-500 font-medium mb-1">Aktive Abos</p>
+             <p className="text-2xl font-bold text-emerald-700">{organizations.filter(o => o.billing_status === 'active').length}</p>
+           </div>
+           <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
+             <p className="text-xs text-slate-500 font-medium mb-1">Zahlung offen</p>
+             <p className="text-2xl font-bold text-amber-700">{organizations.filter(o => o.billing_status === 'past_due').length}</p>
+           </div>
+           <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
+             <p className="text-xs text-slate-500 font-medium mb-1">Gesamt Leads</p>
+             <p className="text-2xl font-bold text-slate-900">{organizations.reduce((sum, o) => sum + (o.leads_count || 0), 0)}</p>
+           </div>
+         </div>
 
         {/* Search & Filter */}
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 mb-6 shadow-sm">
@@ -225,48 +264,57 @@ export default function PlatformAdmin() {
                         </span>
                       </td>
                       <td className="px-5 py-4 text-sm text-slate-700">{org.owner_email}</td>
-                      <td className="px-5 py-4 text-sm text-slate-700">{getPlanName(org.plan_id)}</td>
+                      <td className="px-5 py-4 text-sm text-slate-700">{getPlanName(org.plan_id, org.billing_status)}</td>
                       <td className="px-5 py-4">
                         <span className={`text-[11px] font-bold px-2 py-1 rounded ${BILLING_LABELS[org.billing_status]?.color || 'bg-slate-100 text-slate-600'}`}>
                           {BILLING_LABELS[org.billing_status]?.label || org.billing_status}
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`text-[11px] font-bold px-2 py-1 rounded ${STATUS_LABELS[org.platform_status]?.color || 'bg-slate-100'}`}>
-                          {STATUS_LABELS[org.platform_status]?.label || org.platform_status}
+                        <span className={`text-[11px] font-bold px-2 py-1 rounded ${STATUS_LABELS[org.platform_status || 'active']?.color || 'bg-emerald-50 text-emerald-700'}`}>
+                          {STATUS_LABELS[org.platform_status || 'active']?.label || 'Aktiv'}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-sm font-semibold text-slate-900">{org.leads_count}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setSelectedOrg(org)}
-                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                            title="Details ansehen"
-                          >
-                            <Eye className="w-4 h-4 text-slate-600" />
-                          </button>
-                          {org.platform_status === 'active' && (
-                            <button
-                              onClick={() => {
-                                setSelectedOrg(org);
-                                setShowSuspendDialog(true);
-                              }}
-                              className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Sperren"
-                            >
-                              <Lock className="w-4 h-4 text-red-600" />
-                            </button>
-                          )}
-                          {org.platform_status === 'suspended' && (
-                            <button
-                              onClick={() => handleUnsuspend(org)}
-                              className="p-2 hover:bg-emerald-50 rounded-lg transition-colors"
-                              title="Entsperren"
-                            >
-                              <Unlock className="w-4 h-4 text-emerald-600" />
-                            </button>
-                          )}
+                           <button
+                             onClick={() => setSelectedOrg(org)}
+                             className="p-2 hover:bg-slate-100 rounded-lg transition-colors group relative"
+                             title="Details ansehen"
+                           >
+                             <Eye className="w-4 h-4 text-slate-600" />
+                             <span className="absolute hidden group-hover:block bg-slate-800 text-white text-xs px-2 py-1 rounded bottom-full mb-1 whitespace-nowrap z-10">
+                               Details ansehen
+                             </span>
+                           </button>
+                           {(org.platform_status === 'active' || !org.platform_status) && (
+                             <button
+                               onClick={() => {
+                                 setSelectedOrg(org);
+                                 setShowSuspendDialog(true);
+                               }}
+                               className="p-2 hover:bg-red-50 rounded-lg transition-colors group relative"
+                               title="Organisation sperren"
+                             >
+                               <Lock className="w-4 h-4 text-red-600" />
+                               <span className="absolute hidden group-hover:block bg-slate-800 text-white text-xs px-2 py-1 rounded bottom-full mb-1 whitespace-nowrap z-10">
+                                 Sperren
+                               </span>
+                             </button>
+                           )}
+                           {org.platform_status === 'suspended' && (
+                             <button
+                               onClick={() => handleUnsuspend(org)}
+                               className="p-2 hover:bg-emerald-50 rounded-lg transition-colors group relative"
+                               title="Organisation entsperren"
+                             >
+                               <Unlock className="w-4 h-4 text-emerald-600" />
+                               <span className="absolute hidden group-hover:block bg-slate-800 text-white text-xs px-2 py-1 rounded bottom-full mb-1 whitespace-nowrap z-10">
+                                 Entsperren
+                               </span>
+                             </button>
+                           )}
                         </div>
                       </td>
                     </tr>
@@ -337,9 +385,9 @@ export default function PlatformAdmin() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-500 font-medium">Plan</p>
-                      <p className="text-sm font-semibold text-slate-900">{getPlanName(selectedOrg.plan_id)}</p>
-                    </div>
+                       <p className="text-xs text-slate-500 font-medium">Plan</p>
+                       <p className="text-sm font-semibold text-slate-900">{getPlanName(selectedOrg.plan_id, selectedOrg.billing_status)}</p>
+                     </div>
                     {selectedOrg.trial_ends_at && (
                       <div>
                         <p className="text-xs text-slate-500 font-medium">Trial endet</p>
