@@ -36,7 +36,8 @@
         "Termin vereinbart",
         "Angebot gesendet",
         "Abgeschlossen",
-        "Kein Interesse"
+        "Kein Interesse",
+        "Manuell vorbereitet/gesendet"
       ]
     },
     "naechster_schritt": {
@@ -55,6 +56,29 @@
     "user_email": {
       "type": "string",
       "title": "Vertriebler"
+    },
+    "betreff": {
+      "type": "string",
+      "title": "E-Mail Betreff"
+    },
+    "sending_mode": {
+      "type": "string",
+      "title": "Versandmodus",
+      "enum": [
+        "manual_email_client",
+        "brevo",
+        "smtp"
+      ]
+    },
+    "is_manual": {
+      "type": "boolean",
+      "title": "Manuell versendet",
+      "default": false
+    },
+    "is_test_email": {
+      "type": "boolean",
+      "title": "Test-E-Mail",
+      "default": false
     }
   },
   "required": [

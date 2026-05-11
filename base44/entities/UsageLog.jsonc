@@ -42,7 +42,12 @@
     },
     "emails_sent": {
       "type": "number",
-      "title": "E-Mails gesendet",
+      "title": "E-Mails gesendet (automatisch via Brevo)",
+      "default": 0
+    },
+    "manual_emails_logged": {
+      "type": "number",
+      "title": "E-Mails dokumentiert (manuell)",
       "default": 0
     },
     "users_count": {

@@ -66,12 +66,37 @@ function EmailEditor({ tpl, company, orgId, fromName, onBack, onDone }) {
         organization_id: orgIdForLog,
         company_id: company.id,
         typ: "E-Mail",
-        ergebnis: "Angebot gesendet",
+        ergebnis: "Manuell vorbereitet/gesendet",
         naechster_schritt: `E-Mail vorbereitet: ${betreff}`,
-        notiz: `Vorlage: ${tpl.label}. Manuell über eigenes E-Mail-Programm versendet.`,
+        notiz: `E-Mail wurde vorbereitet und manuell über das eigene E-Mail-Programm versendet. Vorlage: ${tpl.label}.`,
         user_email: me.email,
+        betreff: betreff,
+        sending_mode: "manual_email_client",
+        is_manual: true,
+        is_test_email: false,
       });
-      // update last_contact_date on company
+
+      // Increment manual_emails_logged in UsageLog (not emails_sent — no auto-send happened)
+      const now = new Date();
+      const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const existingUsage = await base44.entities.UsageLog.filter({ organization_id: orgIdForLog, period_month: periodMonth });
+      if (existingUsage.length > 0) {
+        await base44.entities.UsageLog.update(existingUsage[0].id, {
+          manual_emails_logged: (existingUsage[0].manual_emails_logged || 0) + 1,
+        });
+      } else {
+        const periodStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString();
+        const periodEnd = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)).toISOString();
+        await base44.entities.UsageLog.create({
+          organization_id: orgIdForLog,
+          period_month: periodMonth,
+          period_start: periodStart,
+          period_end: periodEnd,
+          manual_emails_logged: 1,
+        });
+      }
+
+      // Update last_contact_date on company
       await base44.entities.Company.update(company.id, {
         last_contact_date: new Date().toISOString(),
       });
