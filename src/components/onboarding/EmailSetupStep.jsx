@@ -150,9 +150,9 @@ export default function EmailSetupStep({ firmenname, userEmail, onBack, onNext, 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6">
       <h2 className="text-lg font-bold text-slate-900 mb-1">E-Mail & Kommunikation</h2>
-      <p className="text-sm font-medium text-slate-600 mb-6">
-        Diese Daten werden für alle ausgehenden E-Mails, Vorlagen und Signaturen verwendet.
-      </p>
+       <p className="text-sm font-medium text-slate-600 mb-6">
+         Diese Daten werden für E-Mail-Vorlagen, Signaturen und manuell vorbereitete Nachrichten verwendet.
+       </p>
 
       <div className="space-y-4 mb-6">
         {/* Absendername */}
@@ -173,7 +173,7 @@ export default function EmailSetupStep({ firmenname, userEmail, onBack, onNext, 
         {/* E-Mail Felder */}
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
-            <Label className="text-xs mb-2 block font-semibold text-slate-900">Absender-E-Mail</Label>
+            <Label className="text-xs mb-2 block font-semibold text-slate-900">Reply-To / Kontakt-E-Mail</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
               <Input

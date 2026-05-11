@@ -1,14 +1,45 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, X } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
 import { SERVICES } from "@/utils/onboardingConfig";
 
 export default function ServicesStep({ onBack, onNext, loading }) {
   const [selected, setSelected] = useState([]);
   const [customInput, setCustomInput] = useState("");
   const [custom, setCustom] = useState([]);
+  const [suggestedServices, setSuggestedServices] = useState([]);
+  const [industryName, setIndustryName] = useState(null);
+
+  useEffect(() => {
+    // Load current org settings to get industry
+    (async () => {
+      try {
+        const user = await base44.auth.me();
+        if (!user) return;
+        const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+        if (!orgs?.[0]) return;
+        const org = orgs[0];
+        if (org.industry) {
+          setIndustryName(org.industry);
+          const industryId = getIndustryIdByLabel(org.industry);
+          const preset = getIndustryPreset(industryId);
+          if (preset?.ownServices) {
+            setSuggestedServices(preset.ownServices);
+          } else {
+            setSuggestedServices(SERVICES);
+          }
+        } else {
+          setSuggestedServices(SERVICES);
+        }
+      } catch (e) {
+        setSuggestedServices(SERVICES);
+      }
+    })();
+  }, []);
 
   const toggle = (service) => {
     setSelected(prev =>
@@ -45,7 +76,7 @@ export default function ServicesStep({ onBack, onNext, loading }) {
       <p className="text-sm font-medium text-slate-600 mb-4">Diese Leistungen verwendet Vertriebo für E-Mail-Vorlagen, Gesprächshilfen und Follow-up-Texte.</p>
 
       <div className="flex flex-wrap gap-2 mb-4">
-        {SERVICES.map(service => (
+         {suggestedServices.map(service => (
           <button
             key={service}
             type="button"

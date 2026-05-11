@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { INDUSTRIES } from "@/utils/onboardingConfig";
+import { INDUSTRY_PRESETS, getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
 import ServicesStep from "@/components/onboarding/ServicesStep";
 import LeadTargetingStep from "@/components/onboarding/LeadTargetingStep";
 import IdealCustomerStep from "@/components/onboarding/IdealCustomerStep";
@@ -147,53 +148,52 @@ export default function Onboarding() {
   };
 
   // ── Step 1: Services ─────────────────────────────────────────────────────
-  const handleServicesNext = async (data) => {
-    setSaving(true);
-    try {
-      const servicesStr = data.services.join(", ");
-      const existing = await base44.entities.OrganizationSettings.filter({ organization_id: org.id, key: "services" });
-      if (existing?.[0]) {
-        await base44.entities.OrganizationSettings.update(existing[0].id, { value: servicesStr });
-      } else {
-        await base44.entities.OrganizationSettings.create({ organization_id: org.id, key: "services", value: servicesStr });
-      }
-      setServices(data.services);
-      setCurrentStep(2);
-    } catch (e) {
-      toast.error("Fehler: " + e.message);
-    }
-    setSaving(false);
-  };
+   const handleServicesNext = async (data) => {
+     setSaving(true);
+     try {
+       // Canonical Key: services (no legacy duplicate)
+       const servicesStr = data.services.join(", ");
+       const existing = await base44.entities.OrganizationSettings.filter({ organization_id: org.id, key: "services" });
+       if (existing?.[0]) {
+         await base44.entities.OrganizationSettings.update(existing[0].id, { value: servicesStr });
+       } else {
+         await base44.entities.OrganizationSettings.create({ organization_id: org.id, key: "services", value: servicesStr });
+       }
+       setServices(data.services);
+       setCurrentStep(2);
+     } catch (e) {
+       toast.error("Fehler: " + e.message);
+     }
+     setSaving(false);
+   };
 
   // ── Step 2: Lead Targeting ───────────────────────────────────────────────
-  const handleTargetingNext = async (data) => {
-    setSaving(true);
-    try {
-      const settings = [
-        { key: "target_customer_types", value: data.target_customer_types.join(", ") },
-        { key: "custom_target_customer_types", value: data.custom_target_customer_types.join(", ") },
-        { key: "excluded_customer_types", value: data.excluded_customer_types.join(", ") },
-        { key: "custom_excluded_customer_types", value: data.custom_excluded_customer_types.join(", ") },
-      ];
-      for (const s of settings) {
-        if (!s.value) continue;
-        const existing = await base44.entities.OrganizationSettings.filter({ organization_id: org.id, key: s.key });
-        if (existing?.[0]) {
-          await base44.entities.OrganizationSettings.update(existing[0].id, { value: s.value });
-        } else {
-          await base44.entities.OrganizationSettings.create({ organization_id: org.id, key: s.key, value: s.value });
-        }
-      }
-      setTargetCustomers(data.target_customer_types);
-      setCustomTargets(data.custom_target_customer_types);
-      setExcluded(data.excluded_customer_types);
-      setCustomExcluded(data.custom_excluded_customer_types);
-      setCurrentStep(3);
-    } catch (e) {
-      toast.error("Fehler: " + e.message);
-    }
-    setSaving(false);
-  };
+   const handleTargetingNext = async (data) => {
+     setSaving(true);
+     try {
+       // Canonical Keys: target_customer_types, excluded_customer_types
+       // Excluded values stored cleanly (no "Keine" prefix)
+       const settings = [
+         { key: "target_customer_types", value: data.target_customer_types.join(", ") },
+         { key: "excluded_customer_types", value: data.excluded_customer_types.join(", ") },
+       ];
+       for (const s of settings) {
+         if (!s.value) continue;
+         const existing = await base44.entities.OrganizationSettings.filter({ organization_id: org.id, key: s.key });
+         if (existing?.[0]) {
+           await base44.entities.OrganizationSettings.update(existing[0].id, { value: s.value });
+         } else {
+           await base44.entities.OrganizationSettings.create({ organization_id: org.id, key: s.key, value: s.value });
+         }
+       }
+       setTargetCustomers(data.target_customer_types);
+       setExcluded(data.excluded_customer_types);
+       setCurrentStep(3);
+     } catch (e) {
+       toast.error("Fehler: " + e.message);
+     }
+     setSaving(false);
+   };
 
   // ── Step 3: Ideal Customer ───────────────────────────────────────────────
   const handleIdealNext = async (data) => {
@@ -228,10 +228,15 @@ export default function Onboarding() {
       });
 
       const settings = [
+        // Canonical keys for lead generation
+        { key: "lead_plz", value: plz.trim() },
+        { key: "lead_plz_city", value: city.trim() },
+        { key: "lead_radius_km", value: String(radius) },
+        { key: "target_locations", value: targetLocations.join(", ") },
+        // Also save to service_area_ keys for compatibility
         { key: "service_area_plz", value: plz.trim() },
         { key: "service_area_city", value: city.trim() },
         { key: "service_area_radius_km", value: String(radius) },
-        { key: "target_locations", value: targetLocations.join(", ") },
       ];
       for (const s of settings) {
         const existing = await base44.entities.OrganizationSettings.filter({ organization_id: org.id, key: s.key });
@@ -517,7 +522,7 @@ export default function Onboarding() {
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setCurrentStep(3)} disabled={saving}>Zurück</Button>
-              <Button onClick={handleAreaNext} disabled={saving || !plz.trim() || !city.trim()} className="flex-1 gap-2">
+              <Button onClick={handleAreaNext} disabled={saving || !plz.trim() || !city.trim()} className="flex-1 gap-2 disabled:bg-slate-100 disabled:text-slate-500 disabled:opacity-100">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 Weiter
               </Button>

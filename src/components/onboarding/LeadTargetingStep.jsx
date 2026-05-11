@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, X } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
 import { TARGET_CUSTOMER_TYPES, EXCLUDED_CUSTOMER_TYPES } from "@/utils/onboardingConfig";
 
 export default function LeadTargetingStep({ onBack, onNext, loading }) {
@@ -12,6 +14,47 @@ export default function LeadTargetingStep({ onBack, onNext, loading }) {
   const [excluded, setExcluded] = useState([]);
   const [customExcluded, setCustomExcluded] = useState([]);
   const [customExcludedInput, setCustomExcludedInput] = useState("");
+  const [suggestedTargets, setSuggestedTargets] = useState([]);
+  const [suggestedExclusions, setSuggestedExclusions] = useState([]);
+  const [industryName, setIndustryName] = useState(null);
+
+  useEffect(() => {
+    // Load current org settings to get industry & preset
+    (async () => {
+      try {
+        const user = await base44.auth.me();
+        if (!user) return;
+        const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
+        if (!orgs?.[0]) return;
+        const org = orgs[0];
+        if (org.industry) {
+          setIndustryName(org.industry);
+          const industryId = getIndustryIdByLabel(org.industry);
+          const preset = getIndustryPreset(industryId);
+          if (preset?.targetCustomerTypes) {
+            setSuggestedTargets(preset.targetCustomerTypes);
+            // Auto-select targets from preset
+            setTargetCustomers(preset.targetCustomerTypes);
+          } else {
+            setSuggestedTargets(TARGET_CUSTOMER_TYPES);
+          }
+          if (preset?.excludedCustomerTypes) {
+            setSuggestedExclusions(preset.excludedCustomerTypes);
+            // Auto-select exclusions from preset
+            setExcluded(preset.excludedCustomerTypes);
+          } else {
+            setSuggestedExclusions(EXCLUDED_CUSTOMER_TYPES);
+          }
+        } else {
+          setSuggestedTargets(TARGET_CUSTOMER_TYPES);
+          setSuggestedExclusions(EXCLUDED_CUSTOMER_TYPES);
+        }
+      } catch (e) {
+        setSuggestedTargets(TARGET_CUSTOMER_TYPES);
+        setSuggestedExclusions(EXCLUDED_CUSTOMER_TYPES);
+      }
+    })();
+  }, []);
 
   const toggleTarget = (type) => {
     setTargetCustomers(prev =>
@@ -55,10 +98,8 @@ export default function LeadTargetingStep({ onBack, onNext, loading }) {
       return;
     }
     onNext({
-      target_customer_types: targetCustomers,
-      custom_target_customer_types: customTargets,
-      excluded_customer_types: excluded,
-      custom_excluded_customer_types: customExcluded,
+      target_customer_types: [...targetCustomers, ...customTargets],
+      excluded_customer_types: [...excluded, ...customExcluded],
     });
   };
 
@@ -70,7 +111,7 @@ export default function LeadTargetingStep({ onBack, onNext, loading }) {
         <p className="text-sm font-medium text-slate-600 mb-4">Diese Auswahl steuert, welche Firmen Vertriebo für Sie recherchiert.</p>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          {TARGET_CUSTOMER_TYPES.map(type => (
+           {suggestedTargets.map(type => (
             <button
               key={type}
               type="button"
@@ -115,7 +156,7 @@ export default function LeadTargetingStep({ onBack, onNext, loading }) {
         <p className="text-sm font-medium text-slate-600 mb-4">So vermeiden Sie unpassende Leads.</p>
 
         <div className="flex flex-wrap gap-2 mb-4">
-          {EXCLUDED_CUSTOMER_TYPES.map(type => (
+          {suggestedExclusions.map(type => (
             <button
               key={type}
               type="button"
