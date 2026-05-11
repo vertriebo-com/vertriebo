@@ -62,17 +62,22 @@ export default function StartLeadsStep({ org, onDone }) {
         target_count: 25,
       });
 
+      console.log("[StartLeadsStep] generateLeads response:", res.data);
+
       if (res.data?.success) {
         setResult(res.data);
         setGenerated(true);
         toast.success(`${res.data.count} Firmenkontakte generiert!`);
       } else {
-        setError(res.data?.error || "Fehler bei der Lead-Recherche");
+        const errMsg = res.data?.error || "Fehler bei der Lead-Recherche";
+        console.error("[StartLeadsStep] generateLeads failed:", errMsg, res.data);
+        setError(errMsg);
         if (res.data?.limitReached) {
-          setError("Plan-Limit erreicht: " + (res.data?.error || "Recherche nicht möglich."));
+          setError("Plan-Limit erreicht: " + errMsg);
         }
       }
     } catch (e) {
+      console.error("[StartLeadsStep] generateLeads exception:", e.message, e);
       setError("Fehler: " + e.message);
     }
     setLoading(false);
