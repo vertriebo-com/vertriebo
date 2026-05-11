@@ -86,6 +86,8 @@ export default function CompanySettings({ org: orgProp }) {
   const [customZielkunde, setCustomZielkunde] = useState("");
   const [dienstleistungen, setDienstleistungen] = useState([]);
   const [customDienst, setCustomDienst] = useState("");
+  const [excludedCustomers, setExcludedCustomers] = useState([]);
+  const [customExcludedCustomer, setCustomExcludedCustomer] = useState("");
   const [kontakteProWoche, setKontakteProWoche] = useState("20");
   const [anrufeProWoche, setAnrufeProWoche] = useState("30");
   const [termineProWoche, setTermineProWoche] = useState("3");
@@ -157,6 +159,9 @@ export default function CompanySettings({ org: orgProp }) {
     // Dienstleistungen: Onboarding nutzt "services", Settings nutzt "dienstleistungen" → beide prüfen
     const dienstRaw = map.dienstleistungen || map.services || "";
     setDienstleistungen(dienstRaw ? dienstRaw.split(", ").filter(Boolean) : []);
+    // Ausschlüsse: Canonical Key excluded_customer_types
+    const excludedRaw = map.excluded_customer_types || "";
+    setExcludedCustomers(excludedRaw ? excludedRaw.split(", ").filter(Boolean) : []);
     setKontakteProWoche(map.sales_goal_contacts_per_week || "20");
     setAnrufeProWoche(map.sales_goal_calls_per_week || "30");
     setTermineProWoche(map.sales_goal_appointments_per_week || "3");
@@ -246,9 +251,8 @@ export default function CompanySettings({ org: orgProp }) {
       zielkunden_keywords:             zielkundenKeywords,
       dienstleistungen:                dienstleistungen.join(", "),
       services:                        dienstleistungen.join(", "),
-      // WICHTIG: excluded_customer_types nicht überschreiben — wird vom Onboarding gesetzt
-      // und in generateLeads gelesen. Hier nur synchron halten falls Ausschlüsse vorhanden.
-      // (kein eigenes UI in Settings → Onboarding-Wert bleibt erhalten, da wir ihn nicht überschreiben)
+      // Ausschlüsse: Canonical Key excluded_customer_types
+      excluded_customer_types:         excludedCustomers.join(", "),
       sales_goal_contacts_per_week:    kontakteProWoche,
       sales_goal_calls_per_week:       anrufeProWoche,
       sales_goal_appointments_per_week: termineProWoche,
@@ -307,6 +311,7 @@ export default function CompanySettings({ org: orgProp }) {
 
   const toggleZielkunde = (v) => setZielkunden(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const toggleDienst = (v) => setDienstleistungen(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
+  const toggleExcludedCustomer = (v) => setExcludedCustomers(prev => prev.includes(v) ? prev.filter(x => x !== v) : [...prev, v]);
   const addCustomZielkunde = () => {
     const v = customZielkunde.trim();
     if (v && !zielkunden.includes(v)) setZielkunden(prev => [...prev, v]);
@@ -316,6 +321,11 @@ export default function CompanySettings({ org: orgProp }) {
     const v = customDienst.trim();
     if (v && !dienstleistungen.includes(v)) setDienstleistungen(prev => [...prev, v]);
     setCustomDienst("");
+  };
+  const addCustomExcludedCustomer = () => {
+    const v = customExcludedCustomer.trim();
+    if (v && !excludedCustomers.includes(v)) setExcludedCustomers(prev => [...prev, v]);
+    setCustomExcludedCustomer("");
   };
 
   const planRadiusLimit = getPlanRadiusLimit(plan?.name);
@@ -543,9 +553,35 @@ export default function CompanySettings({ org: orgProp }) {
                 placeholder="Sonstige Leistung..." className="text-sm h-9" />
               <Button variant="outline" size="sm" onClick={addCustomDienst} className="shrink-0 h-9">+ Hinzufügen</Button>
             </div>
-          </div>
-        </div>
-      </div>
+            </div>
+
+            <div>
+            <Label className="text-xs font-bold mb-1.5 block text-slate-800">Ausgeschlossene Zielkunden</Label>
+            <p className="text-[11px] text-slate-600 font-medium mb-2.5">
+              Diese Zielgruppen werden bei der Lead-Generierung nicht berücksichtigt.
+            </p>
+            <div className="flex flex-wrap gap-2 mb-2.5">
+              {ZIELKUNDEN_OPTIONS.map(v => (
+                <button key={v} type="button" onClick={() => toggleExcludedCustomer(v)}
+                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${excludedCustomers.includes(v) ? "border-destructive bg-destructive/10 text-destructive" : "border-slate-200 text-slate-700 hover:border-slate-300 hover:text-slate-900"}`}>
+                  {v}
+                </button>
+              ))}
+              {excludedCustomers.filter(v => !ZIELKUNDEN_OPTIONS.includes(v)).map(v => (
+                <span key={v} className="text-xs px-3 py-1.5 rounded-full border-2 border-destructive bg-destructive/10 text-destructive font-medium flex items-center gap-1">
+                  {v}<button onClick={() => toggleExcludedCustomer(v)} className="ml-0.5 hover:text-destructive/70">×</button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input value={customExcludedCustomer} onChange={e => setCustomExcludedCustomer(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && addCustomExcludedCustomer()}
+                placeholder="Eigene Ausschlussgruppe..." className="text-sm h-9" />
+              <Button variant="outline" size="sm" onClick={addCustomExcludedCustomer} className="shrink-0 h-9">+ Hinzufügen</Button>
+            </div>
+            </div>
+            </div>
+            </div>
 
       {/* Card 4: Vertriebsziele */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
