@@ -132,11 +132,11 @@ export default function Landing() {
       <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
           <a href="/" className="flex items-center shrink-0">
-            <img
-              src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/6bf8a2d63_ChatGPTImage11Mai202615_23_00.png"
-              alt="Vertriebo"
-              className="h-14 md:h-16 w-auto object-contain"
-            />
+            <img src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/6bf8a2d63_ChatGPTImage11Mai202615_23_00.png"
+
+            alt="Vertriebo"
+            className="h-14 md:h-16 w-auto object-contain" />
+            
           </a>
 
           <div className="flex items-center gap-3">
