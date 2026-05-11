@@ -101,7 +101,7 @@ export default function StartLeadsStep({ org, onDone }) {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-xs font-semibold text-slate-700 uppercase mb-1">✓ Gespeichert</p>
-                  <p className="text-2xl font-black text-green-600">{result.summary.created}</p>
+                  <p className="text-2xl font-black text-green-600">{result.summary.saved}</p>
                 </div>
                 <div>
                   <p className="text-xs font-semibold text-slate-700 uppercase mb-1">Roh-Treffer</p>
@@ -112,15 +112,15 @@ export default function StartLeadsStep({ org, onDone }) {
               <div className="border-t border-slate-300 pt-3 space-y-1.5 text-xs">
                 <div className="flex justify-between">
                   <span className="text-slate-600">Dubletten:</span>
-                  <span className="font-semibold text-slate-900">{result.summary.skipped_duplicate}</span>
+                  <span className="font-semibold text-slate-900">{result.summary.duplicates}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Ausgeschlossen (z.B. Konkurrenz):</span>
-                  <span className="font-semibold text-slate-900">{result.summary.skipped_excluded}</span>
+                  <span className="font-semibold text-slate-900">{result.summary.excluded || 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-600">Keine Übereinstimmung:</span>
-                  <span className="font-semibold text-slate-900">{result.summary.skipped_no_match}</span>
+                  <span className="font-semibold text-slate-900">{result.summary.noMatch}</span>
                 </div>
               </div>
 
