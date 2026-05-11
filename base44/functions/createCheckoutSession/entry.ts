@@ -161,9 +161,11 @@ Deno.serve(async (req) => {
       }, { status: 409 });
     }
 
-    const trialDays = 0;
+    // Trial wird aktiviert: 14 Tage kostenloses Testen mit Zahlungsmethode
+    // Das schützt vor Missbrauch, da Zahlungsmethode erforderlich ist
+    const trialDays = 14;
 
-    console.info(`[createCheckoutSession] org=${organization_id} trial disabled`);
+    console.info(`[createCheckoutSession] org=${organization_id} verified_trial enabled: ${trialDays} days with payment method required`);
 
     // ── 6. Stripe Customer: bestehende ID nutzen oder neu anlegen ───────────
     let stripeCustomerId = org.stripe_customer_id || null;

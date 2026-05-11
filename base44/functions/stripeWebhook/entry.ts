@@ -163,10 +163,20 @@ async function handleCheckoutCompleted(base44, session) {
     await upsertSubscription(base44, { organization_id: organizationId, stripeSub, plan_id: resolvedPlanId });
 
     const billingStatus = mapBillingStatus(stripeSub.status);
+    // Bestimme trial_stage basierend auf Stripe-Status
+    let trialStage = 'free_preview';
+    if (stripeSub.status === 'trialing') {
+      trialStage = 'verified_trial';
+    } else if (stripeSub.status === 'active') {
+      trialStage = 'paid';
+    }
+
     await base44.asServiceRole.entities.Organization.update(organizationId, {
       billing_status: billingStatus,
+      trial_stage: trialStage,
       plan_id: resolvedPlanId || org.plan_id,
       ...(stripeSub.trial_end ? { trial_ends_at: new Date(stripeSub.trial_end * 1000).toISOString() } : {}),
+      ...(stripeSub.status === 'trialing' ? { trial_verified_at: new Date().toISOString(), trial_verified_by: org.owner_email } : {}),
     });
   }
 
@@ -206,9 +216,26 @@ async function handleSubscriptionUpdated(base44, stripeSub) {
 
   await upsertSubscription(base44, { organization_id: org.id, stripeSub, plan_id: planId || org.plan_id });
   const billingStatus = mapBillingStatus(stripeSub.status);
-  await base44.asServiceRole.entities.Organization.update(org.id, { billing_status: billingStatus });
+  
+  // Bestimme trial_stage basierend auf Stripe-Status
+  let trialStage = org.trial_stage || 'free_preview'; // Behalte aktuellen Stage, update nur wenn explizit nötig
+  if (stripeSub.status === 'trialing') {
+    trialStage = 'verified_trial';
+  } else if (stripeSub.status === 'active') {
+    trialStage = 'paid';
+  } else if (stripeSub.status === 'canceled') {
+    // Nicht zurücksetzen zu free_preview — verhindert Missbrauch
+    // Behalte verified_trial mit canceled status
+    trialStage = org.trial_stage;
+  }
 
-  console.info(`[stripeWebhook] subscription.updated org=${org.id} status=${stripeSub.status} cancel_at_period_end=${stripeSub.cancel_at_period_end}`);
+  await base44.asServiceRole.entities.Organization.update(org.id, {
+    billing_status: billingStatus,
+    trial_stage: trialStage,
+    ...(stripeSub.status === 'trialing' && !org.trial_verified_at ? { trial_verified_at: new Date().toISOString(), trial_verified_by: org.owner_email } : {}),
+  });
+
+  console.info(`[stripeWebhook] subscription.updated org=${org.id} status=${stripeSub.status} trial_stage=${trialStage} cancel_at_period_end=${stripeSub.cancel_at_period_end}`);
   return { status: 'success' };
 }
 
@@ -241,7 +268,10 @@ async function handleInvoicePaid(base44, invoice) {
 
   const stripeSub = await stripe.subscriptions.retrieve(stripeSubId);
   await upsertSubscription(base44, { organization_id: org.id, stripeSub });
-  await base44.asServiceRole.entities.Organization.update(org.id, { billing_status: 'active' });
+  await base44.asServiceRole.entities.Organization.update(org.id, { 
+    billing_status: 'active',
+    trial_stage: 'paid'
+  });
 
   // ── Idempotente UsageLog-Periode (org_id + period_start als Schlüssel) ────
   if (invoice.period_start && invoice.period_end) {

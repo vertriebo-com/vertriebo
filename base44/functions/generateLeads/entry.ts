@@ -637,9 +637,46 @@ Deno.serve(async (req) => {
       }
     }
 
-    const billingOk = ['active', 'trialing'].includes(org.billing_status);
+    // ── Abuse Check ─────────────────────────────────────────────────────────
+    if (org.abuse_status === 'blocked') {
+      console.warn(`[generateLeads] Access denied: org abuse_status blocked – reason=${org.abuse_reason}`);
+      return Response.json({ 
+        error: 'abuse_blocked', 
+        message: 'Ihr Zugang wurde zur Sicherheitsprüfung eingeschränkt. Bitte kontaktieren Sie den Support.',
+        success: false 
+      }, { status: 403 });
+    }
+
+    const billingOk = ['preview', 'active', 'trialing'].includes(org.billing_status);
     if (!billingOk) {
       return Response.json({ error: `Billing status "${org.billing_status}" erlaubt keine Lead-Recherche`, success: false }, { status: 402 });
+    }
+
+    // ── Trial-Stufe Limits ───────────────────────────────────────────────────
+    let trialEffectiveTarget = target_count;
+    const trialStage = org.trial_stage || 'free_preview';
+
+    if (trialStage === 'free_preview') {
+      // Free Preview: max 3 Leads
+      if ((org.trial_leads_granted || 0) >= 3) {
+        console.warn(`[generateLeads] Trial limit reached: ${org.trial_leads_granted}/3 for org=${organization_id}`);
+        return Response.json({
+          error: 'trial_preview_limit_reached',
+          message: 'Ihre kostenlosen Vorschau-Kontakte sind aufgebraucht. Aktivieren Sie den verifizierten Testzugang für weitere Recherchen.',
+          success: false,
+          trial_stage: 'free_preview',
+          limits: { max_leads: 3, used: org.trial_leads_granted }
+        }, { status: 403 });
+      }
+      trialEffectiveTarget = Math.min(target_count, 3 - (org.trial_leads_granted || 0));
+      console.info(`[generateLeads] Free preview: limiting to ${trialEffectiveTarget} leads (${org.trial_leads_granted}/3 used)`);
+    } else if (trialStage === 'verified_trial') {
+      // Verified Trial: max 25 Leads pro Lauf
+      trialEffectiveTarget = Math.min(target_count, 25);
+      console.info(`[generateLeads] Verified trial: limiting to ${trialEffectiveTarget} leads`);
+    } else if (trialStage === 'paid') {
+      // Paid: normale Planlimits (werden unten geprüft)
+      console.info(`[generateLeads] Paid: using plan limits`);
     }
 
     // Plan-Limits
@@ -668,19 +705,21 @@ Deno.serve(async (req) => {
       }, { status: 403 });
     }
 
-    // Plan-Limit: Leads gesamt
-    const maxLeads = planLimits.max_leads_per_month;
-    const usedLeads = currentUsage.leads_created || 0;
-    let effectiveTarget = target_count;
-    if (maxLeads !== -1) {
-      const remaining = Math.max(0, maxLeads - usedLeads);
-      if (remaining === 0) {
-        return Response.json({
-          error: `Lead-Limit erreicht: ${usedLeads}/${maxLeads} Leads diesen Monat.`,
-          success: false, limitReached: true,
-        }, { status: 403 });
+    // Plan-Limit: Leads gesamt (nur für paid, nicht für trials)
+    let effectiveTarget = trialEffectiveTarget; // Beginne mit Trial-Limit
+    if (trialStage === 'paid') {
+      const maxLeads = planLimits.max_leads_per_month;
+      const usedLeads = currentUsage.leads_created || 0;
+      if (maxLeads !== -1) {
+        const remaining = Math.max(0, maxLeads - usedLeads);
+        if (remaining === 0) {
+          return Response.json({
+            error: `Lead-Limit erreicht: ${usedLeads}/${maxLeads} Leads diesen Monat.`,
+            success: false, limitReached: true,
+          }, { status: 403 });
+        }
+        effectiveTarget = Math.min(trialEffectiveTarget, remaining);
       }
-      effectiveTarget = Math.min(target_count, remaining);
     }
 
     // Settings laden
@@ -1023,6 +1062,19 @@ Deno.serve(async (req) => {
       console.info(`[generateLeads] UsageLog: chargedRun=${chargedLeadGeneration}, +${chargedLeads} Leads, runType=${runType}`);
     } catch (usageErr) {
       console.error(`[generateLeads] UsageLog FEHLER: ${usageErr.message}`);
+    }
+
+    // ── Trial-Leads-Granted inkrementieren (für Free Preview) ──────────────
+    if (trialStage === 'free_preview' && chargedLeadGeneration) {
+      try {
+        const newTrialLeadsGranted = (org.trial_leads_granted || 0) + chargedLeads;
+        await base44.asServiceRole.entities.Organization.update(organization_id, {
+          trial_leads_granted: newTrialLeadsGranted,
+        });
+        console.info(`[generateLeads] trial_leads_granted updated: ${newTrialLeadsGranted}`);
+      } catch (updateErr) {
+        console.warn(`[generateLeads] trial_leads_granted update FEHLER: ${updateErr.message}`);
+      }
     }
 
     console.info(`[generateLeads] REPORT org=${organization_id}: raw=${raw_hits}, outside_radius=${skipped_outside_radius}, no_match=${skipped_no_match}, duplicate=${skipped_duplicate}, created=${newLeadsSaved}, runType=${runType}${queriesLimited ? " [QUERY-LIMIT AKTIV]" : ""}`);

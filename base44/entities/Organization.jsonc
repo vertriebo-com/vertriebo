@@ -60,6 +60,7 @@
       "type": "string",
       "title": "Billing-Status",
       "enum": [
+        "preview",
         "trialing",
         "active",
         "past_due",
@@ -68,7 +69,7 @@
         "incomplete",
         "incomplete_expired"
       ],
-      "default": "trialing"
+      "default": "preview"
     },
     "stripe_customer_id": {
       "type": "string",
@@ -82,6 +83,66 @@
       "type": "string",
       "format": "date-time",
       "title": "Trial Ende"
+    },
+    "trial_stage": {
+      "type": "string",
+      "title": "Trial-Stufe",
+      "enum": [
+        "free_preview",
+        "verified_trial",
+        "paid"
+      ],
+      "default": "free_preview"
+    },
+    "trial_leads_granted": {
+      "type": "number",
+      "title": "Trial Leads genutzt",
+      "default": 0
+    },
+    "trial_research_runs_used": {
+      "type": "number",
+      "title": "Trial Recherche-L\u00e4ufe genutzt",
+      "default": 0
+    },
+    "trial_verified_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Trial verifiziert am"
+    },
+    "trial_verified_by": {
+      "type": "string",
+      "title": "Trial verifiziert von (E-Mail)"
+    },
+    "abuse_status": {
+      "type": "string",
+      "title": "Abuse-Status",
+      "enum": [
+        "clear",
+        "watch",
+        "blocked"
+      ],
+      "default": "clear"
+    },
+    "abuse_risk_score": {
+      "type": "number",
+      "title": "Abuse-Risiko-Score",
+      "default": 0
+    },
+    "abuse_reason": {
+      "type": "string",
+      "title": "Abuse-Grund"
+    },
+    "signup_email_domain": {
+      "type": "string",
+      "title": "Anmelde-E-Mail-Domain"
+    },
+    "website_domain": {
+      "type": "string",
+      "title": "Website-Domain"
+    },
+    "phone_normalized": {
+      "type": "string",
+      "title": "Normalisierte Telefonnummer"
     },
     "logo_url": {
       "type": "string",
