@@ -616,7 +616,8 @@ Deno.serve(async (req) => {
     const access = await checkAccess(req, { organization_id, action: 'generate_leads' });
     if (!access.allowed) {
       console.warn(`[generateLeads] Access denied: ${access.reason}`);
-      return Response.json({ error: access.message, success: false }, { status: 403 });
+      const statusCode = access.reason === 'organization_suspended' ? 403 : 403;
+      return Response.json({ error: access.message, success: false, reason: access.reason }, { status: statusCode });
     }
 
     if (!GOOGLE_PLACES_API_KEY) {

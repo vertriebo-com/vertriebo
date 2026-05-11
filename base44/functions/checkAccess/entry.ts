@@ -172,8 +172,12 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
     return deny('organization_not_found', `Organisation "${organization_id}" nicht gefunden.`);
   }
 
-  if (organization.status === 'suspended') {
-    return deny('organization_suspended', `Organisation ist gesperrt: ${organization.suspended_reason || 'kein Grund angegeben'}.`);
+  // Suspension check - Block unless platform admin
+  const isPlatformAdmin = ['admin', 'platform_owner', 'platform_admin'].includes(user.role);
+  if (organization.platform_status === 'suspended' && !isPlatformAdmin) {
+    return deny('organization_suspended', `Organisation ist gesperrt: ${organization.suspended_reason || 'kein Grund angegeben'}.`, {
+      user, organization, organization_suspended: true, suspended_reason: organization.suspended_reason, suspended_at: organization.suspended_at,
+    });
   }
 
   // ── 4. Membership & Role check ─────────────────────────────────────────────
@@ -296,6 +300,10 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
     plan,
     subscription,
     limits,
+    organization_platform_status: organization.platform_status || 'active',
+    organization_suspended: false,
+    suspended_reason: null,
+    suspended_at: null,
   });
 }
 

@@ -25,6 +25,15 @@ Deno.serve(async (req) => {
     const company = companies[0] || null;
     if (!company) return Response.json({ success: false, error: 'company_not_found' }, { status: 404 });
 
+    // ── 1a. Check: Organisation gesperrt? ─────────────────────────────────
+    const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
+    const org = orgs[0];
+    if (!org) return Response.json({ success: false, error: 'organization_not_found' }, { status: 404 });
+    if (org.platform_status === 'suspended') {
+      console.warn(`[getKiRecommendation] Access denied: org suspended`);
+      return Response.json({ error: 'Organisation ist gesperrt', organization_suspended: true }, { status: 403 });
+    }
+
     // ── 2. Cache zurückgeben wenn vorhanden und kein force_regenerate ────────
     if (!force_regenerate && company.ki_recommendation) {
       let cached = null;

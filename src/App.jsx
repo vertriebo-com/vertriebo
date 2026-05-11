@@ -25,6 +25,7 @@ import Onboarding from './pages/Onboarding';
 import Impressum from './pages/Impressum';
 import Datenschutz from './pages/Datenschutz';
 import AGB from './pages/AGB';
+import AccountSuspended from './pages/AccountSuspended';
 import { useEffect, useState } from 'react';
 import { base44 } from '@/api/base44Client';
 
@@ -63,6 +64,7 @@ const PublicApp = () => {
       <Route path="/impressum" element={<Impressum />} />
       <Route path="/datenschutz" element={<Datenschutz />} />
       <Route path="/agb" element={<AGB />} />
+      <Route path="/account-suspended" element={<AccountSuspended />} />
       {/* Everything else goes through the authenticated app */}
       <Route path="*" element={<AuthenticatedApp />} />
     </Routes>
@@ -70,10 +72,11 @@ const PublicApp = () => {
 };
 
 
-// Onboarding guard: checks per-organization onboarding status & platform role
+// Onboarding guard: checks per-organization onboarding status, platform role & suspension status
 const OnboardingGuard = ({ children }) => {
   const [checked, setChecked] = useState(false);
   const [redirect, setRedirect] = useState(null);
+  const [suspendedOrg, setSuspendedOrg] = useState(null);
   const location = useLocation();
 
   useEffect(() => {
@@ -93,8 +96,12 @@ const OnboardingGuard = ({ children }) => {
           return;
         }
 
-        // Wenn Platform-Admin eine konkrete Kundenseite öffnet (z.B. /leads/:id), erlauben
-        // Nur blockieren bei "/" oder Login-Defaults
+        // Platform-Admins dürfen überall rein, auch zu gesperrten Orgs
+        if (isPlatformAdmin || isSupportRole) {
+          setRedirect(null);
+          setChecked(true);
+          return;
+        }
 
         // Für normale Kunden: Organisation prüfen
         let org = null;
@@ -114,6 +121,14 @@ const OnboardingGuard = ({ children }) => {
           // Keine Organisation → Onboarding (Plan auswählen & einrichten)
           setRedirect("/onboarding");
         } else {
+          // Check: Organisation gesperrt?
+          if (org.platform_status === "suspended") {
+            setSuspendedOrg(org);
+            setRedirect("/account-suspended");
+            setChecked(true);
+            return;
+          }
+
           const billingOk = ["active", "trialing"].includes(org.billing_status);
           if (!billingOk) {
             // Kein aktives Abo → zurück zur Landing-Page zur Plan-Auswahl
@@ -133,6 +148,15 @@ const OnboardingGuard = ({ children }) => {
   }, [location.pathname]);
 
   if (!checked) return <Spinner />;
+
+  // Account Suspended page
+  if (redirect === "/account-suspended" && location.pathname !== "/account-suspended") {
+    return <Navigate to="/account-suspended" replace />;
+  }
+
+  if (location.pathname === "/account-suspended") {
+    return <AccountSuspended suspendedReason={suspendedOrg?.suspended_reason} suspendedAt={suspendedOrg?.suspended_at} />;
+  }
 
   if (redirect && location.pathname !== "/onboarding" && location.pathname !== redirect) {
     return <Navigate to={redirect} replace />;

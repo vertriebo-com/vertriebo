@@ -80,7 +80,8 @@ Deno.serve(async (req) => {
     const access = await checkAccess(req, { organization_id, action: 'use_ai_scoring' });
     if (!access.allowed) {
       console.warn(`[enrichCompany] Access denied: ${access.reason} – ${access.message}`);
-      return Response.json({ error: access.message, reason: access.reason }, { status: 403 });
+      const statusCode = access.reason === 'organization_suspended' ? 403 : 403;
+      return Response.json({ error: access.message, reason: access.reason }, { status: statusCode });
     }
 
     // ── 2. Company laden – nur innerhalb der Organisation ───────────────────

@@ -28,6 +28,16 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'forbidden' }, { status: 403 });
     }
 
+    // Check: Organisation gesperrt? (nicht für platform admins)
+    if (user.role !== 'admin') {
+      const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
+      const org = orgs[0];
+      if (org && org.platform_status === 'suspended') {
+        console.warn(`[deleteDocument] Access denied: org suspended`);
+        return Response.json({ error: 'Organisation ist gesperrt', organization_suspended: true }, { status: 403 });
+      }
+    }
+
     // Prüfen: Dokument gehört zur Organisation
     const docs = await base44.asServiceRole.entities.Document.filter({
       id: document_id,
