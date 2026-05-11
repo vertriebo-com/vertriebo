@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { TrendingUp, Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import ResearchSuccessScreen from "../research/ResearchSuccessScreen";
 
 function withTimeout(promise, ms = 45000, msg = "Recherche hat zu lange gedauert. Bitte erneut versuchen.") {
   return Promise.race([
@@ -21,6 +22,8 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [usageInfo, setUsageInfo] = useState(null);
   const [planLimits, setPlanLimits] = useState(null);
   const [slowWarning, setSlowWarning] = useState(false);
+  const [researchRun, setResearchRun] = useState(null);
+  const [showSuccessScreen, setShowSuccessScreen] = useState(false);
   const researchingRef = useRef(false); // guard against double-invoke
   const slowTimerRef = useRef(null);
 
@@ -133,6 +136,17 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
         // Ergebnis SOFORT setzen – nichts darf das blockieren
         setResult({ success: true, data: res.data });
         console.log("[ResearchDialog] SET RESULT DONE");
+
+        // ResearchRun speichern + Success-Screen anzeigen (wenn neue Leads)
+        if (res.data.research_run_id) {
+          console.log("[ResearchDialog] Setting research_run_id:", res.data.research_run_id);
+          setResearchRun(res.data.research_run_id);
+          // Success-Screen zeigen, wenn neue Leads oder bestimmte Fälle
+          if (res.data.count > 0 || res.data.runType === "duplicate_only" || res.data.runType === "no_match" || res.data.runType === "zero_result") {
+            setShowSuccessScreen(true);
+          }
+        }
+
         onSuccess?.();
 
         // UsageLog async im Hintergrund – darf den Report nie blockieren
@@ -156,6 +170,26 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   };
 
   if (!open) return null;
+
+  // Success Screen wird in separater Modal angezeigt
+  if (showSuccessScreen && researchRun) {
+    return (
+      <>
+        <ResearchSuccessScreen
+          researchRun={researchRun}
+          orgId={orgId}
+          onClose={() => {
+            setShowSuccessScreen(false);
+            onClose();
+          }}
+          onViewAllLeads={() => {
+            setShowSuccessScreen(false);
+            onClose();
+          }}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">

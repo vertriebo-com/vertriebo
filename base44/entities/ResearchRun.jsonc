@@ -1,0 +1,86 @@
+{
+  "name": "ResearchRun",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "run_type": {
+      "type": "string",
+      "title": "Lauftyp",
+      "enum": [
+        "new_leads",
+        "duplicate_only",
+        "no_match",
+        "zero_result"
+      ]
+    },
+    "requested_target": {
+      "type": "number",
+      "title": "Angeforderte Anzahl",
+      "default": 25
+    },
+    "leads_saved": {
+      "type": "number",
+      "title": "Gespeicherte neue Leads",
+      "default": 0
+    },
+    "duplicates_skipped": {
+      "type": "number",
+      "title": "\u00dcbersprungene Dubletten",
+      "default": 0
+    },
+    "no_match_count": {
+      "type": "number",
+      "title": "Unpassende Treffer",
+      "default": 0
+    },
+    "outside_radius_count": {
+      "type": "number",
+      "title": "Au\u00dferhalb Suchgebiet",
+      "default": 0
+    },
+    "raw_hits": {
+      "type": "number",
+      "title": "Gepr\u00fcfte Firmenprofile (Roh)",
+      "default": 0
+    },
+    "search_center_city": {
+      "type": "string",
+      "title": "Suchzentrum Stadt"
+    },
+    "search_radius_km": {
+      "type": "number",
+      "title": "Suchradius (km)"
+    },
+    "target_customer_types": {
+      "type": "string",
+      "title": "Genutzte Zielkunden (komma-getrennt)"
+    },
+    "excluded_customer_types": {
+      "type": "string",
+      "title": "Ausschl\u00fcsse (komma-getrennt)"
+    },
+    "top_leads": {
+      "type": "string",
+      "title": "Top-Leads (JSON)"
+    },
+    "summary": {
+      "type": "string",
+      "title": "Zusammenfassung (JSON)"
+    },
+    "created_by": {
+      "type": "string",
+      "title": "Erstellt von (E-Mail)"
+    },
+    "charged_lead_generation": {
+      "type": "boolean",
+      "title": "Lead-Generation verbrauchte Credit",
+      "default": false
+    }
+  },
+  "required": [
+    "organization_id"
+  ]
+}

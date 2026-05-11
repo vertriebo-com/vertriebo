@@ -104,6 +104,10 @@
       "type": "string",
       "title": "Wochen-Batch ID"
     },
+    "research_run_id": {
+      "type": "string",
+      "title": "Recherche-Lauf ID"
+    },
     "is_blacklisted": {
       "type": "boolean",
       "title": "Blacklisted",

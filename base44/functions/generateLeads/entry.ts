@@ -918,17 +918,17 @@ Deno.serve(async (req) => {
     const estimatedCostCent = Object.values(skuBreakdown).reduce((sum, s) => sum + s.estimated_cost_cent, 0);
 
     // ─── Lauf-Typ bestimmen (für Credits & UI-Meldung) ────────────────────────
-    const newLeadsSaved = createdIds.length;
-    let runType = "normal"; // normal | duplicate_only | no_match | zero_result
-    if (newLeadsSaved === 0) {
-      if (skipped_duplicate > 0 && skipped_no_match === 0 && skipped_ambiguous === 0 && skipped_outside_radius === 0) {
-        runType = "duplicate_only";
-      } else if (raw_hits === 0) {
-        runType = "zero_result";
-      } else {
-        runType = "no_match";
-      }
-    }
+     const newLeadsSaved = createdIds.length;
+     let runType = "new_leads"; // new_leads | duplicate_only | no_match | zero_result
+     if (newLeadsSaved === 0) {
+       if (skipped_duplicate > 0 && skipped_no_match === 0 && skipped_ambiguous === 0 && skipped_outside_radius === 0) {
+         runType = "duplicate_only";
+       } else if (raw_hits === 0) {
+         runType = "zero_result";
+       } else {
+         runType = "no_match";
+       }
+     }
 
     // Credits nur verbrauchen wenn neue Leads gespeichert wurden
     const chargedLeadGeneration = newLeadsSaved > 0;
@@ -968,6 +968,47 @@ Deno.serve(async (req) => {
       timestamp: new Date().toISOString(),
     };
 
+    // ResearchRun speichern
+    let research_run_id = null;
+    try {
+      const researchRun = await base44.asServiceRole.entities.ResearchRun.create({
+        organization_id,
+        run_type: runType,
+        requested_target: target_count,
+        leads_saved: newLeadsSaved,
+        duplicates_skipped: skipped_duplicate,
+        no_match_count: skipped_no_match,
+        outside_radius_count: skipped_outside_radius,
+        raw_hits,
+        search_center_city: city,
+        search_radius_km: radiusKm,
+        target_customer_types: targetCustomers.join(", "),
+        excluded_customer_types: excludedTargets.join(", "),
+        summary: JSON.stringify(lastReport),
+        charged_lead_generation: chargedLeadGeneration,
+        created_by: access.user.email,
+      });
+      research_run_id = researchRun.id;
+      console.info(`[generateLeads] ResearchRun erstellt: ${research_run_id}`);
+    } catch (runErr) {
+      console.error(`[generateLeads] ResearchRun FEHLER: ${runErr.message}`);
+    }
+
+    // research_run_id zu Leads hinzufügen (nachträglich)
+    if (research_run_id) {
+      try {
+        const saveCompaniesBatch = [];
+        for (const cId of createdIds) {
+          const upd = base44.asServiceRole.entities.Company.update(cId, { research_run_id });
+          saveCompaniesBatch.push(upd);
+        }
+        await Promise.all(saveCompaniesBatch);
+        console.info(`[generateLeads] research_run_id zu ${createdIds.length} Companies gespeichert`);
+      } catch (updateErr) {
+        console.warn(`[generateLeads] research_run_id Update FEHLER: ${updateErr.message}`);
+      }
+    }
+
     try {
       await upsertUsageLog(base44, organization_id, usageDelta, lastReport);
       console.info(`[generateLeads] UsageLog: chargedRun=${chargedLeadGeneration}, +${chargedLeads} Leads, runType=${runType}`);
@@ -980,14 +1021,15 @@ Deno.serve(async (req) => {
     console.info(`[generateLeads] Kosten: ~${estimatedCostCent.toFixed(2)} Cent`);
 
     return Response.json({
-      success: true,
-      requestedTarget: target_count,
-      effectiveTarget,
-      count: newLeadsSaved,
-      chargedLeadGeneration,
-      runType,
-      queriesLimited,
-      summary: {
+       success: true,
+       requestedTarget: target_count,
+       effectiveTarget,
+       count: newLeadsSaved,
+       chargedLeadGeneration,
+       runType,
+       research_run_id,
+       queriesLimited,
+       summary: {
         raw_hits,
         saved: newLeadsSaved,
         duplicates: skipped_duplicate,
