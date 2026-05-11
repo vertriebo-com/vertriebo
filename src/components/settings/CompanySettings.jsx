@@ -238,12 +238,15 @@ export default function CompanySettings({ org: orgProp }) {
       lead_plz_city:                   plzCity,
       service_area_city:               plzCity,
       target_locations:                targetLocations.join(", "),
-      // Zielkunden & Dienstleistungen: beide Key-Namen speichern für Kompatibilität
+      // Zielkunden & Dienstleistungen: ALLE Keys synchron speichern (Canonical + Legacy)
       zielkunden:                      zielkunden.join(", "),
       target_customer_types:           zielkunden.join(", "),
       zielkunden_keywords:             zielkundenKeywords,
       dienstleistungen:                dienstleistungen.join(", "),
       services:                        dienstleistungen.join(", "),
+      // WICHTIG: excluded_customer_types nicht überschreiben — wird vom Onboarding gesetzt
+      // und in generateLeads gelesen. Hier nur synchron halten falls Ausschlüsse vorhanden.
+      // (kein eigenes UI in Settings → Onboarding-Wert bleibt erhalten, da wir ihn nicht überschreiben)
       sales_goal_contacts_per_week:    kontakteProWoche,
       sales_goal_calls_per_week:       anrufeProWoche,
       sales_goal_appointments_per_week: termineProWoche,

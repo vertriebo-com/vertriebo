@@ -679,16 +679,21 @@ Deno.serve(async (req) => {
     const settings = {};
     settingsRecords.forEach(s => { settings[s.key] = s.value; });
 
-    const targetCustomers = (settings.zielkunden || settings.target_customer_types || "")
+    // Canonical Key: target_customer_types — Legacy-Fallback: zielkunden
+    const targetCustomers = (settings.target_customer_types || settings.zielkunden || "")
       .split(", ").filter(x => x.trim());
 
     if (targetCustomers.length === 0) {
       return Response.json({ error: 'Keine Zielkunden definiert.', success: false }, { status: 400 });
     }
 
-    // Explizite User-Ausschlüsse (aus Einstellungen, z.B. "ausschlüsse: Kanzleien, Banken")
-    const excludedTargets = (settings.zielkunden_ausschluss || "")
-      .split(", ").filter(x => x.trim());
+    // Explizite User-Ausschlüsse — Canonical Key: excluded_customer_types
+    // Legacy-Keys: zielkunden_ausschluss, custom_excluded_customer_types
+    const excludedRaw = settings.excluded_customer_types
+      || settings.zielkunden_ausschluss
+      || settings.custom_excluded_customer_types
+      || "";
+    const excludedTargets = excludedRaw.split(", ").filter(x => x.trim());
 
     const city = settings.service_area_city || settings.lead_plz_city || settings.lead_plz || "";
     if (!city) return Response.json({ error: 'Kein Suchgebiet definiert. Bitte Ort in den Einstellungen hinterlegen.', success: false }, { status: 400 });

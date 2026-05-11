@@ -262,13 +262,14 @@ export default function SendEmailDialog({ company }) {
         settings.forEach(s => { map[s.key] = s.value; });
         setFromName(map.email_from_name || map.company_name || org.name || null);
 
+        // Canonical Keys bevorzugen, Legacy-Fallbacks für Rückwärtskompatibilität
         const sig = map.organization_email_signature || buildSignature({
           firmenname: map.company_name || org.name,
           absendername: map.email_from_name,
-          telefon: map.email_telefon,
-          email: map.email_reply_to || user.email,
-          website: map.email_website,
-          adresse: map.email_adresse,
+          telefon: map.email_telefon || map.phone,
+          email: map.email_reply_to || map.email_sender_email || user.email,
+          website: map.email_website || map.website,
+          adresse: map.email_adresse || map.address,
         });
 
         if (dbTemplates?.length > 0) {

@@ -184,8 +184,10 @@ export default function CallScriptDialog({ company }) {
       settingsRecords.forEach(s => { map[s.key] = s.value; });
       const s = {
         firmenname: map.company_name || org.name || "[Ihr Firmenname]",
-        dienstleistungen: map.dienstleistungen || "[Ihre Dienstleistungen]",
-        zielkunden: map.zielkunden || "",
+        // Canonical Key: services; Legacy-Fallback: dienstleistungen
+        dienstleistungen: map.services || map.dienstleistungen || "[Ihre Dienstleistungen]",
+        // Canonical Key: target_customer_types; Legacy-Fallback: zielkunden
+        zielkunden: map.target_customer_types || map.zielkunden || "",
       };
       setOrgSettings(s);
       setOrgId(org.id);

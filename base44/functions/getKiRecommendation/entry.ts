@@ -88,8 +88,9 @@ Deno.serve(async (req) => {
     const settingsMap = {};
     settingsRecords.forEach(s => { settingsMap[s.key] = s.value; });
 
-    const orgServices = settingsMap.dienstleistungen || '';
-    const orgTargetCustomers = settingsMap.zielkunden || '';
+    // Canonical Keys bevorzugen, Legacy-Fallbacks für Rückwärtskompatibilität
+    const orgServices = settingsMap.services || settingsMap.dienstleistungen || '';
+    const orgTargetCustomers = settingsMap.target_customer_types || settingsMap.zielkunden || '';
     const orgIndustry = settingsMap.industry_name || '';
 
     const hasPhone = !!company.telefon;
