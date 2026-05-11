@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { TrendingUp, Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
+import { TrendingUp, Loader2, AlertCircle, CheckCircle2, RefreshCw, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ResearchSuccessScreen from "../research/ResearchSuccessScreen";
+import TrialInfoDialog from "@/components/TrialInfoDialog";
 
 function withTimeout(promise, ms = 45000, msg = "Recherche hat zu lange gedauert. Bitte erneut versuchen.") {
   return Promise.race([
@@ -24,6 +25,9 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [slowWarning, setSlowWarning] = useState(false);
   const [researchRun, setResearchRun] = useState(null);
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
+  const [showTrialInfoDialog, setShowTrialInfoDialog] = useState(false);
+  const [org, setOrg] = useState(null);
+  const [trialStage, setTrialStage] = useState(null);
   const researchingRef = useRef(false); // guard against double-invoke
   const slowTimerRef = useRef(null);
 
@@ -52,10 +56,13 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       settingsData.forEach(s => { settingsMap[s.key] = s.value; });
       setSettings(settingsMap);
 
-      const org = orgs[0];
-      if (org?.plan_id) {
+      const organization = orgs[0];
+      setOrg(organization);
+      setTrialStage(organization?.trial_stage || 'free_preview');
+      
+      if (organization?.plan_id) {
         const [plans, usageLogs] = await Promise.all([
-          base44.entities.Plan.filter({ id: org.plan_id }),
+          base44.entities.Plan.filter({ id: organization.plan_id }),
           base44.entities.UsageLog.filter({ organization_id: orgId, period_month: new Date().toISOString().slice(0, 7) }),
         ]);
         if (plans[0]) {
@@ -130,8 +137,16 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
       console.log("[ResearchDialog] RESULT", res.data);
 
+      // Fehler-Mapping für freundliche Meldungen
       if (res.data?.parallelLockActive) {
         setError(res.data.error || "Es läuft bereits eine Recherche. Bitte warten Sie kurz.");
+      } else if (res.data?.error === 'trial_preview_limit_reached') {
+        setError("Vorschau-Limit erreicht");
+        setShowTrialInfoDialog(true);
+      } else if (res.data?.error === 'abuse_blocked') {
+        setError("Ihr Zugang wurde zur Sicherheitsprüfung eingeschränkt. Bitte kontaktieren Sie den Support.");
+      } else if (res.data?.error === 'organization_suspended') {
+        setError("Diese Organisation ist vorübergehend gesperrt. Bitte kontaktieren Sie den Support.");
       } else if (res.data?.success) {
         // Ergebnis SOFORT setzen – nichts darf das blockieren
         setResult({ success: true, data: res.data });
@@ -159,7 +174,14 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       }
     } catch (e) {
       console.error("[ResearchDialog] generateLeads error:", e);
-      setError(e?.response?.data?.error || e?.message || "Recherche fehlgeschlagen. Bitte erneut versuchen.");
+      const errorMsg = e?.response?.data?.error || e?.message || "Recherche fehlgeschlagen. Bitte erneut versuchen.";
+      // Friendly error messages
+      if (errorMsg.includes('trial') || errorMsg.includes('preview')) {
+        setShowTrialInfoDialog(true);
+        setError("Vorschau-Limit erreicht");
+      } else {
+        setError(errorMsg);
+      }
     } finally {
       clearTimeout(slowTimerRef.current);
       setResearching(false);
@@ -185,6 +207,27 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           onViewAllLeads={() => {
             setShowSuccessScreen(false);
             onClose();
+          }}
+        />
+      </>
+    );
+  }
+
+  // TrialInfoDialog rendern wenn showTrialInfoDialog
+  if (showTrialInfoDialog) {
+    return (
+      <>
+        <TrialInfoDialog
+          isOpen={showTrialInfoDialog}
+          onClose={() => {
+            setShowTrialInfoDialog(false);
+            onClose();
+          }}
+          trial_stage={trialStage}
+          trial_leads_granted={org?.trial_leads_granted || 0}
+          onUpgrade={() => {
+            setShowTrialInfoDialog(false);
+            window.location.href = "/settings";
           }}
         />
       </>
@@ -553,16 +596,37 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               </div>
             )}
 
+            {/* Trial Preview Info + Limit */}
+            {trialStage === 'free_preview' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <div className="flex items-start gap-2">
+                  <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-semibold text-blue-900">Kostenlose Vorschau</p>
+                    <p className="text-blue-800">Sie testen Vertriebo mit bis zu 3 Firmenkontakten. Aktivieren Sie den verifizierten Testzugang für mehr.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div>
-              <p className="text-xs font-semibold text-slate-900 mb-2">Anzahl Firmenkontakte</p>
+              <p className="text-xs font-semibold text-slate-900 mb-2">
+                {trialStage === 'free_preview' ? 'Anzahl Firmenkontakte (max. 3)' : 'Anzahl Firmenkontakte'}
+              </p>
               <div className="grid grid-cols-3 gap-2">
-                {[25, 50, 100].map(count => (
+                {(trialStage === 'free_preview' 
+                  ? [3] 
+                  : [25, 50, 100]
+                ).map(count => (
                   <button
                     key={count}
                     onClick={() => setTargetCount(count)}
+                    disabled={trialStage === 'free_preview' && count !== 3}
                     className={`px-3 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${
                       targetCount === count
                         ? "border-blue-600 bg-blue-50 text-blue-700"
+                        : trialStage === 'free_preview' && count !== 3
+                        ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-100"
                         : "border-slate-300 text-slate-700 hover:border-slate-400"
                     }`}
                   >

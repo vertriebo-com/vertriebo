@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import TrialStatusBanner from "@/components/TrialStatusBanner";
 import {
   CreditCard, Mail, Brain, Search, Database,
   AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, RefreshCw
@@ -135,6 +136,15 @@ export default function BillingSettings({ org: orgProp, user }) {
   return (
     <div className="space-y-5">
 
+      {/* Trial Status Banner */}
+      <TrialStatusBanner 
+        trial_stage={org?.trial_stage}
+        billing_status={org?.billing_status}
+        trial_leads_granted={org?.trial_leads_granted || 0}
+        onUpgrade={() => window.location.href = "/settings#upgrade"}
+        onManagePlan={() => window.location.href = "/settings#upgrade"}
+      />
+
       {/* Problematic billing warning */}
       {isProblematic && (
         <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
@@ -214,6 +224,43 @@ export default function BillingSettings({ org: orgProp, user }) {
           </div>
         )}
       </div>
+
+      {/* Current Access Level */}
+      {org?.trial_stage === 'free_preview' && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">
+            Aktueller Zugang
+          </h3>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="font-semibold text-slate-700">Zugang:</span>
+              <span className="text-blue-600 font-bold">Kostenlose Vorschau</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="font-semibold text-slate-700">Firmenkontakte:</span>
+              <span className="text-slate-900 font-bold">{org?.trial_leads_granted || 0} / 3 genutzt</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {org?.trial_stage === 'verified_trial' && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">
+            Aktueller Zugang
+          </h3>
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="font-semibold text-slate-700">Zugang:</span>
+              <span className="text-amber-600 font-bold">Verifizierter Testzugang</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="font-semibold text-slate-700">Max. pro Recherche:</span>
+              <span className="text-slate-900 font-bold">25 Firmenkontakte</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Usage this month */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">

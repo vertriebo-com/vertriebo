@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Loader2, Building2, MapPin, Target, Mail, Zap, CheckCircle2, Users, Shield } from "lucide-react";
+import { Loader2, Building2, MapPin, Target, Mail, Zap, CheckCircle2, Users, Shield, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -541,13 +541,59 @@ export default function Onboarding() {
           />
         )}
 
-        {/* Step 6: Start Leads */}
-        {currentStep === 6 && (
-          <StartLeadsStep
-            org={org}
-            onDone={handleDone}
-          />
-        )}
+        {/* Step 6: Start Free Preview */}
+         {currentStep === 6 && (
+           <div className="bg-white border border-slate-200 rounded-2xl p-6">
+             <h2 className="text-xl font-bold text-slate-900 mb-1">✨ Ihr Vertriebo-Profil ist eingerichtet!</h2>
+             <p className="text-sm font-medium text-slate-600 mb-6">Starten Sie jetzt Ihre kostenlose Vorschau.</p>
+
+             <div className="space-y-5">
+               {/* Free Preview Info */}
+               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                 <div className="flex items-start gap-3">
+                   <Sparkles className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                   <div>
+                     <p className="text-sm font-semibold text-blue-900">Kostenlose Vorschau starten</p>
+                     <p className="text-xs text-blue-800 mt-1">Sie können bis zu 3 Firmenkontakte kostenlos testen und sehen, wie Vertriebo funktioniert.</p>
+                   </div>
+                 </div>
+                 <div className="bg-blue-100 rounded-lg px-3 py-2">
+                   <p className="text-xs text-blue-700 font-medium">📊 Kostenlose Vorschau: 3 Firmenkontakte</p>
+                 </div>
+               </div>
+
+               {/* CTA for Preview */}
+               <div className="space-y-2">
+                 <Button 
+                   onClick={handleDone}
+                   disabled={saving}
+                   className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2.5"
+                 >
+                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                   3 Vorschau-Kontakte finden
+                 </Button>
+                 <Button 
+                   variant="outline"
+                   onClick={() => window.location.href = "/settings"}
+                   className="w-full gap-2 bg-white border-slate-300 text-slate-700 hover:bg-slate-50 py-2.5"
+                 >
+                   <ArrowRight className="w-4 h-4" />
+                   Verifizierten Testzugang aktivieren
+                 </Button>
+               </div>
+
+               {/* Why upgrade */}
+               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2">
+                 <p className="font-semibold text-slate-900">Warum upgraden?</p>
+                 <ul className="space-y-1 text-slate-700">
+                   <li>✓ Bis zu 25 Firmenkontakte pro Recherche</li>
+                   <li>✓ Unbegrenzte KI-Analysen</li>
+                   <li>✓ 14 Tage kostenlos testen</li>
+                 </ul>
+               </div>
+             </div>
+           </div>
+         )}
       </div>
     </div>
   );

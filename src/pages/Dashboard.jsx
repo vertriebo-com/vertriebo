@@ -1,6 +1,7 @@
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
+import TrialStatusBanner from "@/components/TrialStatusBanner";
 import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
@@ -105,6 +106,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Trial Status Banner */}
+      <TrialStatusBanner 
+        trial_stage={user?.org?.trial_stage}
+        billing_status={user?.org?.billing_status}
+        trial_leads_granted={user?.org?.trial_leads_granted || 0}
+        onUpgrade={() => window.location.href = "/settings"}
+        onManagePlan={() => window.location.href = "/settings"}
+      />
+
       {/* Header with greeting */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-slate-900">
