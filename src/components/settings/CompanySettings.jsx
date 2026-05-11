@@ -136,15 +136,25 @@ export default function CompanySettings({ org: orgProp }) {
     const map = {};
     settings.forEach(s => { map[s.key] = s.value; });
 
-    setTelefon(map.email_telefon || map.company_phone || "");
-    setWebsite(map.email_website || map.company_website || "");
-    setAdresse(map.email_adresse || map.company_address || "");
-    setPlz(currentOrg?.service_area_plz || map.lead_plz || "");
-    setRadius(currentOrg?.service_area_radius_km ? String(currentOrg.service_area_radius_km) : map.lead_radius_km || "25");
-    setPlzCity(map.lead_plz_city || map.service_area_city || "");
+    // Telefon: mehrere Legacy-Keys prüfen
+    setTelefon(map.email_telefon || map.company_phone || map.phone || "");
+    // Website: mehrere Legacy-Keys prüfen
+    setWebsite(map.email_website || map.company_website || map.website || "");
+    // Adresse: mehrere Legacy-Keys prüfen
+    setAdresse(map.email_adresse || map.company_address || map.address || "");
+    // PLZ: Organization-Entity hat Vorrang, dann OrganizationSettings
+    setPlz(currentOrg?.service_area_plz || map.service_area_plz || map.lead_plz || "");
+    // Radius: Organization-Entity hat Vorrang
+    setRadius(currentOrg?.service_area_radius_km ? String(currentOrg.service_area_radius_km) : map.service_area_radius_km || map.lead_radius_km || "25");
+    // Ort: beide Keys prüfen
+    setPlzCity(currentOrg?.service_area_city || map.service_area_city || map.lead_plz_city || "");
     setTargetLocations(map.target_locations ? map.target_locations.split(",").map(s => s.trim()).filter(Boolean) : []);
-    setZielkunden(map.zielkunden ? map.zielkunden.split(", ").filter(Boolean) : []);
-    setDienstleistungen(map.dienstleistungen ? map.dienstleistungen.split(", ").filter(Boolean) : []);
+    // Zielkunden: Onboarding nutzt "target_customer_types", Settings nutzt "zielkunden" → beide prüfen
+    const zielkundenRaw = map.zielkunden || map.target_customer_types || "";
+    setZielkunden(zielkundenRaw ? zielkundenRaw.split(", ").filter(Boolean) : []);
+    // Dienstleistungen: Onboarding nutzt "services", Settings nutzt "dienstleistungen" → beide prüfen
+    const dienstRaw = map.dienstleistungen || map.services || "";
+    setDienstleistungen(dienstRaw ? dienstRaw.split(", ").filter(Boolean) : []);
     setKontakteProWoche(map.sales_goal_contacts_per_week || "20");
     setAnrufeProWoche(map.sales_goal_calls_per_week || "30");
     setTermineProWoche(map.sales_goal_appointments_per_week || "3");
@@ -199,6 +209,7 @@ export default function CompanySettings({ org: orgProp }) {
       name: firmenname.trim(),
       industry,
       service_area_plz: plz,
+      service_area_city: plzCity,
       service_area_radius_km: parseFloat(radius) || 25,
     });
 
@@ -209,20 +220,30 @@ export default function CompanySettings({ org: orgProp }) {
     const settingsToSave = {
       company_name:                    firmenname.trim(),
       industry_name:                   industry,
+      // Kontaktdaten: alle Keys synchron halten
       email_telefon:                   telefon,
       company_phone:                   telefon,
+      phone:                           telefon,
       email_website:                   normalizedWebsite,
       company_website:                 normalizedWebsite,
+      website:                         normalizedWebsite,
       email_adresse:                   adresse,
       company_address:                 adresse,
+      address:                         adresse,
+      // Suchgebiet: alle Keys synchron halten
       lead_plz:                        plz,
+      service_area_plz:                plz,
       lead_radius_km:                  radius,
+      service_area_radius_km:          radius,
       lead_plz_city:                   plzCity,
       service_area_city:               plzCity,
       target_locations:                targetLocations.join(", "),
+      // Zielkunden & Dienstleistungen: beide Key-Namen speichern für Kompatibilität
       zielkunden:                      zielkunden.join(", "),
+      target_customer_types:           zielkunden.join(", "),
       zielkunden_keywords:             zielkundenKeywords,
       dienstleistungen:                dienstleistungen.join(", "),
+      services:                        dienstleistungen.join(", "),
       sales_goal_contacts_per_week:    kontakteProWoche,
       sales_goal_calls_per_week:       anrufeProWoche,
       sales_goal_appointments_per_week: termineProWoche,

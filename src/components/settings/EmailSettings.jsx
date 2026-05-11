@@ -189,14 +189,13 @@ export default function EmailSettings({ org: orgProp }) {
   return (
     <div className="space-y-5">
 
-      {/* Info-Box: Plattform-Absender */}
+      {/* Info-Box: E-Mail MVP */}
       <div className="flex items-start gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
         <Info className="w-4 h-4 shrink-0 mt-0.5" />
         <div>
-          <strong>Wie E-Mail-Versand funktioniert:</strong>{" "}
-          E-Mails werden über die verifizierte Vertriebo-Infrastruktur versendet.
-          Der <strong>Absendername</strong> bestimmt, welcher Name beim Empfänger erscheint.
-          Die <strong>Reply-To-Adresse</strong> bestimmt, wohin Antworten gehen.
+          <strong>So nutzen Sie E-Mails in Vertriebo:</strong>{" "}
+          Wählen Sie eine Vorlage aus, passen Sie den Text an und kopieren Sie ihn in Ihr eigenes Mailprogramm.
+          Der <strong>Absendername</strong> und die <strong>Signatur</strong> werden automatisch in die Vorlage eingefügt.
         </div>
       </div>
 

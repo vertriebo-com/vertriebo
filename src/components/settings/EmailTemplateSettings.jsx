@@ -125,8 +125,25 @@ export default function EmailTemplateSettings() {
             Erstellen Sie Vorlagen für Erstkontakt, Nachfassen, Termine und Angebote.
           </p>
           <div className="flex items-center justify-center gap-3">
-            <Button onClick={addNew} className="gap-2">
-              <Plus className="w-4 h-4" /> Standardvorlagen erstellen
+            <Button onClick={async () => {
+              const currentOrgId = await resolveOrg();
+              if (!currentOrgId) return;
+              setSendingTest(true);
+              try {
+                await base44.functions.invoke("initOrgEmailTemplates", { organization_id: currentOrgId });
+                const dbTemplates = await base44.entities.EmailTemplate.filter({ organization_id: currentOrgId });
+                setTemplates(dbTemplates);
+                toast.success("Standardvorlagen wurden erstellt!");
+              } catch {
+                addNew();
+              }
+              setSendingTest(false);
+            }} disabled={sendingTest} className="gap-2">
+              {sendingTest ? <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" /></> : <Plus className="w-4 h-4" />}
+              Standardvorlagen erstellen
+            </Button>
+            <Button variant="outline" onClick={addNew} className="gap-2">
+              <Plus className="w-4 h-4" /> Leere Vorlage
             </Button>
           </div>
         </div>
