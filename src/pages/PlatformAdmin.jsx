@@ -22,6 +22,8 @@ const STATUS_LABELS = {
   active: { label: 'Aktiv', color: 'bg-emerald-50 text-emerald-700' },
   suspended: { label: 'Gesperrt', color: 'bg-red-50 text-red-700' },
   pending: { label: 'Ausstehend', color: 'bg-amber-50 text-amber-700' },
+  null: { label: 'Aktiv', color: 'bg-emerald-50 text-emerald-700' },
+  undefined: { label: 'Aktiv', color: 'bg-emerald-50 text-emerald-700' },
 };
 
 const BILLING_LABELS = {
@@ -41,6 +43,10 @@ export default function PlatformAdmin() {
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
   const [suspendReason, setSuspendReason] = useState('');
   const [suspending, setSuspending] = useState(false);
+  const [showNewNoteForm, setShowNewNoteForm] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [noteSeverity, setNoteSeverity] = useState('info');
+  const [savingNote, setSavingNote] = useState(false);
 
   const { data: responseData = {}, isLoading, refetch } = useQuery({
     queryKey: ['platform-organizations'],
@@ -82,21 +88,9 @@ export default function PlatformAdmin() {
     }
     setSuspending(true);
     try {
-      const user = await base44.auth.me();
-      await base44.asServiceRole.entities.Organization.update(selectedOrg.id, {
-        platform_status: 'suspended',
-        suspended_reason: suspendReason,
-        suspended_at: new Date().toISOString(),
-        suspended_by: user.email,
-      });
-      await base44.asServiceRole.entities.PlatformAuditLog.create({
-        actor_email: user.email,
-        actor_role: user.role,
-        action: 'suspend_organization',
-        target_type: 'organization',
-        target_id: selectedOrg.id,
+      await base44.functions.invoke('platformAdmin', {
+        action: 'suspendOrganization',
         organization_id: selectedOrg.id,
-        parent_agency_id: selectedOrg.parent_agency_id || null,
         reason: suspendReason,
       });
       toast.success('Organisation gesperrt');
@@ -113,21 +107,9 @@ export default function PlatformAdmin() {
 
   const handleUnsuspend = async (org) => {
     try {
-      const user = await base44.auth.me();
-      await base44.asServiceRole.entities.Organization.update(org.id, {
-        platform_status: 'active',
-        suspended_reason: null,
-        suspended_at: null,
-        suspended_by: null,
-      });
-      await base44.asServiceRole.entities.PlatformAuditLog.create({
-        actor_email: user.email,
-        actor_role: user.role,
-        action: 'unsuspend_organization',
-        target_type: 'organization',
-        target_id: org.id,
+      await base44.functions.invoke('platformAdmin', {
+        action: 'unsuspendOrganization',
         organization_id: org.id,
-        parent_agency_id: org.parent_agency_id || null,
       });
       toast.success('Organisation entsperrt');
       refetch();
@@ -136,10 +118,30 @@ export default function PlatformAdmin() {
     }
   };
 
-  const getPlanName = (planId, billingStatus) => {
-    if (!planId) {
-      return billingStatus === 'trialing' ? 'Testphase' : 'Kein Plan';
+  const handleCreateSupportNote = async (noteText, severity) => {
+    if (!selectedOrg || !noteText.trim()) {
+      toast.error('Notiz erforderlich');
+      return;
     }
+    try {
+      await base44.functions.invoke('platformAdmin', {
+        action: 'createSupportNote',
+        organization_id: selectedOrg.id,
+        note: noteText,
+        severity: severity,
+      });
+      toast.success('Support-Notiz gespeichert');
+      refetch();
+      return true;
+    } catch (e) {
+      toast.error('Fehler: ' + e.message);
+      return false;
+    }
+  };
+
+  const getPlanName = (planId, billingStatus) => {
+    if (billingStatus === 'trialing') return 'Testphase';
+    if (!planId) return 'Kein Plan';
     return plans.find(p => p.id === planId)?.name || 'Nicht zugeordnet';
   };
 
@@ -271,8 +273,8 @@ export default function PlatformAdmin() {
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`text-[11px] font-bold px-2 py-1 rounded ${STATUS_LABELS[org.platform_status || 'active']?.color || 'bg-emerald-50 text-emerald-700'}`}>
-                          {STATUS_LABELS[org.platform_status || 'active']?.label || 'Aktiv'}
+                        <span className={`text-[11px] font-bold px-2 py-1 rounded ${STATUS_LABELS[org.platform_status || 'active']?.color}`}>
+                          {STATUS_LABELS[org.platform_status || 'active']?.label}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-sm font-semibold text-slate-900">{org.leads_count}</td>
@@ -336,7 +338,7 @@ export default function PlatformAdmin() {
           <Dialog open={!!selectedOrg} onOpenChange={() => setSelectedOrg(null)}>
             <DialogContent className="max-w-2xl bg-white border border-slate-200 shadow-xl rounded-2xl">
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
+                <DialogTitle className="flex items-center gap-2 text-slate-900 font-bold">
                   <Building2 className="w-5 h-5 text-slate-900" />
                   {selectedOrg.name}
                 </DialogTitle>
@@ -353,7 +355,7 @@ export default function PlatformAdmin() {
                     </div>
                     <div>
                       <p className="text-xs text-slate-500 font-medium">Organisationstyp</p>
-                      <p className="text-sm font-semibold text-slate-900">{TYPE_LABELS[selectedOrg.organization_type]?.label}</p>
+                      <p className="text-sm font-semibold text-slate-900">{TYPE_LABELS[selectedOrg.organization_type || 'direct_customer']?.label}</p>
                     </div>
                     {selectedOrg.parent_agency_id && (
                       <div className="col-span-2">
@@ -403,8 +405,8 @@ export default function PlatformAdmin() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-slate-700">Status:</span>
-                      <span className={`text-sm font-bold px-3 py-1 rounded ${STATUS_LABELS[selectedOrg.platform_status]?.color}`}>
-                        {STATUS_LABELS[selectedOrg.platform_status]?.label}
+                      <span className={`text-sm font-bold px-3 py-1 rounded ${STATUS_LABELS[selectedOrg.platform_status || 'active']?.color}`}>
+                        {STATUS_LABELS[selectedOrg.platform_status || 'active']?.label}
                       </span>
                     </div>
                     {selectedOrg.suspended_reason && (
@@ -466,8 +468,10 @@ export default function PlatformAdmin() {
                 {/* Support Notes */}
                 <div>
                   <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">Support-Notizen</h3>
+                  
+                  {/* Existing Notes */}
                   {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id).length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2 mb-4">
                       {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id).map(note => (
                         <div key={note.id} className={`rounded-lg p-3 border text-xs ${
                           note.severity === 'critical' ? 'bg-red-50 border-red-200' :
@@ -479,19 +483,91 @@ export default function PlatformAdmin() {
                         </div>
                       ))}
                     </div>
+                  ) : null}
+                  
+                  {/* New Note Form */}
+                  {!showNewNoteForm ? (
+                    <Button
+                      onClick={() => setShowNewNoteForm(true)}
+                      variant="outline"
+                      size="sm"
+                      className="w-full bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
+                    >
+                      + Neue Notiz
+                    </Button>
                   ) : (
-                    <p className="text-xs text-slate-500">Keine Notizen</p>
+                    <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-2">Schweregrad</label>
+                        <select
+                          value={noteSeverity}
+                          onChange={e => setNoteSeverity(e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900"
+                        >
+                          <option value="info">Info</option>
+                          <option value="warning">Warnung</option>
+                          <option value="critical">Kritisch</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 block mb-2">Notiz</label>
+                        <textarea
+                          value={noteText}
+                          onChange={e => setNoteText(e.target.value)}
+                          placeholder="Notiz eingeben…"
+                          rows={3}
+                          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => {
+                            setShowNewNoteForm(false);
+                            setNoteText('');
+                            setNoteSeverity('info');
+                          }}
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 bg-white border-slate-300 text-slate-700"
+                          disabled={savingNote}
+                        >
+                          Abbrechen
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            setSavingNote(true);
+                            const success = await handleCreateSupportNote(noteText, noteSeverity);
+                            if (success) {
+                              setShowNewNoteForm(false);
+                              setNoteText('');
+                              setNoteSeverity('info');
+                            }
+                            setSavingNote(false);
+                          }}
+                          size="sm"
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                          disabled={savingNote || !noteText.trim()}
+                        >
+                          {savingNote ? 'Wird gespeichert…' : 'Speichern'}
+                        </Button>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
 
               <div className="flex gap-2 pt-4 border-t border-slate-200">
-                <Button variant="outline" onClick={() => setSelectedOrg(null)} className="bg-white">
+                <Button onClick={() => setSelectedOrg(null)} variant="outline" className="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50">
                   Schließen
                 </Button>
-                {selectedOrg.platform_status === 'active' && (
-                  <Button onClick={() => setShowSuspendDialog(true)} className="bg-red-600 hover:bg-red-700 text-white gap-2">
+                {(selectedOrg.platform_status === 'active' || !selectedOrg.platform_status) && (
+                  <Button onClick={() => setShowSuspendDialog(true)} className="flex-1 bg-red-600 hover:bg-red-700 text-white gap-2">
                     <Lock className="w-4 h-4" /> Sperren
+                  </Button>
+                )}
+                {selectedOrg.platform_status === 'suspended' && (
+                  <Button onClick={() => handleUnsuspend(selectedOrg)} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+                    <Unlock className="w-4 h-4" /> Entsperren
                   </Button>
                 )}
               </div>

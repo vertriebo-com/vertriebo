@@ -76,6 +76,7 @@ Deno.serve(async (req) => {
       organizations,
       summary,
       plans: (plans || []).map(p => ({ id: p.id, name: p.name, type: p.plan_type })),
+      supportNotes: (supportNotes || []),
     });
 
   } catch (error) {
