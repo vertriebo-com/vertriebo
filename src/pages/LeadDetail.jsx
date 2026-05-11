@@ -42,6 +42,7 @@ export default function LeadDetail() {
   const [showBlacklistConfirm, setShowBlacklistConfirm] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [orgId, setOrgId] = useState(null);
+  const [organizationMember, setOrganizationMember] = useState(null);
 
   useEffect(() => { loadData(); }, [id]);
 
@@ -69,10 +70,11 @@ export default function LeadDetail() {
       setOrgId(orgId);
 
       // Company mit Mandanten-Check laden
-      const [comp, logs, allTasks] = await Promise.all([
+      const [comp, logs, allTasks, members] = await Promise.all([
         base44.entities.Company.filter({ id, organization_id: orgId }),
         base44.entities.ContactLog.filter({ company_id: id, organization_id: orgId }),
         base44.entities.Task.filter({ company_id: id, organization_id: orgId }),
+        base44.entities.OrganizationMember.filter({ organization_id: orgId, user_email: me.email, status: "active" }),
       ]);
 
       if (!comp || comp.length === 0) {
@@ -83,7 +85,12 @@ export default function LeadDetail() {
 
       // sales_rep darf nur zugewiesene Leads sehen
       const loadedCompany = comp[0];
-      if (me.role !== "admin" && me.role !== "organization_admin") {
+      const organizationMember = members?.[0] || null;
+      const userIsPlatformAdmin = ["admin", "platform_owner", "platform_admin"].includes(me.role);
+      const userIsOrgAdmin = organizationMember?.role === "organization_admin";
+      const userCanAccessAllLeads = userIsPlatformAdmin || userIsOrgAdmin;
+
+      if (!userCanAccessAllLeads) {
         if (loadedCompany.assigned_to && loadedCompany.assigned_to !== me.email) {
           toast.error("Dieses Lead ist einem anderen Vertriebler zugewiesen");
           navigate("/leads");
@@ -95,6 +102,7 @@ export default function LeadDetail() {
       setNotizen(loadedCompany.notizen || "");
       setContactLogs(logs.sort((a, b) => new Date(b.created_date) - new Date(a.created_date)));
       setTasks(allTasks.sort((a, b) => new Date(a.faellig_am || 0) - new Date(b.faellig_am || 0)));
+      setOrganizationMember(organizationMember);
       setLoading(false);
     } catch (error) {
       console.error("Fehler beim Laden:", error);
@@ -164,7 +172,10 @@ export default function LeadDetail() {
     navigate("/leads");
   };
 
-  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "organization_admin";
+  // Rollenprüfung: Platform Admin vs Organization Admin
+  const isPlatformAdmin = ["admin", "platform_owner", "platform_admin"].includes(currentUser?.role);
+  const isOrganizationAdmin = organizationMember?.role === "organization_admin";
+  const canUseAdminActions = isPlatformAdmin || isOrganizationAdmin;
 
   const handleEnrich = async () => {
     if (enrichingRef.current) return;
@@ -315,7 +326,7 @@ export default function LeadDetail() {
           >
             <Sparkles className="w-3.5 h-3.5" /> KI-Empfehlung
           </button>
-          {isAdmin && (
+          {canUseAdminActions && (
             <>
               <button
                 onClick={() => setShowBlacklistConfirm(true)}

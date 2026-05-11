@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import PlatformRouteGuard from './components/PlatformRouteGuard';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Leads from './pages/Leads';
@@ -68,7 +69,7 @@ const PublicApp = () => {
 };
 
 
-// Onboarding guard: checks per-organization onboarding status
+// Onboarding guard: checks per-organization onboarding status & platform role
 const OnboardingGuard = ({ children }) => {
   const [checked, setChecked] = useState(false);
   const [redirect, setRedirect] = useState(null);
@@ -80,7 +81,21 @@ const OnboardingGuard = ({ children }) => {
         const user = await base44.auth.me();
         if (!user) { setRedirect("/"); setChecked(true); return; }
 
-        // Eigene Organisation suchen
+        // Überprüfe globale Plattformrolle (höchste Priorität)
+        const isPlatformAdmin = ["admin", "platform_owner", "platform_admin"].includes(user.role);
+        const isSupportRole = ["support_agent", "readonly_support"].includes(user.role);
+
+        // Wenn Plattform-Admin auf "/" (oder Onboarding) landet, zu /platform/admin
+        if ((isPlatformAdmin || isSupportRole) && (location.pathname === "/" || location.pathname === "/onboarding")) {
+          setRedirect("/platform/admin");
+          setChecked(true);
+          return;
+        }
+
+        // Wenn Platform-Admin eine konkrete Kundenseite öffnet (z.B. /leads/:id), erlauben
+        // Nur blockieren bei "/" oder Login-Defaults
+
+        // Für normale Kunden: Organisation prüfen
         let org = null;
         const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
         org = orgs?.[0] || null;
@@ -114,7 +129,7 @@ const OnboardingGuard = ({ children }) => {
         setChecked(true);
       }
     })();
-  }, []);
+  }, [location.pathname]);
 
   if (!checked) return <Spinner />;
 
@@ -146,6 +161,7 @@ const AuthenticatedApp = () => {
   return (
     <OnboardingGuard>
       <Routes>
+        <Route path="/platform/admin" element={<PlatformRouteGuard><Dashboard /></PlatformRouteGuard>} />
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<AnimatedRoutes><Dashboard /></AnimatedRoutes>} />
           <Route path="/leads" element={<AnimatedRoutes><Leads /></AnimatedRoutes>} />
