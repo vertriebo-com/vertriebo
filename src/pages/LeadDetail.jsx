@@ -308,10 +308,10 @@ export default function LeadDetail() {
           </button>
           <button
             onClick={() => setShowKiDialog(true)}
-            title="KI-Empfehlungen anzeigen"
+            title="Regelbasierte Handlungsempfehlung anzeigen"
             className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-blue-200 bg-blue-50 text-blue-700 px-3 rounded-lg hover:bg-blue-100 transition-colors"
           >
-            <Lightbulb className="w-3.5 h-3.5" /> KI-Tipp
+            <Lightbulb className="w-3.5 h-3.5" /> Empfehlung
           </button>
           {isAdmin && (
             <>
@@ -493,7 +493,7 @@ export default function LeadDetail() {
             {/* KI-Empfehlung */}
             <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
               <h3 className="text-xs font-bold uppercase tracking-wide text-slate-600 flex items-center gap-2 mb-4">
-                <Lightbulb className="w-3.5 h-3.5" /> KI-Empfehlung
+                <Lightbulb className="w-3.5 h-3.5" /> Empfehlung
               </h3>
               <div className={`flex flex-col gap-3 p-4 rounded-lg border ${company.status === "Neu" ? "text-blue-700 bg-blue-50 border-blue-200" : "text-slate-700 bg-slate-50 border-slate-200"}`}>
                 <div className="flex items-center gap-2">
@@ -514,7 +514,7 @@ export default function LeadDetail() {
                 )}
               </div>
               <Button variant="outline" size="sm" onClick={() => setShowKiDialog(true)} className="w-full mt-3 gap-1.5 bg-white border border-[#E2E8F0]">
-                <Sparkles className="w-3.5 h-3.5" /> Alle KI-Tipps
+                <Lightbulb className="w-3.5 h-3.5" /> Alle Empfehlungen
               </Button>
             </div>
           </div>
@@ -617,7 +617,7 @@ export default function LeadDetail() {
         <DialogContent className="max-w-md bg-white border border-slate-200 shadow-xl rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-slate-900">
-              <Lightbulb className="w-4 h-4 text-blue-600" /> KI-Empfehlungen
+              <Lightbulb className="w-4 h-4 text-blue-600" /> Handlungsempfehlungen
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
