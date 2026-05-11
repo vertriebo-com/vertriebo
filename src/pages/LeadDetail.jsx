@@ -16,6 +16,7 @@ import KiRecommendationCard from "../components/KiRecommendationCard";
 import AddContactLogDialog from "../components/AddContactLogDialog";
 import AddTaskDialog from "../components/AddTaskDialog";
 import SendEmailDialog from "../components/SendEmailDialog";
+import RelevanceSection from "../components/lead-detail/RelevanceSection";
 import { toast } from "sonner";
 import moment from "moment";
 import { useRef } from "react";
@@ -334,6 +335,9 @@ export default function LeadDetail() {
           )}
         </div>
       </div>
+
+      {/* Lead-Relevanz */}
+      <RelevanceSection company={company} />
 
       {/* 3-Spalten-Layout */}
       <div className="grid lg:grid-cols-3 gap-5">
