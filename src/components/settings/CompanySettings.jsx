@@ -295,9 +295,11 @@ export default function CompanySettings({ org: orgProp }) {
     setIndustry(newIndustryLabel);
 
     if (newPreset && applySuggestions) {
-      // Auto-update Zielkunden von Preset
+      // Auto-update Zielkunden, Services, Ausschlüsse vom Preset
       setZielkunden(newPreset.targetCustomerTypes);
-      toast.success(`Zielkunden für ${newIndustryLabel} aktualisiert`);
+      setDienstleistungen(newPreset.ownServices || []);
+      setExcludedCustomers(newPreset.excludedCustomerTypes || []);
+      toast.success(`Zielkunden, Leistungen und Ausschlüsse für ${newIndustryLabel} aktualisiert`);
     }
   };
 
@@ -647,6 +649,10 @@ export default function CompanySettings({ org: orgProp }) {
           newIndustry={pendingIndustryChange.newLabel}
           currentTargetCustomers={zielkunden}
           suggestedTargetCustomers={pendingIndustryChange.newPreset.targetCustomerTypes}
+          currentServices={dienstleistungen}
+          suggestedServices={pendingIndustryChange.newPreset.ownServices || []}
+          currentExcludedCustomers={excludedCustomers}
+          suggestedExcludedCustomers={pendingIndustryChange.newPreset.excludedCustomerTypes || []}
           onConfirm={handleIndustryChangeConfirm}
           onCancel={() => {
             setShowIndustryChangeDialog(false);

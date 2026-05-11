@@ -10,14 +10,18 @@ import { AlertTriangle, RefreshCw } from "lucide-react";
  * fragen wir: „Sollen die automatischen Zielkunden aktualisiert werden?"
  */
 export default function IndustryChangeConfirmDialog({ 
-  isOpen, 
-  oldIndustry, 
-  newIndustry,
-  currentTargetCustomers, // bestehende manuelle Zielkunden
-  suggestedTargetCustomers, // Vorschläge für neue Branche
-  onConfirm, // callback: (applySuggestions: boolean) => void
-  onCancel
-}) {
+   isOpen, 
+   oldIndustry, 
+   newIndustry,
+   currentTargetCustomers, // bestehende manuelle Zielkunden
+   suggestedTargetCustomers, // Vorschläge für neue Branche
+   currentServices = [],
+   suggestedServices = [],
+   currentExcludedCustomers = [],
+   suggestedExcludedCustomers = [],
+   onConfirm, // callback: (applySuggestions: boolean) => void
+   onCancel
+ }) {
   const [isLoading, setIsLoading] = useState(false);
 
   const handleApplySuggestions = async () => {
@@ -59,22 +63,54 @@ export default function IndustryChangeConfirmDialog({
             ))}
           </div>
 
-          <div className="border-t border-dashed border-slate-200 pt-4">
-            <p className="text-sm font-medium text-slate-900 mb-2">
-              Vorgeschlagene Zielkunden für {newIndustry}:
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {suggestedTargetCustomers.slice(0, 8).map(ct => (
-                <span key={ct} className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-                  {ct}
-                </span>
-              ))}
-              {suggestedTargetCustomers.length > 8 && (
-                <span className="text-xs px-2 py-1 text-slate-500 font-medium">
-                  +{suggestedTargetCustomers.length - 8} weitere
-                </span>
-              )}
+          <div className="border-t border-dashed border-slate-200 pt-4 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-slate-900 mb-2">
+                Vorgeschlagene Zielkunden für {newIndustry}:
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestedTargetCustomers.slice(0, 8).map(ct => (
+                  <span key={ct} className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                    {ct}
+                  </span>
+                ))}
+                {suggestedTargetCustomers.length > 8 && (
+                  <span className="text-xs px-2 py-1 text-slate-500 font-medium">
+                    +{suggestedTargetCustomers.length - 8} weitere
+                  </span>
+                )}
+              </div>
             </div>
+            {suggestedServices.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-slate-900 mb-2">Vorgeschlagene Leistungen:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {suggestedServices.slice(0, 5).map(s => (
+                    <span key={s} className="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">
+                      {s}
+                    </span>
+                  ))}
+                  {suggestedServices.length > 5 && (
+                    <span className="text-xs px-2 py-1 text-slate-500 font-medium">+{suggestedServices.length - 5}</span>
+                  )}
+                </div>
+              </div>
+            )}
+            {suggestedExcludedCustomers.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-slate-900 mb-2">Ausschlüsse:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {suggestedExcludedCustomers.slice(0, 5).map(e => (
+                    <span key={e} className="text-xs px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
+                      {e}
+                    </span>
+                  ))}
+                  {suggestedExcludedCustomers.length > 5 && (
+                    <span className="text-xs px-2 py-1 text-slate-500 font-medium">+{suggestedExcludedCustomers.length - 5}</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <p className="text-xs text-slate-500 italic pt-2">

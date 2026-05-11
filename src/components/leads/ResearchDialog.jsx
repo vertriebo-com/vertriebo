@@ -90,7 +90,10 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
     }
   };
 
-  const targetCustomers = (settings.zielkunden || "").split(", ").filter(x => x.trim());
+  const ownIndustry = settings.industry_name || settings.own_industry || "";
+  const servicesUsed = (settings.services || settings.dienstleistungen || "").split(", ").filter(x => x.trim());
+  const targetCustomers = (settings.target_customer_types || settings.zielkunden || "").split(", ").filter(x => x.trim());
+  const excludedCustomersUsed = (settings.excluded_customer_types || "").split(", ").filter(x => x.trim());
 
   const handleStartResearch = async () => {
     // Hard guard: keine Doppelausführung
@@ -439,11 +442,43 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
         {/* Form – only shown when not loading, not researching, no result, no error */}
         {!loading && !researching && !result && !error && (
           <div className="space-y-4 py-2">
-            <div className="space-y-2 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
+            <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs">
+              {ownIndustry && (
+                <div>
+                  <span className="text-slate-600 block mb-1 font-medium">Branche:</span>
+                  <span className="font-semibold text-slate-900">{ownIndustry}</span>
+                </div>
+              )}
+              {servicesUsed.length > 0 && (
+                <div>
+                  <span className="text-slate-600 block mb-1 font-medium">Leistungen:</span>
+                  <span className="font-semibold text-slate-900 line-clamp-2">
+                    {servicesUsed.slice(0, 3).join(", ")}{servicesUsed.length > 3 ? ", ..." : ""}
+                  </span>
+                </div>
+              )}
+              {targetCustomers.length > 0 ? (
+                <div>
+                  <span className="text-slate-600 block mb-1 font-medium">Zielkunden:</span>
+                  <span className="font-semibold text-slate-900 line-clamp-2">
+                    {targetCustomers.slice(0, 3).join(", ")}{targetCustomers.length > 3 ? ", ..." : ""}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-red-700 font-medium">⚠️ Keine Zielkunden definiert</div>
+              )}
+              {excludedCustomersUsed.length > 0 && (
+                <div>
+                  <span className="text-slate-600 block mb-1 font-medium">Ausschlüsse:</span>
+                  <span className="font-semibold text-slate-900 line-clamp-2">
+                    {excludedCustomersUsed.slice(0, 2).join(", ")}{excludedCustomersUsed.length > 2 ? ", ..." : ""}
+                  </span>
+                </div>
+              )}
               {(settings?.lead_plz_city || settings?.service_area_city || settings?.lead_plz) && (
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 pt-2 border-t border-slate-200">
                   <div className="flex justify-between">
-                    <span className="text-slate-600">Hauptstandort:</span>
+                    <span className="text-slate-600">Suchgebiet:</span>
                     <span className="font-semibold text-slate-900">
                       {settings.lead_radius_km || settings.service_area_radius_km || "25"} km um {settings.lead_plz_city || settings.service_area_city || settings.lead_plz}
                     </span>
@@ -454,18 +489,6 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                       <span className="font-semibold text-slate-900 text-right max-w-[55%]">{settings.target_locations}</span>
                     </div>
                   )}
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Gespeichert werden nur Kontakte innerhalb des definierten Radius.
-                    {!settings.target_locations && " Nahe Orte im Umkreis werden automatisch berücksichtigt."}
-                  </p>
-                </div>
-              )}
-              {targetCustomers.length > 0 && (
-                <div>
-                  <span className="text-slate-600 block mb-1">Zielkunden:</span>
-                  <span className="font-semibold text-slate-900 line-clamp-2">
-                    {targetCustomers.slice(0, 3).join(", ")}{targetCustomers.length > 3 ? ", ..." : ""}
-                  </span>
                 </div>
               )}
             </div>
@@ -525,7 +548,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             )}
 
             <div className="flex gap-2 pt-1">
-              <Button variant="outline" onClick={onClose} className="flex-1">Abbrechen</Button>
+              <Button variant="outline" onClick={onClose} className="flex-1 bg-white text-slate-700 border-slate-300 hover:bg-slate-50">Abbrechen</Button>
               <Button
                 onClick={handleStartResearch}
                 disabled={targetCustomers.length === 0}
