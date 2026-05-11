@@ -159,6 +159,15 @@
     "excluded_reason": {
       "type": "string",
       "title": "Ausschluss-Grund"
+    },
+    "ki_recommendation": {
+      "type": "string",
+      "title": "KI-Empfehlung (JSON Cache)"
+    },
+    "ki_recommendation_generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "KI-Empfehlung generiert am"
     }
   },
   "required": [

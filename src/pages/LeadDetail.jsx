@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Building2, Phone, Mail, Globe, MapPin, User, Plus, History, ListTodo, Trash2, Ban,
+  ArrowLeft, Building2, Phone, Mail, Globe, MapPin, User, Plus, History, Trash2, Ban,
   Sparkles, MessageSquare, CheckCircle2, Circle, Clock, ChevronRight, PhoneCall, Flame, Target,
-  Lightbulb, Calendar, FileText, TrendingUp, Star
+  Lightbulb, Calendar
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
 import CallScriptDialog from "../components/CallScriptDialog";
+import KiRecommendationCard from "../components/KiRecommendationCard";
 import AddContactLogDialog from "../components/AddContactLogDialog";
 import AddTaskDialog from "../components/AddTaskDialog";
 import SendEmailDialog from "../components/SendEmailDialog";
@@ -35,7 +36,7 @@ export default function LeadDetail() {
   const [showSonstigesDialog, setShowSonstigesDialog] = useState(false);
   const [sonstigesNotiz, setSonstigesNotiz] = useState("");
   const [sonstigesSaving, setSonstigesSaving] = useState(false);
-  const [showKiDialog, setShowKiDialog] = useState(false);
+  const [showKiDialog, setShowKiDialog] = useState(false); // kept for quick-access button in header
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showBlacklistConfirm, setShowBlacklistConfirm] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -308,10 +309,10 @@ export default function LeadDetail() {
           </button>
           <button
             onClick={() => setShowKiDialog(true)}
-            title="Regelbasierte Handlungsempfehlung anzeigen"
-            className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-blue-200 bg-blue-50 text-blue-700 px-3 rounded-lg hover:bg-blue-100 transition-colors"
+            title="KI-Handlungsempfehlung anzeigen"
+            className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-purple-200 bg-purple-50 text-purple-700 px-3 rounded-lg hover:bg-purple-100 transition-colors"
           >
-            <Lightbulb className="w-3.5 h-3.5" /> Empfehlung
+            <Sparkles className="w-3.5 h-3.5" /> KI-Empfehlung
           </button>
           {isAdmin && (
             <>
@@ -491,32 +492,11 @@ export default function LeadDetail() {
             </div>
 
             {/* KI-Empfehlung */}
-            <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-slate-600 flex items-center gap-2 mb-4">
-                <Lightbulb className="w-3.5 h-3.5" /> Empfehlung
-              </h3>
-              <div className={`flex flex-col gap-3 p-4 rounded-lg border ${company.status === "Neu" ? "text-blue-700 bg-blue-50 border-blue-200" : "text-slate-700 bg-slate-50 border-slate-200"}`}>
-                <div className="flex items-center gap-2">
-                  {company.status === "Neu" ? <PhoneCall className="w-5 h-5" /> : <Lightbulb className="w-5 h-5" />}
-                  <span className="text-sm font-bold">
-                    {company.status === "Neu" ? "Erstkontakt herstellen" : "Weiterhin beobachten"}
-                  </span>
-                </div>
-                <p className="text-xs leading-relaxed">
-                  {company.status === "Neu" 
-                    ? "Rufen Sie heute an und stellen Sie Ihr Unternehmen vor."
-                    : "Kein dringender Handlungsbedarf. Lead im Auge behalten."}
-                </p>
-                {company.status === "Neu" && company.telefon && (
-                  <a href={`tel:${company.telefon}`} className="text-center text-xs font-bold bg-white border border-current px-3 py-1.5 rounded hover:bg-slate-50 transition-colors">
-                    📞 Anrufen
-                  </a>
-                )}
-              </div>
-              <Button variant="outline" size="sm" onClick={() => setShowKiDialog(true)} className="w-full mt-3 gap-1.5 bg-white border border-[#E2E8F0]">
-                <Lightbulb className="w-3.5 h-3.5" /> Alle Empfehlungen
-              </Button>
-            </div>
+            <KiRecommendationCard
+              company={company}
+              orgId={orgId}
+              onCompanyUpdated={loadData}
+            />
           </div>
 
           {/* Kontakthistorie */}
@@ -617,45 +597,14 @@ export default function LeadDetail() {
         <DialogContent className="max-w-md bg-white border border-slate-200 shadow-xl rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-slate-900">
-              <Lightbulb className="w-4 h-4 text-blue-600" /> Handlungsempfehlungen
+              <Sparkles className="w-4 h-4 text-purple-600" /> KI-Handlungsempfehlung
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className={`p-4 rounded-xl border ${company.status === "Neu" ? "bg-blue-50 border-blue-200" : "bg-white border-slate-200"}`}>
-              <div className="flex items-center gap-2 mb-2">
-                {company.status === "Neu" ? <PhoneCall className="w-5 h-5 text-blue-600" /> : <Lightbulb className="w-5 h-5 text-slate-500" />}
-                <span className={`text-sm font-bold ${company.status === "Neu" ? "text-blue-900" : "text-slate-900"}`}>
-                  {company.status === "Neu" ? "Erstkontakt herstellen" : "Weiterhin beobachten"}
-                </span>
-              </div>
-              <p className={`text-xs leading-relaxed ${company.status === "Neu" ? "text-blue-800" : "text-slate-700"}`}>
-                {company.status === "Neu"
-                  ? "Rufen Sie heute an und stellen Sie Ihr Unternehmen vor. Nutzen Sie den Branchen-Einstieg."
-                  : "Für diesen Lead gibt es aktuell keine dringende Empfehlung."}
-              </p>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-xl p-3">
-              <p className="text-xs font-bold text-slate-900 mb-2">Gesprächseinstieg:</p>
-              <p className="text-xs text-slate-600 italic leading-relaxed">
-                „Guten Tag, hier ist [Ihr Name] von [Ihrem Unternehmen]. Wir helfen lokalen Betrieben dabei, mehr Kunden zu gewinnen. Haben Sie gerade kurz Zeit?"
-              </p>
-            </div>
-
-            <div className="bg-white border border-slate-200 rounded-xl p-3">
-              <p className="text-xs font-bold text-slate-900 mb-2">Follow-up-Vorschlag:</p>
-              <p className="text-xs text-slate-700 leading-relaxed">
-                {company.status === "Neu"
-                  ? "Nach Erstkontakt: E-Mail mit Unterlagen senden und Termin vereinbaren."
-                  : company.status === "Rückruf"
-                  ? "Rückruf durchführen und Bedarf klären."
-                  : company.status === "Angebot"
-                  ? "Angebot nachfassen und Entscheidung einholen."
-                  : "Regelmäßigen Kontakt halten und Beziehung pflegen."
-                }
-              </p>
-            </div>
-          </div>
+          <KiRecommendationCard
+            company={company}
+            orgId={orgId}
+            onCompanyUpdated={loadData}
+          />
         </DialogContent>
       </Dialog>
 
