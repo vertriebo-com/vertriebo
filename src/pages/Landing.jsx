@@ -10,70 +10,70 @@ import PricingFAQ from "@/components/landing/PricingFAQ";
 import VertrieboLogo from "@/components/VertrieboLogo";
 
 const PLANS = [
-  {
-    name: "Starter",
-    planId: "69fb1b37d7433caf98c34ff9",
-    price: "99",
-    description: "Für Einzelkämpfer und kleine Betriebe",
-    popular: false,
-    features: [
-      "2 Vertriebler",
-      "300 gespeicherte Firmenkontakte",
-      "100 Recherche-Credits",
-      "CRM & Pipeline",
-      "Basis-Reports",
-      "500 E-Mails/Monat",
-    ],
-  },
-  {
-    name: "Professional",
-    planId: "69fb1b37d7433caf98c34ffa",
-    price: "199",
-    description: "Für Teams, die regelmäßig aktiv Vertrieb machen",
-    popular: true,
-    features: [
-      "5 Vertriebler",
-      "1.500 gespeicherte Firmenkontakte",
-      "750 Recherche-Credits",
-      "Alle Starter-Features",
-      "KI-Morgenreport + Team-Auswertung",
-      "Eigene E-Mail-Vorlagen",
-      "2.000 E-Mails/Monat",
-    ],
-  },
-  {
-    name: "Gold",
-    planId: "69fb7de571a0504da10ef985",
-    price: "349",
-    description: "Für wachsende Vertriebsteams mit hohem Kontaktvolumen",
-    popular: false,
-    features: [
-      "10 Vertriebler",
-      "5.000 gespeicherte Firmenkontakte",
-      "2.000 Recherche-Credits",
-      "Alle Professional-Features",
-      "1.000 KI-Aktionen",
-      "5.000 E-Mails/Monat",
-      "Priority Support",
-    ],
-  },
-  {
-    name: "Agency",
-    planId: "69fb1b37d7433caf98c34ffb",
-    price: "599",
-    description: "Für größere Teams mit persönlicher Einrichtung",
-    popular: false,
-    features: [
-      "Individuelle Vertriebler-Anzahl",
-      "15.000 gespeicherte Firmenkontakte",
-      "5.000 Recherche-Credits",
-      "Alle Gold-Features",
-      "3.000 KI-Aktionen",
-      "10.000 E-Mails/Monat",
-      "Persönliches Onboarding",
-    ],
-  },
-];
+{
+  name: "Starter",
+  planId: "69fb1b37d7433caf98c34ff9",
+  price: "99",
+  description: "Für Einzelkämpfer und kleine Betriebe",
+  popular: false,
+  features: [
+  "2 Vertriebler",
+  "300 gespeicherte Firmenkontakte",
+  "100 Recherche-Credits",
+  "CRM & Pipeline",
+  "Basis-Reports",
+  "500 E-Mails/Monat"]
+
+},
+{
+  name: "Professional",
+  planId: "69fb1b37d7433caf98c34ffa",
+  price: "199",
+  description: "Für Teams, die regelmäßig aktiv Vertrieb machen",
+  popular: true,
+  features: [
+  "5 Vertriebler",
+  "1.500 gespeicherte Firmenkontakte",
+  "750 Recherche-Credits",
+  "Alle Starter-Features",
+  "KI-Morgenreport + Team-Auswertung",
+  "Eigene E-Mail-Vorlagen",
+  "2.000 E-Mails/Monat"]
+
+},
+{
+  name: "Gold",
+  planId: "69fb7de571a0504da10ef985",
+  price: "349",
+  description: "Für wachsende Vertriebsteams mit hohem Kontaktvolumen",
+  popular: false,
+  features: [
+  "10 Vertriebler",
+  "5.000 gespeicherte Firmenkontakte",
+  "2.000 Recherche-Credits",
+  "Alle Professional-Features",
+  "1.000 KI-Aktionen",
+  "5.000 E-Mails/Monat",
+  "Priority Support"]
+
+},
+{
+  name: "Agency",
+  planId: "69fb1b37d7433caf98c34ffb",
+  price: "599",
+  description: "Für größere Teams mit persönlicher Einrichtung",
+  popular: false,
+  features: [
+  "Individuelle Vertriebler-Anzahl",
+  "15.000 gespeicherte Firmenkontakte",
+  "5.000 Recherche-Credits",
+  "Alle Gold-Features",
+  "3.000 KI-Aktionen",
+  "10.000 E-Mails/Monat",
+  "Persönliches Onboarding"]
+
+}];
+
 
 export default function Landing() {
   const [loading, setLoading] = useState(null);
@@ -113,7 +113,7 @@ export default function Landing() {
       }
       const res = await base44.functions.invoke("createCheckoutSession", {
         organization_id: org.id,
-        plan_id: plan.planId,
+        plan_id: plan.planId
       });
       if (res.data?.url) {
         window.location.href = res.data.url;
@@ -131,7 +131,7 @@ export default function Landing() {
       {/* Navbar */}
       <nav className="sticky top-0 z-50 bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
-          <img src="/logo-vertriebo.svg" alt="Vertriebo" className="h-16 w-auto object-contain" />
+          <img src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/6bf8a2d63_ChatGPTImage11Mai202615_23_00.png" alt="Vertriebo" className="h-16 w-auto object-contain" />
           <div className="flex items-center gap-3">
             <button onClick={handleLogin} className="px-5 py-2 rounded-lg text-sm font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all">
               Login
@@ -165,14 +165,14 @@ export default function Landing() {
               <div className="flex flex-col sm:flex-row gap-3 mb-8">
                 <button
                   onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}
-                  className="px-7 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/25"
-                >
+                  className="px-7 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/25">
+                  
                   14 Tage kostenlos testen
                 </button>
                 <a
                   href="#how-it-works"
-                  className="px-7 py-3.5 rounded-xl text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2"
-                >
+                  className="px-7 py-3.5 rounded-xl text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+                  
                   Wie es funktioniert
                 </a>
               </div>
@@ -346,49 +346,49 @@ export default function Landing() {
           
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
             {[
-              {
-                icon: "🔍",
-                title: "Automatische Firmenkontakt-Recherche",
-                desc: "Legen Sie Zielgebiet, Branche und Kundentyp fest – Vertriebo findet passende Firmenkontakte für Ihren Vertrieb.",
-                color: "border-blue-200 bg-blue-50",
-              },
-              {
-                icon: "⭐",
-                title: "Priorisierte Tagesliste",
-                desc: "Ihr Team sieht jeden Tag, welche Kontakte heute angerufen, nachgefasst oder erneut kontaktiert werden sollten.",
-                color: "border-amber-200 bg-amber-50",
-              },
-              {
-                icon: "📞",
-                title: "Rückrufe & Follow-ups",
-                desc: "Aus Gesprächen entstehen direkt Aufgaben und Erinnerungen – damit kein Kontakt verloren geht.",
-                color: "border-emerald-200 bg-emerald-50",
-              },
-              {
-                icon: "✉️",
-                title: "E-Mail-Vorlagen mit Branding",
-                desc: "Vorlagen, Signatur und Antwortadresse sind je Unternehmen anpassbar – professionell und einheitlich.",
-                color: "border-purple-200 bg-purple-50",
-              },
-              {
-                icon: "👥",
-                title: "Vertriebssteuerung für Teams",
-                desc: "Admins sehen Fortschritt, offene Aufgaben, Aktivität und Ergebnisse. Vertriebler sehen nur ihre eigenen Leads.",
-                color: "border-indigo-200 bg-indigo-50",
-              },
-              {
-                icon: "✅",
-                title: "Alles leicht bedienbar",
-                desc: "Keine komplizierte CRM-Einrichtung. Zielgebiet festlegen, Kontakte recherchieren, losarbeiten.",
-                color: "border-slate-200 bg-slate-50",
-              },
-            ].map((item, i) => (
-              <div key={i} className={`border-2 rounded-xl p-5 ${item.color}`}>
+            {
+              icon: "🔍",
+              title: "Automatische Firmenkontakt-Recherche",
+              desc: "Legen Sie Zielgebiet, Branche und Kundentyp fest – Vertriebo findet passende Firmenkontakte für Ihren Vertrieb.",
+              color: "border-blue-200 bg-blue-50"
+            },
+            {
+              icon: "⭐",
+              title: "Priorisierte Tagesliste",
+              desc: "Ihr Team sieht jeden Tag, welche Kontakte heute angerufen, nachgefasst oder erneut kontaktiert werden sollten.",
+              color: "border-amber-200 bg-amber-50"
+            },
+            {
+              icon: "📞",
+              title: "Rückrufe & Follow-ups",
+              desc: "Aus Gesprächen entstehen direkt Aufgaben und Erinnerungen – damit kein Kontakt verloren geht.",
+              color: "border-emerald-200 bg-emerald-50"
+            },
+            {
+              icon: "✉️",
+              title: "E-Mail-Vorlagen mit Branding",
+              desc: "Vorlagen, Signatur und Antwortadresse sind je Unternehmen anpassbar – professionell und einheitlich.",
+              color: "border-purple-200 bg-purple-50"
+            },
+            {
+              icon: "👥",
+              title: "Vertriebssteuerung für Teams",
+              desc: "Admins sehen Fortschritt, offene Aufgaben, Aktivität und Ergebnisse. Vertriebler sehen nur ihre eigenen Leads.",
+              color: "border-indigo-200 bg-indigo-50"
+            },
+            {
+              icon: "✅",
+              title: "Alles leicht bedienbar",
+              desc: "Keine komplizierte CRM-Einrichtung. Zielgebiet festlegen, Kontakte recherchieren, losarbeiten.",
+              color: "border-slate-200 bg-slate-50"
+            }].
+            map((item, i) =>
+            <div key={i} className={`border-2 rounded-xl p-5 ${item.color}`}>
                 <div className="text-3xl mb-3">{item.icon}</div>
                 <h3 className="font-bold text-slate-900 mb-2">{item.title}</h3>
                 <p className="text-sm text-slate-700 leading-relaxed">{item.desc}</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -399,26 +399,26 @@ export default function Landing() {
           <h2 className="text-3xl font-bold text-center mb-10 text-slate-900">So funktioniert Vertriebo</h2>
           <div className="grid md:grid-cols-3 gap-8">
             {[
-              {
-                step: "1",
-                title: "Zielgebiet festlegen",
-                desc: "Wählen Sie Branche, PLZ-Gebiet und Radius. Vertriebo recherchiert automatisch passende Firmenkontakte in Ihrer Region.",
-                icon: "🎯",
-              },
-              {
-                step: "2",
-                title: "Kontakte priorisieren",
-                desc: "Das System bewertet alle Firmen nach Potenzial und erstellt täglich neue priorisierte Anruflisten für Ihr Team.",
-                icon: "⭐",
-              },
-              {
-                step: "3",
-                title: "Vertrieb steuern",
-                desc: "Ihr Team arbeitet die Tagesliste ab, loggt Kontakte und erhält automatische Erinnerungen für Rückrufe und Follow-ups.",
-                icon: "📊",
-              },
-            ].map((item) => (
-              <div key={item.step} className="relative">
+            {
+              step: "1",
+              title: "Zielgebiet festlegen",
+              desc: "Wählen Sie Branche, PLZ-Gebiet und Radius. Vertriebo recherchiert automatisch passende Firmenkontakte in Ihrer Region.",
+              icon: "🎯"
+            },
+            {
+              step: "2",
+              title: "Kontakte priorisieren",
+              desc: "Das System bewertet alle Firmen nach Potenzial und erstellt täglich neue priorisierte Anruflisten für Ihr Team.",
+              icon: "⭐"
+            },
+            {
+              step: "3",
+              title: "Vertrieb steuern",
+              desc: "Ihr Team arbeitet die Tagesliste ab, loggt Kontakte und erhält automatische Erinnerungen für Rückrufe und Follow-ups.",
+              icon: "📊"
+            }].
+            map((item) =>
+            <div key={item.step} className="relative">
                 <div className="bg-white border-2 border-slate-200 rounded-2xl p-6 h-full hover:border-blue-400 transition-colors">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center">
@@ -429,15 +429,15 @@ export default function Landing() {
                   <h3 className="text-lg font-bold text-slate-900 mb-3">{item.title}</h3>
                   <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
                 </div>
-                {item.step !== "3" && (
-                  <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2 z-10">
+                {item.step !== "3" &&
+              <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2 z-10">
                     <svg className="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
-                )}
+              }
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -458,20 +458,20 @@ export default function Landing() {
           {/* Kompakte Tag-Liste */}
           <div className="flex flex-wrap justify-center gap-3">
             {[
-              { icon: "🏢", name: "Gebäudereinigung" },
-              { icon: "🛡️", name: "Sicherheitsdienst" },
-              { icon: "🏠", name: "Hausmeisterdienste" },
-              { icon: "📦", name: "Entrümpelung" },
-              { icon: "🔨", name: "Handwerk" },
-              { icon: "💻", name: "IT-Service" },
-              { icon: "🌿", name: "Gartenbau" },
-              { icon: "🚚", name: "Logistik" },
-            ].map((ind) => (
-              <div key={ind.name} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-50 border border-slate-200">
+            { icon: "🏢", name: "Gebäudereinigung" },
+            { icon: "🛡️", name: "Sicherheitsdienst" },
+            { icon: "🏠", name: "Hausmeisterdienste" },
+            { icon: "📦", name: "Entrümpelung" },
+            { icon: "🔨", name: "Handwerk" },
+            { icon: "💻", name: "IT-Service" },
+            { icon: "🌿", name: "Gartenbau" },
+            { icon: "🚚", name: "Logistik" }].
+            map((ind) =>
+            <div key={ind.name} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-50 border border-slate-200">
                 <span className="text-base">{ind.icon}</span>
                 <span className="text-sm font-semibold text-slate-700">{ind.name}</span>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -484,21 +484,21 @@ export default function Landing() {
         </p>
         
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
-          {PLANS.map(plan => (
-            <div
-              key={plan.name}
-              className={`rounded-2xl p-6 relative flex flex-col border-2 bg-white ${
-                plan.popular ? "ring-2 ring-blue-600 ring-offset-2" : ""
-              }`}
-              style={{
-                borderColor: plan.popular ? "#2563EB" : "#E2E8F0",
-              }}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full text-white bg-blue-600">
+          {PLANS.map((plan) =>
+          <div
+            key={plan.name}
+            className={`rounded-2xl p-6 relative flex flex-col border-2 bg-white ${
+            plan.popular ? "ring-2 ring-blue-600 ring-offset-2" : ""}`
+            }
+            style={{
+              borderColor: plan.popular ? "#2563EB" : "#E2E8F0"
+            }}>
+            
+              {plan.popular &&
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-bold px-3 py-1 rounded-full text-white bg-blue-600">
                   Beliebtester Plan
                 </div>
-              )}
+            }
               <div className="mb-4">
                 <h3 className="text-lg font-bold text-slate-900">{plan.name}</h3>
                 <p className="text-sm text-slate-600">{plan.description}</p>
@@ -508,26 +508,26 @@ export default function Landing() {
                 <span className="text-sm ml-1 text-slate-500">/Monat</span>
               </div>
               <ul className="space-y-2 mb-6 flex-1">
-                {plan.features.map(f => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-slate-700">
+                {plan.features.map((f) =>
+              <li key={f} className="flex items-start gap-2 text-sm text-slate-700">
                     <Check className="w-4 h-4 flex-shrink-0 text-emerald-600 mt-0.5" />
                     {f}
                   </li>
-                ))}
+              )}
               </ul>
               <button
-                onClick={() => handleCheckout(plan)}
-                disabled={loading === plan.name}
-                className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 ${
-                  plan.popular
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : "bg-slate-100 text-slate-900 hover:bg-slate-200"
-                }`}
-              >
+              onClick={() => handleCheckout(plan)}
+              disabled={loading === plan.name}
+              className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 ${
+              plan.popular ?
+              "bg-blue-600 text-white hover:bg-blue-700" :
+              "bg-slate-100 text-slate-900 hover:bg-slate-200"}`
+              }>
+              
                 {loading === plan.name ? "Wird geladen..." : "Jetzt starten"}
               </button>
             </div>
-          ))}
+          )}
         </div>
         
         {/* FAQ unter den Preisen */}
@@ -549,8 +549,8 @@ export default function Landing() {
           </p>
           <button
             onClick={handleRegister}
-            className="px-8 py-4 rounded-xl text-base font-bold text-blue-600 bg-white hover:bg-blue-50 transition-all shadow-lg"
-          >
+            className="px-8 py-4 rounded-xl text-base font-bold text-blue-600 bg-white hover:bg-blue-50 transition-all shadow-lg">
+            
             14 Tage kostenlos testen →
           </button>
           <p className="text-blue-200 text-sm mt-4">
@@ -572,6 +572,6 @@ export default function Landing() {
           Ein Produkt der Huwa Gebäudereinigung & Hausmeisterdienste GmbH
         </p>
       </div>
-    </div>
-  );
+    </div>);
+
 }
