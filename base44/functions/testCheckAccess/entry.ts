@@ -34,10 +34,10 @@ Deno.serve(async (req) => {
 
     // Load data needed for simulation
     const [orgs, members, subs, plans] = await Promise.all([
-      base44.asServiceRole.entities.Organization.filter({ id: ORG_ID }),
-      base44.asServiceRole.entities.OrganizationMember.filter({ organization_id: ORG_ID }),
-      base44.asServiceRole.entities.Subscription.filter({ organization_id: ORG_ID }),
-      base44.asServiceRole.entities.Plan.list(),
+     base44.asServiceRole.entities.Organization.filter({ id: ORG_ID }).catch(() => []),
+     base44.asServiceRole.entities.OrganizationMember.filter({ organization_id: ORG_ID }).catch(() => []),
+     base44.asServiceRole.entities.Subscription.filter({ organization_id: ORG_ID }).catch(() => []),
+     base44.asServiceRole.entities.Plan.list().catch(() => []),
     ]);
 
     const org = orgs[0] || null;
@@ -112,14 +112,14 @@ Deno.serve(async (req) => {
 
     // ── TEST SCENARIOS ─────────────────────────────────────────────────────────
 
-    // 1. Org not found (invalid id → SDK throws, checkAccess catches it)
+    // 1. Org not found (empty result or SDK error → return organization_not_found)
     await simulate('1. Organisation nicht gefunden', { allowed: false, reason: 'organization_not_found' }, async () => {
       try {
-        const r = await base44.asServiceRole.entities.Organization.filter({ id: FAKE_ORG_ID });
-        if (!r[0]) return { allowed: false, reason: 'organization_not_found' };
+        const r = await base44.asServiceRole.entities.Organization.filter({ id: FAKE_ORG_ID }).catch(() => []);
+        if (!r || r.length === 0) return { allowed: false, reason: 'organization_not_found' };
         return { allowed: true, reason: 'ok' };
       } catch {
-        // checkAccess catches this and returns organization_not_found
+        // SDK error (invalid ID format) also means org not found
         return { allowed: false, reason: 'organization_not_found' };
       }
     });
