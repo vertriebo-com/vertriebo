@@ -126,23 +126,29 @@ Deno.serve(async (req) => {
     }
 
     // ── 5. LLM-Recherche ────────────────────────────────────────────────────
-    const result = await base44.integrations.Core.InvokeLLM({
-      prompt: `Recherchiere folgende Firma im Internet und gib mir die offiziellen Kontaktdaten zurück.
+    const llmTimeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("KI-Anfrage hat zu lange gedauert (30s). Bitte erneut versuchen.")), 30000)
+    );
+    const result = await Promise.race([
+      base44.integrations.Core.InvokeLLM({
+        prompt: `Recherchiere folgende Firma im Internet und gib mir die offiziellen Kontaktdaten zurück.
 
 Firmenname: ${company.name}
 Ort: ${company.ort || 'Neuwied'} ${company.plz || ''}
 Branche: ${company.branche || 'Unbekannt'}
 
 WICHTIG: Gib nur Felder zurück, die du mit Sicherheit gefunden hast. Wenn du ein Feld nicht findest, lasse es komplett weg (leerer String). Schreibe NIEMALS das Wort "null" in ein Feld.`,
-      add_context_from_internet: true,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          website: { type: "string" }, telefon: { type: "string" },
-          email: { type: "string" }, ansprechpartner: { type: "string" }, adresse: { type: "string" },
+        add_context_from_internet: true,
+        response_json_schema: {
+          type: "object",
+          properties: {
+            website: { type: "string" }, telefon: { type: "string" },
+            email: { type: "string" }, ansprechpartner: { type: "string" }, adresse: { type: "string" },
+          }
         }
-      }
-    });
+      }),
+      llmTimeoutPromise,
+    ]);
 
     const isValid = (v) => v && typeof v === "string" && v.trim().length > 0 &&
       !["null","n/a","unbekannt","keine","nicht gefunden"].includes(v.trim().toLowerCase());
