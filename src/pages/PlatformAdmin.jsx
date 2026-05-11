@@ -282,13 +282,10 @@ export default function PlatformAdmin() {
                         <div className="flex items-center gap-2">
                            <button
                              onClick={() => setSelectedOrg(org)}
-                             className="p-2 hover:bg-slate-100 rounded-lg transition-colors group relative"
+                             className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
                              title="Details ansehen"
                            >
                              <Eye className="w-4 h-4 text-slate-600" />
-                             <span className="absolute hidden group-hover:block bg-slate-800 text-white text-xs px-2 py-1 rounded bottom-full mb-1 whitespace-nowrap z-10">
-                               Details ansehen
-                             </span>
                            </button>
                            {(org.platform_status === 'active' || !org.platform_status) && (
                              <button
@@ -296,25 +293,19 @@ export default function PlatformAdmin() {
                                  setSelectedOrg(org);
                                  setShowSuspendDialog(true);
                                }}
-                               className="p-2 hover:bg-red-50 rounded-lg transition-colors group relative"
+                               className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                                title="Organisation sperren"
                              >
                                <Lock className="w-4 h-4 text-red-600" />
-                               <span className="absolute hidden group-hover:block bg-slate-800 text-white text-xs px-2 py-1 rounded bottom-full mb-1 whitespace-nowrap z-10">
-                                 Sperren
-                               </span>
                              </button>
                            )}
                            {org.platform_status === 'suspended' && (
                              <button
                                onClick={() => handleUnsuspend(org)}
-                               className="p-2 hover:bg-emerald-50 rounded-lg transition-colors group relative"
+                               className="p-2 hover:bg-emerald-50 rounded-lg transition-colors"
                                title="Organisation entsperren"
                              >
                                <Unlock className="w-4 h-4 text-emerald-600" />
-                               <span className="absolute hidden group-hover:block bg-slate-800 text-white text-xs px-2 py-1 rounded bottom-full mb-1 whitespace-nowrap z-10">
-                                 Entsperren
-                               </span>
                              </button>
                            )}
                         </div>
@@ -355,7 +346,9 @@ export default function PlatformAdmin() {
                     </div>
                     <div>
                       <p className="text-xs text-slate-500 font-medium">Organisationstyp</p>
-                      <p className="text-sm font-semibold text-slate-900">{TYPE_LABELS[selectedOrg.organization_type || 'direct_customer']?.label}</p>
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${TYPE_LABELS[selectedOrg.organization_type || 'direct_customer']?.color}`}>
+                        {TYPE_LABELS[selectedOrg.organization_type || 'direct_customer']?.label}
+                      </span>
                     </div>
                     {selectedOrg.parent_agency_id && (
                       <div className="col-span-2">
@@ -403,9 +396,9 @@ export default function PlatformAdmin() {
                 <div>
                   <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">Plattform-Status</h3>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-700">Status:</span>
-                      <span className={`text-sm font-bold px-3 py-1 rounded ${STATUS_LABELS[selectedOrg.platform_status || 'active']?.color}`}>
+                    <div>
+                      <p className="text-xs text-slate-500 font-medium mb-2">Status</p>
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border ${STATUS_LABELS[selectedOrg.platform_status || 'active']?.color}`}>
                         {STATUS_LABELS[selectedOrg.platform_status || 'active']?.label}
                       </span>
                     </div>
@@ -470,7 +463,7 @@ export default function PlatformAdmin() {
                   <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">Support-Notizen</h3>
                   
                   {/* Existing Notes */}
-                  {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id).length > 0 ? (
+                  {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id).length > 0 && (
                     <div className="space-y-2 mb-4">
                       {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id).map(note => (
                         <div key={note.id} className={`rounded-lg p-3 border text-xs ${
@@ -483,7 +476,7 @@ export default function PlatformAdmin() {
                         </div>
                       ))}
                     </div>
-                  ) : null}
+                  )}
                   
                   {/* New Note Form */}
                   {!showNewNoteForm ? (
@@ -491,7 +484,7 @@ export default function PlatformAdmin() {
                       onClick={() => setShowNewNoteForm(true)}
                       variant="outline"
                       size="sm"
-                      className="w-full bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
+                      className="w-full bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
                     >
                       + Neue Notiz
                     </Button>
@@ -514,7 +507,7 @@ export default function PlatformAdmin() {
                         <textarea
                           value={noteText}
                           onChange={e => setNoteText(e.target.value)}
-                          placeholder="Notiz eingeben…"
+                          placeholder="Support-Notiz schreiben…"
                           rows={3}
                           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
                         />
@@ -528,7 +521,7 @@ export default function PlatformAdmin() {
                           }}
                           variant="outline"
                           size="sm"
-                          className="flex-1 bg-white border-slate-300 text-slate-700"
+                          className="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
                           disabled={savingNote}
                         >
                           Abbrechen
@@ -548,7 +541,7 @@ export default function PlatformAdmin() {
                           className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
                           disabled={savingNote || !noteText.trim()}
                         >
-                          {savingNote ? 'Wird gespeichert…' : 'Speichern'}
+                          {savingNote ? 'Wird gespeichert…' : 'Support-Notiz speichern'}
                         </Button>
                       </div>
                     </div>
@@ -557,7 +550,7 @@ export default function PlatformAdmin() {
               </div>
 
               <div className="flex gap-2 pt-4 border-t border-slate-200">
-                <Button onClick={() => setSelectedOrg(null)} variant="outline" className="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50">
+                <Button onClick={() => setSelectedOrg(null)} className="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 cursor-pointer opacity-100">
                   Schließen
                 </Button>
                 {(selectedOrg.platform_status === 'active' || !selectedOrg.platform_status) && (
