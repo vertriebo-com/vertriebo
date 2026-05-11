@@ -629,6 +629,14 @@ Deno.serve(async (req) => {
     const org = orgs[0];
     if (!org) return Response.json({ error: 'Organization not found', success: false }, { status: 404 });
 
+    // Check: Organisation gesperrt? (nicht für platform admins)
+    if (access.user.role !== 'admin') {
+      if (org.platform_status === 'suspended') {
+        console.warn(`[generateLeads] Access denied: org suspended`);
+        return Response.json({ error: 'organization_suspended', message: 'Diese Organisation ist vorübergehend gesperrt.', success: false }, { status: 403 });
+      }
+    }
+
     const billingOk = ['active', 'trialing'].includes(org.billing_status);
     if (!billingOk) {
       return Response.json({ error: `Billing status "${org.billing_status}" erlaubt keine Lead-Recherche`, success: false }, { status: 402 });

@@ -119,6 +119,14 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
 
   if (isPlatformLevel && organization_id) {
     console.info(`[checkAccess] platform_level "${user.email}" (role="${user.role}") accessing org="${organization_id}"`);
+    // Fetch org for suspension info (platform admin still has access, but sees the status)
+    let platformOrg = null;
+    try {
+      const orgsForAdmin = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
+      platformOrg = orgsForAdmin[0] || null;
+    } catch (err) {
+      console.warn('[checkAccess] platform_level org lookup failed:', err?.message);
+    }
     return allow({
       reason: 'platform_level_org_access',
       user,
@@ -128,7 +136,7 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
       is_platform_admin: isPlatformLevel,
       is_support_agent: isSupportAgent(user.role),
       is_readonly_support: isReadOnlySupport(user.role),
-      organization: null,
+      organization: platformOrg,
       organization_id,
       member: null,
       organization_role: null,
@@ -143,6 +151,10 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
       plan: null,
       subscription: null,
       limits: null,
+      organization_platform_status: platformOrg?.platform_status || 'active',
+      organization_suspended: platformOrg?.platform_status === 'suspended',
+      suspended_reason: platformOrg?.suspended_reason || null,
+      suspended_at: platformOrg?.suspended_at || null,
     });
   }
 
@@ -335,6 +347,10 @@ function allow({
   plan,
   subscription,
   limits,
+  organization_platform_status,
+  organization_suspended,
+  suspended_reason,
+  suspended_at,
 }) {
   return {
     allowed: true,
@@ -356,6 +372,10 @@ function allow({
     plan,
     subscription,
     limits,
+    organization_platform_status: organization_platform_status || 'active',
+    organization_suspended: organization_suspended || false,
+    suspended_reason: suspended_reason || null,
+    suspended_at: suspended_at || null,
   };
 }
 

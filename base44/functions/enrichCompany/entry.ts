@@ -31,7 +31,7 @@ async function checkAccess(req, { organization_id, action, check_limit=null, cur
   catch { return _deny('organization_not_found',`Organisation nicht gefunden.`); }
   const organization = orgs[0]||null;
   if (!organization) return _deny('organization_not_found','Organisation nicht gefunden.');
-  if (organization.status==='suspended') return _deny('organization_suspended',`Organisation gesperrt: ${organization.suspended_reason||'kein Grund'}.`);
+  if (organization.platform_status==='suspended') return _deny('organization_suspended',`Organisation gesperrt: ${organization.suspended_reason||'kein Grund'}.`, {user,organization,member:null,role:null});
   const member = members[0]||null;
   if (!member) return _deny('not_a_member','Kein Mitglied dieser Organisation.');
   if (member.status!=='active') return _deny('member_inactive',`Mitglied-Status: "${member.status}".`);
