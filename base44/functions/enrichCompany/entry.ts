@@ -107,8 +107,19 @@ Deno.serve(async (req) => {
     } catch (_) {}
 
     const aiUsed = (currentUsageLog?.ai_actions_used || 0);
-    const planLimits = access.limits;
-    const maxAi = planLimits?.max_ai_scorings_per_month ?? 50;
+
+    // Plan-Limit direkt aus DB laden (access.limits ist null bei platform_admin-Pfad)
+    let maxAi = 50; // Fallback
+    try {
+      const orgsForPlan = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
+      const planId = orgsForPlan[0]?.plan_id;
+      if (planId) {
+        const plans = await base44.asServiceRole.entities.Plan.filter({ id: planId });
+        if (plans[0]?.max_ai_scorings_per_month !== undefined) {
+          maxAi = plans[0].max_ai_scorings_per_month;
+        }
+      }
+    } catch (_) {}
     if (maxAi !== -1 && aiUsed >= maxAi) {
       console.warn(`[enrichCompany] KI-Limit erreicht: ${aiUsed}/${maxAi} für org=${organization_id}`);
       return Response.json({ error: `KI-Aktionslimit erreicht: ${aiUsed}/${maxAi} diesen Monat. Bitte warten Sie bis zum nächsten Monat oder upgraden Sie Ihren Plan.`, limitReached: true }, { status: 403 });
