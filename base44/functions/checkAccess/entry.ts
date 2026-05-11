@@ -105,7 +105,12 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
       organization_role: null,
       is_organization_admin: false,
       is_sales_rep: false,
+      // Backward-compatible
       role: null,
+      is_admin: false,
+      isAdmin: false,
+      isSalesRep: false,
+      user_role: user.role,
       plan: null,
       subscription: null,
       limits: null,
@@ -129,7 +134,12 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
       organization_role: null,
       is_organization_admin: false,
       is_sales_rep: false,
+      // Backward-compatible
       role: 'platform_admin',
+      is_admin: false,
+      isAdmin: false,
+      isSalesRep: false,
+      user_role: user.role,
       plan: null,
       subscription: null,
       limits: null,
@@ -251,6 +261,10 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
   }
 
   // ── 8. All checks passed ───────────────────────────────────────────────────
+  // Backward-compatible fallback fields for old code
+  const isAdmin = role === 'organization_admin';
+  const isSalesRep = role === 'sales_rep';
+
   return allow({
     reason: 'ok',
     user,
@@ -265,8 +279,13 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
     organization_role: role,
     is_organization_admin: role === 'organization_admin',
     is_sales_rep: role === 'sales_rep',
-    member,
+    // Backward-compatible legacy fields
     role,
+    is_admin: isAdmin,
+    isAdmin,
+    isSalesRep,
+    user_role: user.role,
+    member,
     plan,
     subscription,
     limits,
