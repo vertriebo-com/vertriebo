@@ -331,7 +331,7 @@ Texte kurz, praxisnah, auf Deutsch. Keine Markdown-Zeichen in den Texten.`,
 
   return (
     <>
-      <button onClick={handleOpen} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-slate-200 bg-white px-3 rounded-lg hover:bg-slate-50 transition-colors">
+      <button onClick={handleOpen} className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-slate-200 bg-white text-slate-800 px-3 rounded-lg hover:bg-slate-50 transition-colors">
         <Sparkles className="w-3.5 h-3.5" /> Leitfaden
       </button>
 

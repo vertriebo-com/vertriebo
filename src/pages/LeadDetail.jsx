@@ -251,7 +251,7 @@ export default function LeadDetail() {
               <Phone className="w-4 h-4" /> Anrufen
             </a>
           ) : (
-            <span title="Keine Telefonnummer vorhanden" className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold bg-slate-100 text-slate-500 border border-slate-200 px-3 rounded-lg cursor-not-allowed">
+            <span title="Keine Telefonnummer vorhanden" className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold bg-slate-100 text-slate-500 border border-slate-200 px-3 rounded-lg cursor-not-allowed opacity-100">
               <Phone className="w-4 h-4 text-slate-500" /> Anrufen
             </span>
           )}
