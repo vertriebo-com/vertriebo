@@ -42,45 +42,30 @@ export default function PlatformAdmin() {
   const [suspendReason, setSuspendReason] = useState('');
   const [suspending, setSuspending] = useState(false);
 
-  const { data: organizations = [], isLoading, refetch } = useQuery({
+  const { data: responseData = {}, isLoading, refetch } = useQuery({
     queryKey: ['platform-organizations'],
     queryFn: async () => {
-      const orgs = await base44.asServiceRole.entities.Organization.list();
-      return orgs || [];
+      try {
+        const res = await base44.functions.invoke('getPlatformAdminData', {});
+        if (res.data?.success) {
+          return res.data;
+        }
+        if (res.status === 403) {
+          throw new Error('Kein Zugriff auf das interne Plattform-Dashboard.');
+        }
+        throw new Error(res.data?.error || 'Fehler beim Laden der Organisationen');
+      } catch (e) {
+        console.error('[PlatformAdmin] getPlatformAdminData error:', e.message);
+        throw e;
+      }
     },
   });
 
-  const { data: plans = [] } = useQuery({
-    queryKey: ['plans'],
-    queryFn: async () => {
-      const p = await base44.asServiceRole.entities.Plan.list();
-      return p || [];
-    },
-  });
+  const organizations = responseData.organizations || [];
+  const platformSummary = responseData.summary || {};
 
-  const { data: usageLogs = [] } = useQuery({
-    queryKey: ['usage-logs'],
-    queryFn: async () => {
-      const logs = await base44.asServiceRole.entities.UsageLog.filter({});
-      return logs || [];
-    },
-  });
-
-  const { data: researchRuns = [] } = useQuery({
-    queryKey: ['research-runs'],
-    queryFn: async () => {
-      const runs = await base44.asServiceRole.entities.ResearchRun.filter({});
-      return runs || [];
-    },
-  });
-
-  const { data: supportNotes = [] } = useQuery({
-    queryKey: ['support-notes'],
-    queryFn: async () => {
-      const notes = await base44.asServiceRole.entities.SupportNote.filter({});
-      return notes || [];
-    },
-  });
+  // All data now comes from getPlatformAdminData backend function
+  const plans = responseData.plans || [];
 
   // Filter organizations
   const filteredOrgs = organizations.filter(org => {
@@ -155,16 +140,6 @@ export default function PlatformAdmin() {
     return plans.find(p => p.id === planId)?.name || 'N/A';
   };
 
-  const getOrgStats = (orgId) => {
-    const orgUsage = usageLogs.find(log => log.organization_id === orgId);
-    const orgRuns = researchRuns.filter(run => run.organization_id === orgId);
-    return {
-      leads: orgUsage?.leads_created || 0,
-      researchRuns: orgRuns.length,
-      aiActions: orgUsage?.ai_actions_used || 0,
-    };
-  };
-
   const getAgencyStats = (agencyId) => {
     const clientOrgs = organizations.filter(org => org.parent_agency_id === agencyId);
     return {
@@ -230,7 +205,6 @@ export default function PlatformAdmin() {
               </thead>
               <tbody>
                 {filteredOrgs.map(org => {
-                  const stats = getOrgStats(org.id);
                   const typeInfo = TYPE_LABELS[org.organization_type] || TYPE_LABELS.direct_customer;
                   return (
                     <tr key={org.id} className="border-b border-[#E2E8F0] hover:bg-slate-50 transition-colors">
@@ -262,7 +236,7 @@ export default function PlatformAdmin() {
                           {STATUS_LABELS[org.platform_status]?.label || org.platform_status}
                         </span>
                       </td>
-                      <td className="px-5 py-4 text-sm font-semibold text-slate-900">{stats.leads}</td>
+                      <td className="px-5 py-4 text-sm font-semibold text-slate-900">{org.leads_count}</td>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
                           <button
@@ -406,15 +380,15 @@ export default function PlatformAdmin() {
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                       <p className="text-xs text-slate-500 font-medium">Leads</p>
-                      <p className="text-lg font-bold text-blue-700">{getOrgStats(selectedOrg.id).leads}</p>
+                      <p className="text-lg font-bold text-blue-700">{selectedOrg.leads_count}</p>
                     </div>
                     <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
                       <p className="text-xs text-slate-500 font-medium">Recherche-Läufe</p>
-                      <p className="text-lg font-bold text-purple-700">{getOrgStats(selectedOrg.id).researchRuns}</p>
+                      <p className="text-lg font-bold text-purple-700">{selectedOrg.research_runs_count}</p>
                     </div>
                     <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
                       <p className="text-xs text-slate-500 font-medium">KI-Aktionen</p>
-                      <p className="text-lg font-bold text-amber-700">{getOrgStats(selectedOrg.id).aiActions}</p>
+                      <p className="text-lg font-bold text-amber-700">{selectedOrg.ai_actions_used}</p>
                     </div>
                   </div>
                 </div>
@@ -444,9 +418,9 @@ export default function PlatformAdmin() {
                 {/* Support Notes */}
                 <div>
                   <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">Support-Notizen</h3>
-                  {supportNotes.filter(n => n.organization_id === selectedOrg.id).length > 0 ? (
+                  {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id).length > 0 ? (
                     <div className="space-y-2">
-                      {supportNotes.filter(n => n.organization_id === selectedOrg.id).map(note => (
+                      {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id).map(note => (
                         <div key={note.id} className={`rounded-lg p-3 border text-xs ${
                           note.severity === 'critical' ? 'bg-red-50 border-red-200' :
                           note.severity === 'warning' ? 'bg-amber-50 border-amber-200' :
