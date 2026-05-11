@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle2, AlertCircle, TrendingUp, ArrowRight, Phone, Mail, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
@@ -235,7 +236,7 @@ export default function ResearchSuccessScreen({ researchRun, orgId, onClose, onV
                 </h2>
                 <p className="text-sm text-amber-800 mt-0.5 font-medium">
                   {isZero
-                    ? "Google hat für Ihr Suchgebiet keine Ergebnisse gefunden."
+                    ? "Vertriebo hat im Suchgebiet keine Treffer gefunden."
                     : "Die gefundenen Firmen passen nicht zu Ihrer Zielgruppe."}
                 </p>
               </div>

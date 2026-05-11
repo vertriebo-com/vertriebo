@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import { useQuery } from "@tanstack/react-query";
@@ -28,6 +29,13 @@ export default function Leads() {
   const [showActions, setShowActions] = useState(false);
   const [showResearch, setShowResearch] = useState(false);
   const [researching, setResearching] = useState(false);
+  const [newRunFilter, setNewRunFilter] = useState(null);
+
+  // Parse new_run query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setNewRunFilter(params.get("new_run"));
+  }, []);
 
   const orgId = org?.id || null;
   const { data: companies = [], isLoading: loading, refetch } = useQuery({
@@ -76,6 +84,7 @@ export default function Leads() {
         if (priorityFilter === "Niedrig" && score >= 30) return false;
       }
       if (assignedFilter !== "Alle" && c.assigned_to !== assignedFilter) return false;
+      if (newRunFilter && c.research_run_id !== newRunFilter) return false;
       
       // Focus Filters
       const today = moment().format("YYYY-MM-DD");
@@ -214,12 +223,13 @@ export default function Leads() {
         )}
 
         {/* Active Filters */}
-        {(statusFilter || focusFilter || priorityFilter !== "Alle" || assignedFilter !== "Alle" || search) && (
+        {(statusFilter || focusFilter || priorityFilter !== "Alle" || assignedFilter !== "Alle" || search || newRunFilter) && (
           <div className="flex flex-wrap gap-2">
             {statusFilter && <button onClick={() => setStatusFilter(null)} className="inline-flex items-center gap-1 text-xs font-medium bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full hover:bg-primary/20"><span>{statusFilter}</span><X className="w-3 h-3"/></button>}
             {focusFilter && <button onClick={() => setFocusFilter(null)} className="inline-flex items-center gap-1 text-xs font-medium bg-muted text-muted-foreground border border-border px-2.5 py-1 rounded-full"><span>{focusFilter}</span><X className="w-3 h-3"/></button>}
             {priorityFilter !== "Alle" && <button onClick={() => setPriorityFilter("Alle")} className="inline-flex items-center gap-1 text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full"><span>Priorität: {priorityFilter}</span><X className="w-3 h-3"/></button>}
             {assignedFilter !== "Alle" && <button onClick={() => setAssignedFilter("Alle")} className="inline-flex items-center gap-1 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full"><span>Vertriebler: {assignedFilter}</span><X className="w-3 h-3"/></button>}
+            {newRunFilter && <button onClick={() => setNewRunFilter(null)} className="inline-flex items-center gap-1 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full"><span>Neue Leads aus letzter Recherche</span><X className="w-3 h-3"/></button>}
             {search && <button onClick={() => setSearch("")} className="inline-flex items-center gap-1 text-xs font-medium bg-muted text-muted-foreground border border-border px-2.5 py-1 rounded-full"><span>Suche</span><X className="w-3 h-3"/></button>}
           </div>
         )}
