@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import IndustryChangeConfirmDialog from "./IndustryChangeConfirmDialog";
 import { INDUSTRY_PRESETS, getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
-import { useState, useEffect } from "react";
 
 // ─── Zielkunden → Google Places Suchbegriffe Mapping ─────────────────────────
 export const ZIELKUNDEN_SEARCH_MAPPING = {
