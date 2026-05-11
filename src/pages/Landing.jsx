@@ -129,9 +129,16 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
-      <nav className="sticky top-0 z-50 bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 py-4 md:py-6 flex items-center justify-between">
-          <img src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/6bf8a2d63_ChatGPTImage11Mai202615_23_00.png" alt="Vertriebo" className="h-24 md:h-32 w-auto object-contain" />
+      <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
+          <a href="/" className="flex items-center shrink-0">
+            <img
+              src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/6bf8a2d63_ChatGPTImage11Mai202615_23_00.png"
+              alt="Vertriebo"
+              className="h-14 md:h-16 w-auto object-contain"
+            />
+          </a>
+
           <div className="flex items-center gap-3">
             <button onClick={handleLogin} className="px-5 py-2 rounded-lg text-sm font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all">
               Login
@@ -141,11 +148,11 @@ export default function Landing() {
             </button>
           </div>
         </div>
-      </nav>
+      </header>
 
       {/* A) Hero mit starkem Nutzenversprechen */}
-      <div className="relative overflow-hidden bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-20 md:py-28">
+       <div className="relative overflow-hidden bg-white border-b border-slate-200">
+         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             {/* Linke Seite: Headline + CTA */}
             <div className="text-left">
