@@ -9,7 +9,7 @@ export default function VertrieboLogo({ size = "default", className = "" }) {
   return (
     <svg
       viewBox="0 0 1000 1000"
-      className={`h-15${sizes[size]} ${className}`}
+      className={`h-25 w-10${sizes[size]} ${className}`}
       preserveAspectRatio="xMidYMid meet">
       
       {/* Gold V */}
