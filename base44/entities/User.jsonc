@@ -7,7 +7,11 @@
       "title": "Rolle",
       "enum": [
         "admin",
-        "user"
+        "user",
+        "platform_owner",
+        "platform_admin",
+        "support_agent",
+        "readonly_support"
       ],
       "default": "user"
     },
@@ -50,5 +54,11 @@
       "type": "string",
       "title": "Stripe Session-ID"
     }
-  }
+  },
+  "required": [
+    "subscription_started_at",
+    "subscription_renewed_at",
+    "stripe_customer_id",
+    "stripe_session_id"
+  ]
 }

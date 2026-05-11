@@ -65,6 +65,9 @@ const BLOCKED_ADMIN_ALLOWED = new Set(['manage_billing', 'data_export']);
  * @returns {
  *   allowed: boolean,
  *   reason: string,
+ *   global_role, is_base44_admin, is_platform_owner, is_platform_admin,
+ *   is_support_agent, is_readonly_support,
+ *   organization_id, organization_role, is_organization_admin, is_sales_rep,
  *   user, organization, member, role, plan, subscription, limits
  * }
  */
@@ -80,16 +83,52 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
   }
   if (!user) return deny('not_authenticated', 'Nicht eingeloggt.');
 
-  const isPlatformAdmin = user.role === 'admin'; // base44 platform admin role
+  const isBaseAdmin = user.role === 'admin';
+  const isPlatformLevel = ['admin', 'platform_owner', 'platform_admin'].includes(user.role);
 
-  // ── 2. Platform Admin shortcut ─────────────────────────────────────────────
-  if (isPlatformAdmin) {
-    console.info(`[checkAccess] platform_admin "${user.email}" accessing action="${action}" org="${organization_id}"`);
+  // ── 2. Platform Admin/Owner shortcut ─────────────────────────────────────────────
+  // Base44 admin and platform owners can bypass org-level checks
+  if (isPlatformLevel && !organization_id) {
+    console.info(`[checkAccess] platform_level "${user.email}" (role="${user.role}") platform access`);
     return allow({
-      reason: 'platform_admin',
+      reason: 'platform_level',
       user,
+      global_role: user.role,
+      is_base44_admin: isBaseAdmin,
+      is_platform_owner: ['admin', 'platform_owner'].includes(user.role),
+      is_platform_admin: isPlatformLevel,
+      is_support_agent: isSupportAgent(user.role),
+      is_readonly_support: isReadOnlySupport(user.role),
       organization: null,
+      organization_id: null,
       member: null,
+      organization_role: null,
+      is_organization_admin: false,
+      is_sales_rep: false,
+      role: null,
+      plan: null,
+      subscription: null,
+      limits: null,
+    });
+  }
+
+  if (isPlatformLevel && organization_id) {
+    console.info(`[checkAccess] platform_level "${user.email}" (role="${user.role}") accessing org="${organization_id}"`);
+    return allow({
+      reason: 'platform_level_org_access',
+      user,
+      global_role: user.role,
+      is_base44_admin: isBaseAdmin,
+      is_platform_owner: ['admin', 'platform_owner'].includes(user.role),
+      is_platform_admin: isPlatformLevel,
+      is_support_agent: isSupportAgent(user.role),
+      is_readonly_support: isReadOnlySupport(user.role),
+      organization: null,
+      organization_id,
+      member: null,
+      organization_role: null,
+      is_organization_admin: false,
+      is_sales_rep: false,
       role: 'platform_admin',
       plan: null,
       subscription: null,
@@ -97,7 +136,7 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
     });
   }
 
-  // ── 3. Organization check ──────────────────────────────────────────────────
+  // ── 3. Organization check (required for non-platform users) ─────────────────
   if (!organization_id) return deny('missing_organization_id', 'Keine organisation_id angegeben.');
 
   let orgs, members;
@@ -212,12 +251,78 @@ export async function checkAccess(req, { organization_id, action, check_limit = 
   }
 
   // ── 8. All checks passed ───────────────────────────────────────────────────
-  return allow({ reason: 'ok', user, organization, member, role, plan, subscription, limits });
+  return allow({
+    reason: 'ok',
+    user,
+    global_role: user.role,
+    is_base44_admin: isBaseAdmin,
+    is_platform_owner: ['admin', 'platform_owner'].includes(user.role),
+    is_platform_admin: ['admin', 'platform_owner', 'platform_admin'].includes(user.role),
+    is_support_agent: isSupportAgent(user.role),
+    is_readonly_support: isReadOnlySupport(user.role),
+    organization,
+    organization_id,
+    organization_role: role,
+    is_organization_admin: role === 'organization_admin',
+    is_sales_rep: role === 'sales_rep',
+    member,
+    role,
+    plan,
+    subscription,
+    limits,
+  });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function allow({ reason, user, organization, member, role, plan, subscription, limits }) {
-  return { allowed: true, reason, user, organization, member, role, plan, subscription, limits };
+function isSupportAgent(role) {
+  return ['admin', 'platform_owner', 'platform_admin', 'support_agent'].includes(role);
+}
+
+function isReadOnlySupport(role) {
+  return ['admin', 'platform_owner', 'platform_admin', 'support_agent', 'readonly_support'].includes(role);
+}
+
+function allow({
+  reason,
+  user,
+  global_role,
+  is_base44_admin,
+  is_platform_owner,
+  is_platform_admin,
+  is_support_agent,
+  is_readonly_support,
+  organization,
+  organization_id,
+  organization_role,
+  is_organization_admin,
+  is_sales_rep,
+  member,
+  role,
+  plan,
+  subscription,
+  limits,
+}) {
+  return {
+    allowed: true,
+    reason,
+    user,
+    global_role,
+    is_base44_admin,
+    is_platform_owner,
+    is_platform_admin,
+    is_support_agent,
+    is_readonly_support,
+    organization,
+    organization_id,
+    organization_role,
+    is_organization_admin,
+    is_sales_rep,
+    member,
+    role,
+    plan,
+    subscription,
+    limits,
+  };
 }
 
 function deny(reason, message, context = {}) {
@@ -226,7 +331,17 @@ function deny(reason, message, context = {}) {
     reason,
     message,
     user: context.user || null,
+    global_role: context.global_role || null,
+    is_base44_admin: context.is_base44_admin || false,
+    is_platform_owner: context.is_platform_owner || false,
+    is_platform_admin: context.is_platform_admin || false,
+    is_support_agent: context.is_support_agent || false,
+    is_readonly_support: context.is_readonly_support || false,
     organization: context.organization || null,
+    organization_id: context.organization_id || null,
+    organization_role: context.organization_role || null,
+    is_organization_admin: context.is_organization_admin || false,
+    is_sales_rep: context.is_sales_rep || false,
     member: context.member || null,
     role: context.role || null,
     plan: context.plan || null,
