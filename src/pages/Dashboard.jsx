@@ -15,7 +15,8 @@ import {
   Calendar,
   Star,
   Zap,
-  Activity
+  Activity,
+  Sparkles
 } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
@@ -114,55 +115,78 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Quick Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Rückrufe</p>
-              <p className="text-3xl font-bold text-slate-900 mt-2">{pipelineStats.rueckruf}</p>
-            </div>
-            <div className="w-12 h-12 rounded-lg bg-amber-100 flex items-center justify-center">
-              <PhoneCall className="w-6 h-6 text-amber-600" />
+      {/* Neue Leads aus Recherche */}
+      {(() => {
+        const newLeadsFromResearch = myCompanies.filter(c => c.research_run_id).slice(0, 1);
+        return newLeadsFromResearch.length > 0 ? (
+          <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">✨ Neu</p>
+                <p className="text-sm font-bold text-emerald-900 mt-1">
+                  {myCompanies.filter(c => c.research_run_id).length} neue Firmenkontakte
+                </p>
+                <p className="text-xs text-emerald-800 mt-0.5">Aus Ihrer letzten Recherche</p>
+              </div>
+              <Link to="/leads?new_run=latest">
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                  Ansehen <ArrowRight className="w-3 h-3" />
+                </Button>
+              </Link>
             </div>
           </div>
-        </div>
+        ) : null;
+      })()}
 
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Heute</p>
-              <p className="text-3xl font-bold text-slate-900 mt-2">{todayTasks.length}</p>
-            </div>
-            <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
+      {/* Quick Stats Row – Mobile responsive */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+        <div className="bg-white border border-[#E2E8F0] rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Rückrufe</p>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{pipelineStats.rueckruf}</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+              <PhoneCall className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
+              </div>
+              </div>
+              </div>
 
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Heiße Leads</p>
-              <p className="text-3xl font-bold text-slate-900 mt-2">{hotLeads.length}</p>
-            </div>
-            <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
-              <Star className="w-6 h-6 text-orange-600" />
-            </div>
-          </div>
-        </div>
+              <div className="bg-white border border-[#E2E8F0] rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Heute</p>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{todayTasks.length}</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+              <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+              </div>
+              </div>
+              </div>
 
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Diese Woche</p>
-              <p className="text-3xl font-bold text-slate-900 mt-2">{contactsThisWeek}/{weeklyGoal}</p>
-            </div>
-            <div className="w-12 h-12 rounded-lg bg-emerald-100 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-emerald-600" />
-            </div>
-          </div>
-        </div>
+              <div className="bg-white border border-[#E2E8F0] rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Heiße Leads</p>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{hotLeads.length}</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+              <Star className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
+              </div>
+              </div>
+              </div>
+
+              <div className="bg-white border border-[#E2E8F0] rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Diese Woche</p>
+              <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{contactsThisWeek}/{weeklyGoal}</p>
+              </div>
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
+              </div>
+              </div>
+              </div>
       </div>
 
       {/* Weekly Progress Bar */}
