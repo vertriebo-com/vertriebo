@@ -76,21 +76,14 @@ export default function PlatformAdmin() {
     },
   });
 
-  // Load System Config
+  // Load System Config aus aggregiertem Response
   useEffect(() => {
-    (async () => {
-      try {
-        const configs = await base44.asServiceRole.entities.PlatformConfig.list();
-        if (configs[0]) {
-          setSystemConfig(configs[0]);
-          setGooglePlacesEnabled(configs[0].google_places_api_enabled !== false);
-          setDisabledReason(configs[0].disabled_reason || '');
-        }
-      } catch (e) {
-        console.error('[PlatformAdmin] System config load failed:', e.message);
-      }
-    })();
-  }, []);
+    if (responseData.platform_config) {
+      setSystemConfig(responseData.platform_config);
+      setGooglePlacesEnabled(responseData.platform_config.google_places_api_enabled !== false);
+      setDisabledReason(responseData.platform_config.disabled_reason || '');
+    }
+  }, [responseData.platform_config]);
 
   const organizations = responseData.organizations || [];
   const platformSummary = responseData.summary || {};

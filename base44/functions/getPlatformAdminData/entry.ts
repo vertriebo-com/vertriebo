@@ -11,13 +11,14 @@ Deno.serve(async (req) => {
     }
 
     // ── Load Data via Service Role ────────────────────────────────────────
-    const [orgs, plans, usageLogs, researchRuns, supportNotes, auditLogs] = await Promise.all([
+    const [orgs, plans, usageLogs, researchRuns, supportNotes, auditLogs, platformConfigs] = await Promise.all([
       base44.asServiceRole.entities.Organization.list(),
       base44.asServiceRole.entities.Plan.list(),
       base44.asServiceRole.entities.UsageLog.filter({ period_month: getPeriodMonth() }),
       base44.asServiceRole.entities.ResearchRun.filter({}),
       base44.asServiceRole.entities.SupportNote.filter({}),
       base44.asServiceRole.entities.PlatformAuditLog.filter({}),
+      base44.asServiceRole.entities.PlatformConfig.list(),
     ]);
 
     // ── Build Safe Response ───────────────────────────────────────────────
@@ -77,6 +78,7 @@ Deno.serve(async (req) => {
       summary,
       plans: (plans || []).map(p => ({ id: p.id, name: p.name, type: p.plan_type })),
       supportNotes: (supportNotes || []),
+      platform_config: (platformConfigs || [])[0] || null,
     });
 
   } catch (error) {
