@@ -201,23 +201,15 @@ export default function PlatformAdmin() {
   const handleSaveSystemConfig = async () => {
     setSavingSystemConfig(true);
     try {
-      if (systemConfig) {
-        await base44.asServiceRole.entities.PlatformConfig.update(systemConfig.id, {
-          google_places_api_enabled: googlePlacesEnabled,
-          disabled_reason: disabledReason,
-          last_modified_by: (await base44.auth.me())?.email || 'unknown',
-          last_modified_at: new Date().toISOString(),
-        });
-        toast.success('Systemkonfiguration aktualisiert');
+      const res = await base44.functions.invoke('updateSystemConfig', {
+        google_places_api_enabled: googlePlacesEnabled,
+        disabled_reason: disabledReason,
+      });
+      if (res.data?.success) {
+        setSystemConfig(res.data.config);
+        toast.success(res.data.message || 'Systemkonfiguration aktualisiert');
       } else {
-        const newConfig = await base44.asServiceRole.entities.PlatformConfig.create({
-          google_places_api_enabled: googlePlacesEnabled,
-          disabled_reason: disabledReason,
-          last_modified_by: (await base44.auth.me())?.email || 'unknown',
-          last_modified_at: new Date().toISOString(),
-        });
-        setSystemConfig(newConfig);
-        toast.success('Systemkonfiguration erstellt');
+        toast.error(res.data?.error || 'Fehler beim Speichern');
       }
     } catch (e) {
       toast.error('Fehler: ' + e.message);

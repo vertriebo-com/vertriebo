@@ -909,13 +909,15 @@ Deno.serve(async (req) => {
     const remainingPreviewLeads = Math.max(0, 3 - (org.trial_leads_granted || 0));
 
     // ── FIX 3: Free Preview Abuse-Schutz (Daily Limit) ─────────
+    // BUG FIX: Zähle die Anzahl der UsageLog-Records (jeden Versuch), nicht die Summe der lead_generations_used
+    // Das zählt jeden Versuch, unabhängig vom Ergebnis (auch wenn 0 Leads gefunden wurden)
     if (trialStage === 'free_preview') {
       const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recentLogs = await base44.asServiceRole.entities.UsageLog.filter({
         organization_id,
         created_date: { $gte: last24h.toISOString() }
       });
-      const runsLast24h = recentLogs.reduce((sum, l) => sum + (l.lead_generations_used || 0), 0);
+      const runsLast24h = recentLogs.length; // Zähle Records, nicht die Summe!
 
       if (runsLast24h >= 5) {
         return Response.json({
