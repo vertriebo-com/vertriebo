@@ -1,27 +1,17 @@
 /**
  * ============================================================
- * TEST: LeadSearchEngine - Phase B Isolierter Test
+ * TEST: LeadSearchEngine - Phase B/C Integrierter Test
  * ============================================================
- * Testet Taxonomy + Engine OHNE Google API-Aufrufe.
+ * Testet DIESELBE Inline-Logik wie generateLeads v2.
+ * Kein Google API-Aufruf.
  *
- * Prüft:
- * - Taxonomy geladen
- * - SearchPlan erstellt
- * - SearchQueries erzeugt aus searchableBusinessCategories
- * - Idealprofile NICHT als rohe Queries
- * - QueryBudget korrekt nach Trial-Stufe
- * - scoreLeadCandidate mit Mock-Daten
- * - isBadFit korrekt
+ * WICHTIG: Diese Datei und generateLeads nutzen exakt
+ * denselben Taxonomy + Engine Code (Eine Quelle der Wahrheit
+ * per Inline-Kopie, da Deno keine lokalen Imports erlaubt).
  * ============================================================
  */
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
-
-// ── Inline-Import der Taxonomy (da Backend-Functions keine lokalen Imports haben) ──
-
-// ── TAXONOMY INLINE (kopiert aus utils/leadSearchTaxonomy.js) ──
-// Nur die für Tests benötigten Felder werden hier inline definiert.
-// Die vollständige Taxonomy bleibt in utils/leadSearchTaxonomy.js.
 
 function norm(str) {
   return String(str || "")

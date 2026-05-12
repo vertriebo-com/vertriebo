@@ -1,535 +1,666 @@
+/**
+ * ============================================================
+ * VERTRIEBO - generateLeads v2 (Phase C)
+ * ============================================================
+ * Nutzt die neue LeadSearchEngine Inline.
+ *
+ * ARCHITEKTUR-ENTSCHEIDUNG:
+ * Da Deno Backend-Functions keine lokalen Imports unterstützen,
+ * sind Taxonomy + Engine hier inline eingebettet.
+ * utils/leadSearchTaxonomy.js und utils/leadSearchEngine.js
+ * sind identische Kopien für Frontend-Nutzung.
+ * EINE QUELLE DER WAHRHEIT: Änderungen müssen in beiden gepflegt werden.
+ * ============================================================
+ */
+
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const GOOGLE_PLACES_API_KEY = Deno.env.get("GOOGLE_PLACES_API_KEY");
+const SEARCH_ENGINE_VERSION = "v2";
 
-// ─── Google SKU Pricing (USD per 1000 requests) ────────────────────────────
-const GOOGLE_SKU_PRICING_USD_PER_1000 = {
-  geocoding: 5,
-  places_text_search_pro: 32,
-  places_nearby_search_pro: 32,
-  place_details_essentials: 5,
-  place_details_pro: 17,
+// ============================================================
+// INLINE: LEAD SEARCH TAXONOMY
+// (Quelle der Wahrheit: utils/leadSearchTaxonomy.js)
+// ============================================================
+
+const LEAD_SEARCH_TAXONOMY = {
+  gebaeudereinigung: {
+    id: "gebaeudereinigung", label: "Gebäudereinigung",
+    searchableBusinessCategories: ["Hausverwaltung","Immobilienverwaltung","Bürogebäude","Ärztehaus","Arztpraxis","Zahnarztpraxis","Kindertagesstätte","Schule","Pflegeheim","Seniorenheim","Hotel","Autohaus","Fitnessstudio","Gewerbepark","Industrieunternehmen","Einzelhandel","Supermarkt"],
+    idealCustomerProfiles: ["regelmäßiger Reinigungsbedarf","mehrere Standorte","größere Nutzfläche","laufende Objektbetreuung","wiederkehrende Dienstleistung","professionelle Verwaltung"],
+    targetCustomerTypes: ["Hausverwaltungen","Immobilienverwaltungen","Bürogebäude","Arztpraxen","Zahnarztpraxen","Kitas","Schulen","Pflegeheime","Hotels","Autohäuser","Fitnessstudios"],
+    negativeKeywords: ["privat","job","karriere","ausbildung","stellenangebot","minijob","kleinanzeigen","wohnung gesucht","mietgesuch"],
+    badFitSignals: ["privat","job","karriere","kleinanzeige","einzelperson","mietgesuch","ausbildung"],
+    searchKeywordVariants: {
+      "Hausverwaltung": ["Hausverwaltung","Immobilienverwaltung","WEG Verwaltung","Mietverwaltung"],
+      "Arztpraxis": ["Arztpraxis","Ärztehaus","Zahnarztpraxis","Medizinisches Versorgungszentrum"],
+      "Pflegeheim": ["Pflegeheim","Seniorenheim","Seniorenresidenz","Altenheim"],
+      "Hotel": ["Hotel","Gasthof","Pension"],
+      "Kindertagesstätte": ["Kindertagesstätte","Kita","Kindergarten"],
+      "Schule": ["Schule","Gymnasium","Grundschule","Berufsschule"],
+      "Bürogebäude": ["Bürogebäude","Gewerbepark","Business Center"],
+    },
+    scoringSignals: ["verwaltung","gewerbe","praxis","hotel","pflege","industrie","facility","büro","objekt","standort","wohnanlage","immobilien"],
+    queryPriority: ["Hausverwaltung","Immobilienverwaltung","Pflegeheim","Arztpraxis","Hotel","Bürogebäude","Schule","Kindertagesstätte"],
+  },
+  sicherheitsdienst: {
+    id: "sicherheitsdienst", label: "Sicherheitsdienst",
+    searchableBusinessCategories: ["Bauunternehmen","Logistikzentrum","Industrieunternehmen","Veranstalter","Eventlocation","Hotel","Einkaufszentrum","Parkhaus","Messeveranstalter","Gewerbepark","Einzelhandel","Facility Management"],
+    idealCustomerProfiles: ["hoher Sicherheitsbedarf","Publikumsverkehr","wertvolle Güter","Nachtbetrieb","Baustellenrisiko","große Flächen"],
+    targetCustomerTypes: ["Baustellen","Bauunternehmen","Logistikzentren","Industriebetriebe","Veranstalter","Hotels"],
+    negativeKeywords: ["job","stellenangebot","ausbildung","security job","privat","ehrenamt","karriere"],
+    badFitSignals: ["job","karriere","privat","ehrenamt","ausbildung","bewerber"],
+    searchKeywordVariants: {
+      "Bauunternehmen": ["Bauunternehmen","Bauträger","Generalunternehmer"],
+      "Eventlocation": ["Eventlocation","Veranstalter","Messeveranstalter","Kongresszentrum"],
+      "Logistikzentrum": ["Industriebetrieb","Gewerbepark","Logistikzentrum","Produktionsbetrieb"],
+      "Hotel": ["Hotel","Tagungshotel","Kongresshotel"],
+    },
+    scoringSignals: ["objektschutz","baustelle","logistik","industrie","veranstaltung","werkschutz","gewerbe","lager","messe"],
+    queryPriority: ["Bauunternehmen","Logistikzentrum","Industrieunternehmen","Hotel","Eventlocation","Einkaufszentrum"],
+  },
+  it_service: {
+    id: "it_service", label: "IT-Service",
+    searchableBusinessCategories: ["Arztpraxis","Zahnarztpraxis","Steuerberater","Rechtsanwalt","Kanzlei","Pflegeheim","Schule","Handwerksbetrieb","Büro","Einzelhandel","Immobilienverwaltung","Logistikunternehmen","Unternehmensberatung","Ingenieurbüro"],
+    idealCustomerProfiles: ["mehrere Arbeitsplätze","regelmäßiger IT-Bedarf","sensible Daten","Compliance-Anforderungen","Cloud-Nutzung"],
+    targetCustomerTypes: ["Arztpraxen","Zahnarztpraxen","Steuerberater","Kanzleien","KMU","Schulen","Pflegeeinrichtungen","Handwerksbetriebe"],
+    negativeKeywords: ["privat","gaming","job","karriere","ausbildung","computerhilfe privat","forum","blog"],
+    badFitSignals: ["privat","gaming","job","forum","einzelperson","haushaltsgerät"],
+    searchKeywordVariants: {
+      "Arztpraxis": ["Arztpraxis","Zahnarztpraxis","Ärztehaus","Medizinisches Versorgungszentrum"],
+      "Kanzlei": ["Rechtsanwalt","Kanzlei","Anwaltskanzlei","Steuerberater","Steuerberatung"],
+      "Handwerksbetrieb": ["Handwerksbetrieb","Unternehmensberatung","Ingenieurbüro"],
+      "Pflegeheim": ["Pflegeheim","Seniorenheim","Reha Zentrum"],
+      "Schule": ["Schule","Gymnasium","Bildungszentrum"],
+    },
+    scoringSignals: ["praxis","kanzlei","steuer","pflege","schule","verwaltung","daten","büro","handwerk","logistik"],
+    queryPriority: ["Arztpraxis","Zahnarztpraxis","Steuerberater","Rechtsanwalt","Kanzlei","Handwerksbetrieb","Pflegeheim","Schule"],
+  },
+  gartenbau: {
+    id: "gartenbau", label: "Gartenbau",
+    searchableBusinessCategories: ["Hausverwaltung","Immobilienverwaltung","Wohnanlage","Hotel","Gewerbepark","Pflegeheim","Kindertagesstätte","Schule","Facility Management","Bürogebäude","Industrieunternehmen","Friedhof"],
+    idealCustomerProfiles: ["regelmäßige Außenpflege","größere Grünflächen","Wohnanlagenbestand","laufende Objektpflege","Winterdienstbedarf"],
+    targetCustomerTypes: ["Hausverwaltungen","Immobilienverwaltungen","Wohnanlagen","Hotels","Gewerbeparks","Pflegeheime","Kitas","Schulen"],
+    negativeKeywords: ["privatgarten","privat","job","karriere","kleinanzeigen","gratis","selber machen"],
+    badFitSignals: ["privat","kleinanzeige","job","einzelgarten","hobby","selbst"],
+    searchKeywordVariants: {
+      "Hausverwaltung": ["Hausverwaltung","Immobilienverwaltung","Wohnanlage","WEG Verwaltung"],
+      "Pflegeheim": ["Pflegeheim","Kita","Schule","Altenheim"],
+      "Hotel": ["Hotel","Tagungshotel","Gasthof"],
+      "Bürogebäude": ["Gewerbepark","Bürogebäude","Industriebetrieb"],
+    },
+    scoringSignals: ["anlage","grünfläche","verwaltung","wohnanlage","gewerbe","hotel","pflege","objekt"],
+    queryPriority: ["Hausverwaltung","Immobilienverwaltung","Hotel","Pflegeheim","Gewerbepark","Schule","Kindertagesstätte"],
+  },
+  catering: {
+    id: "catering", label: "Catering",
+    searchableBusinessCategories: ["Eventlocation","Tagungshotel","Seminarzentrum","Messeveranstalter","Kongresszentrum","Bürogebäude","Kindertagesstätte","Schule","Pflegeheim","Hotel","Coworking Space","Veranstalter","Unternehmensberatung"],
+    idealCustomerProfiles: ["regelmäßige Veranstaltungen","viele Mitarbeitende","Tagungsbetrieb","Verpflegungspflicht","wiederkehrende Events"],
+    targetCustomerTypes: ["Eventlocations","Tagungshotels","Seminarzentren","Messeveranstalter","Kitas","Schulen","Pflegeheime","Hotels"],
+    negativeKeywords: ["privat","hochzeit","geburtstag","familienfeier","job","karriere","kleinanzeigen","selbst kochen"],
+    badFitSignals: ["privat","hochzeit","geburtstag","kleinanzeige","familienfeier","selbst"],
+    searchKeywordVariants: {
+      "Eventlocation": ["Eventlocation","Veranstalter","Messeveranstalter","Kongresszentrum","Eventhalle"],
+      "Tagungshotel": ["Tagungshotel","Kongresshotel","Hotel"],
+      "Kindertagesstätte": ["Kindertagesstätte","Schule","Seminarzentrum","Bildungszentrum"],
+      "Bürogebäude": ["Bürogebäude","Unternehmensberatung","Coworking Space"],
+    },
+    scoringSignals: ["event","tagung","messe","seminar","unternehmen","büro","kita","schule","hotel","kongress"],
+    queryPriority: ["Eventlocation","Tagungshotel","Kongresszentrum","Seminarzentrum","Bürogebäude","Kindertagesstätte","Schule"],
+  },
+  handwerk: {
+    id: "handwerk", label: "Handwerk",
+    searchableBusinessCategories: ["Hausverwaltung","Immobilienverwaltung","Bauunternehmen","Facility Management","Hotel","Arztpraxis","Bürogebäude","Einzelhandel","Wohnungsbaugesellschaft","Gewerbeimmobilienverwaltung"],
+    idealCustomerProfiles: ["regelmäßiger Instandhaltungsbedarf","mehrere Objekte","laufende Reparaturen","Objektbestand"],
+    targetCustomerTypes: ["Hausverwaltungen","Immobilienverwaltungen","Bauunternehmen","Hotels","Bürogebäude"],
+    negativeKeywords: ["privat","selber machen","diy","job","ausbildung","karriere","kleinanzeigen"],
+    badFitSignals: ["privat","diy","job","kleinanzeige","selbst"],
+    searchKeywordVariants: {
+      "Hausverwaltung": ["Hausverwaltung","Immobilienverwaltung","Wohnungsbaugesellschaft","WEG Verwaltung"],
+      "Bürogebäude": ["Bürogebäude","Einzelhandel","Hotel","Gewerbepark"],
+      "Bauunternehmen": ["Bauunternehmen","Facility Management","Generalunternehmer"],
+    },
+    scoringSignals: ["verwaltung","objekt","instandhaltung","gewerbe","hotel","bau","facility","wohnanlage"],
+    queryPriority: ["Hausverwaltung","Immobilienverwaltung","Bauunternehmen","Hotel","Bürogebäude","Einzelhandel"],
+  },
+  spedition_logistik: {
+    id: "spedition_logistik", label: "Spedition / Logistik",
+    searchableBusinessCategories: ["Großhandel","Produktionsbetrieb","Industrieunternehmen","Möbelhaus","Baustoffhandel","Maschinenbau","Lebensmittelgroßhandel","Eventagentur","Einzelhandel","Versandhandel","Handelsunternehmen","Küchenstudio"],
+    idealCustomerProfiles: ["regelmäßiger Versand","wiederkehrende Transporte","zeitkritische Lieferungen","hohes Sendungsvolumen"],
+    targetCustomerTypes: ["Online-Shops","Großhändler","Produktionsbetriebe","Industriebetriebe","Möbelhäuser"],
+    negativeKeywords: ["privat","umzug privat","job","fahrer gesucht","karriere","kleinanzeigen"],
+    badFitSignals: ["privat","job","kleinanzeige","einzeltransport","möbel privat"],
+    searchKeywordVariants: {
+      "Großhandel": ["Großhandel","Lebensmittelgroßhandel","Handelsunternehmen"],
+      "Produktionsbetrieb": ["Produktionsbetrieb","Industrieunternehmen","Maschinenbau"],
+      "Möbelhaus": ["Möbelhaus","Baustoffhandel","Küchenstudio"],
+      "Eventagentur": ["Eventagentur","Messeveranstalter","Veranstaltungstechnik"],
+    },
+    scoringSignals: ["versand","logistik","lager","großhandel","produktion","lieferung","handel"],
+    queryPriority: ["Großhandel","Produktionsbetrieb","Industrieunternehmen","Möbelhaus","Maschinenbau","Baustoffhandel"],
+  },
+  gesundheit_medizin: {
+    id: "gesundheit_medizin", label: "Gesundheit / Medizin",
+    searchableBusinessCategories: ["Arztpraxis","Zahnarztpraxis","Therapiezentrum","Pflegeheim","Seniorenheim","Apotheke","Reha Zentrum","Privatklinik","Gesundheitszentrum","Physiotherapie","Ergotherapie","Ärztehaus"],
+    idealCustomerProfiles: ["professioneller Gesundheitsbetrieb","regelmäßiger Bedarf","Patientenverkehr","mehrere Behandlungsräume"],
+    targetCustomerTypes: ["Arztpraxen","Zahnarztpraxen","Therapiezentren","Pflegeheime","Apotheken","Reha-Zentren"],
+    negativeKeywords: ["privat","forum","job","karriere","ausbildung","selbsthilfe","blog"],
+    badFitSignals: ["forum","privat","job","erfahrung","selbsthilfe","blog"],
+    searchKeywordVariants: {
+      "Arztpraxis": ["Arztpraxis","Zahnarztpraxis","Ärztehaus","Medizinisches Versorgungszentrum"],
+      "Therapiezentrum": ["Physiotherapie","Ergotherapie","Therapiezentrum","Logopädie"],
+      "Pflegeheim": ["Pflegeheim","Seniorenheim","Reha Zentrum","Klinik"],
+    },
+    scoringSignals: ["praxis","gesundheit","pflege","therapie","reha","klinik","zentrum","apotheke"],
+    queryPriority: ["Arztpraxis","Zahnarztpraxis","Pflegeheim","Physiotherapie","Therapiezentrum","Ärztehaus"],
+  },
+  immobilien: {
+    id: "immobilien", label: "Immobilien",
+    searchableBusinessCategories: ["Hausverwaltung","Immobilienverwaltung","WEG Verwaltung","Bauträger","Projektentwickler","Wohnungsbaugesellschaft","Immobiliengesellschaft","Gewerbeimmobilienverwaltung","Property Management","Mietverwaltung","Facility Management Immobilien"],
+    idealCustomerProfiles: ["Eigentümer","Investoren","Gewerbeimmobilienbesitzer","Erbengemeinschaften","Unternehmen mit Standortsuche","Bestandshalter","Objektbestand"],
+    targetCustomerTypes: ["Hausverwaltungen","Immobilienverwaltungen","WEG-Verwaltungen","Bauträger","Projektentwickler","Wohnungsbaugesellschaften"],
+    negativeKeywords: ["privat","wohnung gesucht","mietgesuch","ferienwohnung","airbnb","job","karriere","vermiete privat","suche wohnung"],
+    badFitSignals: ["privat","mietgesuch","wohnung gesucht","ferienwohnung","job","airbnb"],
+    searchKeywordVariants: {
+      "Hausverwaltung": ["Hausverwaltung","WEG Verwaltung","Immobilienverwaltung","Mietverwaltung","Objektverwaltung"],
+      "Bauträger": ["Bauträger","Wohnbaugesellschaft","Projektentwickler Immobilien"],
+      "Property Management": ["Property Management","Gewerbeimmobilienverwaltung","Facility Management Immobilien"],
+      "Immobiliengesellschaft": ["Immobiliengesellschaft","Wohnungsbaugesellschaft"],
+    },
+    scoringSignals: ["verwaltung","weg","gewerbeimmobilien","bestand","objektverwaltung","property management","projektentwicklung","bautraeger","wohnanlage"],
+    queryPriority: ["Hausverwaltung","Immobilienverwaltung","WEG Verwaltung","Bauträger","Property Management","Wohnungsbaugesellschaft"],
+  },
+  lager_fulfillment: {
+    id: "lager_fulfillment", label: "Lager / Fulfillment",
+    searchableBusinessCategories: ["Versandhandel","Großhandel","Kosmetikmarke","Lebensmittelhersteller","Textilhandel","Ersatzteilhandel","Importeur","Handelsunternehmen","Modehändler","Online Händler"],
+    idealCustomerProfiles: ["regelmäßiger Versand","wachsender Onlinehandel","Retourenbedarf","mehrere SKUs","Lagerbedarf"],
+    targetCustomerTypes: ["Online-Shops","Großhändler","E-Commerce-Unternehmen","Kosmetikmarken","Textilhändler"],
+    negativeKeywords: ["privat","kleinanzeigen","job","karriere","ebay privat","zu verschenken"],
+    badFitSignals: ["privat","kleinanzeige","job","zu verschenken"],
+    searchKeywordVariants: {
+      "Versandhandel": ["Versandhandel","Online Händler","Handelsunternehmen"],
+      "Großhandel": ["Großhandel","Importeur","Textilhandel","Modehändler"],
+      "Lebensmittelhersteller": ["Kosmetikmarke","Lebensmittelhersteller","Ersatzteilhandel"],
+    },
+    scoringSignals: ["shop","versand","handel","import","retouren","lager","ecommerce","online"],
+    queryPriority: ["Großhandel","Versandhandel","Importeur","Handelsunternehmen","Textilhandel"],
+  },
+  facility_service: {
+    id: "facility_service", label: "Facility Service",
+    searchableBusinessCategories: ["Hausverwaltung","Immobilienverwaltung","Gewerbeimmobilie","Bürogebäude","Hotel","Pflegeheim","Industrieunternehmen","Schule","Kindertagesstätte","Wohnanlage","Gewerbepark"],
+    idealCustomerProfiles: ["mehrere Objekte","laufender Objektbedarf","technische Betreuung","Außenanlagen","wiederkehrende Dienstleistung"],
+    targetCustomerTypes: ["Hausverwaltungen","Gewerbeimmobilien","Bürogebäude","Hotels","Pflegeheime","Industriebetriebe"],
+    negativeKeywords: ["privat","job","karriere","ausbildung","kleinanzeigen"],
+    badFitSignals: ["privat","job","kleinanzeige","einzelperson"],
+    searchKeywordVariants: {
+      "Hausverwaltung": ["Hausverwaltung","Immobilienverwaltung","Wohnanlage","WEG Verwaltung"],
+      "Bürogebäude": ["Bürogebäude","Gewerbeimmobilie","Industrieunternehmen","Gewerbepark"],
+      "Pflegeheim": ["Pflegeheim","Schule","Kita","Altenheim"],
+    },
+    scoringSignals: ["objekt","verwaltung","gewerbe","facility","wohnanlage","technisch","gebäude"],
+    queryPriority: ["Hausverwaltung","Immobilienverwaltung","Bürogebäude","Hotel","Pflegeheim","Gewerbepark"],
+  },
+  entruempelung: {
+    id: "entruempelung", label: "Entrümpelung",
+    searchableBusinessCategories: ["Hausverwaltung","Immobilienverwaltung","Nachlassverwaltung","Betreuungsbüro","Wohnungsbaugesellschaft","Pflegeheim","Seniorenheim","Rechtsanwalt Erbrecht","Sozialdienst"],
+    idealCustomerProfiles: ["regelmäßige Wohnungswechsel","Nachlassfälle","Mietnomadenfälle","Objektbestand","Erbfälle"],
+    targetCustomerTypes: ["Hausverwaltungen","Nachlassverwalter","Betreuungsbüros","Sozialdienste","Pflegeheime"],
+    negativeKeywords: ["privat","sperrmüll kostenlos","kleinanzeigen","job","karriere","zu verschenken"],
+    badFitSignals: ["privat","kleinanzeige","zu verschenken","job","sperrmüll kostenlos"],
+    searchKeywordVariants: {
+      "Hausverwaltung": ["Hausverwaltung","Immobilienverwaltung","Wohnungsbaugesellschaft"],
+      "Nachlassverwaltung": ["Nachlassverwaltung","Rechtsanwalt Erbrecht","Betreuungsbüro","Nachlassverwalter"],
+      "Sozialdienst": ["Sozialdienst","Pflegeheim","Sozialstation","Seniorenheim"],
+    },
+    scoringSignals: ["verwaltung","nachlass","betreuung","erbrecht","wohnung","pflege","sozialdienst"],
+    queryPriority: ["Hausverwaltung","Immobilienverwaltung","Nachlassverwaltung","Sozialdienst","Pflegeheim","Betreuungsbüro"],
+  },
+  maler_renovierung: {
+    id: "maler_renovierung", label: "Maler / Renovierung",
+    searchableBusinessCategories: ["Hausverwaltung","Immobilienverwaltung","Hotel","Bürogebäude","Arztpraxis","Einzelhandel","Wohnungsbaugesellschaft","Bauunternehmen","Facility Management","Gewerbeimmobilienverwaltung"],
+    idealCustomerProfiles: ["regelmäßiger Renovierungsbedarf","Mieterwechsel","Objektbestand","Gewerbeflächen"],
+    targetCustomerTypes: ["Hausverwaltungen","Immobilienverwaltungen","Hotels","Bürogebäude","Wohnungsbaugesellschaften"],
+    negativeKeywords: ["privat","selber streichen","diy","job","ausbildung","kleinanzeigen"],
+    badFitSignals: ["privat","diy","job","kleinanzeige","selbst streichen"],
+    searchKeywordVariants: {
+      "Hausverwaltung": ["Hausverwaltung","Immobilienverwaltung","Wohnungsbaugesellschaft"],
+      "Hotel": ["Hotel","Bürogebäude","Einzelhandel","Gewerbepark"],
+      "Bauunternehmen": ["Bauunternehmen","Facility Management","Generalunternehmer"],
+    },
+    scoringSignals: ["verwaltung","mieterwechsel","objekt","hotel","gewerbe","bau","renovierung","wohnanlage"],
+    queryPriority: ["Hausverwaltung","Immobilienverwaltung","Hotel","Bauunternehmen","Bürogebäude","Einzelhandel"],
+  },
+  elektro_gebaeudetechnik: {
+    id: "elektro_gebaeudetechnik", label: "Elektro / Gebäudetechnik",
+    searchableBusinessCategories: ["Hausverwaltung","Gewerbeimmobilie","Industrieunternehmen","Hotel","Bürogebäude","Bauunternehmen","Facility Management","Einzelhandel","Wohnungsbaugesellschaft","Arztpraxis"],
+    idealCustomerProfiles: ["technischer Wartungsbedarf","mehrere Objekte","Gewerbeflächen","regelmäßige Prüfungen"],
+    targetCustomerTypes: ["Hausverwaltungen","Gewerbeobjekte","Industriebetriebe","Hotels","Bürogebäude"],
+    negativeKeywords: ["privat","diy","job","karriere","ausbildung","forum"],
+    badFitSignals: ["privat","diy","job","forum","hobby"],
+    searchKeywordVariants: {
+      "Hausverwaltung": ["Hausverwaltung","Wohnungsbaugesellschaft","Gewerbeimmobilie"],
+      "Bürogebäude": ["Bürogebäude","Hotel","Einzelhandel","Gewerbepark"],
+      "Industrieunternehmen": ["Industrieunternehmen","Bauunternehmen","Facility Management"],
+    },
+    scoringSignals: ["technik","gebäude","wartung","gewerbe","industrie","verwaltung","objekt","anlage"],
+    queryPriority: ["Hausverwaltung","Industrieunternehmen","Hotel","Bürogebäude","Bauunternehmen","Facility Management"],
+  },
+  shk: {
+    id: "shk", label: "SHK / Sanitär / Heizung / Klima",
+    searchableBusinessCategories: ["Hausverwaltung","Hotel","Pflegeheim","Gewerbeimmobilie","Bürogebäude","Wohnungsbaugesellschaft","Facility Management","Industrieunternehmen","Arztpraxis","Gastronomie"],
+    idealCustomerProfiles: ["regelmäßiger Wartungsbedarf","viele sanitäre Anlagen","Gewerbeflächen","Notdienstbedarf"],
+    targetCustomerTypes: ["Hausverwaltungen","Hotels","Pflegeheime","Gewerbeobjekte","Bürogebäude"],
+    negativeKeywords: ["privat","diy","job","ausbildung","forum","selber machen"],
+    badFitSignals: ["privat","diy","job","forum","selbst"],
+    searchKeywordVariants: {
+      "Hausverwaltung": ["Hausverwaltung","Wohnungsbaugesellschaft","Gewerbeimmobilie"],
+      "Hotel": ["Hotel","Bürogebäude","Gastronomie","Gewerbepark"],
+      "Pflegeheim": ["Pflegeheim","Seniorenheim","Facility Management"],
+    },
+    scoringSignals: ["wartung","heizung","sanitaer","gewerbe","hotel","pflege","verwaltung","objekt"],
+    queryPriority: ["Hausverwaltung","Hotel","Pflegeheim","Bürogebäude","Industrieunternehmen","Gastronomie"],
+  },
+  eventservice: {
+    id: "eventservice", label: "Eventservice",
+    searchableBusinessCategories: ["Eventlocation","Messeveranstalter","Hotel","Marketingagentur","Kongresszentrum","Seminarzentrum","Veranstalter","Messezentrum","Eventhalle","Tagungszentrum"],
+    idealCustomerProfiles: ["regelmäßige Events","hohes Besucheraufkommen","Messebetrieb","Tagungen"],
+    targetCustomerTypes: ["Eventlocations","Messeveranstalter","Hotels","Kongresszentren","Seminarzentren"],
+    negativeKeywords: ["privat","geburtstag","hochzeit","kleinanzeigen","job","familienfeier"],
+    badFitSignals: ["privat","geburtstag","hochzeit","job","familienfeier"],
+    searchKeywordVariants: {
+      "Eventlocation": ["Eventlocation","Veranstalter","Kongresszentrum","Eventhalle"],
+      "Messeveranstalter": ["Messeveranstalter","Messezentrum","Messebau"],
+      "Hotel": ["Tagungshotel","Marketingagentur","Seminarzentrum"],
+    },
+    scoringSignals: ["event","messe","kongress","veranstaltung","hotel","agentur","b2b","tagung"],
+    queryPriority: ["Eventlocation","Kongresszentrum","Messeveranstalter","Hotel","Seminarzentrum","Marketingagentur"],
+  },
+  marketing_webdesign_werbung: {
+    id: "marketing_webdesign_werbung", label: "Marketing / Webdesign / Werbung",
+    searchableBusinessCategories: ["Handwerksbetrieb","Arztpraxis","Steuerberater","Rechtsanwalt","Restaurant","Hotel","Immobilienmakler","Fitnessstudio","Einzelhandel","Unternehmensberatung","Zahnarztpraxis","Autohaus","Bauunternehmen"],
+    idealCustomerProfiles: ["lokal sichtbarkeitsabhängig","schwache Website","Leadbedarf","Wachstumsziel"],
+    targetCustomerTypes: ["Handwerksbetriebe","Arztpraxen","Steuerberater","Restaurants","Hotels","Fitnessstudios"],
+    negativeKeywords: ["privat","hobby","gratis","job","karriere","ehrenamt"],
+    badFitSignals: ["privat","hobby","gratis","job","ehrenamt"],
+    searchKeywordVariants: {
+      "Handwerksbetrieb": ["Handwerksbetrieb","Arztpraxis","Restaurant","Fitnessstudio"],
+      "Steuerberater": ["Steuerberater","Rechtsanwalt","Unternehmensberatung"],
+      "Einzelhandel": ["Einzelhandel","Autohaus","Hotel"],
+    },
+    scoringSignals: ["lokal","dienstleister","praxis","kanzlei","hotel","shop","restaurant","handwerk"],
+    queryPriority: ["Handwerksbetrieb","Arztpraxis","Restaurant","Steuerberater","Hotel","Fitnessstudio","Einzelhandel"],
+  },
+  personal_zeitarbeit: {
+    id: "personal_zeitarbeit", label: "Personal / Zeitarbeit",
+    searchableBusinessCategories: ["Logistikunternehmen","Industrieunternehmen","Produktionsbetrieb","Pflegeheim","Hotel","Gastronomie","Bauunternehmen","Lagerbetrieb","Reinigungsunternehmen","Einzelhandel","Callcenter"],
+    idealCustomerProfiles: ["hoher Personalbedarf","Schichtbetrieb","saisonaler Bedarf","wachsendes Unternehmen"],
+    targetCustomerTypes: ["Logistikunternehmen","Industriebetriebe","Produktionsbetriebe","Pflegeheime","Hotels"],
+    negativeKeywords: ["bewerbung","jobs","stellenangebot","karriere","ausbildung","praktikum"],
+    badFitSignals: ["bewerbung","job","karriere","praktikum","stellengesuch"],
+    searchKeywordVariants: {
+      "Logistikunternehmen": ["Logistikunternehmen","Lagerbetrieb","Spedition"],
+      "Industrieunternehmen": ["Industrieunternehmen","Produktionsbetrieb","Maschinenbau"],
+      "Pflegeheim": ["Pflegeheim","Seniorenheim","Klinik","Pflegedienst"],
+      "Gastronomie": ["Hotel","Gastronomie","Restaurant"],
+    },
+    scoringSignals: ["produktion","logistik","pflege","hotel","schicht","lager","personalbedarf","industrie"],
+    queryPriority: ["Logistikunternehmen","Industrieunternehmen","Pflegeheim","Produktionsbetrieb","Hotel","Gastronomie"],
+  },
+  buchhaltung_steuernahe_dienste: {
+    id: "buchhaltung_steuernahe_dienste", label: "Buchhaltung / steuernahe Dienste",
+    searchableBusinessCategories: ["Handwerksbetrieb","Restaurant","Einzelhandel","Pflegedienst","Immobilienverwaltung","Agentur","Dienstleister","Gastronomie","Unternehmensberatung","Bauunternehmen"],
+    idealCustomerProfiles: ["laufende Belege","mehrere Rechnungen monatlich","Lohnabrechnung","Wachstum"],
+    targetCustomerTypes: ["Kleinunternehmen","Handwerksbetriebe","Gastronomie","Einzelhandel","Startups"],
+    negativeKeywords: ["privat","job","karriere","ausbildung","kostenlos","forum"],
+    badFitSignals: ["privat","forum","job","kostenlos","selbst"],
+    searchKeywordVariants: {
+      "Handwerksbetrieb": ["Handwerksbetrieb","Restaurant","Einzelhandel","Gastronomie"],
+      "Pflegedienst": ["Agentur","Pflegedienst","Immobilienverwaltung"],
+      "Unternehmensberatung": ["Unternehmensberatung","Dienstleister","Bauunternehmen"],
+    },
+    scoringSignals: ["unternehmen","handel","handwerk","agentur","shop","dienstleister","pflege","büro"],
+    queryPriority: ["Handwerksbetrieb","Restaurant","Einzelhandel","Pflegedienst","Agentur","Immobilienverwaltung"],
+  },
+  industrieservice: {
+    id: "industrieservice", label: "Industrieservice",
+    searchableBusinessCategories: ["Produktionsbetrieb","Maschinenbau","Metallbau","Logistikzentrum","Chemiebetrieb","Lebensmittelhersteller","Industriepark","Automobilzulieferer","Kunststoffverarbeitung","Industrieunternehmen"],
+    idealCustomerProfiles: ["laufende Produktion","technische Anlagen","Schichtbetrieb","Wartungsbedarf"],
+    targetCustomerTypes: ["Produktionsbetriebe","Maschinenbauunternehmen","Logistikzentren","Chemiebetriebe"],
+    negativeKeywords: ["privat","job","karriere","ausbildung","hobbywerkstatt"],
+    badFitSignals: ["privat","hobby","job","klein","werkstatt privat"],
+    searchKeywordVariants: {
+      "Produktionsbetrieb": ["Produktionsbetrieb","Industrieunternehmen","Lebensmittelhersteller"],
+      "Maschinenbau": ["Maschinenbau","Metallbau","Kunststoffverarbeitung","Automobilzulieferer"],
+      "Industriepark": ["Industriepark","Logistikzentrum","Chemiebetrieb"],
+    },
+    scoringSignals: ["produktion","industrie","maschine","anlage","werk","halle","wartung","technik"],
+    queryPriority: ["Produktionsbetrieb","Industrieunternehmen","Maschinenbau","Logistikzentrum","Metallbau","Lebensmittelhersteller"],
+  },
+  fuhrparkservice_fahrzeugpflege: {
+    id: "fuhrparkservice_fahrzeugpflege", label: "Fuhrparkservice / Fahrzeugpflege",
+    searchableBusinessCategories: ["Autohaus","Taxiunternehmen","Pflegedienst","Handwerksbetrieb","Logistikunternehmen","Spedition","Mietwagenfirma","Fahrschule","Lieferdienst","Kommunaler Betrieb","Fuhrparkbetrieb"],
+    idealCustomerProfiles: ["mehrere Fahrzeuge","regelmäßige Reinigung","Außendienst","Flotte"],
+    targetCustomerTypes: ["Autohäuser","Taxiunternehmen","Pflegedienste","Logistikunternehmen","Speditionen"],
+    negativeKeywords: ["privat","gebrauchtwagen privat","job","kleinanzeigen","selber reinigen"],
+    badFitSignals: ["privat","kleinanzeige","job","einzelfahrzeug","gebrauchtwagen privat"],
+    searchKeywordVariants: {
+      "Taxiunternehmen": ["Taxiunternehmen","Pflegedienst","Lieferdienst","Mietwagenfirma"],
+      "Autohaus": ["Autohaus","Fahrschule","Fuhrparkbetrieb"],
+      "Logistikunternehmen": ["Handwerksbetrieb","Logistikunternehmen","Spedition"],
+    },
+    scoringSignals: ["flotte","fahrzeuge","lieferung","taxi","pflege","autohaus","logistik","fuhrpark"],
+    queryPriority: ["Autohaus","Taxiunternehmen","Logistikunternehmen","Handwerksbetrieb","Pflegedienst","Mietwagenfirma"],
+  },
+  pflege_betreuung: {
+    id: "pflege_betreuung", label: "Pflege / Betreuung",
+    searchableBusinessCategories: ["Pflegeheim","Seniorenresidenz","Betreutes Wohnen","Klinik","Reha Zentrum","Sozialdienst","Betreuungsverein","Ärztehaus","Pflegedienst","Sozialstation"],
+    idealCustomerProfiles: ["regelmäßiger Betreuungsbedarf","Senioren-Zielgruppe","soziale Versorgung"],
+    targetCustomerTypes: ["Pflegeheime","Seniorenresidenzen","Betreutes Wohnen","Kliniken","Sozialdienste"],
+    negativeKeywords: ["job","karriere","ausbildung","forum","privat","erfahrung"],
+    badFitSignals: ["job","forum","privat","erfahrung","selbsthilfe"],
+    searchKeywordVariants: {
+      "Pflegeheim": ["Pflegeheim","Seniorenresidenz","Betreutes Wohnen","Altenheim"],
+      "Klinik": ["Klinik","Reha Zentrum","Ärztehaus","Pflegedienst"],
+      "Sozialdienst": ["Sozialdienst","Betreuungsverein","Sozialstation"],
+    },
+    scoringSignals: ["pflege","senioren","betreuung","sozial","reha","klinik","wohnen","station"],
+    queryPriority: ["Pflegeheim","Seniorenresidenz","Klinik","Reha Zentrum","Sozialdienst","Pflegedienst"],
+  },
+  schulungen_weiterbildung: {
+    id: "schulungen_weiterbildung", label: "Schulungen / Weiterbildung",
+    searchableBusinessCategories: ["Industrieunternehmen","Pflegeheim","Hotel","Logistikunternehmen","Handwerksbetrieb","Bildungsträger","Schule","Einzelhandel","Callcenter","Unternehmensberatung","Produktionsbetrieb"],
+    idealCustomerProfiles: ["mehrere Mitarbeitende","Schulungspflicht","Compliance","wiederkehrender Schulungsbedarf"],
+    targetCustomerTypes: ["Unternehmen","Industriebetriebe","Pflegeheime","Hotels","Logistikunternehmen"],
+    negativeKeywords: ["privat","nachhilfe","hobby","job","karriere","kostenlos"],
+    badFitSignals: ["privat","nachhilfe","hobby","job","kostenlos"],
+    searchKeywordVariants: {
+      "Industrieunternehmen": ["Industrieunternehmen","Logistikunternehmen","Produktionsbetrieb"],
+      "Pflegeheim": ["Pflegeheim","Hotel","Einzelhandel","Callcenter"],
+      "Bildungsträger": ["Bildungsträger","Schule","Handwerksbetrieb"],
+    },
+    scoringSignals: ["mitarbeiter","schulung","industrie","pflege","logistik","compliance","unternehmen"],
+    queryPriority: ["Industrieunternehmen","Pflegeheim","Hotel","Logistikunternehmen","Handwerksbetrieb","Bildungsträger"],
+  },
 };
 
-function skuCostCent(sku, requests) {
-  const priceUsdPer1000 = GOOGLE_SKU_PRICING_USD_PER_1000[sku] || 0;
-  return (requests / 1000) * priceUsdPer1000 * 100;
+const LEGACY_INDUSTRY_MAP = {
+  "Gebäudereinigung":"gebaeudereinigung","Gartenbau / Gartenpflege":"gartenbau","Gartenbau":"gartenbau",
+  "Hausmeisterdienst / Facility Service":"facility_service","Facility Service":"facility_service","Hausmeisterdienst":"facility_service",
+  "Entrümpelung / Entsorgung":"entruempelung","Entrümpelung":"entruempelung",
+  "Buchhaltung / Büroservice":"buchhaltung_steuernahe_dienste","Buchhaltung":"buchhaltung_steuernahe_dienste",
+  "Maschinenwartung / Industrieservice":"industrieservice","Industrieservice":"industrieservice",
+  "Sicherheitsdienst":"sicherheitsdienst","IT-Service":"it_service","Catering":"catering","Handwerk":"handwerk",
+  "Spedition / Logistik":"spedition_logistik","Spedition":"spedition_logistik","Logistik":"spedition_logistik",
+  "Gesundheit / Medizin":"gesundheit_medizin","Gesundheit":"gesundheit_medizin","Medizin":"gesundheit_medizin",
+  "Immobilien":"immobilien","Lager / Fulfillment":"lager_fulfillment","Fulfillment":"lager_fulfillment",
+  "Maler / Renovierung":"maler_renovierung","Maler":"maler_renovierung","Renovierung":"maler_renovierung",
+  "Elektro / Gebäudetechnik":"elektro_gebaeudetechnik","Elektro":"elektro_gebaeudetechnik",
+  "SHK / Sanitär / Heizung / Klima":"shk","SHK":"shk","Sanitär":"shk","Heizung":"shk",
+  "Eventservice":"eventservice","Marketing / Webdesign / Werbung":"marketing_webdesign_werbung",
+  "Marketing":"marketing_webdesign_werbung","Webdesign":"marketing_webdesign_werbung",
+  "Personal / Zeitarbeit":"personal_zeitarbeit","Zeitarbeit":"personal_zeitarbeit",
+  "Fuhrparkservice / Fahrzeugpflege":"fuhrparkservice_fahrzeugpflege","Fuhrparkservice":"fuhrparkservice_fahrzeugpflege",
+  "Pflege / Betreuung":"pflege_betreuung","Pflege":"pflege_betreuung",
+  "Schulungen / Weiterbildung":"schulungen_weiterbildung","Schulungen":"schulungen_weiterbildung",
+};
+
+// ============================================================
+// INLINE: LEAD SEARCH ENGINE
+// (Quelle der Wahrheit: utils/leadSearchEngine.js)
+// ============================================================
+
+function normStr(str) {
+  return String(str || "").toLowerCase()
+    .replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss").trim();
 }
 
-// ─── Access Check ─────────────────────────────────────────────────────────────
-const ACTION_ROLES = { generate_leads: ['organization_admin'] };
-function _allow(r) { return { allowed: true, ...r }; }
-function _deny(reason, message) { return { allowed: false, reason, message, user: null }; }
+function normalizeIndustryId(value) {
+  if (!value) return null;
+  const str = String(value).trim();
+  if (LEAD_SEARCH_TAXONOMY[str]) return str;
+  if (LEGACY_INDUSTRY_MAP[str]) return LEGACY_INDUSTRY_MAP[str];
+  const lower = str.toLowerCase();
+  const match = Object.keys(LEAD_SEARCH_TAXONOMY).find(k => k.toLowerCase() === lower);
+  return match || str;
+}
+
+function getQueryBudget(trialStage, remainingLeadBudget) {
+  if (trialStage === 'free_preview') {
+    if (!remainingLeadBudget || remainingLeadBudget <= 0) {
+      return { blocked: true, reason: 'preview_limit_reached', maxLeadsToSave: 0, maxSearchQueries: 0, maxPlaceDetails: 0, stopWhenEnoughLeadsFound: true };
+    }
+    return { blocked: false, maxLeadsToSave: Math.min(remainingLeadBudget, 3), maxSearchQueries: 6, maxPlaceDetails: 15, stopWhenEnoughLeadsFound: true };
+  }
+  if (trialStage === 'verified_trial') {
+    return { blocked: false, maxLeadsToSave: 25, maxSearchQueries: 20, maxPlaceDetails: 50, stopWhenEnoughLeadsFound: true };
+  }
+  // paid / agency
+  return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 40, maxPlaceDetails: 80, stopWhenEnoughLeadsFound: true };
+}
+
+function getCityLimit(trialStage, radiusKm) {
+  if (trialStage === 'free_preview') return 1;
+  if (radiusKm <= 10) return 1;
+  if (radiusKm <= 25) return 3;
+  if (radiusKm <= 60) return 5;
+  return 7;
+}
+
+function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerTypes = [], location, radiusKm = 25, trialStage = 'free_preview', remainingLeadBudget = 3, additionalCities = [] }) {
+  const industryId = normalizeIndustryId(industry);
+  const profile = LEAD_SEARCH_TAXONOMY[industryId] || null;
+
+  if (!profile) return { error: `Unbekannte Branche: ${industry}`, blocked: true, industryProfile: null, searchQueries: [], queryBudget: { blocked: true, reason: 'unknown_industry' } };
+
+  const queryBudget = getQueryBudget(trialStage, remainingLeadBudget);
+  if (queryBudget.blocked) return { industryProfile: profile, queryBudget, searchCities: [], searchQueries: [], blocked: true, debug: { ignoredIdealProfiles: profile.idealCustomerProfiles || [] } };
+
+  const cityLimit = getCityLimit(trialStage, radiusKm);
+  const searchCities = [location, ...additionalCities.slice(0, cityLimit - 1)].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i);
+
+  // NUR searchableBusinessCategories, gefiltert durch excludedCustomerTypes
+  const usedCategories = (profile.searchableBusinessCategories || []).filter(c => !excludedCustomerTypes.includes(c));
+  const ignoredIdealProfiles = profile.idealCustomerProfiles || [];
+
+  // Queries generieren
+  const queries = [];
+  const seen = new Set();
+  const maxQ = queryBudget.maxSearchQueries;
+  const ordered = [
+    ...(profile.queryPriority || []).filter(c => usedCategories.includes(c)),
+    ...usedCategories.filter(c => !(profile.queryPriority || []).includes(c))
+  ];
+
+  for (const city of searchCities) {
+    for (const cat of ordered) {
+      if (queries.length >= maxQ) break;
+      const variants = profile.searchKeywordVariants?.[cat] ? profile.searchKeywordVariants[cat] : [cat];
+      for (const variant of variants) {
+        if (queries.length >= maxQ) break;
+        const q = `${variant} ${city}`;
+        if (!seen.has(q)) {
+          seen.add(q);
+          queries.push({ query: q, city, category: cat, variant });
+        }
+      }
+    }
+    if (queries.length >= maxQ) break;
+  }
+
+  return {
+    industryProfile: profile,
+    searchCities,
+    searchQueries: queries,
+    queryBudget,
+    debug: {
+      usedSearchableCategories: usedCategories,
+      ignoredIdealProfiles,
+      idealProfilesNotUsedAsRawQueries: true,
+      searchableBusinessCategoriesUsed: true,
+    }
+  };
+}
+
+function isBadFit(candidate, profile) {
+  const text = normStr([candidate.name, (candidate.types || []).join(' '), candidate.vicinity || '', candidate.editorial_summary?.overview || ''].join(' '));
+  const jobSignals = ['job', 'karriere', 'ausbildung', 'stellenangebot', 'bewerber', 'bewerbung', 'praktikum'];
+  for (const s of jobSignals) if (text.includes(normStr(s))) return { isBadFit: true, reason: `Job-Signal: "${s}"`, signalType: 'job' };
+  const privatSignals = ['privat', 'kleinanzeigen', 'mietgesuch', 'wohnung gesucht', 'zu verschenken', 'airbnb'];
+  for (const s of privatSignals) if (text.includes(normStr(s))) return { isBadFit: true, reason: `Privat-Signal: "${s}"`, signalType: 'private' };
+  for (const kw of (profile.negativeKeywords || [])) if (text.includes(normStr(kw))) return { isBadFit: true, reason: `NegKeyword: "${kw}"`, signalType: 'negativeKeyword' };
+  for (const s of (profile.badFitSignals || [])) if (text.includes(normStr(s))) return { isBadFit: true, reason: `BadFit: "${s}"`, signalType: 'badFitSignal' };
+  return { isBadFit: false, reason: null };
+}
+
+function scoreLeadCandidate({ candidate, profile, distanceKm = null, radiusKm = 25, matchedSearchCategory = null }) {
+  const text = normStr([candidate.name, (candidate.types || []).join(' '), candidate.vicinity || '', candidate.editorial_summary?.overview || '', candidate.formatted_address || ''].join(' '));
+  const badFitResult = isBadFit(candidate, profile);
+
+  let score = 50;
+  const reasons = [];
+  let matched_search_category = matchedSearchCategory || null;
+  let matched_target_customer_type = null;
+  let matched_service_context = null;
+
+  // +20: Kategorie
+  if (!matched_search_category) {
+    for (const cat of (profile.searchableBusinessCategories || [])) {
+      const variants = profile.searchKeywordVariants?.[cat] ? profile.searchKeywordVariants[cat] : [cat];
+      for (const v of variants) { if (text.includes(normStr(v))) { matched_search_category = cat; break; } }
+      if (matched_search_category) break;
+    }
+  }
+  if (matched_search_category) { score += 20; reasons.push(`Kategorie: "${matched_search_category}"`); }
+
+  // +15: Scoring Signal
+  for (const s of (profile.scoringSignals || [])) {
+    if (text.includes(normStr(s))) { score += 15; reasons.push(`Signal: "${s}"`); break; }
+  }
+
+  // +10: Telefon
+  if (candidate.formatted_phone_number || candidate.international_phone_number) { score += 10; reasons.push("Telefon"); }
+
+  // +10: Website
+  if (candidate.website) { score += 10; reasons.push("Website"); }
+
+  // +10: Im Radius
+  if (distanceKm !== null && distanceKm <= radiusKm) { score += 10; reasons.push(`Radius (${distanceKm}km)`); }
+
+  // Negative
+  if (badFitResult.isBadFit) {
+    const penalty = (badFitResult.signalType === 'job' || badFitResult.signalType === 'private') ? 50 : 30;
+    score -= penalty;
+    reasons.push(`BadFit: ${badFitResult.reason}`);
+  }
+
+  // Target Customer Match
+  for (const tc of (profile.targetCustomerTypes || [])) {
+    if (text.includes(normStr(tc))) { matched_target_customer_type = tc; break; }
+  }
+
+  // Service Context
+  for (const svc of (profile.ownServices || [])) {
+    if (text.includes(normStr(svc))) { matched_service_context = svc; break; }
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  return {
+    search_quality_score: score,
+    matched_search_category,
+    matched_target_customer_type,
+    matched_service_context,
+    relevance_reason: reasons.join(' | ') || 'Kein Match',
+    bad_fit_reason: badFitResult.isBadFit ? badFitResult.reason : null,
+    shouldSave: score >= 55 && !badFitResult.isBadFit,
+  };
+}
+
+// ============================================================
+// GOOGLE API HELPERS
+// ============================================================
+
+const GOOGLE_SKU_PRICING_USD_PER_1000 = { places_text_search_pro: 32, place_details_essentials: 5 };
+function skuCostCent(sku, requests) { return (requests / 1000) * (GOOGLE_SKU_PRICING_USD_PER_1000[sku] || 0) * 100; }
+
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+async function searchPlaces(query, cityCoords, radiusMeters, apiCounters) {
+  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&location=${cityCoords.lat},${cityCoords.lng}&radius=${radiusMeters}&language=de&key=${GOOGLE_PLACES_API_KEY}`;
+  apiCounters.textSearch++;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const data = await res.json();
+  if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') console.warn(`[searchPlaces] ${data.status} for: ${query}`);
+  return data.results || [];
+}
+
+async function getPlaceDetails(placeId, apiCounters) {
+  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,geometry,address_components,types&language=de&key=${GOOGLE_PLACES_API_KEY}`;
+  apiCounters.placeDetailsEssentials++;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.status === 'OK' ? (data.result || null) : null;
+}
+
+function extractAddressComponents(components = []) {
+  let plz = '', ort = '', strasse = '', hausnummer = '';
+  for (const c of components) {
+    if (c.types.includes('postal_code')) plz = c.long_name;
+    if (c.types.includes('locality')) ort = c.long_name;
+    if (c.types.includes('route')) strasse = c.long_name;
+    if (c.types.includes('street_number')) hausnummer = c.long_name;
+  }
+  return { plz, ort, adresse: [strasse, hausnummer].filter(Boolean).join(' ') };
+}
+
+// ============================================================
+// ACCESS CHECK
+// ============================================================
 
 async function checkAccess(req, { organization_id, action } = {}) {
   const b44 = createClientFromRequest(req);
   let user;
-  try { user = await b44.auth.me(); } catch { return _deny('not_authenticated', 'Nicht eingeloggt.'); }
-  if (!user) return _deny('not_authenticated', 'Nicht eingeloggt.');
-  if (user.role === 'admin') return _allow({ reason: 'platform_admin', user, organization: null, member: null, role: 'platform_admin' });
-  if (!organization_id) return _deny('missing_organization_id', 'Keine organization_id angegeben.');
+  try { user = await b44.auth.me(); } catch { return { allowed: false, reason: 'not_authenticated', message: 'Nicht eingeloggt.' }; }
+  if (!user) return { allowed: false, reason: 'not_authenticated', message: 'Nicht eingeloggt.' };
+  if (user.role === 'admin') return { allowed: true, reason: 'platform_admin', user, organization: null, role: 'platform_admin' };
+  if (!organization_id) return { allowed: false, reason: 'missing_organization_id', message: 'Keine organization_id.' };
 
-  let orgs, members;
-  try {
-    [orgs, members] = await Promise.all([
-      b44.asServiceRole.entities.Organization.filter({ id: organization_id }),
-      b44.asServiceRole.entities.OrganizationMember.filter({ organization_id, user_email: user.email }),
-    ]);
-  } catch { return _deny('organization_not_found', 'Organisation nicht gefunden.'); }
-
+  const [orgs, members] = await Promise.all([
+    b44.asServiceRole.entities.Organization.filter({ id: organization_id }),
+    b44.asServiceRole.entities.OrganizationMember.filter({ organization_id, user_email: user.email }),
+  ]);
   const organization = orgs[0] || null;
-  if (!organization) return _deny('organization_not_found', 'Organisation nicht gefunden.');
-  if (organization.owner_email === user.email) return _allow({ reason: 'org_owner', user, organization, member: members[0] || null, role: 'organization_admin' });
-
+  if (!organization) return { allowed: false, reason: 'organization_not_found', message: 'Organisation nicht gefunden.' };
+  if (organization.owner_email === user.email) return { allowed: true, reason: 'org_owner', user, organization, member: members[0] || null, role: 'organization_admin' };
   const member = members[0] || null;
-  if (!member) return _deny('not_a_member', 'Kein Mitglied dieser Organisation.');
-  if (member.status !== 'active') return _deny('member_inactive', `Mitglied-Status: "${member.status}".`);
-
-  const role = member.role;
-  if (action) {
-    const ar = ACTION_ROLES[action];
-    if (!ar || !ar.includes(role)) return _deny('insufficient_role', `Rolle "${role}" darf "${action}" nicht.`);
-  }
-  return _allow({ reason: 'ok', user, organization, member, role });
+  if (!member || member.status !== 'active') return { allowed: false, reason: 'not_a_member', message: 'Kein aktives Mitglied.' };
+  const allowedRoles = ['organization_admin'];
+  if (!allowedRoles.includes(member.role)) return { allowed: false, reason: 'insufficient_role', message: `Rolle "${member.role}" nicht erlaubt.` };
+  return { allowed: true, reason: 'ok', user, organization, member, role: member.role };
 }
 
-// ─── Search Variants (für Suchanfragen an Google) ─────────────────────────────
-const SEARCH_VARIANTS = {
-  "Hausverwaltungen":              ["Hausverwaltung", "Immobilienverwaltung", "WEG Verwaltung"],
-  "Bürogebäude":                   ["Bürogebäude", "Gewerbepark", "Business Center"],
-  "Arztpraxen":                    ["Arztpraxis", "Zahnarztpraxis", "Medizinisches Versorgungszentrum"],
-  "Autohäuser":                    ["Autohaus", "Autohandel", "Autohändler"],
-  "Möbelhäuser":                   ["Möbelhaus", "Möbelhandel", "Küchenstudio"],
-  "Hotels":                        ["Hotel", "Gasthof", "Pension"],
-  "Restaurants":                   ["Restaurant", "Gastronomie"],
-  "Fitnessstudios":                ["Fitnessstudio", "Gym"],
-  "Apotheken":                     ["Apotheke"],
-  "Kanzleien":                     ["Anwaltskanzlei", "Rechtsanwalt"],
-  "Steuerkanzleien":               ["Steuerberater", "Steuerberatung"],
-  "Handwerksbetriebe":             ["Handwerksbetrieb", "Handwerker"],
-  "Bauunternehmen":                ["Bauunternehmen", "Baufirma"],
-  "Großhändler":                   ["Großhandel", "Großhändler"],
-  "Pflegeheime":                   ["Pflegeheim", "Altenheim", "Seniorenheim"],
-  "Schulen":                       ["Schule", "Gymnasium"],
-  "Kitas":                         ["Kita", "Kindergarten"],
-  "Supermärkte":                   ["Supermarkt", "Lebensmittelmarkt"],
-  "Logistikzentren":               ["Logistik", "Logistikzentrum"],
-  "Gebäudereinigung":              ["Gebäudereinigung", "Reinigungsunternehmen", "Reinigungsfirma"],
-  // Zielkunden aus dem alten ZIELKUNDEN_SEARCH_MAPPING (CompanySettings)
-  "Büros":                         ["Büro", "Gewerbe", "Kanzlei", "Beratung"],
-  "Immobilienfirmen":              ["Immobilienmakler", "Immobilienbüro", "Makler"],
-  "Gewerbekunden":                 ["Gewerbebetrieb", "Handwerk", "Werkstatt"],
-  "Industrie":                     ["Industrieunternehmen", "Produktionsstätte", "Lager"],
-  "Logistik":                      ["Spedition", "Lagerhaus", "Logistikzentrum"],
-  "Schulen / Bildungseinrichtungen": ["Schule", "Gymnasium", "Kindergarten", "Bildungszentrum"],
-  "Krankenhäuser / Kliniken":      ["Krankenhaus", "Klinik", "Pflegeheim"],
-  // Erweiterte Immobilien-Taxonomie: suchbare Firmenkategorien (nicht Eigentümer/Investoren!)
-  "Immobilienverwaltungen":        ["Immobilienverwaltung", "Hausverwaltung", "WEG-Verwaltung", "Mietverwaltung"],
-  "WEG-Verwaltungen":              ["WEG Verwaltung", "WEG-Verwaltung", "Wohnungseigentumsverwaltung"],
-  "Bauträger":                     ["Bauträger", "Projektentwickler", "Immobilienentwickler"],
-  "Wohnungsbaugesellschaften":     ["Wohnungsbaugesellschaft", "Wohnungsbau GmbH", "kommunale Wohnungsgesellschaft"],
-  "Gewerbeimmobilienverwaltungen": ["Gewerbeimmobilienverwaltung", "Gewerbeobjekt Verwaltung", "Commercial Property Management"],
-  "Immobiliengesellschaften":      ["Immobiliengesellschaft", "Immobilien GmbH", "Immobilien AG", "Property Management"],
-  "Property Management":           ["Property Management", "Immobilienverwaltung", "Hausverwaltung"],
-};
+// ============================================================
+// LOCK HELPERS
+// ============================================================
+const LOCK_TIMEOUT_MS = 10 * 60 * 1000;
 
-// ─── Relevanz-Regeln: harte Filterung nach Zielgruppe ─────────────────────────
-// positiveKeywords: mindestens eines muss im Text vorkommen → Match
-// negativeKeywords: wenn eines vorkommt → sofort ausschließen (Vorrang!)
-const TARGET_RULES = {
-  "Hausverwaltungen": {
-    positiveKeywords: [
-      "hausverwaltung", "immobilienverwaltung", "weg verwaltung", "weg-verwaltung",
-      "mietverwaltung", "property management", "objektverwaltung", "wohnungsverwaltung",
-      "grundstuecksverwaltung", "verwaltungsgesellschaft", "facility management",
-      "immobilien verwaltung", "wohnungseigentum",
-      // Google Types übersetzt
-      "property_management", "immobilienbestand", "verwalter",
-      // Firmen mit "verwaltung" im Namen (z.B. "S & S Verwaltung GmbH", "KAISER Haus- & Vermögensverwaltung")
-      "vermoegensverwaltung", "vermögensverwaltung", "hausverwaltungs",
-      // Immobilien + Betreuung/Service/Vermietung Kombis (z.B. "V.I.B. Immobilien-Betreuungs-", "IVVB")
-      "immobilien-betreuung", "immobilien betreuung", "immobilien service",
-      "immobilien vermietung verwaltung", "immobilien-verwaltung",
-      "haus-verwaltung", "haus & vermoegensverwaltung",
-    ],
-    negativeKeywords: [
-      "kanzlei", "rechtsanwalt", "anwalt", "steuerberater", "wirtschaftspruefung",
-      "bank", "sparkasse", "volksbank", "commerzbank", "deutsche bank",
-      "versicherung", "finanzberatung", "notar",
-      "restaurant", "cafe", "gastro", "bistro",
-      "arzt", "zahnarzt", "medizin", "apotheke",
-      "software", "informatik", "it-dienstleistung",
-      "einzelhandel", "supermarkt", "lebensmittel",
-    ],
-    // Sonderregel: immobilienmakler nur OK wenn gleichzeitig "verwaltung" im Text
-    specialRules: ["immobilienmakler_ohne_verwaltung"],
-  },
-  "Kanzleien": {
-    positiveKeywords: [
-      "kanzlei", "rechtsanwalt", "anwaltskanzlei", "anwaelte", "anwälte",
-      "rechtsanwaelte", "rechtsanwälte", "notar", "notariat",
-    ],
-    negativeKeywords: [
-      "hausverwaltung", "immobilienverwaltung", "restaurant", "cafe", "arzt",
-      "zahnarzt", "apotheke", "supermarkt",
-    ],
-  },
-  "Steuerkanzleien": {
-    positiveKeywords: [
-      "steuerberater", "steuerkanzlei", "steuerberatung", "wirtschaftspruefer",
-      "wirtschaftspruefung", "buchhalter", "buchhaltung",
-    ],
-    negativeKeywords: [
-      "hausverwaltung", "restaurant", "cafe", "arzt", "zahnarzt", "apotheke",
-    ],
-  },
-  "Arztpraxen": {
-    positiveKeywords: [
-      "arztpraxis", "arzt", "zahnarzt", "zahnarztpraxis", "physiotherapie",
-      "praxis", "aerzte", "ärzte", "medizinisches versorgungszentrum", "mvz",
-    ],
-    negativeKeywords: [
-      "hausverwaltung", "kanzlei", "restaurant", "supermarkt",
-    ],
-  },
-  "Restaurants": {
-    positiveKeywords: [
-      "restaurant", "gastronomie", "cafe", "bistro", "imbiss", "pizzeria",
-      "gaststaette", "gaststätte", "speiselokal",
-    ],
-    negativeKeywords: [
-      "hausverwaltung", "kanzlei", "arzt",
-    ],
-  },
-  "Hotels": {
-    positiveKeywords: [
-      "hotel", "gasthof", "pension", "unterkunft", "herberge", "motel",
-    ],
-    negativeKeywords: [],
-  },
-  "Fitnessstudios": {
-    positiveKeywords: [
-      "fitnessstudio", "gym", "fitness", "sportcenter", "sportstudio",
-    ],
-    negativeKeywords: [],
-  },
-  "Handwerksbetriebe": {
-    positiveKeywords: [
-      "handwerk", "handwerksbetrieb", "elektriker", "klempner", "schreiner",
-      "maler", "tischler", "installateur", "sanitaer", "sanitär",
-    ],
-    negativeKeywords: [],
-  },
-  "Bauunternehmen": {
-    positiveKeywords: [
-      "bauunternehmen", "baufirma", "baugesellschaft", "hoch- und tiefbau",
-      "bauprojekt", "bautraeger", "bauträger",
-    ],
-    negativeKeywords: [],
-  },
-  "Pflegeheime": {
-    positiveKeywords: [
-      "pflegeheim", "altenheim", "seniorenheim", "pflegeeinrichtung",
-      "altenpflege", "seniorenresidenz",
-    ],
-    negativeKeywords: [],
-  },
-  "Schulen": {
-    positiveKeywords: [
-      "schule", "gymnasium", "berufsschule", "realschule", "gesamtschule",
-    ],
-    negativeKeywords: [],
-  },
-  "Kitas": {
-    positiveKeywords: [
-      "kita", "kindergarten", "kindertagesstaette", "kindertagesstätte",
-      "krippe", "hort",
-    ],
-    negativeKeywords: [],
-  },
-  "Logistikzentren": {
-    positiveKeywords: [
-      "logistik", "spedition", "lagerhaus", "logistikzentrum", "fulfillment",
-      "transport", "lieferdienst",
-    ],
-    negativeKeywords: [],
-  },
-  "Gebäudereinigung": {
-    positiveKeywords: [
-      "gebaeudereinigung", "gebäudereinigung", "reinigungsunternehmen", "reinigungsfirma",
-      "reinigungsservice", "hausreinigung",
-    ],
-    negativeKeywords: [],
-  },
-  // CompanySettings-Zielkunden
-  "Büros": {
-    positiveKeywords: [
-      "buero", "büro", "gewerbe", "unternehmensberatung", "beratung", "consulting",
-    ],
-    negativeKeywords: [],
-  },
-  "Immobilienfirmen": {
-    positiveKeywords: [
-      "immobilienmakler", "immobilienbuero", "immobilienbüro", "makler",
-    ],
-    negativeKeywords: [
-      "hausverwaltung", "verwaltung",
-    ],
-  },
-  "Krankenhäuser / Kliniken": {
-    positiveKeywords: [
-      "krankenhaus", "klinik", "klinikum", "pflegeheim", "altenheim", "reha",
-    ],
-    negativeKeywords: [],
-  },
-  "Schulen / Bildungseinrichtungen": {
-    positiveKeywords: [
-      "schule", "gymnasium", "bildungszentrum", "berufsschule", "kindergarten",
-    ],
-    negativeKeywords: [],
-  },
-};
-
-// ─── Normalisierung: Umlaute + Lowercase ─────────────────────────────────────
-function norm(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss");
-}
-
-// Google Places types → lesbare Begriffe für Textprüfung
-const GOOGLE_TYPE_TRANSLATIONS = {
-  "lawyer": "rechtsanwalt kanzlei",
-  "attorney": "rechtsanwalt kanzlei",
-  "legal_services": "rechtsanwalt kanzlei",
-  "accounting": "steuerberater buchhaltung",
-  "finance": "bank finanzberatung",
-  "bank": "bank sparkasse",
-  "insurance_agency": "versicherung",
-  "real_estate_agency": "immobilienmakler",
-  "property_management_company": "hausverwaltung immobilienverwaltung",
-  "restaurant": "restaurant gastronomie",
-  "food": "restaurant lebensmittel",
-  "health": "arzt medizin",
-  "doctor": "arzt",
-  "dentist": "zahnarzt",
-  "hospital": "krankenhaus",
-  "pharmacy": "apotheke",
-  "grocery_or_supermarket": "supermarkt lebensmittel",
-  "store": "einzelhandel",
-  "clothing_store": "einzelhandel",
-  "software_company": "software it",
-  "gym": "fitnessstudio",
-  "school": "schule",
-  "lodging": "hotel",
-  "car_dealer": "autohaus",
-  "moving_company": "umzug",
-  "local_government_office": "behoerde amt",
-  "place_of_worship": "kirche",
-};
-
-function translateGoogleTypes(types = []) {
-  return types.map(t => GOOGLE_TYPE_TRANSLATIONS[t] || t.replace(/_/g, " ")).join(" ");
-}
-
-// ─── Hausverwaltung: Stufe-1 Keywords (sicherer Match, Score 90) ──────────────
-const HV_STAGE1_KEYWORDS = [
-  "hausverwaltung", "immobilienverwaltung", "weg verwaltung", "weg-verwaltung",
-  "mietverwaltung", "wohnungsverwaltung", "objektverwaltung", "grundstuecksverwaltung",
-  "grundstücksverwaltung", "property management", "immobilien verwaltung",
-  "immobilien-verwaltung", "haus- und vermoegensverwaltung", "haus & vermoegensverwaltung",
-  "haus und vermoegensverwaltung", "hausverwaltungs", "haus-verwaltung",
-  // Google Type → "hausverwaltung immobilienverwaltung" (via translateGoogleTypes)
-  "property_management", "immobilienbestand", "verwalter",
-  // Immobilien + Betreuung/Service mit Verwaltungsbezug
-  "immobilien-betreuung", "immobilien betreuung", "immobilien service",
-  "immobilien vermietung verwaltung",
-];
-
-// Stufe-2: "verwaltung" im Namen, aber kein klarer Kontext → zusätzliche Detail-Prüfung nötig
-// Stufe-2 Kontext-Keywords: wenn eines davon im gesamten Text vorkommt → Score 75, speichern
-const HV_STAGE2_CONTEXT_KEYWORDS = [
-  "immobilien", "wohnen", "wohnungen", "miethaus", "miete", "mieter",
-  "weg", "eigentuemer", "eigentümer", "wohnungseigentum",
-  "objektbetreuung", "hausgeld", "nebenkostenabrechnung",
-  "vermietung", "bewirtschaftung", "liegenschaft",
-];
-
-// Stufe-3: harte Ausschlüsse – auch für "verwaltung"-Treffer
-const HV_HARD_EXCLUDES = [
-  "stadtverwaltung", "gemeindeverwaltung", "kreisverwaltung", "bezirksverwaltung",
-  "finanzverwaltung", "steuerverwaltung", "personalverwaltung", "eventverwaltung",
-  "kanzleiverwaltung", "bundesverwaltung", "landesverwaltung", "behoerdenverwaltung",
-  "bank", "sparkasse", "volksbank", "commerzbank", "versicherung",
-  "kanzlei", "rechtsanwalt", "steuerberater", "notar",
-];
-
-// ─── Hausverwaltung 3-Stufen-Logik ────────────────────────────────────────────
-function validateHausverwaltung(place, text, nameNorm) {
-  // Stufe 3: harte Ausschlüsse prüfen (Vorrang vor allem)
-  const hardExclude = HV_HARD_EXCLUDES.find(k => text.includes(k));
-  if (hardExclude) {
-    return { isMatch: false, score: 0, reason: `Harter Ausschluss "${hardExclude}" (Hausverwaltungen)` };
-  }
-
-  // Immobilienmakler ohne Verwaltungsbezug → ablehnen
-  if (text.includes("immobilienmakler") && !text.includes("verwaltung")) {
-    return { isMatch: false, score: 0, reason: "Immobilienmakler ohne Verwaltungsbezug (Hausverwaltungen)" };
-  }
-
-  // Stufe 1: sicherer Match
-  const stage1Hit = HV_STAGE1_KEYWORDS.find(k => text.includes(k));
-  if (stage1Hit) {
-    return { isMatch: true, score: 90, reason: `Stufe-1 Keyword-Match "${stage1Hit}" → Hausverwaltungen` };
-  }
-
-  // Stufe 2: "verwaltung" im Namen + Kontext-Check
-  if (nameNorm.includes("verwaltung")) {
-    // Kontext-Keywords im Gesamttext prüfen
-    const contextHit = HV_STAGE2_CONTEXT_KEYWORDS.find(k => text.includes(k));
-    if (contextHit) {
-      return { isMatch: true, score: 75, reason: `Stufe-2 Verwaltung+Kontext "${contextHit}" → Hausverwaltungen` };
-    }
-    // Kein Kontext → nicht speichern
-    return { isMatch: false, score: 0, reason: "ambiguous_verwaltung_no_real_estate_context" };
-  }
-
-  // Kein Match
-  return { isMatch: false, score: 0, reason: null };
-}
-
-// ─── Harte Relevanzprüfung ────────────────────────────────────────────────────
-// Logik: Pro Zielgruppe separat prüfen.
-// Score >= 70 → speichern. Darunter → verwerfen.
-function validateLeadForTarget({ place, targetCustomerTypes, excludedTargetTypes = [] }) {
-  const translatedTypes = translateGoogleTypes(place.types || []);
-  const rawTypes = (place.types || []).join(" ");
-  const text = norm([
-    place.name,
-    translatedTypes,
-    rawTypes,
-    place.editorial_summary?.overview,
-    place.formatted_address,
-    place.vicinity,
-  ].join(" "));
-  const nameNorm = norm(place.name || "");
-
-  let firstRejectReason = null;
-
-  for (const target of targetCustomerTypes) {
-    // User-Ausschluss hat immer Vorrang
-    if (excludedTargetTypes.includes(target)) continue;
-
-    const rule = TARGET_RULES[target];
-
-    // Hausverwaltungen: eigene 3-Stufen-Logik
-    if (target === "Hausverwaltungen") {
-      const result = validateHausverwaltung(place, text, nameNorm);
-      if (result.isMatch && result.score >= 70) {
-        return { isMatch: true, matchedTarget: target, score: result.score, reason: result.reason };
-      }
-      if (!result.isMatch && result.reason && !firstRejectReason) {
-        firstRejectReason = result.reason;
-      }
-      continue;
-    }
-
-    if (!rule) {
-      // Kein Regelwerk → Fallback auf SEARCH_VARIANTS
-      const variants = SEARCH_VARIANTS[target] || [target];
-      const matched = variants.find(v => text.includes(norm(v)));
-      if (matched) {
-        return { isMatch: true, matchedTarget: target, score: 70, reason: `Suchbegriff-Match "${matched}"` };
-      }
-      continue;
-    }
-
-    // Negativkeywords disqualifizieren nur DIESE Zielgruppe
-    const negHit = rule.negativeKeywords.find(k => text.includes(norm(k)));
-    if (negHit) {
-      if (!firstRejectReason) firstRejectReason = `Negativbegriff "${negHit}" für ${target}`;
-      continue;
-    }
-
-    // Positiv-Match
-    const posHit = rule.positiveKeywords.find(k => text.includes(norm(k)));
-    if (posHit) {
-      return { isMatch: true, matchedTarget: target, score: 90, reason: `Keyword-Match "${posHit}" → ${target}` };
-    }
-  }
-
-  return {
-    isMatch: false,
-    matchedTarget: null,
-    score: 0,
-    reason: firstRejectReason || "Kein Keyword-Match mit Zielgruppen",
-  };
-}
-
-// ─── Dynamische Nachbarorte via Google Places Geocoding ───────────────────────
-// Sucht Städte/Orte im Umkreis des Hauptstandorts dynamisch über Google Places API
-async function findNearbyCities(cityCoords, radiusKm, mainCity, apiCounters) {
-  // Nur sinnvoll bei kleinem Radius (< 30 km) oder wenn keine Zielstädte gesetzt
-  // Suche nach "Stadt" im Radius, um nahe Orte zu finden
-  const searchRadius = Math.min(radiusKm * 1000, 50000);
-  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${cityCoords.lat},${cityCoords.lng}&radius=${searchRadius}&type=locality&language=de&key=${GOOGLE_PLACES_API_KEY}`;
-  apiCounters.nearbySearch++;
-  try {
-    const res = await fetch(url);
-    const data = await res.json();
-    if (!data.results) return [];
-    // Filtere den Hauptort heraus, nur nahe Orte mit eigenem Namen
-    const mainNorm = mainCity.toLowerCase().trim();
-    const cities = data.results
-      .map(r => r.name)
-      .filter(name => name && name.toLowerCase().trim() !== mainNorm)
-      .slice(0, 4);
-    return cities;
-  } catch {
-    return [];
-  }
-}
-
-// ─── Haversine Distance ───────────────────────────────────────────────────────
-function calculateDistance(lat1, lng1, lat2, lng2) {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * (Math.PI / 180);
-  const dLng = (lng2 - lng1) * (Math.PI / 180);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.asin(Math.sqrt(a));
-}
-
-// ─── Google Places: Text Search ───────────────────────────────────────────────
-async function searchPlaces(query, cityCoords, radiusMeters, apiCounters) {
-  const url = "https://maps.googleapis.com/maps/api/place/textsearch/json";
-  const params = new URLSearchParams({
-    query,
-    location: `${cityCoords.lat},${cityCoords.lng}`,
-    radius: String(radiusMeters),
-    language: "de",
-    key: GOOGLE_PLACES_API_KEY,
-  });
-  apiCounters.textSearch++;
-  const res = await fetch(`${url}?${params}`);
-  if (!res.ok) { console.warn(`[searchPlaces] HTTP ${res.status} for query: ${query}`); return []; }
-  const data = await res.json();
-  if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-    console.warn(`[searchPlaces] API status: ${data.status} for query: ${query}`);
-  }
-  return data.results || [];
-}
-
-// ─── Google Places: Place Details ────────────────────────────────────────────
-async function getPlaceDetails(placeId, apiCounters) {
-  const url = "https://maps.googleapis.com/maps/api/place/details/json";
-  const params = new URLSearchParams({
-    place_id: placeId,
-    fields: "name,formatted_address,formatted_phone_number,website,geometry,address_components,types",
-    language: "de",
-    key: GOOGLE_PLACES_API_KEY,
-  });
-  apiCounters.placeDetailsEssentials++;
-  const res = await fetch(`${url}?${params}`);
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (data.status !== "OK") return null;
-  return data.result || null;
-}
-
-// ─── Extract Address Components ───────────────────────────────────────────────
-function extractAddressComponents(components = []) {
-  let plz = "", ort = "", strasse = "", hausnummer = "";
-  for (const c of components) {
-    if (c.types.includes("postal_code")) plz = c.long_name;
-    if (c.types.includes("locality")) ort = c.long_name;
-    if (c.types.includes("route")) strasse = c.long_name;
-    if (c.types.includes("street_number")) hausnummer = c.long_name;
-  }
-  return { plz, ort, adresse: [strasse, hausnummer].filter(Boolean).join(" ") };
-}
-
-// ─── Parallel-Run-Lock via OrganizationSettings ───────────────────────────────
-const LOCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 Minuten
-
-async function acquireLeadResearchLock(base44, organization_id, user_email) {
-  const existing = await base44.asServiceRole.entities.OrganizationSettings.filter({
-    organization_id, key: 'lead_research_running'
-  });
-  const startedAtRec = await base44.asServiceRole.entities.OrganizationSettings.filter({
-    organization_id, key: 'lead_research_started_at'
-  });
-
-  if (existing[0]?.value === 'true' && startedAtRec[0]?.value) {
-    const age = Date.now() - new Date(startedAtRec[0].value).getTime();
+async function acquireLock(base44, organization_id, user_email) {
+  const [existing, startedAt] = await Promise.all([
+    base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id, key: 'lead_research_running' }),
+    base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id, key: 'lead_research_started_at' }),
+  ]);
+  if (existing[0]?.value === 'true' && startedAt[0]?.value) {
+    const age = Date.now() - new Date(startedAt[0].value).getTime();
     if (age < LOCK_TIMEOUT_MS) {
-      const lockedByRec = await base44.asServiceRole.entities.OrganizationSettings.filter({
-        organization_id, key: 'lead_research_locked_by'
-      });
-      return { acquired: false, lockedBy: lockedByRec[0]?.value || 'unbekannt', startedAt: startedAtRec[0].value };
+      const lockedBy = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id, key: 'lead_research_locked_by' });
+      return { acquired: false, lockedBy: lockedBy[0]?.value || 'unbekannt', startedAt: startedAt[0].value };
     }
-    console.warn(`[generateLeads] Stale lock gefunden (${Math.round(age/60000)}min alt) – wird überschrieben`);
   }
-
   const now = new Date().toISOString();
   const upsert = async (key, value) => {
     const rec = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id, key });
@@ -542,407 +673,301 @@ async function acquireLeadResearchLock(base44, organization_id, user_email) {
   return { acquired: true };
 }
 
-async function releaseLeadResearchLock(base44, organization_id) {
+async function releaseLock(base44, organization_id) {
   try {
     const rec = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id, key: 'lead_research_running' });
     if (rec[0]) await base44.asServiceRole.entities.OrganizationSettings.update(rec[0].id, { value: 'false' });
-  } catch (e) {
-    console.error('[generateLeads] Lock-Release fehlgeschlagen:', e.message);
-  }
+  } catch (e) { console.error('[generateLeads] Lock-Release fehler:', e.message); }
 }
 
-// ─── Period Month Helper ──────────────────────────────────────────────────────
-function getPeriodMonth() {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-}
+// ============================================================
+// USAGE LOG
+// ============================================================
+function getPeriodMonth() { const n = new Date(); return `${n.getUTCFullYear()}-${String(n.getUTCMonth()+1).padStart(2,'0')}`; }
 
-// ─── UsageLog upsert ──────────────────────────────────────────────────────────
 async function upsertUsageLog(base44, organization_id, delta, lastReport) {
   const periodMonth = getPeriodMonth();
   const now = new Date().toISOString();
   const existing = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
-  const skuBreakdownJson = JSON.stringify(delta.skuBreakdown);
   const reportJson = JSON.stringify(lastReport);
-
-  if (existing && existing.length > 0) {
+  const skuJson = JSON.stringify(delta.skuBreakdown || {});
+  if (existing?.[0]) {
     const log = existing[0];
     await base44.asServiceRole.entities.UsageLog.update(log.id, {
-      lead_generations_used: (log.lead_generations_used || 0) + delta.lead_generations_used,
-      leads_created: (log.leads_created || 0) + delta.leads_created,
-      google_geocoding_requests: (log.google_geocoding_requests || 0) + delta.geocoding,
-      google_places_text_search_requests: (log.google_places_text_search_requests || 0) + delta.textSearch,
-      google_places_nearby_search_requests: (log.google_places_nearby_search_requests || 0) + delta.nearbySearch,
-      google_place_details_essentials_requests: (log.google_place_details_essentials_requests || 0) + delta.placeDetailsEssentials,
-      google_place_details_pro_requests: (log.google_place_details_pro_requests || 0) + delta.placeDetailsPro,
-      google_places_requests: (log.google_places_requests || 0) + delta.textSearch + delta.nearbySearch,
-      place_details_requests: (log.place_details_requests || 0) + delta.placeDetailsEssentials + delta.placeDetailsPro,
-      estimated_external_cost_cent: (log.estimated_external_cost_cent || 0) + delta.estimatedCostCent,
-      google_sku_breakdown: skuBreakdownJson,
+      lead_generations_used: (log.lead_generations_used || 0) + (delta.lead_generations_used || 0),
+      leads_created: (log.leads_created || 0) + (delta.leads_created || 0),
+      google_places_text_search_requests: (log.google_places_text_search_requests || 0) + (delta.textSearch || 0),
+      google_place_details_essentials_requests: (log.google_place_details_essentials_requests || 0) + (delta.placeDetails || 0),
+      google_places_requests: (log.google_places_requests || 0) + (delta.textSearch || 0),
+      place_details_requests: (log.place_details_requests || 0) + (delta.placeDetails || 0),
+      estimated_external_cost_cent: (log.estimated_external_cost_cent || 0) + (delta.estimatedCostCent || 0),
+      google_sku_breakdown: skuJson,
       last_lead_generation_at: now,
       last_lead_generation_report: reportJson,
     });
   } else {
-    const periodStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
-    const periodEnd = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0, 23, 59, 59)).toISOString();
+    const start = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
+    const end = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth()+1, 0, 23, 59, 59)).toISOString();
     await base44.asServiceRole.entities.UsageLog.create({
-      organization_id,
-      period_month: periodMonth,
-      period_start: periodStart,
-      period_end: periodEnd,
-      lead_generations_used: delta.lead_generations_used,
-      leads_created: delta.leads_created,
-      google_geocoding_requests: delta.geocoding,
-      google_places_text_search_requests: delta.textSearch,
-      google_places_nearby_search_requests: delta.nearbySearch,
-      google_place_details_essentials_requests: delta.placeDetailsEssentials,
-      google_place_details_pro_requests: delta.placeDetailsPro,
-      google_places_requests: delta.textSearch + delta.nearbySearch,
-      place_details_requests: delta.placeDetailsEssentials + delta.placeDetailsPro,
-      estimated_external_cost_cent: delta.estimatedCostCent,
-      google_sku_breakdown: skuBreakdownJson,
+      organization_id, period_month: periodMonth, period_start: start, period_end: end,
+      lead_generations_used: delta.lead_generations_used || 0,
+      leads_created: delta.leads_created || 0,
+      google_places_text_search_requests: delta.textSearch || 0,
+      google_place_details_essentials_requests: delta.placeDetails || 0,
+      google_places_requests: delta.textSearch || 0,
+      place_details_requests: delta.placeDetails || 0,
+      estimated_external_cost_cent: delta.estimatedCostCent || 0,
+      google_sku_breakdown: skuJson,
       last_lead_generation_at: now,
       last_lead_generation_report: reportJson,
     });
   }
 }
 
-// ─── Main Handler ─────────────────────────────────────────────────────────────
+// ============================================================
+// MAIN HANDLER
+// ============================================================
+
 Deno.serve(async (req) => {
-  let _base44ForFinally = null;
-  let _orgIdForFinally = null;
-  let _lockAcquired = false;
+  let _base44 = null, _orgId = null, _lockAcquired = false;
+
   try {
     const base44 = createClientFromRequest(req);
-    _base44ForFinally = base44;
+    _base44 = base44;
     const body = await req.json();
     const { organization_id, target_count = 25 } = body;
-    _orgIdForFinally = organization_id;
+    _orgId = organization_id;
 
-    if (!organization_id) return Response.json({ error: 'organization_id ist Pflichtparameter' }, { status: 400 });
+    if (!organization_id) return Response.json({ error: 'organization_id fehlt', success: false }, { status: 400 });
 
+    // Auth
     const access = await checkAccess(req, { organization_id, action: 'generate_leads' });
-    if (!access.allowed) {
-      console.warn(`[generateLeads] Access denied: ${access.reason}`);
-      const statusCode = access.reason === 'organization_suspended' ? 403 : 403;
-      return Response.json({ error: access.message, success: false, reason: access.reason }, { status: statusCode });
-    }
+    if (!access.allowed) return Response.json({ error: access.message, success: false, reason: access.reason }, { status: 403 });
+    if (!GOOGLE_PLACES_API_KEY) return Response.json({ error: 'GOOGLE_PLACES_API_KEY nicht konfiguriert', success: false }, { status: 500 });
 
-    if (!GOOGLE_PLACES_API_KEY) {
-      return Response.json({ error: 'GOOGLE_PLACES_API_KEY nicht konfiguriert', success: false }, { status: 500 });
-    }
-
-    // Organisation & Billing
+    // Organisation laden
     const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
     const org = orgs[0];
     if (!org) return Response.json({ error: 'Organization not found', success: false }, { status: 404 });
 
-    // Check: Organisation gesperrt? (nicht für platform admins)
     if (access.user.role !== 'admin') {
-      if (org.platform_status === 'suspended') {
-        console.warn(`[generateLeads] Access denied: org suspended`);
-        return Response.json({ error: 'organization_suspended', message: 'Diese Organisation ist vorübergehend gesperrt.', success: false }, { status: 403 });
-      }
+      if (org.platform_status === 'suspended') return Response.json({ error: 'organization_suspended', message: 'Organisation gesperrt.', success: false }, { status: 403 });
+      if (org.abuse_status === 'blocked') return Response.json({ error: 'abuse_blocked', message: 'Zugang eingeschränkt. Support kontaktieren.', success: false }, { status: 403 });
     }
-
-    // ── Abuse Check ─────────────────────────────────────────────────────────
-    if (org.abuse_status === 'blocked') {
-      console.warn(`[generateLeads] Access denied: org abuse_status blocked – reason=${org.abuse_reason}`);
-      return Response.json({ 
-        error: 'abuse_blocked', 
-        message: 'Ihr Zugang wurde zur Sicherheitsprüfung eingeschränkt. Bitte kontaktieren Sie den Support.',
-        success: false 
-      }, { status: 403 });
-    }
-
     const billingOk = ['preview', 'active', 'trialing'].includes(org.billing_status);
-    if (!billingOk) {
-      return Response.json({ error: `Billing status "${org.billing_status}" erlaubt keine Lead-Recherche`, success: false }, { status: 402 });
-    }
+    if (!billingOk) return Response.json({ error: `Billing status "${org.billing_status}" nicht erlaubt.`, success: false }, { status: 402 });
 
-    // ── Trial-Stufe Limits ───────────────────────────────────────────────────
-    let trialEffectiveTarget = target_count;
+    // ── Trial-Stufe & Remaining Leads ─────────────────────────
     const trialStage = org.trial_stage || 'free_preview';
+    const remainingPreviewLeads = Math.max(0, 3 - (org.trial_leads_granted || 0));
 
-    if (trialStage === 'free_preview') {
-      // Free Preview: max 3 Leads
-      if ((org.trial_leads_granted || 0) >= 3) {
-        console.warn(`[generateLeads] Trial limit reached: ${org.trial_leads_granted}/3 for org=${organization_id}`);
-        return Response.json({
-          error: 'trial_preview_limit_reached',
-          message: 'Ihre kostenlosen Vorschau-Kontakte sind aufgebraucht. Aktivieren Sie den verifizierten Testzugang für weitere Recherchen.',
-          success: false,
-          trial_stage: 'free_preview',
-          limits: { max_leads: 3, used: org.trial_leads_granted }
-        }, { status: 403 });
-      }
-      trialEffectiveTarget = Math.min(target_count, 3 - (org.trial_leads_granted || 0));
-      console.info(`[generateLeads] Free preview: limiting to ${trialEffectiveTarget} leads (${org.trial_leads_granted}/3 used)`);
-    } else if (trialStage === 'verified_trial') {
-      // Verified Trial: max 25 Leads pro Lauf
-      trialEffectiveTarget = Math.min(target_count, 25);
-      console.info(`[generateLeads] Verified trial: limiting to ${trialEffectiveTarget} leads`);
-    } else if (trialStage === 'paid') {
-      // Paid: normale Planlimits (werden unten geprüft)
-      console.info(`[generateLeads] Paid: using plan limits`);
-    }
-
-    // Plan-Limits
-    let planLimits = { max_lead_generations_per_month: 100, max_leads_per_month: 300 };
-    if (org.plan_id) {
-      const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
-      if (plans[0]) {
-        planLimits = {
-          max_lead_generations_per_month: plans[0].max_lead_generations_per_month ?? 100,
-          max_leads_per_month: plans[0].max_leads_per_month ?? 300,
-        };
-      }
-    }
-
-    // Aktueller Monats-UsageLog
-    const periodMonth = getPeriodMonth();
-    const existingUsage = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
-    const currentUsage = existingUsage[0] || { lead_generations_used: 0, leads_created: 0 };
-
-    // Plan-Limit: Recherche-Läufe
-    const maxRuns = planLimits.max_lead_generations_per_month;
-    if (maxRuns !== -1 && (currentUsage.lead_generations_used || 0) >= maxRuns) {
-      return Response.json({
-        error: `Recherche-Limit erreicht: ${currentUsage.lead_generations_used}/${maxRuns} Läufe diesen Monat.`,
-        success: false, limitReached: true,
-      }, { status: 403 });
-    }
-
-    // Plan-Limit: Leads gesamt (nur für paid, nicht für trials)
-    let effectiveTarget = trialEffectiveTarget; // Beginne mit Trial-Limit
-    if (trialStage === 'paid') {
-      const maxLeads = planLimits.max_leads_per_month;
-      const usedLeads = currentUsage.leads_created || 0;
-      if (maxLeads !== -1) {
-        const remaining = Math.max(0, maxLeads - usedLeads);
-        if (remaining === 0) {
-          return Response.json({
-            error: `Lead-Limit erreicht: ${usedLeads}/${maxLeads} Leads diesen Monat.`,
-            success: false, limitReached: true,
-          }, { status: 403 });
-        }
-        effectiveTarget = Math.min(trialEffectiveTarget, remaining);
-      }
-    }
-
+    // ── Search Plan via LeadSearchEngine ──────────────────────
     // Settings laden
     const settingsRecords = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id });
     const settings = {};
     settingsRecords.forEach(s => { settings[s.key] = s.value; });
 
-    // Canonical Key: target_customer_types — Legacy-Fallback: zielkunden
-    const targetCustomers = (settings.target_customer_types || settings.zielkunden || "")
-      .split(", ").filter(x => x.trim());
-
-    if (targetCustomers.length === 0) {
-      return Response.json({ error: 'Keine Zielkunden definiert.', success: false }, { status: 400 });
-    }
-
-    // Explizite User-Ausschlüsse — Canonical Key: excluded_customer_types
-    // Legacy-Keys: zielkunden_ausschluss, custom_excluded_customer_types
-    const excludedRaw = settings.excluded_customer_types
-      || settings.zielkunden_ausschluss
-      || settings.custom_excluded_customer_types
-      || "";
-    const excludedTargets = excludedRaw.split(", ").filter(x => x.trim());
-
-    const city = settings.service_area_city || settings.lead_plz_city || settings.lead_plz || "";
-    if (!city) return Response.json({ error: 'Kein Suchgebiet definiert. Bitte Ort in den Einstellungen hinterlegen.', success: false }, { status: 400 });
-
-    const radiusKm = parseFloat(settings.lead_radius_km || settings.service_area_radius_km || "25") || 25;
+    const industry = settings.industry_name || settings.own_industry || settings.industry || '';
+    const targetCustomerTypes = (settings.target_customer_types || settings.zielkunden || '').split(', ').filter(x => x.trim());
+    const excludedCustomerTypes = (settings.excluded_customer_types || settings.zielkunden_ausschluss || '').split(', ').filter(x => x.trim());
+    const services = (settings.services || settings.dienstleistungen || '').split(', ').filter(x => x.trim());
+    const city = settings.service_area_city || settings.lead_plz_city || settings.lead_plz || '';
+    if (!city) return Response.json({ error: 'Kein Suchgebiet definiert.', success: false }, { status: 400 });
+    const radiusKm = parseFloat(settings.lead_radius_km || settings.service_area_radius_km || '25') || 25;
     const radiusMeters = Math.min(radiusKm * 1000, 50000);
 
-    const apiCounters = { geocoding: 0, textSearch: 0, nearbySearch: 0, placeDetailsEssentials: 0, placeDetailsPro: 0 };
+    // SearchPlan bauen
+    const searchPlan = buildSearchPlan({
+      industry,
+      targetCustomerTypes,
+      excludedCustomerTypes,
+      location: city,
+      radiusKm,
+      trialStage,
+      remainingLeadBudget: remainingPreviewLeads,
+    });
 
-    // Stadt-Koordinaten (Geocode mit PLZ+Stadt für bessere Treffer)
-    const cityQuery = city + " Deutschland";
-    const refUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(cityQuery)}&key=${GOOGLE_PLACES_API_KEY}&language=de`;
-    apiCounters.textSearch++;
-    const refRes = await fetch(refUrl);
-    const refData = await refRes.json();
-    let cityCoords = null;
-    if (refData.results?.[0]?.geometry?.location) {
-      cityCoords = { lat: refData.results[0].geometry.location.lat, lng: refData.results[0].geometry.location.lng };
-    }
-    if (!cityCoords) return Response.json({ error: `Stadt "${city}" nicht gefunden.`, success: false }, { status: 400 });
-
-    // Wenn PLZ als Stadt gesetzt ist → Koordinaten aus gespeicherten Settings bevorzugen
-    const savedLat = parseFloat(settings.lead_lat || "0");
-    const savedLng = parseFloat(settings.lead_lng || "0");
-    if (savedLat && savedLng && /^\d{5}$/.test(city)) {
-      cityCoords = { lat: savedLat, lng: savedLng };
-    }
-
-    // Zielstädte aus Settings laden (manuell vom User gesetzt)
-    const targetLocations = (settings.target_locations || "")
-      .split(",").map(s => s.trim()).filter(Boolean);
-
-    // Dynamische Nachbarorte via Google Places (nur wenn kein Zielstädte gesetzt, Radius <= 30km, und NICHT free_preview)
-    let nearbyCities = [];
-    if (targetLocations.length === 0 && radiusKm <= 30 && trialStage !== 'free_preview') {
-      nearbyCities = await findNearbyCities(cityCoords, radiusKm, city, apiCounters);
-    }
-
-    // Suchstädte: Hauptort + manuelle Zielstädte + ggf. dynamische Nachbarorte
-    const allSearchCities = [
-      city,
-      ...targetLocations,
-      ...nearbyCities.slice(0, 2), // max 2 dynamische Nachbarorte
-    ].filter((v, i, arr) => arr.indexOf(v) === i); // Deduplizierung
-
-    // ── Parallel-Lock setzen ────────────────────────────────────────────────
-    const lockResult = await acquireLeadResearchLock(base44, organization_id, access.user.email);
-    if (lockResult.acquired) _lockAcquired = true;
-    if (!lockResult.acquired) {
-      console.warn(`[generateLeads] Parallel-Lock aktiv für org=${organization_id}, gestartet von ${lockResult.lockedBy} um ${lockResult.startedAt}`);
-      return Response.json({
-        error: `Es läuft bereits eine Recherche für diese Organisation (gestartet ${new Date(lockResult.startedAt).toLocaleTimeString('de-DE')} von ${lockResult.lockedBy}). Bitte warten Sie kurz.`,
-        success: false, parallelLockActive: true,
-      }, { status: 429 });
-    }
-
-    console.info(`[generateLeads] START org=${organization_id}, Stadt=${city}, Zielstädte=${targetLocations.join("|")||"–"}, NachbarnDynamisch=${nearbyCities.join("|")||"–"}, AlleSuchstädte=${allSearchCities.join("|")}, Zielkunden=${targetCustomers.join("|")}${excludedTargets.length ? `, Ausschlüsse=${excludedTargets.join("|")}` : ""}, Radius=${radiusKm}km, effectiveTarget=${effectiveTarget}`);
-
-    // Existierende Firmen für Duplikat-Check
-    const existing = await base44.asServiceRole.entities.Company.filter({ organization_id });
-    const existingNames = new Set(existing.map(c => c.name?.toLowerCase()));
-
-    // Suchanfragen generieren – für jede Stadt + alle Varianten
-    const searchQueryList = [];
-    const seenQueries = new Set();
-    for (const searchCity of allSearchCities) {
-      for (const type of targetCustomers) {
-        const variants = SEARCH_VARIANTS[type] || [type];
-        for (const variant of variants) {
-          const q = `${variant} ${searchCity}`;
-          if (!seenQueries.has(q)) { seenQueries.add(q); searchQueryList.push({ query: q, type }); }
-        }
+    // ── Hard-Block: Preview-Limit erreicht ────────────────────
+    if (searchPlan.blocked || searchPlan.queryBudget?.blocked) {
+      const reason = searchPlan.queryBudget?.reason || searchPlan.error;
+      if (reason === 'preview_limit_reached' || trialStage === 'free_preview' && remainingPreviewLeads <= 0) {
+        console.warn(`[generateLeads] Preview-Limit: ${org.trial_leads_granted}/3 für org=${organization_id}`);
+        return Response.json({
+          error: 'trial_preview_limit_reached',
+          message: 'Kostenlose Vorschau aufgebraucht. Aktivieren Sie den verifizierten Testzugang.',
+          success: false, trial_stage: trialStage,
+          limits: { max_leads: 3, used: org.trial_leads_granted || 0 }
+        }, { status: 403 });
+      }
+      if (reason === 'unknown_industry' || !searchPlan.industryProfile) {
+        // Fallback: ohne Taxonomie, nur mit targetCustomerTypes (Legacy)
+        console.warn(`[generateLeads] Keine Taxonomie für Branche "${industry}" – nutze Legacy-Fallback`);
+      } else {
+        return Response.json({ error: searchPlan.error || 'SearchPlan-Fehler', success: false }, { status: 400 });
       }
     }
-    // ── Max-Query-Limit (Kostenschutz) – für free_preview stark reduziert ──
-    const MAX_SEARCH_QUERIES_PER_RUN = trialStage === 'free_preview' ? 6 : 40;
-    const MAX_PLACE_DETAILS_PER_RUN = trialStage === 'free_preview' ? 15 : 80;
-    let queriesLimited = false;
-    if (searchQueryList.length > MAX_SEARCH_QUERIES_PER_RUN) {
-      console.warn(`[generateLeads] Query-Limit: ${searchQueryList.length} Anfragen → auf ${MAX_SEARCH_QUERIES_PER_RUN} begrenzt`);
-      searchQueryList.splice(MAX_SEARCH_QUERIES_PER_RUN);
-      queriesLimited = true;
+
+    const queryBudget = searchPlan.queryBudget || getQueryBudget(trialStage, remainingPreviewLeads);
+    const maxLeadsToSave = trialStage === 'free_preview' ? remainingPreviewLeads :
+                           trialStage === 'verified_trial' ? Math.min(target_count, 25) : target_count;
+    const effectiveTarget = Math.min(maxLeadsToSave, target_count);
+
+    // Plan-Limits (paid)
+    let planLimits = { max_lead_generations_per_month: 100, max_leads_per_month: 300 };
+    if (org.plan_id) {
+      const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
+      if (plans[0]) planLimits = { max_lead_generations_per_month: plans[0].max_lead_generations_per_month ?? 100, max_leads_per_month: plans[0].max_leads_per_month ?? 300 };
     }
-    console.info(`[generateLeads] ${searchQueryList.length} Suchanfragen für ${allSearchCities.join(", ")}${queriesLimited ? " (begrenzt)" : ""}`);
+    const periodMonth = getPeriodMonth();
+    const existingUsage = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
+    const currentUsage = existingUsage[0] || { lead_generations_used: 0, leads_created: 0 };
+    if (trialStage === 'paid') {
+      const maxRuns = planLimits.max_lead_generations_per_month;
+      if (maxRuns !== -1 && (currentUsage.lead_generations_used || 0) >= maxRuns) {
+        return Response.json({ error: `Recherche-Limit ${currentUsage.lead_generations_used}/${maxRuns} erreicht.`, success: false, limitReached: true }, { status: 403 });
+      }
+    }
 
-    // Counters
-    const createdIds = [];
-    let raw_hits = 0;
-    let skipped_outside_radius = 0;
-    let skipped_duplicate = 0;
-    let skipped_no_match = 0;
-    let skipped_ambiguous = 0;
-    const skipped_no_match_examples = [];
-    const skipped_outside_radius_examples = [];
-    const skipped_ambiguous_examples = [];
-    const savedExamples = []; // für Report: {name, city, distance_km}
-    let maxSavedDistanceKm = 0;
+    // Koordinaten
+    const cityQuery = city + ' Deutschland';
+    const refRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(cityQuery)}&key=${GOOGLE_PLACES_API_KEY}&language=de`);
+    const refData = await refRes.json();
+    let cityCoords = refData.results?.[0]?.geometry?.location ? { lat: refData.results[0].geometry.location.lat, lng: refData.results[0].geometry.location.lng } : null;
+    if (!cityCoords) return Response.json({ error: `Stadt "${city}" nicht gefunden.`, success: false }, { status: 400 });
+    const savedLat = parseFloat(settings.lead_lat || '0'), savedLng = parseFloat(settings.lead_lng || '0');
+    if (savedLat && savedLng && /^\d{5}$/.test(city)) cityCoords = { lat: savedLat, lng: savedLng };
+
+    // ── Lock ──────────────────────────────────────────────────
+    const lockResult = await acquireLock(base44, organization_id, access.user.email);
+    if (!lockResult.acquired) {
+      return Response.json({ error: `Recherche läuft bereits (${lockResult.lockedBy}).`, success: false, parallelLockActive: true }, { status: 429 });
+    }
+    _lockAcquired = true;
+
+    // Suchqueries aus SearchPlan
+    let searchQueryList = (searchPlan.searchQueries || []);
+
+    // Fallback wenn keine Taxonomie: Legacy targetCustomerTypes
+    if (searchQueryList.length === 0 && targetCustomerTypes.length > 0) {
+      console.warn(`[generateLeads] Fallback auf targetCustomerTypes für Queries`);
+      const seen = new Set();
+      for (const tc of targetCustomerTypes.slice(0, queryBudget.maxSearchQueries || 10)) {
+        const q = `${tc} ${city}`;
+        if (!seen.has(q)) { seen.add(q); searchQueryList.push({ query: q, city, category: tc, variant: tc }); }
+      }
+    }
+
+    if (searchQueryList.length === 0) return Response.json({ error: 'Keine Suchkategorien gefunden.', success: false }, { status: 400 });
+
+    const industryProfile = searchPlan.industryProfile || null;
+
+    console.info(`[generateLeads v2] START org=${organization_id} branche="${industry}" (${normalizeIndustryId(industry)}) stadt=${city} radius=${radiusKm}km trial=${trialStage} remaining=${remainingPreviewLeads} target=${effectiveTarget} queries=${searchQueryList.length}`);
+    console.info(`[generateLeads v2] Engine: searchableCategories=${searchPlan.debug?.usedSearchableCategories?.length || 0} ignoredIdealProfiles=${searchPlan.debug?.ignoredIdealProfiles?.length || 0}`);
+
+    // ── Existierende Firmen (Duplikat-Check) ──────────────────
+    const existing = await base44.asServiceRole.entities.Company.filter({ organization_id });
+    const existingNames = new Set(existing.map(c => normStr(c.name || '')));
+
+    const apiCounters = { textSearch: 1, placeDetailsEssentials: 0 }; // +1 für Geocoding
     const seenPlaceIds = new Set();
+    const createdIds = [];
+    let raw_hits = 0, skipped_outside_radius = 0, skipped_duplicate = 0, skipped_no_match = 0, skipped_bad_fit = 0;
+    const noMatchExamples = [], savedExamples = [], outsideRadiusExamples = [];
+    let maxSavedDistanceKm = 0;
+    let stopped_early = false, stop_reason = null;
+    const maxPlaceDetails = queryBudget.maxPlaceDetails || 80;
 
-    // Suchlauf
-    for (const { query, type } of searchQueryList) {
-      if (createdIds.length >= effectiveTarget) break;
+    // ── HAUPT-SUCHLAUF ────────────────────────────────────────
+    outer: for (const { query, city: searchCity, category, variant } of searchQueryList) {
+      // Früh abbrechen: genug Leads
+      if (createdIds.length >= effectiveTarget) {
+        stopped_early = true; stop_reason = 'enough_leads_found';
+        console.info(`[generateLeads v2] STOP: genug Leads (${createdIds.length}/${effectiveTarget})`);
+        break;
+      }
 
       const places = await searchPlaces(query, cityCoords, radiusMeters, apiCounters);
       raw_hits += places.length;
-      console.info(`[generateLeads] Query="${query}" → ${places.length} Treffer`);
+      console.info(`[generateLeads v2] Query="${query}" → ${places.length} Treffer`);
 
       for (const place of places) {
-        if (createdIds.length >= effectiveTarget) break;
+        // Früh abbrechen: genug Leads
+        if (createdIds.length >= effectiveTarget) {
+          stopped_early = true; stop_reason = 'enough_leads_found'; break outer;
+        }
+        // Place Details Limit
+        if (apiCounters.placeDetailsEssentials >= maxPlaceDetails) {
+          stopped_early = true; stop_reason = 'place_details_limit';
+          console.warn(`[generateLeads v2] Place-Details-Limit erreicht (${maxPlaceDetails})`);
+          break outer;
+        }
+
         if (seenPlaceIds.has(place.place_id)) continue;
         seenPlaceIds.add(place.place_id);
 
-        // ─── HARTE DISTANZPRÜFUNG (eigene Haversine, nicht Google-Radius!) ──────
-        const placeLat = place.geometry?.location?.lat;
-        const placeLng = place.geometry?.location?.lng;
+        // Distanz
+        const placeLat = place.geometry?.location?.lat, placeLng = place.geometry?.location?.lng;
         let distanceKm = null;
         if (placeLat && placeLng) {
-          distanceKm = calculateDistance(cityCoords.lat, cityCoords.lng, placeLat, placeLng);
+          distanceKm = haversineKm(cityCoords.lat, cityCoords.lng, placeLat, placeLng);
           if (distanceKm > radiusKm) {
             skipped_outside_radius++;
-            if (skipped_outside_radius_examples.length < 10) {
-              skipped_outside_radius_examples.push({ name: place.name, city: place.vicinity || "", distance_km: Math.round(distanceKm * 10) / 10, reason: "outside radius" });
-            }
-            console.info(`[generateLeads] SKIP_RADIUS "${place.name}" – ${Math.round(distanceKm * 10) / 10}km > ${radiusKm}km`);
+            if (outsideRadiusExamples.length < 5) outsideRadiusExamples.push({ name: place.name, distance_km: Math.round(distanceKm * 10) / 10 });
             continue;
           }
         }
 
-        const placeName = place.name || "";
+        // Duplikat
+        if (existingNames.has(normStr(place.name || ''))) { skipped_duplicate++; continue; }
 
-        // Duplikat-Check
-        if (existingNames.has(placeName.toLowerCase())) { skipped_duplicate++; continue; }
-
-        // ─── HARTE RELEVANZPRÜFUNG ────────────────────────────────────────
-        // Wichtig: TextSearch-Ergebnisse haben editorial_summary oft NICHT.
-        // Daher nutzen wir auch den Google type "property_management_company"
-        // der durch translateGoogleTypes zu "hausverwaltung immobilienverwaltung" wird.
-        const relevance = validateLeadForTarget({
-          place,
-          targetCustomerTypes: targetCustomers,
-          excludedTargetTypes: excludedTargets,
-        });
-        console.info(`[generateLeads] VALIDATE "${place.name}" types=${JSON.stringify(place.types)} → isMatch=${relevance.isMatch} reason="${relevance.reason}"`);
-
-        if (!relevance.isMatch) {
-          if (relevance.reason === "ambiguous_verwaltung_no_real_estate_context") {
-            skipped_ambiguous++;
-            if (skipped_ambiguous_examples.length < 15) {
-              skipped_ambiguous_examples.push({ name: placeName, reason: "Unklarer Verwaltungsbezug – kein Immobilien-/WEG-/Mietkontext erkennbar", query });
-            }
-          } else {
+        // ── SCORING via LeadSearchEngine ──────────────────────
+        let scoring;
+        if (industryProfile) {
+          scoring = scoreLeadCandidate({ candidate: place, profile: industryProfile, distanceKm, radiusKm, matchedSearchCategory: category });
+          if (!scoring.shouldSave) {
             skipped_no_match++;
-            if (skipped_no_match_examples.length < 10) {
-              skipped_no_match_examples.push({ name: placeName, reason: relevance.reason, query });
-            }
+            if (noMatchExamples.length < 8) noMatchExamples.push({ name: place.name, reason: scoring.bad_fit_reason || scoring.relevance_reason });
+            console.info(`[generateLeads v2] SKIP "${place.name}" score=${scoring.search_quality_score} reason="${scoring.bad_fit_reason || scoring.relevance_reason}"`);
+            continue;
           }
-          console.info(`[generateLeads] SKIP "${placeName}" – ${relevance.reason}`);
-          continue;
+        } else {
+          // Legacy-Fallback ohne Taxonomie: minimale Prüfung
+          const bf = isBadFit(place, { negativeKeywords: [], badFitSignals: [] });
+          if (bf.isBadFit) { skipped_bad_fit++; continue; }
+          scoring = { search_quality_score: 60, matched_search_category: category, matched_target_customer_type: null, matched_service_context: null, relevance_reason: `Legacy: ${category}`, bad_fit_reason: null, shouldSave: true };
         }
 
-        // Place Details (kostenpflichtig – erst nach Relevanzprüfung + Limit-Check!)
-        if (apiCounters.placeDetailsEssentials >= MAX_PLACE_DETAILS_PER_RUN) {
-          console.warn(`[generateLeads] Place-Details-Limit (${MAX_PLACE_DETAILS_PER_RUN}) erreicht – Lauf beendet`);
-          break;
-        }
+        // Place Details
         const details = await getPlaceDetails(place.place_id, apiCounters);
         const { plz, ort, adresse } = extractAddressComponents(details?.address_components || []);
-        const phone = details?.formatted_phone_number || "";
-        const website = details?.website || "";
+        const phone = details?.formatted_phone_number || '';
+        const website = details?.website || '';
         const lat = details?.geometry?.location?.lat || placeLat;
         const lng = details?.geometry?.location?.lng || placeLng;
-
-        // Speichern – nur wenn Distanzprüfung bestanden!
         const roundedDist = distanceKm !== null ? Math.round(distanceKm * 10) / 10 : null;
+
         const company = await base44.asServiceRole.entities.Company.create({
           organization_id,
-          name: placeName,
-          branche: relevance.matchedTarget || type,
-          ort: ort || city,
-          plz: plz || "",
-          adresse: adresse || "",
+          name: place.name || '',
+          branche: scoring.matched_target_customer_type || scoring.matched_search_category || category,
+          ort: ort || searchCity,
+          plz: plz || '',
+          adresse: adresse || '',
           telefon: phone,
-          email: "",
+          email: '',
           website,
           latitude: lat || null,
           longitude: lng || null,
-          quelle: "Google Places API",
-          status: "Neu",
+          quelle: 'Google Places API',
+          status: 'Neu',
           is_hot: false,
-          matched_target_customer_type: relevance.matchedTarget,
-          relevance_score: relevance.score,
-          relevance_reason: relevance.reason,
-          source_query: query,
+          // ── LeadSearchEngine Relevanzdaten ──
+          matched_target_customer_type: scoring.matched_target_customer_type,
+          matched_service_context: scoring.matched_service_context,
+          relevance_score: scoring.search_quality_score,
+          relevance_reason: scoring.relevance_reason,
+          excluded_reason: scoring.bad_fit_reason,
+          source_query: variant || query,
           distance_km: roundedDist,
           search_center_city: city,
           search_center_lat: cityCoords.lat,
@@ -951,193 +976,134 @@ Deno.serve(async (req) => {
         });
 
         createdIds.push(company.id);
-        existingNames.add(placeName.toLowerCase());
+        existingNames.add(normStr(place.name || ''));
         if (roundedDist !== null && roundedDist > maxSavedDistanceKm) maxSavedDistanceKm = roundedDist;
-        if (savedExamples.length < 10) {
-          savedExamples.push({ name: placeName, city: ort || city, distance_km: roundedDist });
-        }
-        console.info(`[generateLeads] SAVED "${placeName}" (${relevance.matchedTarget}, Score=${relevance.score}, dist=${roundedDist}km)`);
+        if (savedExamples.length < 10) savedExamples.push({ name: place.name, city: ort || searchCity, distance_km: roundedDist, score: scoring.search_quality_score });
+        console.info(`[generateLeads v2] SAVED "${place.name}" (cat=${scoring.matched_search_category} score=${scoring.search_quality_score} dist=${roundedDist}km)`);
       }
     }
 
-    // Kosten berechnen
-    const skuBreakdown = {
-      places_text_search_pro: {
-        requests: apiCounters.textSearch,
-        estimated_cost_cent: skuCostCent('places_text_search_pro', apiCounters.textSearch),
-      },
-      place_details_essentials: {
-        requests: apiCounters.placeDetailsEssentials,
-        estimated_cost_cent: skuCostCent('place_details_essentials', apiCounters.placeDetailsEssentials),
-      },
-    };
-    const estimatedCostCent = Object.values(skuBreakdown).reduce((sum, s) => sum + s.estimated_cost_cent, 0);
+    if (!stopped_early && createdIds.length >= effectiveTarget) { stopped_early = true; stop_reason = 'enough_leads_found'; }
+    if (!stopped_early) { stop_reason = 'query_budget_exhausted'; }
 
-    // ─── Lauf-Typ bestimmen (für Credits & UI-Meldung) ────────────────────────
-     const newLeadsSaved = createdIds.length;
-     let runType = "new_leads"; // new_leads | duplicate_only | no_match | zero_result
-     if (newLeadsSaved === 0) {
-       if (skipped_duplicate > 0 && skipped_no_match === 0 && skipped_ambiguous === 0 && skipped_outside_radius === 0) {
-         runType = "duplicate_only";
-       } else if (raw_hits === 0) {
-         runType = "zero_result";
-       } else {
-         runType = "no_match";
-       }
-     }
-
-    // Credits nur verbrauchen wenn neue Leads gespeichert wurden
+    const newLeadsSaved = createdIds.length;
     const chargedLeadGeneration = newLeadsSaved > 0;
-    const chargedLeads = newLeadsSaved;
 
-    // UsageLog schreiben
-    const usageDelta = {
-      lead_generations_used: chargedLeadGeneration ? 1 : 0,
-      leads_created: chargedLeads,
-      geocoding: apiCounters.geocoding,
-      textSearch: apiCounters.textSearch,
-      nearbySearch: apiCounters.nearbySearch,
-      placeDetailsEssentials: apiCounters.placeDetailsEssentials,
-      placeDetailsPro: apiCounters.placeDetailsPro,
-      estimatedCostCent,
-      skuBreakdown,
-    };
+    // Run Type
+    let runType = 'new_leads';
+    if (newLeadsSaved === 0) {
+      if (skipped_duplicate > 0 && skipped_no_match === 0) runType = 'duplicate_only';
+      else if (raw_hits === 0) runType = 'zero_result';
+      else runType = 'no_match';
+    }
 
+    // Kosten
+    const estimatedCostCent = skuCostCent('places_text_search_pro', apiCounters.textSearch) + skuCostCent('place_details_essentials', apiCounters.placeDetailsEssentials);
+
+    // ── UsageLog ──────────────────────────────────────────────
     const lastReport = {
+      search_engine_version: SEARCH_ENGINE_VERSION,
       requestedTarget: target_count, effectiveTarget, saved: newLeadsSaved,
       duplicates: skipped_duplicate, noMatch: skipped_no_match,
-      ambiguous: skipped_ambiguous, ambiguousExamples: skipped_ambiguous_examples,
       outsideRadius: skipped_outside_radius, rawHits: raw_hits,
-      noMatchExamples: skipped_no_match_examples,
-      outsideRadiusExamples: skipped_outside_radius_examples,
-      savedExamples,
-      maxSavedDistanceKm,
-      radiusKm,
-      searchCenterCity: city,
-      targetLocations,
-      nearbyCitiesDynamic: nearbyCities,
-      searchCities: allSearchCities,
-      estimatedCostCent, skuBreakdown,
-      searchQueries: searchQueryList.map(q => q.query),
-      chargedLeadGeneration,
-      runType,
+      noMatchExamples, outsideRadiusExamples, savedExamples, maxSavedDistanceKm,
+      radiusKm, searchCenterCity: city, runType, chargedLeadGeneration,
+      stopped_early, stop_reason,
+      search_queries_used: searchQueryList.map(q => q.query),
+      used_search_categories: searchPlan.debug?.usedSearchableCategories || [],
+      ignored_ideal_profiles: searchPlan.debug?.ignoredIdealProfiles || [],
+      query_budget: queryBudget,
       timestamp: new Date().toISOString(),
     };
 
-    // ResearchRun speichern
+    await upsertUsageLog(base44, organization_id, {
+      lead_generations_used: chargedLeadGeneration ? 1 : 0,
+      leads_created: newLeadsSaved,
+      textSearch: apiCounters.textSearch,
+      placeDetails: apiCounters.placeDetailsEssentials,
+      estimatedCostCent,
+      skuBreakdown: {
+        places_text_search_pro: { requests: apiCounters.textSearch, estimated_cost_cent: skuCostCent('places_text_search_pro', apiCounters.textSearch) },
+        place_details_essentials: { requests: apiCounters.placeDetailsEssentials, estimated_cost_cent: skuCostCent('place_details_essentials', apiCounters.placeDetailsEssentials) },
+      }
+    }, lastReport);
+
+    // ── ResearchRun ────────────────────────────────────────────
     let research_run_id = null;
     try {
-      const researchRun = await base44.asServiceRole.entities.ResearchRun.create({
-        organization_id,
-        run_type: runType,
-        requested_target: target_count,
-        leads_saved: newLeadsSaved,
-        duplicates_skipped: skipped_duplicate,
-        no_match_count: skipped_no_match,
-        outside_radius_count: skipped_outside_radius,
-        raw_hits,
-        search_center_city: city,
-        search_radius_km: radiusKm,
-        target_customer_types: targetCustomers.join(", "),
-        excluded_customer_types: excludedTargets.join(", "),
+      const run = await base44.asServiceRole.entities.ResearchRun.create({
+        organization_id, run_type: runType, requested_target: target_count,
+        leads_saved: newLeadsSaved, duplicates_skipped: skipped_duplicate,
+        no_match_count: skipped_no_match, outside_radius_count: skipped_outside_radius,
+        raw_hits, search_center_city: city, search_radius_km: radiusKm,
+        target_customer_types: targetCustomerTypes.join(', '),
+        excluded_customer_types: excludedCustomerTypes.join(', '),
         summary: JSON.stringify(lastReport),
         charged_lead_generation: chargedLeadGeneration,
         created_by: access.user.email,
       });
-      research_run_id = researchRun.id;
-      console.info(`[generateLeads] ResearchRun erstellt: ${research_run_id}`);
-    } catch (runErr) {
-      console.error(`[generateLeads] ResearchRun FEHLER: ${runErr.message}`);
+      research_run_id = run.id;
+    } catch (e) { console.error('[generateLeads v2] ResearchRun Fehler:', e.message); }
+
+    // research_run_id zu Companies
+    if (research_run_id && createdIds.length > 0) {
+      try { await Promise.all(createdIds.map(id => base44.asServiceRole.entities.Company.update(id, { research_run_id }))); } catch {}
     }
 
-    // research_run_id zu Leads hinzufügen (nachträglich)
-    if (research_run_id) {
-      try {
-        const saveCompaniesBatch = [];
-        for (const cId of createdIds) {
-          const upd = base44.asServiceRole.entities.Company.update(cId, { research_run_id });
-          saveCompaniesBatch.push(upd);
-        }
-        await Promise.all(saveCompaniesBatch);
-        console.info(`[generateLeads] research_run_id zu ${createdIds.length} Companies gespeichert`);
-      } catch (updateErr) {
-        console.warn(`[generateLeads] research_run_id Update FEHLER: ${updateErr.message}`);
-      }
-    }
-
-    try {
-      await upsertUsageLog(base44, organization_id, usageDelta, lastReport);
-      console.info(`[generateLeads] UsageLog: chargedRun=${chargedLeadGeneration}, +${chargedLeads} Leads, runType=${runType}`);
-    } catch (usageErr) {
-      console.error(`[generateLeads] UsageLog FEHLER: ${usageErr.message}`);
-    }
-
-    // ── Trial-Leads-Granted inkrementieren (für Free Preview) ──────────────
+    // ── Trial-Leads kumulativ updaten ─────────────────────────
     if (trialStage === 'free_preview' && chargedLeadGeneration) {
-      try {
-        const newTrialLeadsGranted = (org.trial_leads_granted || 0) + chargedLeads;
-        await base44.asServiceRole.entities.Organization.update(organization_id, {
-          trial_leads_granted: newTrialLeadsGranted,
-        });
-        console.info(`[generateLeads] trial_leads_granted updated: ${newTrialLeadsGranted}`);
-      } catch (updateErr) {
-        console.warn(`[generateLeads] trial_leads_granted update FEHLER: ${updateErr.message}`);
-      }
+      const newTotal = (org.trial_leads_granted || 0) + newLeadsSaved;
+      await base44.asServiceRole.entities.Organization.update(organization_id, { trial_leads_granted: newTotal });
+      console.info(`[generateLeads v2] trial_leads_granted: ${org.trial_leads_granted} → ${newTotal}`);
     }
 
-    console.info(`[generateLeads] REPORT org=${organization_id}: raw=${raw_hits}, outside_radius=${skipped_outside_radius}, no_match=${skipped_no_match}, duplicate=${skipped_duplicate}, created=${newLeadsSaved}, runType=${runType}${queriesLimited ? " [QUERY-LIMIT AKTIV]" : ""}`);
-    console.info(`[generateLeads] API calls: textSearch=${apiCounters.textSearch}, placeDetails=${apiCounters.placeDetailsEssentials}`);
-    console.info(`[generateLeads] Kosten: ~${estimatedCostCent.toFixed(2)} Cent`);
+    console.info(`[generateLeads v2] DONE: saved=${newLeadsSaved} raw=${raw_hits} noMatch=${skipped_no_match} dup=${skipped_duplicate} outRadius=${skipped_outside_radius} stop=${stop_reason} textSearch=${apiCounters.textSearch} placeDetails=${apiCounters.placeDetailsEssentials} cost=${estimatedCostCent.toFixed(2)}¢`);
 
     return Response.json({
-       success: true,
-       requestedTarget: target_count,
-       effectiveTarget,
-       count: newLeadsSaved,
-       chargedLeadGeneration,
-       runType,
-       research_run_id,
-       queriesLimited,
-       summary: {
-        raw_hits,
-        saved: newLeadsSaved,
-        duplicates: skipped_duplicate,
-        excluded: 0,
-        noMatch: skipped_no_match,
-        noMatchExamples: skipped_no_match_examples,
-        ambiguous: skipped_ambiguous,
-        ambiguousExamples: skipped_ambiguous_examples,
-        outsideRadius: skipped_outside_radius,
-        outsideRadiusExamples: skipped_outside_radius_examples,
-        savedExamples,
-        maxSavedDistanceKm,
-        radiusKm,
-        searchCenterCity: city,
-        targetLocations,
-        nearbyCitiesDynamic: nearbyCities,
-        searchCities: allSearchCities,
+      success: true,
+      requestedTarget: target_count,
+      effectiveTarget,
+      count: newLeadsSaved,
+      chargedLeadGeneration,
+      runType,
+      research_run_id,
+      // ── Free Preview Bericht ─────────────────────────────────
+      ...(trialStage === 'free_preview' ? {
+        freePreviewReport: {
+          saved: newLeadsSaved,
+          totalPreviewBudget: 3,
+          usedBefore: org.trial_leads_granted || 0,
+          usedAfter: (org.trial_leads_granted || 0) + newLeadsSaved,
+          remaining: Math.max(0, 3 - ((org.trial_leads_granted || 0) + newLeadsSaved)),
+          message: `Kostenlose Vorschau: ${newLeadsSaved} von ${remainingPreviewLeads} verfügbaren Vorschaukontakten gespeichert.`,
+        }
+      } : {}),
+      summary: {
+        raw_hits, saved: newLeadsSaved, duplicates: skipped_duplicate,
+        excluded: 0, noMatch: skipped_no_match, outsideRadius: skipped_outside_radius,
+        noMatchExamples, outsideRadiusExamples, savedExamples,
+        maxSavedDistanceKm, radiusKm, searchCenterCity: city,
       },
-      googleRequests: {
-        geocoding: apiCounters.geocoding,
-        textSearch: apiCounters.textSearch,
-        placeDetailsEssentials: apiCounters.placeDetailsEssentials,
+      // ── Debug / Admin Report ─────────────────────────────────
+      debug: {
+        search_engine_version: SEARCH_ENGINE_VERSION,
+        used_search_categories: searchPlan.debug?.usedSearchableCategories || [],
+        ignored_ideal_profiles: searchPlan.debug?.ignoredIdealProfiles || [],
+        search_queries_used: searchQueryList.map(q => q.query),
+        query_budget: queryBudget,
+        stopped_early,
+        stop_reason,
+        industryId: normalizeIndustryId(industry),
+        taxonomyUsed: !!industryProfile,
       },
-      usage: {
-        lead_generations_used: chargedLeadGeneration ? 1 : 0,
-        leads_created: chargedLeads,
-        estimated_external_cost_cent: estimatedCostCent,
-      },
-      search_queries: searchQueryList.map(q => q.query),
-      details: `${raw_hits} Roh-Treffer, ${skipped_outside_radius} außerhalb Radius, ${skipped_no_match} nicht passend, ${skipped_ambiguous} unklare Verwaltungstreffer, ${skipped_duplicate} Dubletten, ${newLeadsSaved} gespeichert. Credits verbraucht: ${chargedLeadGeneration ? "ja" : "nein"} (runType: ${runType})${queriesLimited ? " Suchanfragen wurden zur Kostenkontrolle begrenzt." : ""}`,
+      googleRequests: { textSearch: apiCounters.textSearch, placeDetailsEssentials: apiCounters.placeDetailsEssentials },
+      usage: { lead_generations_used: chargedLeadGeneration ? 1 : 0, leads_created: newLeadsSaved, estimated_external_cost_cent: estimatedCostCent },
     });
 
   } catch (error) {
-    console.error('[generateLeads] Error:', error.message, error.stack);
+    console.error('[generateLeads v2] Error:', error.message, error.stack);
     return Response.json({ error: error.message, success: false }, { status: 500 });
   } finally {
-    // Lock immer freigeben – auch bei Fehlern oder Timeouts
-    if (_lockAcquired && _base44ForFinally && _orgIdForFinally) {
-      await releaseLeadResearchLock(_base44ForFinally, _orgIdForFinally);
-    }
+    if (_lockAcquired && _base44 && _orgId) await releaseLock(_base44, _orgId);
   }
 });
