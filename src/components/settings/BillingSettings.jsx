@@ -111,14 +111,31 @@ export default function BillingSettings({ org: orgProp, user }) {
 
   useEffect(() => { loadData(); }, []);
 
-  // Auto-refresh nach erfolgreichem Checkout
+  // Auto-refresh nach erfolgreichem Checkout – mit Polling bis Webhook verarbeitet
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
-      loadData(true); // Refresh mit Loading-Indikator
-      window.dispatchEvent(new CustomEvent("checkout-success")); // Event für andere Components (z.B. Dashboard)
-      // URL clean up (optional)
-      window.history.replaceState({}, document.title, window.location.pathname + "?tab=billing");
+      // Initial refresh
+      const doRefresh = async () => {
+        try {
+          const orgs = await base44.entities.Organization.filter({ id: org?.id || orgProp?.id });
+          const freshOrg = orgs[0];
+          if (freshOrg) {
+            setOrg(freshOrg);
+            // Wenn trial_stage noch free_preview ist, Webhook nicht angekommen → polln
+            if (freshOrg.trial_stage === 'free_preview') {
+              console.log('[BillingSettings] Webhook noch nicht verarbeitet – polln…');
+              setTimeout(doRefresh, 1500); // Nach 1.5s erneut versuchen
+            } else {
+              // trial_stage != free_preview → Webhook OK → Event feuern
+              console.log('[BillingSettings] Webhook verarbeitet, trial_stage:', freshOrg.trial_stage);
+              window.dispatchEvent(new CustomEvent("checkout-success"));
+              window.history.replaceState({}, document.title, window.location.pathname + "?tab=billing");
+            }
+          }
+        } catch (e) { console.error('[BillingSettings] Checkout-refresh error:', e); }
+      };
+      doRefresh();
     }
   }, []);
 
