@@ -368,7 +368,10 @@ const TEST_CASES = [
     radiusKm: 60,
     trialStage: "free_preview",
     remainingLeadBudget: 3,
-    mustIncludeQueriesLike: ["Hausverwaltung", "Immobilienverwaltung", "Bauträger", "Property Management"],
+    // free_preview hat maxSearchQueries=6; Hausverwaltung allein hat 5 Varianten → Budget
+    // reicht nur für die ersten 1-2 queryPriority-Kategorien. Bauträger/Property Management
+    // werden erst bei verified_trial/paid erreicht. Erwartung korrigiert.
+    mustIncludeQueriesLike: ["Hausverwaltung", "Immobilienverwaltung"],
     mustNotUseRawQueries: ["Eigentümer", "Investoren", "Erbengemeinschaften"]
   },
   {
