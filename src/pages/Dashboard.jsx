@@ -1,6 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { useLeadsFilter } from "../hooks/useLeadsFilter";
+import { useLeadsFilter, base44 } from "../hooks/useLeadsFilter";
 import TrialStatusBanner from "@/components/TrialStatusBanner";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
@@ -32,17 +32,47 @@ export default function Dashboard() {
   const orgId = user?.org?.id || null;
   const [orgData, setOrgData] = useState(org || null);
 
-  // Auto-refresh Org nach erfolg reichem Checkout (via message event)
+  // Auto-refresh Org nach erfolgreichem Checkout + URL-Check mit Polling
   useEffect(() => {
     const handleCheckoutSuccess = async () => {
       if (orgId) {
         try {
           const orgs = await base44.entities.Organization.filter({ id: orgId });
           if (orgs[0]) setOrgData(orgs[0]);
-        } catch (e) { console.warn('Org refresh failed:', e); }
+        } catch (e) { console.warn('[Dashboard] Org refresh failed:', e); }
       }
     };
+    
     window.addEventListener('checkout-success', handleCheckoutSuccess);
+    
+    // URL-Check: Falls Kunde vom Checkout zurückkommt → polln bis trial_stage != free_preview
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'success' && orgId) {
+      console.log('[Dashboard] Checkout detected in URL – starting polling...');
+      let pollCount = 0;
+      const maxPolls = 30; // 30 × 2s = 60s max
+      
+      const pollUntilPaid = async () => {
+        pollCount++;
+        try {
+          const orgs = await base44.entities.Organization.filter({ id: orgId });
+          const freshOrg = orgs[0];
+          if (freshOrg) {
+            setOrgData(freshOrg);
+            // Wenn noch im free_preview und Polling nicht zu lange → weitermachen
+            if (freshOrg.trial_stage === 'free_preview' && pollCount < maxPolls) {
+              setTimeout(pollUntilPaid, 2000);
+            } else {
+              // Fertig oder MaxPolls erreicht
+              console.log(`[Dashboard] Poll ${pollCount}/${maxPolls}: trial_stage = ${freshOrg.trial_stage}`);
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }
+          }
+        } catch (e) { console.warn('[Dashboard] Poll error:', e); }
+      };
+      pollUntilPaid();
+    }
+    
     return () => window.removeEventListener('checkout-success', handleCheckoutSuccess);
   }, [orgId]);
 

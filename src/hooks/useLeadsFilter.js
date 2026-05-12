@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 
+export { base44 };
+
 export function useLeadsFilter() {
   const [user, setUser] = useState(null);
   const [org, setOrg] = useState(null);
