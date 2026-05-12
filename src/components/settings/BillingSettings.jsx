@@ -111,6 +111,17 @@ export default function BillingSettings({ org: orgProp, user }) {
 
   useEffect(() => { loadData(); }, []);
 
+  // Auto-refresh nach erfolgreichem Checkout
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      loadData(true); // Refresh mit Loading-Indikator
+      window.dispatchEvent(new CustomEvent("checkout-success")); // Event für andere Components (z.B. Dashboard)
+      // URL clean up (optional)
+      window.history.replaceState({}, document.title, window.location.pathname + "?tab=billing");
+    }
+  }, []);
+
   const handleCheckout = async (planId) => {
     if (window.self !== window.top) {
       alert("Der Checkout funktioniert nur in der veröffentlichten App.");

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import TrialStatusBanner from "@/components/TrialStatusBanner";
 import { useQuery } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
 import {
   Building2,
   Phone,
@@ -29,6 +30,21 @@ export default function Dashboard() {
   if (user && !user.org) user.org = org;
 
   const orgId = user?.org?.id || null;
+  const [orgData, setOrgData] = useState(org || null);
+
+  // Auto-refresh Org nach erfolg reichem Checkout (via message event)
+  useEffect(() => {
+    const handleCheckoutSuccess = async () => {
+      if (orgId) {
+        try {
+          const orgs = await base44.entities.Organization.filter({ id: orgId });
+          if (orgs[0]) setOrgData(orgs[0]);
+        } catch (e) { console.warn('Org refresh failed:', e); }
+      }
+    };
+    window.addEventListener('checkout-success', handleCheckoutSuccess);
+    return () => window.removeEventListener('checkout-success', handleCheckoutSuccess);
+  }, [orgId]);
 
   const { data: companies = [], isLoading: loadingCompanies, error: companiesError } = useQuery({
     queryKey: ["companies", orgId],
@@ -108,9 +124,9 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Trial Status Banner */}
       <TrialStatusBanner 
-        trial_stage={user?.org?.trial_stage}
-        billing_status={user?.org?.billing_status}
-        trial_leads_granted={user?.org?.trial_leads_granted || 0}
+        trial_stage={orgData?.trial_stage || user?.org?.trial_stage}
+        billing_status={orgData?.billing_status || user?.org?.billing_status}
+        trial_leads_granted={orgData?.trial_leads_granted || user?.org?.trial_leads_granted || 0}
         onUpgrade={() => window.location.href = "/settings"}
         onManagePlan={() => window.location.href = "/settings"}
       />
