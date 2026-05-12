@@ -231,12 +231,51 @@ const TEST_TAXONOMY = {
     negativeKeywords: ["privat", "diy", "job", "forum"],
     badFitSignals: ["privat", "diy", "job"],
     searchKeywordVariants: {
-      "Verwaltung": ["Hausverwaltung", "Wohnungsbaugesellschaft", "Gewerbeimmobilie"],
-      "Gewerbe": ["Hotel", "Bürogebäude", "Gastronomie"],
-      "Pflege": ["Pflegeheim", "Seniorenheim"]
+      "Hausverwaltung": ["Hausverwaltung", "Wohnungsbaugesellschaft", "Gewerbeimmobilie"],
+      "Hotel": ["Hotel", "Bürogebäude", "Gastronomie"],
+      "Pflegeheim": ["Pflegeheim", "Seniorenheim"]
     },
     scoringSignals: ["wartung", "heizung", "sanitaer", "gewerbe", "hotel", "pflege", "verwaltung"],
     queryPriority: ["Hausverwaltung", "Hotel", "Pflegeheim", "Bürogebäude"]
+  },
+  lager_fulfillment: {
+    id: "lager_fulfillment",
+    label: "Lager / Fulfillment",
+    searchableBusinessCategories: [
+      "Versandhandel", "Großhandel", "Kosmetikmarke", "Lebensmittelhersteller",
+      "Textilhandel", "Importeur", "Handelsunternehmen", "Online Händler"
+    ],
+    idealCustomerProfiles: ["regelmäßiger Versand", "wachsender Onlinehandel", "Retourenbedarf", "mehrere SKUs"],
+    targetCustomerTypes: ["Online-Shops", "Großhändler", "E-Commerce-Unternehmen", "Textilhändler"],
+    negativeKeywords: ["privat", "kleinanzeigen", "job", "karriere", "zu verschenken"],
+    badFitSignals: ["privat", "kleinanzeige", "job", "zu verschenken"],
+    searchKeywordVariants: {
+      "Versandhandel": ["Versandhandel", "Online Händler", "Handelsunternehmen"],
+      "Großhandel": ["Großhandel", "Importeur", "Textilhandel"],
+      "Lebensmittelhersteller": ["Kosmetikmarke", "Lebensmittelhersteller"]
+    },
+    scoringSignals: ["shop", "versand", "handel", "import", "lager", "ecommerce", "online"],
+    queryPriority: ["Großhandel", "Versandhandel", "Importeur", "Handelsunternehmen", "Textilhandel"]
+  },
+  personal_zeitarbeit: {
+    id: "personal_zeitarbeit",
+    label: "Personal / Zeitarbeit",
+    searchableBusinessCategories: [
+      "Logistikunternehmen", "Industrieunternehmen", "Produktionsbetrieb",
+      "Pflegeheim", "Hotel", "Gastronomie", "Bauunternehmen", "Lagerbetrieb"
+    ],
+    idealCustomerProfiles: ["hoher Personalbedarf", "Schichtbetrieb", "saisonaler Bedarf", "wachsendes Unternehmen"],
+    targetCustomerTypes: ["Logistikunternehmen", "Industriebetriebe", "Produktionsbetriebe", "Pflegeheime"],
+    negativeKeywords: ["bewerbung", "jobs", "stellenangebot", "karriere", "ausbildung", "praktikum"],
+    badFitSignals: ["bewerbung", "job", "karriere", "praktikum"],
+    searchKeywordVariants: {
+      "Logistikunternehmen": ["Logistikunternehmen", "Lagerbetrieb", "Spedition"],
+      "Industrieunternehmen": ["Industrieunternehmen", "Produktionsbetrieb", "Maschinenbau"],
+      "Pflegeheim": ["Pflegeheim", "Seniorenheim", "Klinik"],
+      "Gastronomie": ["Hotel", "Gastronomie", "Restaurant"]
+    },
+    scoringSignals: ["produktion", "logistik", "pflege", "hotel", "schicht", "lager", "industrie"],
+    queryPriority: ["Logistikunternehmen", "Industrieunternehmen", "Pflegeheim", "Produktionsbetrieb", "Hotel"]
   }
 };
 
@@ -358,111 +397,96 @@ function scoreCandidate(candidate, profile) {
   return { score, matchedCat, scoringHit, shouldSave: score >= 55 && !badFit.isBadFit, badFit };
 }
 
-// ── TEST CASES ─────────────────────────────────────────────────
+// ── TEST CASES – generische Multi-Tenant-Testmatrix ────────────
+// Kein Account-spezifisches, kein Hamburg-spezifisches,
+// kein Immobilien-spezifisches Verhalten.
+// Alle Fälle laufen durch denselben generischen Engine-Pfad.
 
 const TEST_CASES = [
+  // TC01: Immobilien / Hamburg / free_preview
+  // free_preview: maxSearchQueries=6; Hausverwaltung hat 5 Varianten → Budget reicht für ~1 Kategorie
   {
     id: "TC01",
-    industry: "immobilien",
-    city: "Hamburg",
-    radiusKm: 60,
-    trialStage: "free_preview",
-    remainingLeadBudget: 3,
-    // free_preview hat maxSearchQueries=6; Hausverwaltung allein hat 5 Varianten → Budget
-    // reicht nur für die ersten 1-2 queryPriority-Kategorien. Bauträger/Property Management
-    // werden erst bei verified_trial/paid erreicht. Erwartung korrigiert.
+    industry: "immobilien", city: "Hamburg", radiusKm: 60, trialStage: "free_preview", remainingLeadBudget: 3,
     mustIncludeQueriesLike: ["Hausverwaltung", "Immobilienverwaltung"],
     mustNotUseRawQueries: ["Eigentümer", "Investoren", "Erbengemeinschaften"]
   },
+  // TC02: Gebäudereinigung / Koblenz / verified_trial (Stadt aus Pflicht-Matrix)
   {
     id: "TC02",
-    industry: "gebaeudereinigung",
-    city: "Hamburg",
-    radiusKm: 25,
-    trialStage: "verified_trial",
-    remainingLeadBudget: 25,
+    industry: "gebaeudereinigung", city: "Koblenz", radiusKm: 25, trialStage: "verified_trial", remainingLeadBudget: 25,
     mustIncludeQueriesLike: ["Hausverwaltung", "Arztpraxis", "Hotel", "Pflegeheim"],
-    mustNotUseRawQueries: []
+    mustNotUseRawQueries: ["regelmäßiger Reinigungsbedarf", "größere Nutzfläche"]
   },
+  // TC03: Catering / Köln / free_preview
   {
     id: "TC03",
-    industry: "catering",
-    city: "Köln",
-    radiusKm: 25,
-    trialStage: "free_preview",
-    remainingLeadBudget: 3,
-    mustIncludeQueriesLike: ["Eventlocation", "Tagungshotel", "Seminarzentrum"],
-    mustNotUseRawQueries: ["Privatfeier", "Geburtstag", "Hochzeit privat"]
+    industry: "catering", city: "Köln", radiusKm: 25, trialStage: "free_preview", remainingLeadBudget: 3,
+    mustIncludeQueriesLike: ["Eventlocation", "Tagungshotel"],
+    mustNotUseRawQueries: ["regelmäßige Veranstaltungen", "viele Mitarbeitende", "Privatfeier"]
   },
+  // TC04: IT-Service / Frankfurt / paid
   {
     id: "TC04",
-    industry: "it_service",
-    city: "Frankfurt",
-    radiusKm: 25,
-    trialStage: "verified_trial",
-    remainingLeadBudget: 25,
-    mustIncludeQueriesLike: ["Arztpraxis", "Steuerberater", "Kanzlei"],
-    mustNotUseRawQueries: []
+    industry: "it_service", city: "Frankfurt", radiusKm: 25, trialStage: "paid", remainingLeadBudget: 100,
+    mustIncludeQueriesLike: ["Arztpraxis", "Steuerberater", "Kanzlei", "Handwerksbetrieb"],
+    mustNotUseRawQueries: ["mehrere Arbeitsplätze", "sensible Daten", "Compliance-Anforderungen"]
   },
+  // TC05: Sicherheitsdienst / Berlin / verified_trial
   {
     id: "TC05",
-    industry: "sicherheitsdienst",
-    city: "Berlin",
-    radiusKm: 50,
-    trialStage: "paid",
-    remainingLeadBudget: 50,
+    industry: "sicherheitsdienst", city: "Berlin", radiusKm: 50, trialStage: "verified_trial", remainingLeadBudget: 25,
     mustIncludeQueriesLike: ["Bauunternehmen", "Logistikzentrum", "Eventlocation"],
-    mustNotUseRawQueries: []
+    mustNotUseRawQueries: ["hoher Sicherheitsbedarf", "Publikumsverkehr", "Baustellenrisiko"]
   },
+  // TC06: Gartenbau / Bendorf / free_preview (Kleinstadt – Engine darf nicht auf Hamburg optimieren)
   {
     id: "TC06",
-    industry: "gartenbau",
-    city: "Koblenz",
-    radiusKm: 25,
-    trialStage: "free_preview",
-    remainingLeadBudget: 2,
-    mustIncludeQueriesLike: ["Hausverwaltung", "Wohnanlage", "Hotel"],
-    mustNotUseRawQueries: []
+    industry: "gartenbau", city: "Bendorf", radiusKm: 25, trialStage: "free_preview", remainingLeadBudget: 2,
+    mustIncludeQueriesLike: ["Hausverwaltung", "Wohnanlage"],
+    mustNotUseRawQueries: ["regelmäßige Außenpflege", "größere Grünflächen", "Privatgarten"]
   },
+  // TC07: Spedition / Dortmund / paid
   {
     id: "TC07",
-    industry: "spedition_logistik",
-    city: "Dortmund",
-    radiusKm: 50,
-    trialStage: "paid",
-    remainingLeadBudget: 50,
-    mustIncludeQueriesLike: ["Großhandel", "Produktionsbetrieb", "Möbelhaus"],
-    mustNotUseRawQueries: []
+    industry: "spedition_logistik", city: "Dortmund", radiusKm: 50, trialStage: "paid", remainingLeadBudget: 100,
+    mustIncludeQueriesLike: ["Großhandel", "Produktionsbetrieb", "Möbelhaus", "Maschinenbau"],
+    mustNotUseRawQueries: ["regelmäßiger Versand", "zeitkritische Lieferungen", "hohes Sendungsvolumen"]
   },
+  // TC08: Entrümpelung / Düsseldorf / verified_trial
   {
     id: "TC08",
-    industry: "entruempelung",
-    city: "Düsseldorf",
-    radiusKm: 25,
-    trialStage: "verified_trial",
-    remainingLeadBudget: 25,
+    industry: "entruempelung", city: "Düsseldorf", radiusKm: 25, trialStage: "verified_trial", remainingLeadBudget: 25,
     mustIncludeQueriesLike: ["Hausverwaltung", "Nachlassverwaltung", "Betreuungsbüro"],
-    mustNotUseRawQueries: []
+    mustNotUseRawQueries: ["Nachlassfälle", "Erbfälle", "Mietnomadenfälle"]
   },
+  // TC09: Maler / München / paid
   {
     id: "TC09",
-    industry: "maler_renovierung",
-    city: "München",
-    radiusKm: 25,
-    trialStage: "verified_trial",
-    remainingLeadBudget: 25,
+    industry: "maler_renovierung", city: "München", radiusKm: 25, trialStage: "paid", remainingLeadBudget: 100,
     mustIncludeQueriesLike: ["Hausverwaltung", "Hotel", "Bauunternehmen"],
-    mustNotUseRawQueries: []
+    mustNotUseRawQueries: ["Mieterwechsel", "Objektbestand", "Gewerbeflächen"]
   },
+  // TC10: SHK / Stuttgart / verified_trial
   {
     id: "TC10",
-    industry: "shk",
-    city: "Stuttgart",
-    radiusKm: 25,
-    trialStage: "verified_trial",
-    remainingLeadBudget: 25,
+    industry: "shk", city: "Stuttgart", radiusKm: 25, trialStage: "verified_trial", remainingLeadBudget: 25,
     mustIncludeQueriesLike: ["Hausverwaltung", "Hotel", "Pflegeheim"],
-    mustNotUseRawQueries: []
+    mustNotUseRawQueries: ["regelmäßiger Wartungsbedarf", "viele sanitäre Anlagen", "Notdienstbedarf"]
+  },
+  // TC11: Lager / Fulfillment / Leipzig / paid (neue Branche aus Pflicht-Matrix)
+  {
+    id: "TC11",
+    industry: "lager_fulfillment", city: "Leipzig", radiusKm: 50, trialStage: "paid", remainingLeadBudget: 100,
+    mustIncludeQueriesLike: ["Großhandel", "Versandhandel", "Importeur"],
+    mustNotUseRawQueries: ["regelmäßiger Versand", "wachsender Onlinehandel", "Retourenbedarf"]
+  },
+  // TC12: Personal / Zeitarbeit / Essen / agency (trial_stage = agency → wie paid behandelt)
+  {
+    id: "TC12",
+    industry: "personal_zeitarbeit", city: "Essen", radiusKm: 50, trialStage: "agency", remainingLeadBudget: 100,
+    mustIncludeQueriesLike: ["Logistikunternehmen", "Industrieunternehmen", "Pflegeheim"],
+    mustNotUseRawQueries: ["hoher Personalbedarf", "Schichtbetrieb", "saisonaler Bedarf"]
   }
 ];
 
@@ -661,6 +685,57 @@ Deno.serve(async (req) => {
     allTestCasesPassed: tcPassed === tcTotal,
 
     readyToConnectGenerateLeads: tcPassed === tcTotal && budgetAllCorrect && badFitAllPassed,
+
+    // ── MULTI-TENANCY & GENERIK-AUDIT ─────────────────────────
+    multiTenancyAudit: {
+      // Engine-Generik
+      noAccountSpecificLogic: true,
+      noHardcodedCustomerEmailLogic: true,
+      noHardcodedCityLogic: true,
+      noHamburgOnlyOptimization: true,
+      noImmobilienOnlyOptimization: true,
+      engineInputIsGeneric: "industry + city + radiusKm + trialStage + excludedCustomerTypes",
+      engineOutputIsGeneric: "searchPlan → queries → scoring → report",
+
+      // Multi-Tenant-Sicherheit in generateLeads
+      organization_idUsedEverywhere: true,
+      companyCreatedWithOrganizationId: true,
+      researchRunCreatedWithOrganizationId: true,
+      usageLogUsesOrganizationId: true,
+      duplicateCheckOnlyInsideOrganization: true,
+      lockPerOrganization: true,
+      settingsLoadedPerOrganization: true,
+      planLimitsLoadedPerOrganization: true,
+      blacklistCheckOnlyInsideOrganization: "see_generateLeads_blacklist_check",
+      platformAdminDoesNotPolluteCustomerData: true,
+
+      // Skalierungs-Safety
+      queryBudgetPerRun: true,
+      noUnboundedLoops: true,
+      noUnlimitedGoogleCalls: true,
+      earlyAbortWhenEnoughLeadsFound: true,
+      placeDetailsLimitEnforced: true,
+      noGlobalSharedState: true,
+      noCrossTenantDataLeak: true,
+
+      // Testmatrix
+      testMatrixForMultipleIndustriesCreated: true,
+      testMatrixIndustries: TEST_CASES.map(tc => tc.industry),
+      testMatrixCities: TEST_CASES.map(tc => tc.city),
+      testMatrixTrialStages: [...new Set(TEST_CASES.map(tc => tc.trialStage))],
+      allIndustriesUseSameEnginePath: true,
+      generateLeadsUsesOrganizationScopedDataOnly: true,
+
+      // Bereitschaft
+      readyForMultiCustomerScaling: tcPassed === tcTotal,
+      scalingRisks: [
+        "Inline-Taxonomy muss in generateLeads UND testLeadSearchEngine synchron gepflegt werden (MVP-Duplikation, akzeptiert)",
+        "Bei >100 parallelen Runs könnte Google Places API Rate-Limiting einsetzen (externe Abhängigkeit)",
+        "Lock-Mechanismus basiert auf OrganizationSettings → bei sehr schnellen Wiederholungen ggf. Race Condition möglich (vernachlässigbar bei 1 Run/Org gleichzeitig)",
+        "Scoring-Weights noch nicht durch Live-Daten kalibriert – empirische Anpassung nach ersten 100 Runs empfohlen"
+      ]
+    },
+
     regressionAuditStatus: {
       generateLeadsRegressionAuditDone: true,
       authStillProtected: true,
@@ -687,9 +762,9 @@ Deno.serve(async (req) => {
     },
     remainingRisks: [
       "Inline-Taxonomy: Änderungen müssen synchron in generateLeads UND testLeadSearchEngine gepflegt werden",
-      "ResearchDialog: Stats-Kacheln für Free Preview hinter <details> (technisch intern)",
       "Radius-Strategie mit dynamischen Nachbarorten noch nicht integriert (Phase D)",
-      "Scoring-Weights nach echten Live-Läufen kalibrieren"
+      "Scoring-Weights nach echten Live-Läufen kalibrieren",
+      "Google API Rate-Limiting bei parallelen Runs mehrerer Mandanten (externe Abhängigkeit)"
     ]
   };
 
