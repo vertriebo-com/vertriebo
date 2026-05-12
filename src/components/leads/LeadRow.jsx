@@ -1,9 +1,8 @@
 import { Link } from "react-router-dom";
-import { Building2, Flame, Phone, Mail, MapPin, Clock, User, Calendar, ChevronRight, MoreHorizontal } from "lucide-react";
+import { Building2, Flame, Phone, Mail, MapPin, User, Calendar, MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import moment from "moment";
 
 const QUICK_LOG_ACTIONS = [
   { label: "📞 Nicht erreicht", ergebnis: "Nicht erreicht", status: "Rückruf", color: "hover:bg-red-50 text-red-700" },
@@ -14,9 +13,33 @@ const QUICK_LOG_ACTIONS = [
   { label: "✗ Kein Interesse", ergebnis: "Kein Interesse", status: "Verloren", color: "hover:bg-gray-50 text-gray-700" },
 ];
 
-export default function LeadRow({ company, isAdmin, onLogged }) {
+function OutcomeBadge({ outcome }) {
+  if (!outcome) return null;
+  const styles = {
+    won: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    relevant: "bg-blue-50 text-blue-700 border-blue-200",
+    not_relevant: "bg-slate-100 text-slate-500 border-slate-200",
+  };
+  const labels = { won: "Gewonnen", relevant: "Relevant", not_relevant: "Nicht relevant" };
+  return (
+    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${styles[outcome] || styles.relevant}`}>
+      {labels[outcome] || outcome}
+    </span>
+  );
+}
+
+function statusColor(status) {
+  if (status === "Rückruf") return "bg-amber-50 text-amber-700 border-amber-200";
+  if (status === "Termin") return "bg-purple-50 text-purple-700 border-purple-200";
+  if (status === "Angebot") return "bg-indigo-50 text-indigo-700 border-indigo-200";
+  if (status === "Gewonnen") return "bg-green-50 text-green-700 border-green-200";
+  if (status === "Verloren") return "bg-slate-50 text-slate-700 border-slate-200";
+  return "bg-blue-50 text-blue-700 border-blue-200";
+}
+
+export default function LeadRow({ company, isAdmin, onLogged, outcome }) {
   const [showActions, setShowActions] = useState(false);
-  
+
   const priorityLabel = (company.priority_score || 0) >= 60 ? "Heiß" : (company.priority_score || 0) >= 30 ? "Warm" : "Kalt";
   const priorityColor = (company.priority_score || 0) >= 60 ? "text-orange-600 bg-orange-50 border-orange-200" : (company.priority_score || 0) >= 30 ? "text-amber-600 bg-amber-50 border-amber-200" : "text-gray-600 bg-gray-50 border-gray-200";
 
@@ -43,18 +66,15 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
     <div className="group bg-white border border-[#E2E8F0] rounded-2xl p-5 hover:shadow-lg hover:border-blue-400 transition-all duration-200 cursor-pointer">
       {/* Mobile Layout - Stacked */}
       <div className="lg:hidden space-y-4">
-        {/* Firma + Status */}
         <div className="flex items-start gap-4">
           <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            company.is_hot 
-              ? "bg-orange-50 border-2 border-orange-200" 
-              : "bg-blue-50 border-2 border-blue-200"
+            company.is_hot ? "bg-orange-50 border-2 border-orange-200" : "bg-blue-50 border-2 border-blue-200"
           }`}>
             {company.is_hot ? <Flame className="w-7 h-7 text-orange-600" /> : <Building2 className="w-7 h-7 text-blue-600" />}
           </div>
           <div className="flex-1 min-w-0">
-            <Link 
-              to={`/leads/${company.id}`} 
+            <Link
+              to={`/leads/${company.id}`}
               className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors block mb-1 line-clamp-2"
               title={company.name}
             >
@@ -68,20 +88,14 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <div className={`px-2.5 py-1 rounded-md border text-xs font-bold ${
-                company.status === "Rückruf" ? "bg-amber-50 text-amber-700 border-amber-200" :
-                company.status === "Termin" ? "bg-purple-50 text-purple-700 border-purple-200" :
-                company.status === "Angebot" ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
-                company.status === "Gewonnen" ? "bg-green-50 text-green-700 border-green-200" :
-                company.status === "Verloren" ? "bg-slate-50 text-slate-700 border-slate-200" :
-                "bg-blue-50 text-blue-700 border-blue-200"
-              }`}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className={`px-2.5 py-1 rounded-md border text-xs font-bold ${statusColor(company.status)}`}>
                 {company.status}
               </div>
               <div className={`px-2.5 py-1 rounded-md border text-xs font-bold ${priorityColor}`}>
                 {priorityLabel}
               </div>
+              <OutcomeBadge outcome={outcome} />
             </div>
           </div>
         </div>
@@ -128,16 +142,13 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
         {/* Company Info - Left */}
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${
-            company.is_hot 
-              ? "bg-orange-50 border-2 border-orange-200" 
-              : "bg-blue-50 border-2 border-blue-200"
+            company.is_hot ? "bg-orange-50 border-2 border-orange-200" : "bg-blue-50 border-2 border-blue-200"
           }`}>
             {company.is_hot ? <Flame className="w-7 h-7 text-orange-600" /> : <Building2 className="w-7 h-7 text-blue-600" />}
           </div>
-          
           <div className="min-w-0 flex-1">
-            <Link 
-              to={`/leads/${company.id}`} 
+            <Link
+              to={`/leads/${company.id}`}
               className="text-lg font-bold text-slate-900 hover:text-blue-600 transition-colors block mb-1.5 line-clamp-2"
               title={company.name}
             >
@@ -154,7 +165,7 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
           </div>
         </div>
 
-        {/* Contact Info - Center Left */}
+        {/* Contact Info */}
         <div className="hidden lg:flex items-center gap-6 min-w-[200px]">
           {company.telefon ? (
             <a href={`tel:${company.telefon}`} className="flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-blue-600 transition-colors group/contact">
@@ -168,24 +179,18 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
           )}
         </div>
 
-        {/* Status & Priority - Center */}
-        <div className="hidden md:flex items-center gap-3 min-w-[180px]">
-          <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${
-            company.status === "Rückruf" ? "bg-amber-50 text-amber-700 border-amber-200" :
-            company.status === "Termin" ? "bg-purple-50 text-purple-700 border-purple-200" :
-            company.status === "Angebot" ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
-            company.status === "Gewonnen" ? "bg-green-50 text-green-700 border-green-200" :
-            company.status === "Verloren" ? "bg-slate-50 text-slate-700 border-slate-200" :
-            "bg-blue-50 text-blue-700 border-blue-200"
-          }`}>
+        {/* Status & Priority & Outcome */}
+        <div className="hidden md:flex items-center gap-2 flex-wrap min-w-[200px]">
+          <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${statusColor(company.status)}`}>
             {company.status}
           </div>
           <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${priorityColor}`}>
             {priorityLabel}
           </div>
+          <OutcomeBadge outcome={outcome} />
         </div>
 
-        {/* Next Step / Last Contact - Center Right */}
+        {/* Next Step */}
         <div className="hidden xl:flex items-center gap-3 min-w-[200px]">
           <div className="flex-1 p-3 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-center gap-2 mb-1">
@@ -197,7 +202,7 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
           </div>
         </div>
 
-        {/* Vertriebler - Right */}
+        {/* Vertriebler */}
         <div className="hidden lg:flex items-center min-w-[140px]">
           {company.assigned_to ? (
             <div className="flex items-center gap-2">
@@ -205,9 +210,7 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
                 <User className="w-3.5 h-3.5 text-slate-600" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-medium text-slate-700 truncate">
-                  {company.assigned_to.split("@")[0]}
-                </p>
+                <p className="text-xs font-medium text-slate-700 truncate">{company.assigned_to.split("@")[0]}</p>
                 <p className="text-[9px] text-slate-500 truncate">{company.assigned_to}</p>
               </div>
             </div>
@@ -216,7 +219,7 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
           )}
         </div>
 
-        {/* Actions - Far Right */}
+        {/* Actions */}
         <div className="relative">
           <div className="flex items-center gap-2">
             <Link
@@ -252,7 +255,7 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
               >
                 <MoreHorizontal className="w-4 h-4" />
               </button>
-              
+
               {showActions && (
                 <div className="absolute right-0 top-full mt-2 z-50 w-56 bg-white border border-[#E2E8F0] rounded-xl shadow-2xl overflow-hidden">
                   <div className="px-3 py-2 border-b border-[#E2E8F0] bg-slate-50">
@@ -273,7 +276,6 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
                     <button
                       onClick={() => {
                         setShowActions(false);
-                        // Wird durch AddTaskDialog im Parent behandelt
                         window.dispatchEvent(new CustomEvent("open-task-dialog", { detail: { companyId: company.id, companyName: company.name } }));
                       }}
                       className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
