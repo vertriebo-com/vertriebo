@@ -585,7 +585,12 @@ function scoreLeadCandidate({ candidate, profile, distanceKm = null, radiusKm = 
 // GOOGLE API HELPERS
 // ============================================================
 
-const GOOGLE_SKU_PRICING_USD_PER_1000 = { places_text_search_pro: 32, place_details_essentials: 5 };
+const GOOGLE_SKU_PRICING_USD_PER_1000 = { 
+  places_text_search_pro: 32,      // Legacy (wird ersetzt)
+  places_new_text_search: 35,      // New API Text Search
+  place_details_essentials: 5,     // Legacy (wird ersetzt)
+  places_new_details_basic: 3,     // New API Details Basic SKU
+};
 function skuCostCent(sku, requests) { return (requests / 1000) * (GOOGLE_SKU_PRICING_USD_PER_1000[sku] || 0) * 100; }
 
 function isLikelyChain(candidate) {
@@ -654,13 +659,44 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 }
 
 async function searchPlaces(query, cityCoords, radiusMeters, apiCounters, pageToken = null) {
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&location=${cityCoords.lat},${cityCoords.lng}&radius=${radiusMeters}&language=de&key=${GOOGLE_PLACES_API_KEY}${pageToken ? `&pagetoken=${pageToken}` : ''}`;
+  const body = {
+    textQuery: query,
+    languageCode: "de",
+    locationBias: {
+      circle: {
+        center: { latitude: cityCoords.lat, longitude: cityCoords.lng },
+        radius: Math.min(radiusMeters, 50000), // New API max 50km
+      },
+    },
+    maxResultCount: 20,
+  };
+  if (pageToken) body.pageToken = pageToken;
+
   apiCounters.textSearch++;
-  const res = await fetch(url);
+  const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+      "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.types,nextPageToken",
+    },
+    body: JSON.stringify(body),
+  });
   if (!res.ok) return { results: [], nextPageToken: null };
   const data = await res.json();
-  if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') console.warn(`[searchPlaces] ${data.status} for: ${query}`);
-  return { results: data.results || [], nextPageToken: data.next_page_token || null };
+
+  // Neue API → Legacy-Format normalisieren damit der Rest unverändert bleibt
+  const results = (data.places || []).map((p) => ({
+    place_id: p.id,
+    name: p.displayName?.text || "",
+    formatted_address: p.formattedAddress || "",
+    geometry: { location: { lat: p.location?.latitude, lng: p.location?.longitude } },
+    rating: p.rating,
+    user_ratings_total: p.userRatingCount,
+    types: p.types || [],
+  }));
+
+  return { results, nextPageToken: data.nextPageToken || null };
 }
 
 async function searchPlacesWithPagination(query, cityCoords, radiusMeters, apiCounters, maxPages = 3) {
@@ -680,12 +716,32 @@ async function searchPlacesWithPagination(query, cityCoords, radiusMeters, apiCo
 }
 
 async function getPlaceDetails(placeId, apiCounters) {
-  const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,formatted_phone_number,website,geometry,address_components,types&language=de&key=${GOOGLE_PLACES_API_KEY}`;
   apiCounters.placeDetailsEssentials++;
-  const res = await fetch(url);
+  const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}?languageCode=de`, {
+    headers: {
+      "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
+      // Basic SKU: günstiger als Pro. Nur Felder die wir wirklich brauchen.
+      "X-Goog-FieldMask": "id,displayName,formattedAddress,nationalPhoneNumber,internationalPhoneNumber,websiteUri,location,addressComponents,types",
+    },
+  });
   if (!res.ok) return null;
-  const data = await res.json();
-  return data.status === 'OK' ? (data.result || null) : null;
+  const p = await res.json();
+  if (!p || p.error) return null;
+
+  // Legacy-Format normalisieren damit der Rest unverändert bleibt
+  return {
+    place_id: p.id,
+    name: p.displayName?.text || "",
+    formatted_address: p.formattedAddress || "",
+    formatted_phone_number: p.nationalPhoneNumber || p.internationalPhoneNumber || "",
+    website: p.websiteUri || "",
+    geometry: { location: { lat: p.location?.latitude, lng: p.location?.longitude } },
+    types: p.types || [],
+    address_components: (p.addressComponents || []).map((c) => ({
+      long_name: c.longText,
+      types: c.types,
+    })),
+  };
 }
 
 function extractAddressComponents(components = []) {
