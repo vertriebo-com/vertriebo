@@ -349,26 +349,39 @@ export const INDUSTRY_PRESETS = [
       "Investmentberatung",
       "Standortanalyse"
     ],
+    // Nur suchbare Firmenkategorien – keine Eigentümer/Investoren als Suchqueries
     targetCustomerTypes: [
+      "Hausverwaltungen",
+      "Immobilienverwaltungen",
+      "WEG-Verwaltungen",
+      "Bauträger",
+      "Wohnungsbaugesellschaften",
+      "Gewerbeimmobilienverwaltungen",
+      "Immobiliengesellschaften",
+      "Property Management"
+    ],
+    // Idealprofil-Zielgruppen – werden als KI-Kontext genutzt, nicht als Suchqueries
+    idealCustomerProfiles: [
       "Eigentümer",
       "Investoren",
-      "Bauträger",
-      "Hausverwaltungen",
       "Gewerbeimmobilienbesitzer",
       "Erbengemeinschaften",
-      "Unternehmen mit Standortsuche",
-      "Projektentwickler"
+      "Unternehmen mit Standortsuche"
     ],
     excludedCustomerTypes: [
-      "Privathaushalte"
+      "Privathaushalte",
+      "private Vermieter",
+      "Makler ohne Verwaltungsbestand"
     ],
     searchKeywordVariants: {
-      "Eigentümer": ["Immobilieneigentümer"],
-      "Investoren": ["Investor", "Kapitalanleger"],
-      "Bauträger": ["Bauträger"],
-      "Hausverwaltungen": ["Hausverwaltung"],
-      "Gewerbeimmobilienbesitzer": ["Gewerbeimmobilie"],
-      "Projektentwickler": ["Projektentwickler", "Projektentwicklung"]
+      "Hausverwaltungen": ["Hausverwaltung", "Immobilienverwaltung", "WEG Verwaltung"],
+      "Immobilienverwaltungen": ["Immobilienverwaltung", "Mietverwaltung", "Objektverwaltung"],
+      "WEG-Verwaltungen": ["WEG Verwaltung", "WEG-Verwaltung", "Wohnungseigentumsverwaltung"],
+      "Bauträger": ["Bauträger", "Projektentwickler", "Immobilienentwickler"],
+      "Wohnungsbaugesellschaften": ["Wohnungsbaugesellschaft", "Wohnungsbau GmbH", "kommunale Wohnungsgesellschaft"],
+      "Gewerbeimmobilienverwaltungen": ["Gewerbeimmobilienverwaltung", "Commercial Property Management", "Gewerbeobjekt Verwaltung"],
+      "Immobiliengesellschaften": ["Immobiliengesellschaft", "Immobilien GmbH", "Immobilien AG"],
+      "Property Management": ["Property Management", "Facility Management Immobilien", "Immobilienbestand"]
     }
   },
   {

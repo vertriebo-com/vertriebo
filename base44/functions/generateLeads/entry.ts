@@ -782,9 +782,9 @@ Deno.serve(async (req) => {
     const targetLocations = (settings.target_locations || "")
       .split(",").map(s => s.trim()).filter(Boolean);
 
-    // Dynamische Nachbarorte via Google Places (nur wenn kein Zielstädte gesetzt und Radius < 50km)
+    // Dynamische Nachbarorte via Google Places (nur wenn kein Zielstädte gesetzt, Radius <= 30km, und NICHT free_preview)
     let nearbyCities = [];
-    if (targetLocations.length === 0 && radiusKm <= 50) {
+    if (targetLocations.length === 0 && radiusKm <= 30 && trialStage !== 'free_preview') {
       nearbyCities = await findNearbyCities(cityCoords, radiusKm, city, apiCounters);
     }
 

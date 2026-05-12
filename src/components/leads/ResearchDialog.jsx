@@ -177,6 +177,14 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
         // UsageLog async im Hintergrund – darf den Report nie blockieren
         setTimeout(() => refreshUsageSafe(), 0);
+
+        // Org neu laden damit trial_leads_granted aktuell ist
+        setTimeout(async () => {
+          try {
+            const orgs = await base44.entities.Organization.filter({ id: orgId });
+            if (orgs[0]) setOrg(orgs[0]);
+          } catch {}
+        }, 500);
       } else {
         setError(res.data?.error || "Recherche fehlgeschlagen.");
         if (res.data?.limitReached) {
@@ -274,12 +282,17 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           <div className="flex flex-col items-center justify-center py-10 space-y-4">
             <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             <p className="text-sm font-semibold text-slate-800">Recherche läuft…</p>
-            <p className="text-xs text-slate-500 text-center">
-              Google Places wird nach passenden Firmenkontakten durchsucht.
-            </p>
+            <div className="text-xs text-slate-500 text-center space-y-1.5">
+              <p>🔍 Firmenprofile werden geprüft…</p>
+              <p>✅ Passende Kontakte werden vorbereitet…</p>
+              <p>🔄 Dubletten werden übersprungen…</p>
+              {trialStage === 'free_preview' && (
+                <p className="text-blue-600 font-medium mt-2">Vorschau-Modus: Suche läuft schnell mit max. 3 Kontakten.</p>
+              )}
+            </div>
             {slowWarning && (
               <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 text-center font-medium">
-                Die Recherche dauert ungewöhnlich lange. Bitte warten oder danach erneut versuchen.
+                Die Recherche dauert etwas länger als üblich. Bitte warten…
               </div>
             )}
           </div>
@@ -620,16 +633,24 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             {/* Trial Preview Info + remaining leads */}
             {trialStage === 'free_preview' && (() => {
               const remaining = Math.max(0, 3 - (org?.trial_leads_granted || 0));
+              const isBlocked = remaining === 0;
               return (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                <div className={`rounded-xl p-3 border ${isBlocked ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
                   <div className="flex items-start gap-2">
-                    <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <Info className={`w-4 h-4 shrink-0 mt-0.5 ${isBlocked ? 'text-red-600' : 'text-blue-600'}`} />
                     <div className="text-xs space-y-1">
-                      <p className="font-semibold text-blue-900">Kostenlose Vorschau</p>
-                      <p className="text-blue-800">
-                        Noch verfügbare Vorschaukontakte: <strong>{remaining} / 3</strong>
+                      <p className={`font-semibold ${isBlocked ? 'text-red-900' : 'text-blue-900'}`}>
+                        {isBlocked ? 'Vorschau-Limit erreicht' : 'Kostenlose Vorschau'}
                       </p>
-                      <p className="text-blue-700">Für vollständige Recherche aktivieren Sie den verifizierten Testzugang.</p>
+                      <p className={isBlocked ? 'text-red-800' : 'text-blue-800'}>
+                        {isBlocked
+                          ? 'Sie haben alle 3 kostenlosen Vorschau-Kontakte aufgebraucht.'
+                          : <>Noch verfügbare Vorschaukontakte: <strong>{remaining} / 3</strong></>
+                        }
+                      </p>
+                      <p className={isBlocked ? 'text-red-700' : 'text-blue-700'}>
+                        Für weitere Recherchen aktivieren Sie den verifizierten Testzugang.
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -669,7 +690,14 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={onClose} className="flex-1 bg-white text-slate-700 border-slate-300 hover:bg-slate-50">Abbrechen</Button>
               <Button
-                onClick={handleStartResearch}
+                onClick={() => {
+                  // Hard-block wenn Free Preview Limit erreicht
+                  if (trialStage === 'free_preview' && (org?.trial_leads_granted || 0) >= 3) {
+                    setShowTrialInfoDialog(true);
+                    return;
+                  }
+                  handleStartResearch();
+                }}
                 disabled={targetCustomers.length === 0}
                 className="flex-1 gap-2"
               >
