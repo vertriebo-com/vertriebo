@@ -497,9 +497,9 @@ export default function PlatformAdmin() {
                 )}
 
                 {/* Diagnose & Reparatur */}
-                {selectedOrg.trial_stage === 'free_preview' && selectedOrg.billing_status === 'active' && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
-                    <div className="flex items-start gap-3">
+                <div className={selectedOrg.trial_stage === 'free_preview' && selectedOrg.billing_status === 'active' ? 'bg-red-50 border border-red-200 rounded-lg p-4 space-y-3' : 'bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3'}>
+                  {selectedOrg.trial_stage === 'free_preview' && selectedOrg.billing_status === 'active' && (
+                    <div className="flex items-start gap-3 mb-3">
                       <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="text-sm font-bold text-red-900">⚠️ Trial-Stage Bug erkannt</p>
@@ -508,28 +508,28 @@ export default function PlatformAdmin() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={handleDiagnose}
-                        disabled={diagnosisLoading}
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 border-red-300 text-red-700 hover:bg-red-100"
-                      >
-                        {diagnosisLoading ? 'Diagnose läuft…' : 'Diagnose'}
-                      </Button>
-                      <Button
-                        onClick={handleRepairTrialStage}
-                        disabled={repairingTrialStage}
-                        size="sm"
-                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                      >
-                        <Wrench className="w-3.5 h-3.5" />
-                        {repairingTrialStage ? 'Repariert…' : 'Reparieren'}
-                      </Button>
-                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleDiagnose}
+                      disabled={diagnosisLoading}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                    >
+                      {diagnosisLoading ? 'Diagnose läuft…' : '🔍 Diagnose'}
+                    </Button>
+                    <Button
+                      onClick={handleRepairTrialStage}
+                      disabled={repairingTrialStage}
+                      size="sm"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                    >
+                      <Wrench className="w-3.5 h-3.5" />
+                      {repairingTrialStage ? 'Repariert…' : 'Reparieren'}
+                    </Button>
                   </div>
-                )}
+                </div>
 
                 {showDiagnosisTab && diagnosisData && (
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
