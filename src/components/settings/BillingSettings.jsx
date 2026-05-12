@@ -116,7 +116,7 @@ export default function BillingSettings({ org: orgProp, user }) {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
       let pollCount = 0;
-      const maxPolls = 20; // max 30s polling (20 × 1.5s)
+      const maxPolls = 40; // max 60s polling (40 × 1.5s)
       
       const doRefresh = async () => {
         pollCount++;
@@ -125,17 +125,20 @@ export default function BillingSettings({ org: orgProp, user }) {
           const freshOrg = orgs[0];
           if (freshOrg) {
             setOrg(freshOrg);
-            // Wenn trial_stage noch free_preview ist UND polling nicht zu lange läuft → polln
-            if (freshOrg.trial_stage === 'free_preview' && pollCount < maxPolls) {
-              console.log(`[BillingSettings] Poll ${pollCount}/${maxPolls}: Webhook noch nicht verarbeitet…`);
-              setTimeout(doRefresh, 1500);
-            } else if (freshOrg.trial_stage !== 'free_preview') {
-              // trial_stage != free_preview → Webhook OK
-              console.log('[BillingSettings] Webhook verarbeitet, trial_stage:', freshOrg.trial_stage);
+            console.log(`[BillingSettings] Poll ${pollCount}/${maxPolls}: billing_status="${freshOrg.billing_status}" trial_stage="${freshOrg.trial_stage}"`);
+            // Webhook hat "active" + "paid" gesetzt → wir sind fertig
+            if (freshOrg.billing_status === 'active' && freshOrg.trial_stage === 'paid') {
+              console.log('[BillingSettings] Webhook OK, billing_status=active + trial_stage=paid');
               // Vollständiger Refresh (loadData) um Plan/Subscription zu laden
               await loadData(true);
               window.dispatchEvent(new CustomEvent("checkout-success"));
               window.history.replaceState({}, document.title, window.location.pathname + "?tab=billing");
+            } else if (pollCount < maxPolls) {
+              // Noch nicht bereit, weiterpollen
+              setTimeout(doRefresh, 1500);
+            } else {
+              console.warn('[BillingSettings] Polling timeout – Webhook hat nicht in Zeit antwortet');
+              await loadData(true);
             }
           }
         } catch (e) { console.error('[BillingSettings] Checkout-refresh error:', e); }
@@ -191,8 +194,10 @@ export default function BillingSettings({ org: orgProp, user }) {
     );
   }
 
-  const billingStatus = org?.billing_status || "trialing";
-  const statusCfg = BILLING_STATUS_CONFIG[billingStatus] || BILLING_STATUS_CONFIG.trialing;
+  // Fallback: wenn billing_status undefined → nimm das Letzte aus dem State oder "preview"
+  // (NICHT hardcoded "trialing", das war der Bug)
+  const billingStatus = org?.billing_status || "preview";
+  const statusCfg = BILLING_STATUS_CONFIG[billingStatus] || BILLING_STATUS_CONFIG.active;
   const StatusIcon = statusCfg.icon;
   const isProblematic = ["past_due", "unpaid", "canceled", "incomplete", "incomplete_expired"].includes(billingStatus);
 
