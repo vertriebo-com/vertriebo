@@ -28,18 +28,16 @@ import moment from "moment";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
 
 export default function Dashboard() {
-  const { user, org, filterCompanies, loading: filterLoading, error: filterError } = useLeadsFilter();
-  if (user && !user.org) user.org = org;
-
-  const orgId = user?.org?.id || null;
-  const [orgData, setOrgData] = useState(org || null);
+  const { user: authUser, org: authOrg } = useLeadsFilter();
+  const [orgData, setOrgData] = useState(authOrg || null);
+  const [userData, setUserData] = useState(authUser || null);
 
   // Auto-refresh Org nach erfolgreichem Checkout + URL-Check mit Polling
   useEffect(() => {
     const handleCheckoutSuccess = async () => {
-      if (orgId) {
+      if (orgData?.id) {
         try {
-          const orgs = await base44.entities.Organization.filter({ id: orgId });
+          const orgs = await base44.entities.Organization.filter({ id: orgData.id });
           if (orgs[0]) setOrgData(orgs[0]);
         } catch (e) { console.warn('[Dashboard] Org refresh failed:', e); }
       }
@@ -49,33 +47,30 @@ export default function Dashboard() {
 
     // URL-Check: Wenn ?checkout=success → polln bis Webhook durch ist
     const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') === 'success' && orgId) {
+    if (params.get('checkout') === 'success' && orgData?.id) {
       console.log('[Dashboard] Checkout-URL erkannt, starte Polling für Webhook...');
       let pollCount = 0;
-      const maxPolls = 40; // 40 × 1.5s = 60s max
+      const maxPolls = 40;
 
       const pollWebhookStatus = async () => {
         pollCount++;
         try {
-          const orgs = await base44.entities.Organization.filter({ id: orgId });
+          const orgs = await base44.entities.Organization.filter({ id: orgData.id });
           const freshOrg = orgs[0];
           if (freshOrg) {
             setOrgData(freshOrg);
             console.log(`[Dashboard] Poll ${pollCount}/${maxPolls}: billing_status="${freshOrg.billing_status}" trial_stage="${freshOrg.trial_stage}"`);
 
-            // Bedingung: Webhook hat alles auf 'active' und 'paid' gesetzt → fertig
             const isPaid = freshOrg.billing_status === 'active' && freshOrg.trial_stage === 'paid';
             const isVerifiedTrial = freshOrg.trial_stage === 'verified_trial';
             
             if (isPaid || isVerifiedTrial) {
-              console.log(`[Dashboard] Webhook-Verarbeitung bestätigt (isPaid=${isPaid}, isVerifiedTrial=${isVerifiedTrial}). Polling beendet.`);
+              console.log(`[Dashboard] Webhook-Verarbeitung bestätigt. Polling beendet.`);
               window.history.replaceState({}, document.title, window.location.pathname);
             } else if (pollCount < maxPolls) {
-              // Noch nicht fertig, weiter pollen
               setTimeout(pollWebhookStatus, 1500);
             } else {
-              // Timeout
-              console.warn('[Dashboard] Polling-Timeout: Webhook hat nicht rechtzeitig geantwortet.');
+              console.warn('[Dashboard] Polling-Timeout.');
               window.history.replaceState({}, document.title, window.location.pathname);
             }
           }
@@ -85,32 +80,28 @@ export default function Dashboard() {
     }
     
     return () => window.removeEventListener('checkout-success', handleCheckoutSuccess);
-  }, [orgId]);
+  }, [orgData?.id]);
 
-  // Lazy Loading: Daten werden im Hintergrund geladen, Seite rendert sofort
-  const { data: companies = [], isLoading: loadingCompanies, error: companiesError } = useQuery({
-    queryKey: ["companies", orgId],
-    queryFn: () => orgId
-      ? base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 500)
-      : Promise.resolve([]),
-    enabled: !!orgId,
-    staleTime: 60_000,
-    // Progressive Datenanzeige: leere Arrays während des Ladens
-    placeholderData: [],
+  // OPTIMIERT: Single API-Call für alle Dashboard-Daten
+  const { data: dashboardData, isLoading, error } = useQuery({
+    queryKey: ["dashboard-data", orgData?.id],
+    queryFn: async () => {
+      if (!orgData?.id) throw new Error('No organization');
+      const response = await base44.functions.invoke('getDashboardData', {});
+      return response.data;
+    },
+    enabled: !!orgData?.id,
+    staleTime: 30_000, // 30 Sekunden Cache
+    placeholderData: null,
   });
 
-  const { data: tasks = [], isLoading: loadingTasks, error: tasksError } = useQuery({
-    queryKey: ["tasks", orgId],
-    queryFn: () => orgId
-      ? base44.entities.Task.filter({ organization_id: orgId }, "-faellig_am", 100)
-      : Promise.resolve([]),
-    enabled: !!orgId,
-    staleTime: 60_000,
-    placeholderData: [],
-  });
+  // Daten aus aggregiertem Response extrahieren
+  const user = dashboardData?.user || userData;
+  const stats = dashboardData?.stats || {};
+  const data = dashboardData?.data || {};
+  const meta = dashboardData?.meta || {};
 
-  const loading = loadingCompanies || loadingTasks || filterLoading;
-  const error = filterError || companiesError || tasksError;
+  const loading = isLoading;
 
   // Zeige Skeleton sofort, während Daten im Hintergrund laden
   if (loading) {
@@ -134,32 +125,15 @@ export default function Dashboard() {
     );
   }
 
-  const isAdmin = user?.role === "admin";
-  const myCompanies = filterCompanies(companies);
-  const myTasks = isAdmin ? tasks : tasks.filter(t => t.assigned_to === user?.email);
-  const openTasks = myTasks.filter(t => !t.erledigt);
-  const overdueTasks = openTasks.filter(t => t.faellig_am && moment(t.faellig_am).isBefore(moment()));
-  const todayTasks = openTasks.filter(t => t.faellig_am && moment(t.faellig_am).isSame(moment(), "day"));
-
-  // Pipeline stats
-  const pipelineStats = {
-    neu: myCompanies.filter(c => c.status === "Neu").length,
-    kontakt: myCompanies.filter(c => c.status === "Kontakt").length,
-    rueckruf: myCompanies.filter(c => c.status === "Rückruf").length,
-    termin: myCompanies.filter(c => c.status === "Termin").length,
-    angebot: myCompanies.filter(c => c.status === "Angebot").length,
-    gewonnen: myCompanies.filter(c => c.status === "Gewonnen").length,
-  };
-
-  // Hot leads
-  const hotLeads = myCompanies.filter(c => c.is_hot || c.priority_score > 70).slice(0, 5);
-
-  // Weekly progress (contacts made this week)
-  const thisWeekStart = moment().startOf("week");
-  const contactsThisWeek = myCompanies.filter(c => 
-    c.last_contact_date && moment(c.last_contact_date).isAfter(thisWeekStart)
-  ).length;
-  const weeklyGoal = 20; // Default goal
+  // Daten direkt aus aggregiertem Response verwenden
+  const pipelineStats = stats.pipelineStats || {};
+  const hotLeads = data.hotLeads || [];
+  const todayTasks = data.todayTasks || [];
+  const overdueTasks = data.overdueTasks || [];
+  const recentActivities = data.recentActivities || [];
+  const newLeadsFromResearch = data.newLeadsFromResearch || [];
+  const contactsThisWeek = stats.contactsThisWeek || 0;
+  const weeklyGoal = stats.weeklyGoal || 20;
   const weeklyProgress = Math.min(100, Math.round((contactsThisWeek / weeklyGoal) * 100));
 
   return (
@@ -184,27 +158,24 @@ export default function Dashboard() {
       </div>
 
       {/* Neue Leads aus Recherche */}
-      {(() => {
-        const newLeadsFromResearch = myCompanies.filter(c => c.research_run_id).slice(0, 1);
-        return newLeadsFromResearch.length > 0 ? (
-          <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">✨ Neu</p>
-                <p className="text-sm font-bold text-emerald-900 mt-1">
-                  {myCompanies.filter(c => c.research_run_id).length} neue Firmenkontakte
-                </p>
-                <p className="text-xs text-emerald-800 mt-0.5">Aus Ihrer letzten Recherche</p>
-              </div>
-              <Link to="/leads?new_run=latest">
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50">
-                  Ansehen <ArrowRight className="w-3 h-3" />
-                </Button>
-              </Link>
+      {newLeadsFromResearch.length > 0 ? (
+        <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">✨ Neu</p>
+              <p className="text-sm font-bold text-emerald-900 mt-1">
+                {stats.newLeadsFromResearchCount || newLeadsFromResearch.length} neue Firmenkontakte
+              </p>
+              <p className="text-xs text-emerald-800 mt-0.5">Aus Ihrer letzten Recherche</p>
             </div>
+            <Link to="/leads?new_run=latest">
+              <Button variant="outline" size="sm" className="gap-1.5 text-xs bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                Ansehen <ArrowRight className="w-3 h-3" />
+              </Button>
+            </Link>
           </div>
-        ) : null;
-      })()}
+        </div>
+      ) : null}
 
       {/* Quick Stats Row – Mobile responsive */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
@@ -212,7 +183,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Rückrufe</p>
-              {loadingCompanies ? (
+              {loading ? (
                 <Skeleton className="h-10 w-12 mt-2" />
               ) : (
                 <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{pipelineStats.rueckruf}</p>
@@ -228,7 +199,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Heute</p>
-              {loadingTasks ? (
+              {loading ? (
                 <Skeleton className="h-10 w-12 mt-2" />
               ) : (
                 <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{todayTasks.length}</p>
@@ -244,7 +215,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Heiße Leads</p>
-              {loadingCompanies ? (
+              {loading ? (
                 <Skeleton className="h-10 w-12 mt-2" />
               ) : (
                 <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{hotLeads.length}</p>
@@ -260,7 +231,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Diese Woche</p>
-              {loadingCompanies ? (
+              {loading ? (
                 <Skeleton className="h-10 w-20 mt-2" />
               ) : (
                 <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{contactsThisWeek}/{weeklyGoal}</p>
@@ -280,13 +251,13 @@ export default function Dashboard() {
             <Target className="w-4 h-4 text-blue-600" />
             <h2 className="text-sm font-semibold text-slate-900">Wochenziel</h2>
           </div>
-          {loadingCompanies ? (
+          {loading ? (
             <Skeleton className="h-6 w-12" />
           ) : (
             <span className="text-lg font-bold text-blue-600">{weeklyProgress}%</span>
           )}
         </div>
-        {loadingCompanies ? (
+        {loading ? (
           <Skeleton className="h-2.5 w-full rounded-full" />
         ) : (
           <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
@@ -296,7 +267,7 @@ export default function Dashboard() {
             />
           </div>
         )}
-        {loadingCompanies ? (
+        {loading ? (
           <Skeleton className="h-3 w-32 mt-3" />
         ) : (
           <p className="text-xs font-medium text-slate-700 mt-3">
@@ -316,7 +287,7 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="p-5 space-y-3">
-            {loadingTasks ? (
+            {loading ? (
               // Loading Skeleton
               [1, 2, 3].map(i => (
                 <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
@@ -380,7 +351,7 @@ export default function Dashboard() {
             </Link>
           </div>
           <div className="divide-y divide-[#E2E8F0]">
-            {loadingCompanies ? (
+            {loading ? (
               // Loading Skeleton
               [1, 2, 3].map(i => (
                 <div key={i} className="flex items-center gap-3 px-5 py-3">
@@ -426,7 +397,7 @@ export default function Dashboard() {
           <h2 className="text-sm font-semibold text-slate-900">Pipeline-Übersicht</h2>
         </div>
         <div className="p-5">
-          {loadingCompanies ? (
+          {loading ? (
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
               {[1, 2, 3, 4, 5, 6].map(i => (
                 <div key={i} className="flex flex-col items-center p-3 rounded-lg border border-slate-200">
@@ -475,7 +446,7 @@ export default function Dashboard() {
           </Link>
         </div>
         <div className="divide-y divide-[#E2E8F0]">
-          {loadingCompanies ? (
+          {loading ? (
             // Loading Skeleton
             [1, 2, 3, 4, 5].map(i => (
               <div key={i} className="flex items-center gap-3 px-5 py-3">
@@ -488,7 +459,7 @@ export default function Dashboard() {
               </div>
             ))
           ) : (
-            myCompanies.slice(0, 5).map(company => (
+            recentActivities.map(company => (
               <Link key={company.id} to={`/leads/${company.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
                 <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600/20 to-blue-600/10 border border-blue-600/20 flex items-center justify-center shrink-0">
                   <Building2 className="w-4 h-4 text-blue-600" />
