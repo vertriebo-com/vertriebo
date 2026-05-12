@@ -158,33 +158,31 @@ async function handleCheckoutCompleted(base44, session) {
     } catch (_) { resolvedPlanId = null; }
   }
 
+  // Beim Checkout SOFORT auf 'active' + 'paid' setzen (unabhängig vom Subscription-Status)
+  // Die subscription.updated Events verfeinern das später falls nötig (z.B. für trialing)
+  await base44.asServiceRole.entities.Organization.update(organizationId, {
+    billing_status: 'active',
+    trial_stage: 'paid',
+    plan_id: resolvedPlanId || org.plan_id,
+    stripe_customer_id: session.customer || org.stripe_customer_id,
+  });
+
+  // Optional: Subscription speichern, falls vorhanden
   if (session.subscription) {
-    const stripeSub = await stripe.subscriptions.retrieve(session.subscription);
-    await upsertSubscription(base44, { organization_id: organizationId, stripeSub, plan_id: resolvedPlanId });
-
-    const billingStatus = mapBillingStatus(stripeSub.status);
-    // Bestimme trial_stage basierend auf Stripe-Status
-    let trialStage = 'paid'; // Default: bezahlter Plan (nicht free_preview)
-    if (stripeSub.status === 'trialing') {
-      trialStage = 'verified_trial';
-    } else if (stripeSub.status === 'active' || stripeSub.status === 'past_due') {
-      trialStage = 'paid';
-    }
-
-    await base44.asServiceRole.entities.Organization.update(organizationId, {
-      billing_status: billingStatus,
-      trial_stage: trialStage,
-      plan_id: resolvedPlanId || org.plan_id,
-      ...(stripeSub.trial_end ? { trial_ends_at: new Date(stripeSub.trial_end * 1000).toISOString() } : {}),
-      ...(stripeSub.status === 'trialing' ? { trial_verified_at: new Date().toISOString(), trial_verified_by: org.owner_email } : {}),
-    });
-  } else {
-    // Checkout ohne Subscription (one-time payment) — trotzdem auf 'paid' setzen
-    await base44.asServiceRole.entities.Organization.update(organizationId, {
-      billing_status: 'active',
-      trial_stage: 'paid',
-      plan_id: resolvedPlanId || org.plan_id,
-    });
+    try {
+      const stripeSub = await stripe.subscriptions.retrieve(session.subscription);
+      await upsertSubscription(base44, { organization_id: organizationId, stripeSub, plan_id: resolvedPlanId });
+      
+      // Falls es ein trialing Abo ist — überschreibe mit verified_trial
+      if (stripeSub.status === 'trialing') {
+        await base44.asServiceRole.entities.Organization.update(organizationId, {
+          trial_stage: 'verified_trial',
+          trial_verified_at: new Date().toISOString(),
+          trial_verified_by: org.owner_email,
+          ...(stripeSub.trial_end ? { trial_ends_at: new Date(stripeSub.trial_end * 1000).toISOString() } : {}),
+        });
+      }
+    } catch (e) { console.warn('[stripeWebhook] Subscription fetch failed (non-critical):', e.message); }
   }
 
   if (userEmail) {
