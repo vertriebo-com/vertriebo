@@ -416,8 +416,8 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   )}
                 </div>
 
-                {/* Statistik */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
+                {/* Statistik – nur für paid/trial sichtbar, nicht für Free Preview */}
+                {trialStage !== 'free_preview' && (<div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
                   <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-200 text-center">
                     <div>
                       <span className="text-slate-500 block text-[10px] font-semibold uppercase">Angefragt</span>
@@ -507,9 +507,9 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                       </div>
                     </div>
                   )}
-                </div>
+                  </div>)}
 
-                {/* Credits aus DB (nach Refresh) – nur anzeigen wenn Credits verbraucht wurden */}
+                  {/* Credits aus DB (nach Refresh) – nur anzeigen wenn Credits verbraucht wurden */}
                 {planLimits && usageInfo && result.data.chargedLeadGeneration && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
                     <div className="font-semibold text-blue-900 mb-1">Verbrauch diesen Monat (aktualisiert)</div>

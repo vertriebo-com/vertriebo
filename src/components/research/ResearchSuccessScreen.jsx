@@ -46,21 +46,31 @@ export default function ResearchSuccessScreen({ researchRun, orgId, onClose, onV
 
   const runType = researchRunData.run_type || "new_leads";
 
+  // Ermittle trial_stage aus summary JSON (vom Backend eingebettet)
+  const summaryData = (() => {
+    try { return researchRunData.summary ? JSON.parse(researchRunData.summary) : {}; } catch { return {}; }
+  })();
+  const isFreePreview = summaryData.runType === 'new_leads' && (summaryData.query_budget?.maxSearchQueries === 6 || researchRunData.requested_target <= 3);
+
   // ── Case: Neue Leads gefunden ──
   if (runType === "new_leads" && researchRunData.leads_saved > 0) {
     return (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 overflow-y-auto">
         <div className="bg-white rounded-2xl max-w-2xl w-full my-8 shadow-xl">
           {/* Header */}
-          <div className="bg-gradient-to-r from-emerald-50 to-emerald-100/50 border-b border-emerald-200 px-6 py-6">
+          <div className={`bg-gradient-to-r ${isFreePreview ? 'from-blue-50 to-blue-100/50 border-blue-200' : 'from-emerald-50 to-emerald-100/50 border-emerald-200'} border-b px-6 py-6`}>
             <div className="flex items-start gap-3">
-              <div className="w-12 h-12 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
+              <div className={`w-12 h-12 rounded-lg ${isFreePreview ? 'bg-blue-600' : 'bg-emerald-600'} flex items-center justify-center shrink-0`}>
                 <CheckCircle2 className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-emerald-900">Recherche abgeschlossen</h2>
-                <p className="text-sm text-emerald-800 mt-0.5 font-medium">
-                  Vertriebo hat passende Firmenkontakte gefunden und vorbereitet.
+                <h2 className={`text-xl font-bold ${isFreePreview ? 'text-blue-900' : 'text-emerald-900'}`}>
+                  {isFreePreview ? 'Kostenlose Vorschau abgeschlossen' : 'Recherche abgeschlossen'}
+                </h2>
+                <p className={`text-sm mt-0.5 font-medium ${isFreePreview ? 'text-blue-800' : 'text-emerald-800'}`}>
+                  {isFreePreview
+                    ? 'Die Recherche wurde bewusst auf die kostenlose Vorschau begrenzt.'
+                    : 'Vertriebo hat passende Firmenkontakte gefunden und vorbereitet.'}
                 </p>
               </div>
             </div>
@@ -68,13 +78,20 @@ export default function ResearchSuccessScreen({ researchRun, orgId, onClose, onV
 
           {/* Summary Stats */}
           <div className="px-6 py-6 space-y-4">
-            <div className="bg-emerald-50 border-l-4 border-emerald-600 rounded-lg p-4">
-              <p className="text-2xl font-bold text-emerald-900">{researchRunData.leads_saved}</p>
-              <p className="text-sm text-emerald-800 font-medium">neue Firmenkontakte gespeichert</p>
+            <div className={`${isFreePreview ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-emerald-50 border-l-4 border-emerald-600'} rounded-lg p-4`}>
+              <p className={`text-2xl font-bold ${isFreePreview ? 'text-blue-900' : 'text-emerald-900'}`}>{researchRunData.leads_saved} von {isFreePreview ? '3 verfügbaren Vorschaukontakten' : `${researchRunData.requested_target} angeforderten`} gespeichert</p>
+              {isFreePreview && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-sm text-blue-800 font-medium">Für vollständige Recherchen aktivieren Sie den verifizierten Testzugang.</p>
+                  <a href="/settings?tab=billing" className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 underline hover:text-blue-900">
+                    Testzugang aktivieren →
+                  </a>
+                </div>
+              )}
             </div>
 
-            {/* Breakdown */}
-            <div className="grid sm:grid-cols-3 gap-3">
+            {/* Breakdown – nur für paid/trial, NICHT für Free Preview als Hauptbotschaft */}
+            {!isFreePreview && <div className="grid sm:grid-cols-3 gap-3">
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                 <p className="text-2xl font-bold text-slate-900">{researchRunData.raw_hits || researchRunData.requested_target}</p>
                 <p className="text-xs text-slate-600 font-medium mt-1">Geprüfte Firmenprofile</p>
@@ -87,7 +104,7 @@ export default function ResearchSuccessScreen({ researchRun, orgId, onClose, onV
                 <p className="text-2xl font-bold text-slate-900">{researchRunData.no_match_count || 0}</p>
                 <p className="text-xs text-slate-600 font-medium mt-1">Unpassende Treffer ausgeschlossen</p>
               </div>
-            </div>
+            </div>}
 
             {/* Suchgebiet */}
             {(researchRunData.search_center_city || researchRunData.target_customer_types) && (

@@ -168,7 +168,7 @@ const LEAD_SEARCH_TAXONOMY = {
       "Immobiliengesellschaft": ["Immobiliengesellschaft","Wohnungsbaugesellschaft"],
     },
     scoringSignals: ["verwaltung","weg","gewerbeimmobilien","bestand","objektverwaltung","property management","projektentwicklung","bautraeger","wohnanlage"],
-    queryPriority: ["Hausverwaltung","Immobilienverwaltung","WEG Verwaltung","Bauträger","Property Management","Wohnungsbaugesellschaft"],
+    queryPriority: ["Hausverwaltung","Property Management","Bauträger","Immobilienverwaltung","WEG Verwaltung","Wohnungsbaugesellschaft"],
   },
   lager_fulfillment: {
     id: "lager_fulfillment", label: "Lager / Fulfillment",
@@ -639,7 +639,7 @@ async function checkAccess(req, { organization_id, action } = {}) {
   if (organization.owner_email === user.email) return { allowed: true, reason: 'org_owner', user, organization, member: members[0] || null, role: 'organization_admin' };
   const member = members[0] || null;
   if (!member || member.status !== 'active') return { allowed: false, reason: 'not_a_member', message: 'Kein aktives Mitglied.' };
-  const allowedRoles = ['organization_admin'];
+  const allowedRoles = ['organization_admin', 'sales_rep'];
   if (!allowedRoles.includes(member.role)) return { allowed: false, reason: 'insufficient_role', message: `Rolle "${member.role}" nicht erlaubt.` };
   return { allowed: true, reason: 'ok', user, organization, member, role: member.role };
 }
@@ -961,13 +961,13 @@ Deno.serve(async (req) => {
           quelle: 'Google Places API',
           status: 'Neu',
           is_hot: false,
-          // ── LeadSearchEngine Relevanzdaten ──
+          // ── LeadSearchEngine Relevanzdaten (Feldnamen exakt nach Company Entity) ──
           matched_target_customer_type: scoring.matched_target_customer_type,
           matched_service_context: scoring.matched_service_context,
-          relevance_score: scoring.search_quality_score,
-          relevance_reason: scoring.relevance_reason,
-          excluded_reason: scoring.bad_fit_reason,
-          source_query: variant || query,
+          relevance_score: scoring.search_quality_score,   // Entity-Feld: relevance_score
+          relevance_reason: scoring.relevance_reason,       // Entity-Feld: relevance_reason
+          excluded_reason: scoring.bad_fit_reason,          // Entity-Feld: excluded_reason (kein bad_fit_reason in Company Entity)
+          source_query: variant || query,                   // Entity-Feld: source_query
           distance_km: roundedDist,
           search_center_city: city,
           search_center_lat: cityCoords.lat,
