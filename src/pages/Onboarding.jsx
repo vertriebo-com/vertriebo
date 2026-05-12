@@ -96,16 +96,19 @@ export default function Onboarding() {
   const handleCompanyNext = async () => {
     if (!firmenname.trim()) { toast.error("Bitte geben Sie Ihren Firmennamen ein."); return; }
     if (!selectedIndustry) { toast.error("Bitte wählen Sie Ihre Branche aus."); return; }
-    
+
     setSaving(true);
     try {
       let currentOrg = org;
       if (!currentOrg) {
+        // KRITISCH: billing_status auf default "preview" setzen (nicht "trialing" für existierende Bezahler)
+        // Der Webhook wird billing_status auf "active"+"paid" setzen wenn gekauft
         currentOrg = await base44.entities.Organization.create({
           name: firmenname.trim(),
           owner_email: user.email,
           status: "active",
-          billing_status: "trialing",
+          billing_status: "preview",
+          trial_stage: "free_preview",
           onboarding_done: false,
           industry: selectedIndustry.name,
         });
@@ -118,6 +121,8 @@ export default function Onboarding() {
         });
         setOrg(currentOrg);
       } else {
+        // WICHTIG: NUR name + industry updaten, NICHT billing_status/trial_stage!
+        // Wenn die Org bereits bezahlt hat, bleibt sie bezahlt
         await base44.entities.Organization.update(currentOrg.id, {
           name: firmenname.trim(),
           industry: selectedIndustry.name,
