@@ -1,6 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { useLeadsFilter, base44 } from "../hooks/useLeadsFilter";
+import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import TrialStatusBanner from "@/components/TrialStatusBanner";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
