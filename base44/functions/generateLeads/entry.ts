@@ -462,6 +462,11 @@ function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerT
   const usedCategories = (profile.searchableBusinessCategories || []).filter(c => !excludedCustomerTypes.includes(c));
   const ignoredIdealProfiles = profile.idealCustomerProfiles || [];
 
+  // DIVERSITY LIMIT: Begrenze Varianten pro Kategorie nach Trial-Stufe
+  const maxVariantsPerCategory = 
+    trialStage === 'free_preview' ? 2 :
+    trialStage === 'verified_trial' ? 3 : 999;
+
   // Queries generieren
   const queries = [];
   const seen = new Set();
@@ -474,7 +479,8 @@ function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerT
   for (const city of searchCities) {
     for (const cat of ordered) {
       if (queries.length >= maxQ) break;
-      const variants = profile.searchKeywordVariants?.[cat] ? profile.searchKeywordVariants[cat] : [cat];
+      const variants = (profile.searchKeywordVariants?.[cat] ? profile.searchKeywordVariants[cat] : [cat])
+        .slice(0, maxVariantsPerCategory); // Begrenze auf maxVariantsPerCategory
       for (const variant of variants) {
         if (queries.length >= maxQ) break;
         const q = `${variant} ${city}`;
@@ -582,25 +588,61 @@ function scoreLeadCandidate({ candidate, profile, distanceKm = null, radiusKm = 
 const GOOGLE_SKU_PRICING_USD_PER_1000 = { places_text_search_pro: 32, place_details_essentials: 5 };
 function skuCostCent(sku, requests) { return (requests / 1000) * (GOOGLE_SKU_PRICING_USD_PER_1000[sku] || 0) * 100; }
 
-// Chain Detection
-import('file:///Users/base44/workspace/utils/chainBlacklist.js').then(m => {
-  // Module wird dynamisch geladen wenn verfügbar
-}).catch(() => {
-  // Fallback wenn nicht verfügbar
-});
-
 function isLikelyChain(candidate) {
-  // Inline Chain Detection
-  const chainKeywords = ['aldi', 'lidl', 'rewe', 'edeka', 'kaufland', 'dm', 'rossmann', 'müller', 'deichmann', 'h&m', 'zara', 'primark', 'deutsche post', 'dhl', 'hermes', 'ups', 'fedex', 'sparkasse', 'deutsche bank', 'commerzbank', 'ikea', 'obi', 'bauhaus', 'hornbach', 'mcdonalds', 'burger king', 'subway', 'kfc', 'pizza hut', 'hilton', 'marriott', 'accor', 'ibis', 'novotel', 'franchise', 'filiale', 'kette'];
-  const nameLower = (candidate.name || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+  // 100+ Kettenbegriffe
+  const chainKeywords = [
+    // Lebensmittelhandel
+    'aldi', 'aldisüd', 'aldinord', 'lidl', 'penny', 'netto', 'rewe', 'edeka', 'kaufland', 'real', 'marktkauf', 'selgros', 'metro', 'makro', 'costco',
+    // Drogerien
+    'dm', 'rossmann', 'müller',
+    // Bekleidung
+    'h&m', 'zara', 'primark', 'c&a', 'next', 'gap', 'mango', 'esprit', 'tommy hilfiger', 'calvin klein', 'guess', 'diesel',
+    // Schuhe
+    'deichmann', 'foot locker', 'intersport', 'decathlon', 'nike store', 'adidas store', 'puma store',
+    // Paketdienste
+    'deutsche post', 'dhl', 'ups store', 'fedex', 'hermes', 'dpd', 'gls', 'postamt', 'postfiliale',
+    // Banken
+    'sparkasse', 'deutsche bank', 'commerzbank', 'comdirect', 'ing-diba', 'ing diba', 'hypovereinsbank', 'unicredit', 'santander', 'postbank', 'targobank',
+    // Gastronomie
+    'mcdonalds', 'burger king', 'subway', 'kfc', 'pizza hut', 'dominos', 'vapiano', 'maredo', 'segafredo', 'starbucks', 'costa coffee',
+    // Hotels
+    'hilton', 'marriott', 'accor', 'ibis', 'novotel', 'mercure', 'sofitel', 'holiday inn', 'hyatt', 'sheraton', 'radisson', 'best western', 'motel one',
+    // Einzelhandel
+    'karstadt', 'kaufhof', 'galeria', 'peek & cloppenburg', 'breuninger',
+    // Auto
+    'sixt', 'hertz', 'avis', 'enterprise', 'europcar', 'budget',
+    // Fitness
+    'fitx', 'mcfit', 'easyfit', 'fitness first', 'john reed',
+    // Beauty
+    'david garrett', 'klier', 'haar und farbe',
+    // Optiker
+    'fielmann', 'apollo optik',
+    // Telekommunikation
+    'telekom', 't-mobile', 'vodafone', 'o2', 'telefonica',
+    // Kino
+    'cinemaxx', 'uci', 'cinestar',
+    // Möbel
+    'ikea', 'hoffner', 'segmuller', 'poco', 'roller', 'xxxlutz', 'conforama',
+    // Baumarkt
+    'obi', 'bauhaus', 'hornbach', 'hagebau', 'hellweg',
+    // Gartencenter
+    'dehner', 'gartencenter müller',
+    // Spielzeug
+    'toys r us', 'smyths',
+    // Generisch
+    'franchise', 'filiale', 'kette', 'filialen', 'niederlassung', 'zentrale', 'konzern', 'holding'
+  ];
+  
+  const nameLower = (candidate.name || '').toLowerCase()
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
   
   for (const kw of chainKeywords) {
     if (nameLower.includes(kw)) return { isChain: true, reason: `Kette: ${kw}` };
   }
   
-  // Hohe Bewertungsanzahl = Kette-Proxy
+  // Bewertungsanzahl-Heuristic: >1500 = sehr wahrscheinlich Kette
   const reviews = candidate.user_ratings_total || 0;
-  if (reviews > 500) return { isChain: true, reason: `>500 Bewertungen (${reviews})` };
+  if (reviews > 1500) return { isChain: true, reason: `>1500 Bewertungen (${reviews})` };
   
   return { isChain: false, reason: null };
 }
