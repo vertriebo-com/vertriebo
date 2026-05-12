@@ -164,10 +164,10 @@ async function handleCheckoutCompleted(base44, session) {
 
     const billingStatus = mapBillingStatus(stripeSub.status);
     // Bestimme trial_stage basierend auf Stripe-Status
-    let trialStage = 'free_preview';
+    let trialStage = 'paid'; // Default: bezahlter Plan (nicht free_preview)
     if (stripeSub.status === 'trialing') {
       trialStage = 'verified_trial';
-    } else if (stripeSub.status === 'active') {
+    } else if (stripeSub.status === 'active' || stripeSub.status === 'past_due') {
       trialStage = 'paid';
     }
 
@@ -177,6 +177,13 @@ async function handleCheckoutCompleted(base44, session) {
       plan_id: resolvedPlanId || org.plan_id,
       ...(stripeSub.trial_end ? { trial_ends_at: new Date(stripeSub.trial_end * 1000).toISOString() } : {}),
       ...(stripeSub.status === 'trialing' ? { trial_verified_at: new Date().toISOString(), trial_verified_by: org.owner_email } : {}),
+    });
+  } else {
+    // Checkout ohne Subscription (one-time payment) — trotzdem auf 'paid' setzen
+    await base44.asServiceRole.entities.Organization.update(organizationId, {
+      billing_status: 'active',
+      trial_stage: 'paid',
+      plan_id: resolvedPlanId || org.plan_id,
     });
   }
 
