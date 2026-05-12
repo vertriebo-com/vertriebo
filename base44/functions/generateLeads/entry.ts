@@ -882,6 +882,16 @@ Deno.serve(async (req) => {
     if (!access.allowed) return Response.json({ error: access.message, success: false, reason: access.reason }, { status: 403 });
     if (!GOOGLE_PLACES_API_KEY) return Response.json({ error: 'GOOGLE_PLACES_API_KEY nicht konfiguriert', success: false }, { status: 500 });
 
+    // ── FIX 1: Global Kill-Switch (PlatformConfig) ──────────────
+    const configs = await base44.asServiceRole.entities.PlatformConfig.list();
+    if (configs[0] && !configs[0].google_places_api_enabled) {
+      return Response.json({
+        success: false,
+        error: 'service_temporarily_unavailable',
+        message: configs[0].disabled_reason || 'Die Lead-Recherche ist gerade in Wartung. Wir sind in Kürze wieder verfügbar.'
+      }, { status: 503 });
+    }
+
     // Organisation laden
     const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
     const org = orgs[0];
@@ -897,6 +907,26 @@ Deno.serve(async (req) => {
     // ── Trial-Stufe & Remaining Leads ─────────────────────────
     const trialStage = org.trial_stage || 'free_preview';
     const remainingPreviewLeads = Math.max(0, 3 - (org.trial_leads_granted || 0));
+
+    // ── FIX 3: Free Preview Abuse-Schutz (Daily Limit) ─────────
+    if (trialStage === 'free_preview') {
+      const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recentLogs = await base44.asServiceRole.entities.UsageLog.filter({
+        organization_id,
+        created_date: { $gte: last24h.toISOString() }
+      });
+      const runsLast24h = recentLogs.reduce((sum, l) => sum + (l.lead_generations_used || 0), 0);
+
+      if (runsLast24h >= 5) {
+        return Response.json({
+          success: false,
+          error: 'free_preview_daily_limit',
+          message: 'Du hast deine kostenlosen Vorschau-Recherchen für heute aufgebraucht.',
+          cta: 'Mit dem 14-Tage-Testzugang kannst du unbegrenzt recherchieren.',
+          cta_url: '/settings?tab=billing'
+        }, { status: 429 });
+      }
+    }
 
     // ── Search Plan via LeadSearchEngine ──────────────────────
     // Settings laden
@@ -1250,7 +1280,20 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
+    // ── FIX 2: Error-Alert an Plattform-Admin ────────────────────
     console.error('[generateLeads v2] Error:', error.message, error.stack);
+    try {
+      await base44.functions.invoke('sendCriticalErrorAlert', {
+        function_name: 'generateLeads',
+        error_message: error.message,
+        stack: error.stack,
+        organization_id: _orgId,
+        user_email: null,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (alertErr) {
+      console.error('[generateLeads v2] Alert-Fehler:', alertErr.message);
+    }
     return Response.json({ error: error.message, success: false }, { status: 500 });
   } finally {
     if (_lockAcquired && _base44 && _orgId) await releaseLock(_base44, _orgId);

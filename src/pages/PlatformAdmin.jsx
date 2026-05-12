@@ -51,6 +51,11 @@ export default function PlatformAdmin() {
   const [diagnosisData, setDiagnosisData] = useState(null);
   const [diagnosisLoading, setDiagnosisLoading] = useState(false);
   const [repairingTrialStage, setRepairingTrialStage] = useState(false);
+  const [showSystemControl, setShowSystemControl] = useState(false);
+  const [systemConfig, setSystemConfig] = useState(null);
+  const [googlePlacesEnabled, setGooglePlacesEnabled] = useState(true);
+  const [disabledReason, setDisabledReason] = useState('');
+  const [savingSystemConfig, setSavingSystemConfig] = useState(false);
 
   const { data: responseData = {}, isLoading, refetch } = useQuery({
     queryKey: ['platform-organizations'],
@@ -70,6 +75,22 @@ export default function PlatformAdmin() {
       }
     },
   });
+
+  // Load System Config
+  useEffect(() => {
+    (async () => {
+      try {
+        const configs = await base44.asServiceRole.entities.PlatformConfig.list();
+        if (configs[0]) {
+          setSystemConfig(configs[0]);
+          setGooglePlacesEnabled(configs[0].google_places_api_enabled !== false);
+          setDisabledReason(configs[0].disabled_reason || '');
+        }
+      } catch (e) {
+        console.error('[PlatformAdmin] System config load failed:', e.message);
+      }
+    })();
+  }, []);
 
   const organizations = responseData.organizations || [];
   const platformSummary = responseData.summary || {};
@@ -177,6 +198,34 @@ export default function PlatformAdmin() {
     }
   };
 
+  const handleSaveSystemConfig = async () => {
+    setSavingSystemConfig(true);
+    try {
+      if (systemConfig) {
+        await base44.asServiceRole.entities.PlatformConfig.update(systemConfig.id, {
+          google_places_api_enabled: googlePlacesEnabled,
+          disabled_reason: disabledReason,
+          last_modified_by: (await base44.auth.me())?.email || 'unknown',
+          last_modified_at: new Date().toISOString(),
+        });
+        toast.success('Systemkonfiguration aktualisiert');
+      } else {
+        const newConfig = await base44.asServiceRole.entities.PlatformConfig.create({
+          google_places_api_enabled: googlePlacesEnabled,
+          disabled_reason: disabledReason,
+          last_modified_by: (await base44.auth.me())?.email || 'unknown',
+          last_modified_at: new Date().toISOString(),
+        });
+        setSystemConfig(newConfig);
+        toast.success('Systemkonfiguration erstellt');
+      }
+    } catch (e) {
+      toast.error('Fehler: ' + e.message);
+    } finally {
+      setSavingSystemConfig(false);
+    }
+  };
+
   const getPlanName = (planId, billingStatus) => {
     if (billingStatus === 'trialing') return 'Testphase';
     if (!planId) return 'Kein Plan';
@@ -203,7 +252,66 @@ export default function PlatformAdmin() {
            <p className="text-sm text-slate-600">Verwaltung aller Organisationen und Agenturen</p>
          </div>
 
-         {/* KPI Overview */}
+         {/* System Control Button */}
+        <div className="mb-6">
+          <Button
+            onClick={() => setShowSystemControl(!showSystemControl)}
+            variant="outline"
+            className="gap-2 bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200"
+          >
+            <Wrench className="w-4 h-4" />
+            System Control
+          </Button>
+        </div>
+
+        {/* System Control Panel */}
+        {showSystemControl && (
+          <div className="bg-white border border-[#E2E8F0] rounded-xl p-6 mb-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900">Google Places API</h3>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={googlePlacesEnabled}
+                  onChange={(e) => setGooglePlacesEnabled(e.target.checked)}
+                  className="w-5 h-5 rounded border border-slate-300"
+                />
+              </div>
+            </div>
+            {!googlePlacesEnabled && (
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-2">Abschalt-Grund</label>
+                <textarea
+                  value={disabledReason}
+                  onChange={(e) => setDisabledReason(e.target.value)}
+                  placeholder="z.B. Wartungsfenster, Kostenausreißer..."
+                  rows={2}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+                />
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowSystemControl(false)}
+                variant="outline"
+                size="sm"
+                className="flex-1 bg-white"
+              >
+                Abbrechen
+              </Button>
+              <Button
+                onClick={handleSaveSystemConfig}
+                disabled={savingSystemConfig}
+                size="sm"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {savingSystemConfig ? 'Speichert...' : 'Speichern'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* KPI Overview */}
          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
            <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
              <p className="text-xs text-slate-500 font-medium mb-1">Gesamt Organisationen</p>

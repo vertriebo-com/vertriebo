@@ -405,6 +405,19 @@ Deno.serve(async (req) => {
       payload: obj,
       error_message: err.message,
     });
+    // ── FIX 2: Error-Alert an Plattform-Admin ────────────────────
+    try {
+      await base44.asServiceRole.functions.invoke('sendCriticalErrorAlert', {
+        function_name: 'stripeWebhook',
+        error_message: err.message,
+        stack: err.stack,
+        organization_id: obj?.metadata?.organization_id || null,
+        user_email: null,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (alertErr) {
+      console.error('[stripeWebhook] Alert-Fehler:', alertErr.message);
+    }
     // 500 → Stripe retried (bis zu 3 Tage, exponential backoff)
     return Response.json({ error: err.message }, { status: 500 });
   }

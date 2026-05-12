@@ -1,0 +1,30 @@
+{
+  "name": "PlatformConfig",
+  "type": "object",
+  "properties": {
+    "google_places_api_enabled": {
+      "type": "boolean",
+      "title": "Google Places API Aktiviert",
+      "default": true
+    },
+    "disabled_reason": {
+      "type": "string",
+      "title": "Abschalt-Grund (optional)"
+    },
+    "last_modified_by": {
+      "type": "string",
+      "title": "Zuletzt ge\u00e4ndert von (E-Mail)"
+    },
+    "last_modified_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Zuletzt ge\u00e4ndert am"
+    },
+    "admin_email": {
+      "type": "string",
+      "title": "Admin-E-Mail f\u00fcr Error-Alerts",
+      "default": "admin@vertriebo.com"
+    }
+  },
+  "required": []
+}

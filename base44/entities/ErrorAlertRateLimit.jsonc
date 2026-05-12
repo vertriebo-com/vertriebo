@@ -1,0 +1,18 @@
+{
+  "name": "ErrorAlertRateLimit",
+  "type": "object",
+  "properties": {
+    "function_name": {
+      "type": "string",
+      "title": "Funktionsname"
+    },
+    "last_sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Zuletzt gesendet um"
+    }
+  },
+  "required": [
+    "function_name"
+  ]
+}
