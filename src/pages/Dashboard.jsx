@@ -44,33 +44,42 @@ export default function Dashboard() {
     };
     
     window.addEventListener('checkout-success', handleCheckoutSuccess);
-    
-    // URL-Check: Falls Kunde vom Checkout zurückkommt → polln bis trial_stage != free_preview
+
+    // URL-Check: Wenn ?checkout=success → polln bis Webhook durch ist
     const params = new URLSearchParams(window.location.search);
     if (params.get('checkout') === 'success' && orgId) {
-      console.log('[Dashboard] Checkout detected in URL – starting polling...');
+      console.log('[Dashboard] Checkout-URL erkannt, starte Polling für Webhook...');
       let pollCount = 0;
-      const maxPolls = 30; // 30 × 2s = 60s max
-      
-      const pollUntilPaid = async () => {
+      const maxPolls = 40; // 40 × 1.5s = 60s max
+
+      const pollWebhookStatus = async () => {
         pollCount++;
         try {
           const orgs = await base44.entities.Organization.filter({ id: orgId });
           const freshOrg = orgs[0];
           if (freshOrg) {
             setOrgData(freshOrg);
-            // Wenn noch im free_preview und Polling nicht zu lange → weitermachen
-            if (freshOrg.trial_stage === 'free_preview' && pollCount < maxPolls) {
-              setTimeout(pollUntilPaid, 2000);
+            console.log(`[Dashboard] Poll ${pollCount}/${maxPolls}: billing_status="${freshOrg.billing_status}" trial_stage="${freshOrg.trial_stage}"`);
+
+            // Bedingung: Webhook hat alles auf 'active' und 'paid' gesetzt → fertig
+            const isPaid = freshOrg.billing_status === 'active' && freshOrg.trial_stage === 'paid';
+            const isVerifiedTrial = freshOrg.trial_stage === 'verified_trial';
+            
+            if (isPaid || isVerifiedTrial) {
+              console.log(`[Dashboard] Webhook-Verarbeitung bestätigt (isPaid=${isPaid}, isVerifiedTrial=${isVerifiedTrial}). Polling beendet.`);
+              window.history.replaceState({}, document.title, window.location.pathname);
+            } else if (pollCount < maxPolls) {
+              // Noch nicht fertig, weiter pollen
+              setTimeout(pollWebhookStatus, 1500);
             } else {
-              // Fertig oder MaxPolls erreicht
-              console.log(`[Dashboard] Poll ${pollCount}/${maxPolls}: trial_stage = ${freshOrg.trial_stage}`);
+              // Timeout
+              console.warn('[Dashboard] Polling-Timeout: Webhook hat nicht rechtzeitig geantwortet.');
               window.history.replaceState({}, document.title, window.location.pathname);
             }
           }
-        } catch (e) { console.warn('[Dashboard] Poll error:', e); }
+        } catch (e) { console.warn('[Dashboard] Polling-Fehler:', e); }
       };
-      pollUntilPaid();
+      pollWebhookStatus();
     }
     
     return () => window.removeEventListener('checkout-success', handleCheckoutSuccess);
