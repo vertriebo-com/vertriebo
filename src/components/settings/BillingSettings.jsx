@@ -115,20 +115,25 @@ export default function BillingSettings({ org: orgProp, user }) {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("checkout") === "success") {
-      // Initial refresh
+      let pollCount = 0;
+      const maxPolls = 20; // max 30s polling (20 × 1.5s)
+      
       const doRefresh = async () => {
+        pollCount++;
         try {
           const orgs = await base44.entities.Organization.filter({ id: org?.id || orgProp?.id });
           const freshOrg = orgs[0];
           if (freshOrg) {
             setOrg(freshOrg);
-            // Wenn trial_stage noch free_preview ist, Webhook nicht angekommen → polln
-            if (freshOrg.trial_stage === 'free_preview') {
-              console.log('[BillingSettings] Webhook noch nicht verarbeitet – polln…');
-              setTimeout(doRefresh, 1500); // Nach 1.5s erneut versuchen
-            } else {
-              // trial_stage != free_preview → Webhook OK → Event feuern
+            // Wenn trial_stage noch free_preview ist UND polling nicht zu lange läuft → polln
+            if (freshOrg.trial_stage === 'free_preview' && pollCount < maxPolls) {
+              console.log(`[BillingSettings] Poll ${pollCount}/${maxPolls}: Webhook noch nicht verarbeitet…`);
+              setTimeout(doRefresh, 1500);
+            } else if (freshOrg.trial_stage !== 'free_preview') {
+              // trial_stage != free_preview → Webhook OK
               console.log('[BillingSettings] Webhook verarbeitet, trial_stage:', freshOrg.trial_stage);
+              // Vollständiger Refresh (loadData) um Plan/Subscription zu laden
+              await loadData(true);
               window.dispatchEvent(new CustomEvent("checkout-success"));
               window.history.replaceState({}, document.title, window.location.pathname + "?tab=billing");
             }
