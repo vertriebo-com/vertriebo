@@ -1,0 +1,45 @@
+{
+  "name": "LeadOutcome",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "company_id": {
+      "type": "string",
+      "title": "Firma / Lead ID"
+    },
+    "outcome_type": {
+      "type": "string",
+      "title": "Ergebnis-Typ",
+      "enum": [
+        "won",
+        "lost",
+        "not_relevant",
+        "contacted",
+        "no_response",
+        "pending"
+      ],
+      "default": "pending"
+    },
+    "outcome_reason": {
+      "type": "string",
+      "title": "Grund / Notiz"
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Gemeldet am"
+    },
+    "recorded_by": {
+      "type": "string",
+      "title": "Gemeldet von (E-Mail)"
+    }
+  },
+  "required": [
+    "organization_id",
+    "company_id",
+    "outcome_type"
+  ]
+}

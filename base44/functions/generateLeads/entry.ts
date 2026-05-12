@@ -582,20 +582,59 @@ function scoreLeadCandidate({ candidate, profile, distanceKm = null, radiusKm = 
 const GOOGLE_SKU_PRICING_USD_PER_1000 = { places_text_search_pro: 32, place_details_essentials: 5 };
 function skuCostCent(sku, requests) { return (requests / 1000) * (GOOGLE_SKU_PRICING_USD_PER_1000[sku] || 0) * 100; }
 
+// Chain Detection
+import('file:///Users/base44/workspace/utils/chainBlacklist.js').then(m => {
+  // Module wird dynamisch geladen wenn verfügbar
+}).catch(() => {
+  // Fallback wenn nicht verfügbar
+});
+
+function isLikelyChain(candidate) {
+  // Inline Chain Detection
+  const chainKeywords = ['aldi', 'lidl', 'rewe', 'edeka', 'kaufland', 'dm', 'rossmann', 'müller', 'deichmann', 'h&m', 'zara', 'primark', 'deutsche post', 'dhl', 'hermes', 'ups', 'fedex', 'sparkasse', 'deutsche bank', 'commerzbank', 'ikea', 'obi', 'bauhaus', 'hornbach', 'mcdonalds', 'burger king', 'subway', 'kfc', 'pizza hut', 'hilton', 'marriott', 'accor', 'ibis', 'novotel', 'franchise', 'filiale', 'kette'];
+  const nameLower = (candidate.name || '').toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss');
+  
+  for (const kw of chainKeywords) {
+    if (nameLower.includes(kw)) return { isChain: true, reason: `Kette: ${kw}` };
+  }
+  
+  // Hohe Bewertungsanzahl = Kette-Proxy
+  const reviews = candidate.user_ratings_total || 0;
+  if (reviews > 500) return { isChain: true, reason: `>500 Bewertungen (${reviews})` };
+  
+  return { isChain: false, reason: null };
+}
+
 function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
   return R * 2 * Math.asin(Math.sqrt(a));
 }
 
-async function searchPlaces(query, cityCoords, radiusMeters, apiCounters) {
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&location=${cityCoords.lat},${cityCoords.lng}&radius=${radiusMeters}&language=de&key=${GOOGLE_PLACES_API_KEY}`;
+async function searchPlaces(query, cityCoords, radiusMeters, apiCounters, pageToken = null) {
+  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&location=${cityCoords.lat},${cityCoords.lng}&radius=${radiusMeters}&language=de&key=${GOOGLE_PLACES_API_KEY}${pageToken ? `&pagetoken=${pageToken}` : ''}`;
   apiCounters.textSearch++;
   const res = await fetch(url);
-  if (!res.ok) return [];
+  if (!res.ok) return { results: [], nextPageToken: null };
   const data = await res.json();
   if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') console.warn(`[searchPlaces] ${data.status} for: ${query}`);
-  return data.results || [];
+  return { results: data.results || [], nextPageToken: data.next_page_token || null };
+}
+
+async function searchPlacesWithPagination(query, cityCoords, radiusMeters, apiCounters, maxPages = 3) {
+  const allResults = [];
+  let pageToken = null;
+  let page = 0;
+  
+  do {
+    const { results, nextPageToken } = await searchPlaces(query, cityCoords, radiusMeters, apiCounters, pageToken);
+    allResults.push(...results);
+    pageToken = nextPageToken || null;
+    page++;
+    if (pageToken) await new Promise(resolve => setTimeout(resolve, 2000)); // 2 sec delay (Google requirement)
+  } while (pageToken && page < maxPages);
+  
+  return allResults;
 }
 
 async function getPlaceDetails(placeId, apiCounters) {
@@ -886,9 +925,11 @@ Deno.serve(async (req) => {
         break;
       }
 
-      const places = await searchPlaces(query, cityCoords, radiusMeters, apiCounters);
+      // Pagination: bis zu 3 Seiten (60 Ergebnisse statt 20)
+      const maxPages = trialStage === 'free_preview' ? 1 : 3;
+      const places = await searchPlacesWithPagination(query, cityCoords, radiusMeters, apiCounters, maxPages);
       raw_hits += places.length;
-      console.info(`[generateLeads v2] Query="${query}" → ${places.length} Treffer`);
+      console.info(`[generateLeads v2] Query="${query}" → ${places.length} Treffer (Seiten: bis zu ${maxPages})`);
 
       for (const place of places) {
         // Früh abbrechen: genug Leads
@@ -905,16 +946,26 @@ Deno.serve(async (req) => {
         if (seenPlaceIds.has(place.place_id)) continue;
         seenPlaceIds.add(place.place_id);
 
-        // Distanz
+        // Distanz-Vorfilter (vor Place Details Request!)
         const placeLat = place.geometry?.location?.lat, placeLng = place.geometry?.location?.lng;
         let distanceKm = null;
         if (placeLat && placeLng) {
           distanceKm = haversineKm(cityCoords.lat, cityCoords.lng, placeLat, placeLng);
-          if (distanceKm > radiusKm) {
+          // Hard filter: außerhalb des Radius = kein Place Details API Call
+          if (distanceKm > radiusKm * 1.2) { // 20% Puffer für Ungenauigkeit
             skipped_outside_radius++;
             if (outsideRadiusExamples.length < 5) outsideRadiusExamples.push({ name: place.name, distance_km: Math.round(distanceKm * 10) / 10 });
-            continue;
+            continue; // Kein Place-Details-Request!
           }
+        }
+
+        // Chain Detection
+        const chainCheck = isLikelyChain(place);
+        if (chainCheck.isChain) {
+          skipped_no_match++; // Kategorisiert als "nicht passend"
+          if (noMatchExamples.length < 8) noMatchExamples.push({ name: place.name, reason: chainCheck.reason });
+          console.info(`[generateLeads v2] SKIP CHAIN "${place.name}" (${chainCheck.reason})`);
+          continue;
         }
 
         // Duplikat

@@ -128,8 +128,13 @@ export function generateSearchQueries(searchPlan, industryProfile) {
     queryPriority = [],
   } = industryProfile;
 
-  const { searchCities = [], queryBudget } = searchPlan;
+  const { searchCities = [], queryBudget, trialStage } = searchPlan;
   const maxQueries = queryBudget?.maxSearchQueries ?? 40;
+
+  // QUERY DIVERSITY LIMIT: max Varianten pro Kategorie
+  const maxVariantsPerCategory = 
+    trialStage === 'free_preview' ? 2 :
+    trialStage === 'verified_trial' ? 3 : 999;
 
   // Priorisierte Kategorien zuerst
   const orderedCategories = [
@@ -145,7 +150,7 @@ export function generateSearchQueries(searchPlan, industryProfile) {
 
       // Aus searchKeywordVariants Varianten nutzen, sonst direkt
       const variants = searchKeywordVariants[category]
-        ? searchKeywordVariants[category]
+        ? searchKeywordVariants[category].slice(0, maxVariantsPerCategory)
         : [category];
 
       for (const variant of variants) {
@@ -180,6 +185,11 @@ export function generateSearchQueries(searchPlan, industryProfile) {
  *
  * WICHTIG: idealCustomerProfiles werden NICHT als Suchanfragen verwendet.
  * targetCustomerTypes werden NICHT blind als Queries genutzt.
+ * 
+ * Query Diversity Limit: Verhindert, dass eine Kategorie zu viele Varianten verbraucht:
+ * - free_preview: max. 2 Varianten pro Kategorie
+ * - verified_trial: max. 3-4 Varianten
+ * - paid: unbegrenzt
  */
 export function buildSearchPlan({
   industry,
@@ -279,11 +289,14 @@ export function buildSearchPlan({
     },
   };
 
-  // Queries generieren
-  const searchQueries = generateSearchQueries(partialPlan, {
-    ...industryProfile,
-    searchableBusinessCategories: usedSearchableCategories,
-  });
+  // Queries generieren (mit Diversity Limit)
+  const searchQueries = generateSearchQueries(
+    { ...partialPlan, trialStage },
+    {
+      ...industryProfile,
+      searchableBusinessCategories: usedSearchableCategories,
+    }
+  );
 
   // Kostenlevel schätzen
   const queryCount = searchQueries.length;
