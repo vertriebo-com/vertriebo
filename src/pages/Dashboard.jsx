@@ -23,7 +23,9 @@ import {
 import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import moment from "moment";
+import DashboardSkeleton from "@/components/DashboardSkeleton";
 
 export default function Dashboard() {
   const { user, org, filterCompanies, loading: filterLoading, error: filterError } = useLeadsFilter();
@@ -85,6 +87,7 @@ export default function Dashboard() {
     return () => window.removeEventListener('checkout-success', handleCheckoutSuccess);
   }, [orgId]);
 
+  // Lazy Loading: Daten werden im Hintergrund geladen, Seite rendert sofort
   const { data: companies = [], isLoading: loadingCompanies, error: companiesError } = useQuery({
     queryKey: ["companies", orgId],
     queryFn: () => orgId
@@ -92,6 +95,8 @@ export default function Dashboard() {
       : Promise.resolve([]),
     enabled: !!orgId,
     staleTime: 60_000,
+    // Progressive Datenanzeige: leere Arrays während des Ladens
+    placeholderData: [],
   });
 
   const { data: tasks = [], isLoading: loadingTasks, error: tasksError } = useQuery({
@@ -101,17 +106,15 @@ export default function Dashboard() {
       : Promise.resolve([]),
     enabled: !!orgId,
     staleTime: 60_000,
+    placeholderData: [],
   });
 
   const loading = loadingCompanies || loadingTasks || filterLoading;
   const error = filterError || companiesError || tasksError;
 
+  // Zeige Skeleton sofort, während Daten im Hintergrund laden
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error) {
@@ -209,49 +212,65 @@ export default function Dashboard() {
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Rückrufe</p>
-              <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{pipelineStats.rueckruf}</p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+              {loadingCompanies ? (
+                <Skeleton className="h-10 w-12 mt-2" />
+              ) : (
+                <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{pipelineStats.rueckruf}</p>
+              )}
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
               <PhoneCall className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
-              </div>
-              </div>
-              </div>
+            </div>
+          </div>
+        </div>
 
-              <div className="bg-white border border-[#E2E8F0] rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
+        <div className="bg-white border border-[#E2E8F0] rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Heute</p>
-              <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{todayTasks.length}</p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+              {loadingTasks ? (
+                <Skeleton className="h-10 w-12 mt-2" />
+              ) : (
+                <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{todayTasks.length}</p>
+              )}
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
               <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-              </div>
-              </div>
-              </div>
+            </div>
+          </div>
+        </div>
 
-              <div className="bg-white border border-[#E2E8F0] rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
+        <div className="bg-white border border-[#E2E8F0] rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Heiße Leads</p>
-              <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{hotLeads.length}</p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+              {loadingCompanies ? (
+                <Skeleton className="h-10 w-12 mt-2" />
+              ) : (
+                <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{hotLeads.length}</p>
+              )}
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
               <Star className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
-              </div>
-              </div>
-              </div>
+            </div>
+          </div>
+        </div>
 
-              <div className="bg-white border border-[#E2E8F0] rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
+        <div className="bg-white border border-[#E2E8F0] rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-[10px] sm:text-xs font-semibold text-slate-700 uppercase tracking-wide">Diese Woche</p>
-              <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{contactsThisWeek}/{weeklyGoal}</p>
-              </div>
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+              {loadingCompanies ? (
+                <Skeleton className="h-10 w-20 mt-2" />
+              ) : (
+                <p className="text-2xl sm:text-3xl font-bold text-slate-900 mt-1 sm:mt-2">{contactsThisWeek}/{weeklyGoal}</p>
+              )}
+            </div>
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
               <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" />
-              </div>
-              </div>
-              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Weekly Progress Bar */}
@@ -261,17 +280,29 @@ export default function Dashboard() {
             <Target className="w-4 h-4 text-blue-600" />
             <h2 className="text-sm font-semibold text-slate-900">Wochenziel</h2>
           </div>
-          <span className="text-lg font-bold text-blue-600">{weeklyProgress}%</span>
+          {loadingCompanies ? (
+            <Skeleton className="h-6 w-12" />
+          ) : (
+            <span className="text-lg font-bold text-blue-600">{weeklyProgress}%</span>
+          )}
         </div>
-        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-gradient-to-r from-blue-600 to-emerald-500 rounded-full transition-all duration-500"
-            style={{ width: `${weeklyProgress}%` }}
-          />
-        </div>
-        <p className="text-xs font-medium text-slate-700 mt-3">
-          {contactsThisWeek} Kontakte · {weeklyGoal - contactsThisWeek} bis zum Ziel
-        </p>
+        {loadingCompanies ? (
+          <Skeleton className="h-2.5 w-full rounded-full" />
+        ) : (
+          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-blue-600 to-emerald-500 rounded-full transition-all duration-500"
+              style={{ width: `${weeklyProgress}%` }}
+            />
+          </div>
+        )}
+        {loadingCompanies ? (
+          <Skeleton className="h-3 w-32 mt-3" />
+        ) : (
+          <p className="text-xs font-medium text-slate-700 mt-3">
+            {contactsThisWeek} Kontakte · {weeklyGoal - contactsThisWeek} bis zum Ziel
+          </p>
+        )}
       </div>
 
       {/* Main Action Section */}
@@ -285,37 +316,52 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="p-5 space-y-3">
-            {overdueTasks.length > 0 && (
-              <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-red-900">{overdueTasks.length} überfällige Aufgabe(n)</p>
-                  <p className="text-xs text-red-700 mt-0.5">Bitte zuerst erledigen</p>
-                </div>
-              </div>
-            )}
-
-            {todayTasks.length > 0 ? (
-              <div className="space-y-2">
-                {todayTasks.slice(0, 3).map(task => (
-                  <div key={task.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-lg hover:bg-slate-100 transition-colors">
-                    <div className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 truncate">{task.titel}</p>
-                      <p className="text-xs text-slate-700">{task.company_name || "Allgemein"}</p>
-                    </div>
-                    <Link to={`/tasks`}>
-                      <ArrowRight className="w-4 h-4 text-slate-500 hover:text-blue-600 transition-colors" />
-                    </Link>
+            {loadingTasks ? (
+              // Loading Skeleton
+              [1, 2, 3].map(i => (
+                <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                  <Skeleton className="w-2 h-2 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-3 w-1/2" />
                   </div>
-                ))}
-              </div>
+                </div>
+              ))
             ) : (
-              <div className="text-center py-8">
-                <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
-                <p className="text-sm font-semibold text-slate-900">Alle Aufgaben erledigt!</p>
-                <p className="text-xs font-medium text-slate-700 mt-1">Keine Aufgaben für heute</p>
-              </div>
+              <>
+                {overdueTasks.length > 0 && (
+                  <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-red-900">{overdueTasks.length} überfällige Aufgabe(n)</p>
+                      <p className="text-xs text-red-700 mt-0.5">Bitte zuerst erledigen</p>
+                    </div>
+                  </div>
+                )}
+
+                {todayTasks.length > 0 ? (
+                  <div className="space-y-2">
+                    {todayTasks.slice(0, 3).map(task => (
+                      <div key={task.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-lg hover:bg-slate-100 transition-colors">
+                        <div className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-900 truncate">{task.titel}</p>
+                          <p className="text-xs text-slate-700">{task.company_name || "Allgemein"}</p>
+                        </div>
+                        <Link to={`/tasks`}>
+                          <ArrowRight className="w-4 h-4 text-slate-500 hover:text-blue-600 transition-colors" />
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
+                    <p className="text-sm font-semibold text-slate-900">Alle Aufgaben erledigt!</p>
+                    <p className="text-xs font-medium text-slate-700 mt-1">Keine Aufgaben für heute</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -334,7 +380,19 @@ export default function Dashboard() {
             </Link>
           </div>
           <div className="divide-y divide-[#E2E8F0]">
-            {hotLeads.length > 0 ? (
+            {loadingCompanies ? (
+              // Loading Skeleton
+              [1, 2, 3].map(i => (
+                <div key={i} className="flex items-center gap-3 px-5 py-3">
+                  <Skeleton className="w-9 h-9 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                  <Skeleton className="w-16 h-6 rounded" />
+                </div>
+              ))
+            ) : hotLeads.length > 0 ? (
               hotLeads.map(company => (
                 <Link key={company.id} to={`/leads/${company.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
                   <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-400/20 to-red-500/20 border border-orange-400/30 flex items-center justify-center shrink-0">
@@ -368,26 +426,38 @@ export default function Dashboard() {
           <h2 className="text-sm font-semibold text-slate-900">Pipeline-Übersicht</h2>
         </div>
         <div className="p-5">
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-            {[
-              { label: "Neu", count: pipelineStats.neu, color: "bg-blue-500" },
-              { label: "Kontakt", count: pipelineStats.kontakt, color: "bg-cyan-500" },
-              { label: "Rückruf", count: pipelineStats.rueckruf, color: "bg-amber-500" },
-              { label: "Termin", count: pipelineStats.termin, color: "bg-purple-500" },
-              { label: "Angebot", count: pipelineStats.angebot, color: "bg-orange-500" },
-              { label: "Gewonnen", count: pipelineStats.gewonnen, color: "bg-emerald-500" },
-            ].map(stage => (
-              <Link 
-                key={stage.label} 
-                to={`/leads?status=${stage.label}`}
-                className="flex flex-col items-center p-3 rounded-lg border border-[#E2E8F0] hover:bg-slate-50 hover:border-slate-300 transition-all"
-              >
-                <div className={`w-3 h-3 rounded-full ${stage.color} mb-2`} />
-                <p className="text-lg font-bold text-slate-900">{stage.count}</p>
-                <p className="text-[10px] font-semibold text-slate-700 uppercase tracking-wide mt-1">{stage.label}</p>
-              </Link>
-            ))}
-          </div>
+          {loadingCompanies ? (
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+              {[1, 2, 3, 4, 5, 6].map(i => (
+                <div key={i} className="flex flex-col items-center p-3 rounded-lg border border-slate-200">
+                  <Skeleton className="w-3 h-3 rounded-full mb-2" />
+                  <Skeleton className="h-6 w-8 mb-1" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+              {[
+                { label: "Neu", count: pipelineStats.neu, color: "bg-blue-500" },
+                { label: "Kontakt", count: pipelineStats.kontakt, color: "bg-cyan-500" },
+                { label: "Rückruf", count: pipelineStats.rueckruf, color: "bg-amber-500" },
+                { label: "Termin", count: pipelineStats.termin, color: "bg-purple-500" },
+                { label: "Angebot", count: pipelineStats.angebot, color: "bg-orange-500" },
+                { label: "Gewonnen", count: pipelineStats.gewonnen, color: "bg-emerald-500" },
+              ].map(stage => (
+                <Link 
+                  key={stage.label} 
+                  to={`/leads?status=${stage.label}`}
+                  className="flex flex-col items-center p-3 rounded-lg border border-[#E2E8F0] hover:bg-slate-50 hover:border-slate-300 transition-all"
+                >
+                  <div className={`w-3 h-3 rounded-full ${stage.color} mb-2`} />
+                  <p className="text-lg font-bold text-slate-900">{stage.count}</p>
+                  <p className="text-[10px] font-semibold text-slate-700 uppercase tracking-wide mt-1">{stage.label}</p>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -405,22 +475,36 @@ export default function Dashboard() {
           </Link>
         </div>
         <div className="divide-y divide-[#E2E8F0]">
-          {myCompanies.slice(0, 5).map(company => (
-            <Link key={company.id} to={`/leads/${company.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600/20 to-blue-600/10 border border-blue-600/20 flex items-center justify-center shrink-0">
-                <Building2 className="w-4 h-4 text-blue-600" />
+          {loadingCompanies ? (
+            // Loading Skeleton
+            [1, 2, 3, 4, 5].map(i => (
+              <div key={i} className="flex items-center gap-3 px-5 py-3">
+                <Skeleton className="w-9 h-9 rounded-lg" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="w-16 h-6 rounded" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-900 truncate">{company.name}</p>
-                <p className="text-xs text-slate-700">
-                  {company.last_contact_date 
-                    ? `Letzter Kontakt: ${moment(company.last_contact_date).format("DD.MM.")}`
-                    : "Neuer Lead"}
-                </p>
-              </div>
-              <StatusBadge status={company.status} />
-            </Link>
-          ))}
+            ))
+          ) : (
+            myCompanies.slice(0, 5).map(company => (
+              <Link key={company.id} to={`/leads/${company.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-600/20 to-blue-600/10 border border-blue-600/20 flex items-center justify-center shrink-0">
+                  <Building2 className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900 truncate">{company.name}</p>
+                  <p className="text-xs text-slate-700">
+                    {company.last_contact_date 
+                      ? `Letzter Kontakt: ${moment(company.last_contact_date).format("DD.MM.")}`
+                      : "Neuer Lead"}
+                  </p>
+                </div>
+                <StatusBadge status={company.status} />
+              </Link>
+            ))
+          )}
         </div>
       </div>
     </div>
