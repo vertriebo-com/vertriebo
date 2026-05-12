@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import TrialStatusBanner from "@/components/TrialStatusBanner";
 import {
   CreditCard, Mail, Brain, Search, Database,
-  AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, RefreshCw
+  AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, RefreshCw, Sparkles, ArrowRight
 } from "lucide-react";
 
 const BILLING_STATUS_CONFIG = {
@@ -62,6 +62,8 @@ export default function BillingSettings({ org: orgProp, user }) {
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [allPlans, setAllPlans] = useState([]);
+  const [checkoutLoading, setCheckoutLoading] = useState(null); // plan_id being checked out
 
   const loadData = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
@@ -83,6 +85,13 @@ export default function BillingSettings({ org: orgProp, user }) {
         setPlan(plans[0] || null);
       }
 
+      // Alle aktiven Pläne laden (für Plan-Auswahl)
+      const availablePlans = await base44.entities.Plan.filter({ is_active: true });
+      const standardPlans = availablePlans
+        .filter(p => p.plan_type === 'standard' && p.stripe_price_id)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+      setAllPlans(standardPlans);
+
       // Aktuellen UsageLog laden – nach period_month filtern (zuverlässiger als period_start-Datumsvergleich)
       const now = new Date();
       const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -101,6 +110,27 @@ export default function BillingSettings({ org: orgProp, user }) {
   };
 
   useEffect(() => { loadData(); }, []);
+
+  const handleCheckout = async (planId) => {
+    if (window.self !== window.top) {
+      alert("Der Checkout funktioniert nur in der veröffentlichten App.");
+      return;
+    }
+    setCheckoutLoading(planId);
+    const res = await base44.functions.invoke("createCheckoutSession", {
+      organization_id: org.id,
+      plan_id: planId,
+      success_url: window.location.origin + "/settings?tab=billing&checkout=success",
+      cancel_url: window.location.origin + "/settings?tab=billing",
+      allow_upgrade: false,
+    });
+    if (res.data?.url) {
+      window.location.href = res.data.url;
+    } else {
+      toast.error(res.data?.error || "Fehler beim Starten des Checkouts.");
+    }
+    setCheckoutLoading(null);
+  };
 
   const handlePortal = async () => {
     if (window.self !== window.top) {
@@ -144,6 +174,59 @@ export default function BillingSettings({ org: orgProp, user }) {
         onUpgrade={() => window.location.href = "/settings#upgrade"}
         onManagePlan={() => window.location.href = "/settings#upgrade"}
       />
+
+      {/* Plan-Auswahl für Free Preview */}
+      {org?.trial_stage === 'free_preview' && allPlans.length > 0 && (
+        <div className="bg-white border-2 border-blue-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-start gap-3 mb-5">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Verifizierten Testzugang aktivieren</h3>
+              <p className="text-xs font-medium text-slate-600 mt-1">
+                Wählen Sie einen Plan und starten Sie den 14-tägigen verifizierten Testzugang.
+                <br />
+                <span className="text-slate-500">Für den verifizierten Testzugang wird eine Zahlungsmethode hinterlegt. Die Abrechnung erfolgt nach Ablauf der 14-tägigen Testphase.</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            {allPlans.map(p => (
+              <div key={p.id} className="border border-slate-200 rounded-xl p-4 flex flex-col gap-3 hover:border-blue-300 hover:shadow-sm transition-all">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{p.name}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {p.price_monthly ? `${(p.price_monthly / 100).toFixed(0)} € / Monat` : "–"}
+                    </p>
+                  </div>
+                  {p.has_advanced_reports && (
+                    <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Beliebt</span>
+                  )}
+                </div>
+                <ul className="text-xs text-slate-600 space-y-1">
+                  <li>✓ {p.max_leads_per_month === -1 ? "Unbegrenzt" : p.max_leads_per_month} Kontakte/Monat</li>
+                  <li>✓ {p.max_lead_generations_per_month === -1 ? "Unbegrenzt" : p.max_lead_generations_per_month} Recherchen/Monat</li>
+                  <li>✓ {p.max_ai_scorings_per_month === -1 ? "Unbegrenzt" : p.max_ai_scorings_per_month} KI-Aktionen/Monat</li>
+                </ul>
+                <Button
+                  onClick={() => handleCheckout(p.id)}
+                  disabled={checkoutLoading !== null}
+                  size="sm"
+                  className="w-full gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {checkoutLoading === p.id
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <ArrowRight className="w-3.5 h-3.5" />}
+                  14 Tage testen
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Problematic billing warning */}
       {isProblematic && (

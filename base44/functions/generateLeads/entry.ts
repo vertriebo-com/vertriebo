@@ -83,6 +83,14 @@ const SEARCH_VARIANTS = {
   "Logistik":                      ["Spedition", "Lagerhaus", "Logistikzentrum"],
   "Schulen / Bildungseinrichtungen": ["Schule", "Gymnasium", "Kindergarten", "Bildungszentrum"],
   "Krankenhäuser / Kliniken":      ["Krankenhaus", "Klinik", "Pflegeheim"],
+  // Erweiterte Immobilien-Taxonomie: suchbare Firmenkategorien (nicht Eigentümer/Investoren!)
+  "Immobilienverwaltungen":        ["Immobilienverwaltung", "Hausverwaltung", "WEG-Verwaltung", "Mietverwaltung"],
+  "WEG-Verwaltungen":              ["WEG Verwaltung", "WEG-Verwaltung", "Wohnungseigentumsverwaltung"],
+  "Bauträger":                     ["Bauträger", "Projektentwickler", "Immobilienentwickler"],
+  "Wohnungsbaugesellschaften":     ["Wohnungsbaugesellschaft", "Wohnungsbau GmbH", "kommunale Wohnungsgesellschaft"],
+  "Gewerbeimmobilienverwaltungen": ["Gewerbeimmobilienverwaltung", "Gewerbeobjekt Verwaltung", "Commercial Property Management"],
+  "Immobiliengesellschaften":      ["Immobiliengesellschaft", "Immobilien GmbH", "Immobilien AG", "Property Management"],
+  "Property Management":           ["Property Management", "Immobilienverwaltung", "Hausverwaltung"],
 };
 
 // ─── Relevanz-Regeln: harte Filterung nach Zielgruppe ─────────────────────────
@@ -816,9 +824,9 @@ Deno.serve(async (req) => {
         }
       }
     }
-    // ── Max-Query-Limit (Kostenschutz) ──────────────────────────────────────
-    const MAX_SEARCH_QUERIES_PER_RUN = 40;
-    const MAX_PLACE_DETAILS_PER_RUN = 80;
+    // ── Max-Query-Limit (Kostenschutz) – für free_preview stark reduziert ──
+    const MAX_SEARCH_QUERIES_PER_RUN = trialStage === 'free_preview' ? 6 : 40;
+    const MAX_PLACE_DETAILS_PER_RUN = trialStage === 'free_preview' ? 15 : 80;
     let queriesLimited = false;
     if (searchQueryList.length > MAX_SEARCH_QUERIES_PER_RUN) {
       console.warn(`[generateLeads] Query-Limit: ${searchQueryList.length} Anfragen → auf ${MAX_SEARCH_QUERIES_PER_RUN} begrenzt`);

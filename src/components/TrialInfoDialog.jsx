@@ -86,8 +86,12 @@ export default function TrialInfoDialog({
           </Button>
           <Button
             onClick={() => {
-              onUpgrade?.();
               onClose();
+              if (onUpgrade) {
+                onUpgrade();
+              } else {
+                window.location.href = "/settings?tab=billing";
+              }
             }}
             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-1"
           >

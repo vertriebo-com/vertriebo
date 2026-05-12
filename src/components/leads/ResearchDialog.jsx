@@ -59,6 +59,17 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       const organization = orgs[0];
       setOrg(organization);
       setTrialStage(organization?.trial_stage || 'free_preview');
+
+      // Sofort TrialInfoDialog wenn Free Preview Limit bereits erreicht
+      if ((organization?.trial_stage || 'free_preview') === 'free_preview' && (organization?.trial_leads_granted || 0) >= 3) {
+        setShowTrialInfoDialog(true);
+      }
+
+      // Set correct target count for free preview
+      if ((organization?.trial_stage || 'free_preview') === 'free_preview') {
+        const remaining = Math.max(0, 3 - (organization?.trial_leads_granted || 0));
+        setTargetCount(Math.max(1, remaining));
+      }
       
       if (organization?.plan_id) {
         const [plans, usageLogs] = await Promise.all([
@@ -227,7 +238,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           trial_leads_granted={org?.trial_leads_granted || 0}
           onUpgrade={() => {
             setShowTrialInfoDialog(false);
-            window.location.href = "/settings";
+            window.location.href = "/settings?tab=billing";
           }}
         />
       </>
@@ -335,12 +346,22 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                     result.data.count >= 10 ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
                   }`}>
                     <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${result.data.count >= 10 ? "text-green-600" : "text-amber-600"}`} />
-                    <div className={`text-sm font-semibold ${result.data.count >= 10 ? "text-green-900" : "text-amber-900"}`}>
-                      {result.data.count} Firmenkontakte gespeichert
-                      {result.data.effectiveTarget < result.data.requestedTarget && (
-                        <span className="block text-xs font-normal mt-0.5">
-                          (Budget: {result.data.effectiveTarget} von {result.data.requestedTarget} angefragt)
-                        </span>
+                    <div>
+                      <div className={`text-sm font-semibold ${result.data.count >= 10 ? "text-green-900" : "text-amber-900"}`}>
+                        {trialStage === 'free_preview'
+                          ? `Kostenlose Vorschau abgeschlossen – ${result.data.count} von 3 Vorschaukontakten gespeichert`
+                          : `${result.data.count} Firmenkontakte gespeichert`}
+                      </div>
+                      {trialStage === 'free_preview' && (
+                        <div className="text-xs mt-1.5 space-y-1">
+                          <p className="text-slate-600">Die Recherche wurde auf die kostenlose Vorschau begrenzt.</p>
+                          <button
+                            onClick={() => { window.location.href = "/settings?tab=billing"; }}
+                            className="text-blue-600 font-semibold underline hover:text-blue-700"
+                          >
+                            Verifizierten Testzugang aktivieren →
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -596,48 +617,48 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               </div>
             )}
 
-            {/* Trial Preview Info + Limit */}
-            {trialStage === 'free_preview' && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                <div className="flex items-start gap-2">
-                  <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-                  <div className="text-xs space-y-1">
-                    <p className="font-semibold text-blue-900">Kostenlose Vorschau</p>
-                    <p className="text-blue-800">Sie testen Vertriebo mit bis zu 3 Firmenkontakten. Aktivieren Sie den verifizierten Testzugang für mehr.</p>
+            {/* Trial Preview Info + remaining leads */}
+            {trialStage === 'free_preview' && (() => {
+              const remaining = Math.max(0, 3 - (org?.trial_leads_granted || 0));
+              return (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div className="text-xs space-y-1">
+                      <p className="font-semibold text-blue-900">Kostenlose Vorschau</p>
+                      <p className="text-blue-800">
+                        Noch verfügbare Vorschaukontakte: <strong>{remaining} / 3</strong>
+                      </p>
+                      <p className="text-blue-700">Für vollständige Recherche aktivieren Sie den verifizierten Testzugang.</p>
+                    </div>
                   </div>
                 </div>
+              );
+            })()}
+
+            {trialStage !== 'free_preview' && (
+              <div>
+                <p className="text-xs font-semibold text-slate-900 mb-2">Anzahl Firmenkontakte</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[25, 50, 100].map(count => (
+                    <button
+                      key={count}
+                      onClick={() => setTargetCount(count)}
+                      className={`px-3 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${
+                        targetCount === count
+                          ? "border-blue-600 bg-blue-50 text-blue-700"
+                          : "border-slate-300 text-slate-700 hover:border-slate-400"
+                      }`}
+                    >
+                      {count}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Entspricht ca. {targetCount + Math.ceil(targetCount * 0.5)} Google API Requests (geschätzt)
+                </p>
               </div>
             )}
-
-            <div>
-              <p className="text-xs font-semibold text-slate-900 mb-2">
-                {trialStage === 'free_preview' ? 'Anzahl Firmenkontakte (max. 3)' : 'Anzahl Firmenkontakte'}
-              </p>
-              <div className="grid grid-cols-3 gap-2">
-                {(trialStage === 'free_preview' 
-                  ? [3] 
-                  : [25, 50, 100]
-                ).map(count => (
-                  <button
-                    key={count}
-                    onClick={() => setTargetCount(count)}
-                    disabled={trialStage === 'free_preview' && count !== 3}
-                    className={`px-3 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${
-                      targetCount === count
-                        ? "border-blue-600 bg-blue-50 text-blue-700"
-                        : trialStage === 'free_preview' && count !== 3
-                        ? "border-slate-200 text-slate-400 cursor-not-allowed bg-slate-100"
-                        : "border-slate-300 text-slate-700 hover:border-slate-400"
-                    }`}
-                  >
-                    {count}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Entspricht ca. {targetCount + Math.ceil(targetCount * 0.5)} Google API Requests (geschätzt)
-              </p>
-            </div>
 
             {targetCustomers.length === 0 && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-900 font-medium">

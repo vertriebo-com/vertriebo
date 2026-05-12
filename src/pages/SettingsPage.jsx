@@ -99,11 +99,20 @@ export default function SettingsPage() {
       setUsers(allUsers);
     } catch (_) {}
 
-    // Set default tab based on role
+    // Set default tab based on role or URL param
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get("tab");
     const adminDefault = "company";
     const salesRepDefault = "profile";
     const resolvedRole = foundRole || "sales_rep";
-    setActiveTab(resolvedRole === "organization_admin" || user.role === "admin" ? adminDefault : salesRepDefault);
+    const isAdminUser = resolvedRole === "organization_admin" || user.role === "admin";
+    const validAdminTabs = ["company", "email", "templates", "team", "billing"];
+    const defaultTab = isAdminUser ? adminDefault : salesRepDefault;
+    if (tabParam && isAdminUser && validAdminTabs.includes(tabParam)) {
+      setActiveTab(tabParam);
+    } else {
+      setActiveTab(defaultTab);
+    }
 
     setLoading(false);
   };
