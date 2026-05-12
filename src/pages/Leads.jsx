@@ -46,6 +46,20 @@ export default function Leads() {
     staleTime: 60_000,
   });
 
+  const { data: outcomes = [] } = useQuery({
+    queryKey: ["leadOutcomes", orgId],
+    queryFn: () => orgId
+      ? base44.entities.LeadOutcome.filter({ organization_id: orgId }, "-created_date", 1000)
+      : Promise.resolve([]),
+    enabled: !!orgId,
+    staleTime: 60_000,
+  });
+
+  const outcomeByCompany = {};
+  for (const o of [...outcomes].sort((a, b) => new Date(b.created_date) - new Date(a.created_date))) {
+    if (!outcomeByCompany[o.company_id]) outcomeByCompany[o.company_id] = o.outcome_type;
+  }
+
   useEffect(() => {
     if (orgId) {
       base44.entities.OrganizationMember.filter({ organization_id: orgId, status: "active" })
@@ -262,7 +276,7 @@ export default function Leads() {
       ) : (
         <div className="space-y-3">
           {filtered.map(company => (
-            <LeadRow key={company.id} company={company} isAdmin={isAdmin} onLogged={loadData} />
+            <LeadRow key={company.id} company={company} isAdmin={isAdmin} onLogged={loadData} outcome={outcomeByCompany[company.id] || null} />
           ))}
         </div>
       )}
