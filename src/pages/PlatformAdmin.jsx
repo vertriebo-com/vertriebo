@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Search, Filter, ChevronDown, Building2, Shield, AlertTriangle,
   Clock, DollarSign, BarChart3, Plus, MoreVertical, Eye, Lock, Unlock,
-  FileText, Zap
+  FileText, Zap, Wrench, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,6 +47,10 @@ export default function PlatformAdmin() {
   const [noteText, setNoteText] = useState('');
   const [noteSeverity, setNoteSeverity] = useState('info');
   const [savingNote, setSavingNote] = useState(false);
+  const [showDiagnosisTab, setShowDiagnosisTab] = useState(false);
+  const [diagnosisData, setDiagnosisData] = useState(null);
+  const [diagnosisLoading, setDiagnosisLoading] = useState(false);
+  const [repairingTrialStage, setRepairingTrialStage] = useState(false);
 
   const { data: responseData = {}, isLoading, refetch } = useQuery({
     queryKey: ['platform-organizations'],
@@ -136,6 +140,40 @@ export default function PlatformAdmin() {
     } catch (e) {
       toast.error('Fehler: ' + e.message);
       return false;
+    }
+  };
+
+  const handleDiagnose = async () => {
+    if (!selectedOrg) return;
+    setDiagnosisLoading(true);
+    try {
+      const res = await base44.functions.invoke('diagnoseCheckoutIssue', { organization_id: selectedOrg.id });
+      setDiagnosisData(res.data);
+      setShowDiagnosisTab(true);
+    } catch (e) {
+      toast.error('Diagnose fehlgeschlagen: ' + e.message);
+    } finally {
+      setDiagnosisLoading(false);
+    }
+  };
+
+  const handleRepairTrialStage = async () => {
+    if (!selectedOrg) return;
+    setRepairingTrialStage(true);
+    try {
+      const res = await base44.functions.invoke('repairTrialStage', {
+        organization_id: selectedOrg.id,
+        trial_stage: 'paid',
+        billing_status: 'active',
+        reason: 'Admin repair: webhook fehlgeschlagen',
+      });
+      toast.success('Account repariert: ' + res.data.message);
+      refetch();
+      setSelectedOrg(null);
+    } catch (e) {
+      toast.error('Reparatur fehlgeschlagen: ' + e.message);
+    } finally {
+      setRepairingTrialStage(false);
     }
   };
 
@@ -455,6 +493,75 @@ export default function PlatformAdmin() {
                         <p className="text-xs text-slate-500">Keine Kunden zugewiesen</p>
                       )}
                     </div>
+                  </div>
+                )}
+
+                {/* Diagnose & Reparatur */}
+                {selectedOrg.trial_stage === 'free_preview' && selectedOrg.billing_status === 'active' && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-bold text-red-900">⚠️ Trial-Stage Bug erkannt</p>
+                        <p className="text-xs text-red-800 mt-1">
+                          billing_status=active aber trial_stage=free_preview — Webhook-Fehler wahrscheinlich
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleDiagnose}
+                        disabled={diagnosisLoading}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 border-red-300 text-red-700 hover:bg-red-100"
+                      >
+                        {diagnosisLoading ? 'Diagnose läuft…' : 'Diagnose'}
+                      </Button>
+                      <Button
+                        onClick={handleRepairTrialStage}
+                        disabled={repairingTrialStage}
+                        size="sm"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                      >
+                        <Wrench className="w-3.5 h-3.5" />
+                        {repairingTrialStage ? 'Repariert…' : 'Reparieren'}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {showDiagnosisTab && diagnosisData && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-700 mb-2">Diagnose-Ergebnis</h4>
+                      {diagnosisData.issues && diagnosisData.issues.length > 0 ? (
+                        <div className="space-y-2">
+                          {diagnosisData.issues.map((issue, idx) => (
+                            <div key={idx} className={`text-xs p-2 rounded border ${
+                              issue.severity === 'HIGH' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
+                            }`}>
+                              <p className="font-bold text-slate-900">{issue.code}</p>
+                              <p className="text-slate-700 mt-0.5">{issue.message}</p>
+                              <p className="text-slate-600 mt-1">💡 {issue.hint}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-200 flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Kein Problem erkannt
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      onClick={() => setShowDiagnosisTab(false)}
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                    >
+                      Diagnose schließen
+                    </Button>
                   </div>
                 )}
 
