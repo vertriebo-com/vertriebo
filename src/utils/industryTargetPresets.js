@@ -905,8 +905,22 @@ export function getIndustryLabels() {
 
 /**
  * Hilfsfunktion: ID aus Label auflösen
+ * Sucht nach exaktem Match oder Teilübereinstimmung am Anfang
  */
 export function getIndustryIdByLabel(label) {
-  const preset = INDUSTRY_PRESETS.find(p => p.label === label);
-  return preset?.id;
+  if (!label) return undefined;
+  
+  // Exakter Match
+  let preset = INDUSTRY_PRESETS.find(p => p.label === label);
+  if (preset) return preset.id;
+  
+  // Teilübereinstimmung: Label beginnt mit der Eingabe
+  preset = INDUSTRY_PRESETS.find(p => p.label.toLowerCase().startsWith(label.toLowerCase()));
+  if (preset) return preset.id;
+  
+  // Rückwärts: Eingabe beginnt mit dem Label
+  preset = INDUSTRY_PRESETS.find(p => label.toLowerCase().startsWith(p.label.toLowerCase()));
+  if (preset) return preset.id;
+  
+  return undefined;
 }
