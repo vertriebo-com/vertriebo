@@ -173,13 +173,13 @@ export default function Landing() {
                 <Zap className="w-3.5 h-3.5 fill-white" /> Für lokale Dienstleister
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6 text-slate-900 leading-tight">
-                Neue Firmenkontakte finden. Vertrieb organisieren.<br />Rückrufe nie wieder vergessen.
+                Neue Firmenkunden finden. Leads priorisieren.<br />Vertrieb einfacher steuern.
               </h1>
               <p className="text-lg mb-3 text-slate-600 leading-relaxed font-medium">
-                Vertriebo verbindet Firmenrecherche, Lead-Priorisierung, Aufgaben, E-Mails und Teamsteuerung in einem einfachen System.
+                Vertriebo findet passende B2B-Kontakte, priorisiert heiße Leads und zeigt Ihrem Team, wen es als Nächstes kontaktieren sollte.
               </p>
               <p className="text-sm mb-8 text-slate-500 font-medium">
-                Für alle lokalen B2B-Dienstleister — Gebäudereinigung, IT-Service, Handwerk, Spedition, Pflege, Catering und 20 weitere Branchen.
+                Für B2B-Dienstleister in ganz Deutschland – z. B. Gebäudereinigung, IT-Service, Handwerk, Logistik, Pflege, Catering und viele weitere Branchen.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3 mb-8">
@@ -193,15 +193,15 @@ export default function Landing() {
                   href="#how-it-works"
                   className="px-7 py-3.5 rounded-xl text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
 
-                   Wie es funktioniert
+                   So funktioniert Vertriebo
                  </a>
                </div>
 
                <div className="text-sm text-slate-700 bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
-                 <p className="font-semibold text-blue-900 mb-3">Starten Sie kostenlos:</p>
+                 <p className="font-semibold text-blue-900 mb-3">Kostenlos starten:</p>
                  <div className="space-y-2">
-                   <p>→ 10 Firmenkontakte sofort — ohne Kreditkarte</p>
-                   <p>→ 14 Tage voller Zugang mit Kreditkarte</p>
+                   <p>→ 10 Firmenkontakte ohne Kreditkarte testen</p>
+                   <p>→ 14 Tage vollen Zugang mit Zahlungsart aktivieren</p>
                    <p>→ Danach monatlich kündbar</p>
                  </div>
                </div>
@@ -209,7 +209,7 @@ export default function Landing() {
               {/* Trust Badges */}
               <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-slate-600">
                 <div className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-600" /> 14 Tage kostenlos
+                  <Check className="w-4 h-4 text-emerald-600" /> 14 Tage kostenlos testen
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Check className="w-4 h-4 text-emerald-600" /> Monatlich kündbar
@@ -218,7 +218,7 @@ export default function Landing() {
                   <Check className="w-4 h-4 text-emerald-600" /> DSGVO-orientiert
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-600" /> Deutsches Produkt
+                  <Check className="w-4 h-4 text-emerald-600" /> Für deutsche B2B-Dienstleister
                 </div>
               </div>
             </div>
