@@ -610,13 +610,16 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               </div>
             )}
 
-            {trialStage === 'verified_trial' && (
+            {trialStage === 'verified_trial' && planLimits && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs space-y-2">
-                <div className="font-semibold text-amber-900 mb-1">Testzugang</div>
+                <div className="font-semibold text-amber-900 mb-1">Testzugang aktiv</div>
                 <div className="flex justify-between text-amber-800">
-                  <span>Firmenkontakte (Testzugang):</span>
+                  <span>Firmenkontakte:</span>
                   <span className="font-semibold">
-                    {Math.max(0, (usageInfo?.leads_created ?? 0) - (org?.trial_leads_granted ?? 0))} / 75 genutzt
+                    {usageInfo?.leads_created ?? 0} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month}
+                    {planLimits.max_leads_per_month !== -1 && (
+                      <span className="ml-1 text-amber-600">· {Math.max(0, planLimits.max_leads_per_month - (usageInfo?.leads_created ?? 0))} verfügbar</span>
+                    )}
                   </span>
                 </div>
               </div>
@@ -650,13 +653,13 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               </div>
             )}
 
-            {trialStage === 'verified_trial' && Math.max(0, 75 - Math.max(0, (usageInfo?.leads_created ?? 0) - (org?.trial_leads_granted ?? 0))) <= 0 && (
+            {trialStage === 'verified_trial' && planLimits && planLimits.max_leads_per_month !== -1 && (usageInfo?.leads_created ?? 0) >= planLimits.max_leads_per_month && (
               <div className="rounded-xl p-3 border bg-red-50 border-red-200">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
                   <div className="text-xs space-y-1">
-                    <p className="font-semibold text-red-900">Testzugang-Limit erreicht</p>
-                    <p className="text-red-800">Sie haben Ihr Testkontingent von 75 Firmenkontakten genutzt.</p>
+                    <p className="font-semibold text-red-900">Testzugang-Kontingent erreicht</p>
+                    <p className="text-red-800">Sie haben {planLimits.max_leads_per_month} Firmenkontakte in diesem Abrechnungszeitraum genutzt.</p>
                   </div>
                 </div>
               </div>
@@ -691,12 +694,12 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                 >
                   Testzugang aktivieren
                 </Button>
-              ) : trialStage === 'verified_trial' && Math.max(0, 75 - Math.max(0, (usageInfo?.leads_created ?? 0) - (org?.trial_leads_granted ?? 0))) <= 0 ? (
+              ) : trialStage === 'verified_trial' && planLimits && planLimits.max_leads_per_month !== -1 && (usageInfo?.leads_created ?? 0) >= planLimits.max_leads_per_month ? (
                 <Button
                   onClick={() => window.location.href = "/settings?tab=billing"}
                   className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  Tarif auswählen
+                  Zum Billing
                 </Button>
               ) : trialStage === 'paid' && planLimits && planLimits.max_leads_per_month !== -1 && (usageInfo?.leads_created ?? 0) >= planLimits.max_leads_per_month ? (
                 <Button

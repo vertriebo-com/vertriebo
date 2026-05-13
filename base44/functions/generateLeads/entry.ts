@@ -909,7 +909,7 @@ Deno.serve(async (req) => {
           success: false,
           error: 'free_preview_daily_limit',
           message: 'Du hast deine kostenlosen Vorschau-Recherchen für heute aufgebraucht.',
-          cta: 'Mit dem 14-Tage-Testzugang kannst du unbegrenzt recherchieren.',
+          cta: 'Mit dem Testzugang kannst du mehr recherchieren.',
           cta_url: '/settings?tab=billing'
         }, { status: 429 });
       }
@@ -990,19 +990,12 @@ Deno.serve(async (req) => {
     if (trialStage === 'free_preview') {
       maxLeadsToSave = remainingPreviewLeads;
     } else if (trialStage === 'verified_trial') {
+      // verified_trial nutzt das echte Plan-Limit, nicht 75
+      const planLimit = planLimits.max_leads_per_month ?? 300;
       const totalSavedSoFar = currentUsage.leads_created || 0;
-      const remainingTrialBudget = Math.max(0, 75 - totalSavedSoFar);
-      maxLeadsToSave = Math.min(target_count, remainingTrialBudget);
-      
-      if (remainingTrialBudget <= 0) {
-        return Response.json({
-          success: false,
-          error: 'verified_trial_limit_reached',
-          message: `Ihr Testzugang-Limit von 75 Kontakten wurde erreicht (${totalSavedSoFar}/75).`,
-          cta: 'Upgrade zu einem bezahlten Plan für unbegrenzte Recherchen.',
-          cta_url: '/settings?tab=billing'
-        }, { status: 403 });
-      }
+      const remainingBudget = Math.max(0, planLimit - totalSavedSoFar);
+      // Pro Recherche maximal 25, aber respektiere verfügbares Monatsbudget
+      maxLeadsToSave = Math.min(target_count, remainingBudget, 25);
     }
     const effectiveTarget = Math.min(maxLeadsToSave, target_count);
 
@@ -1015,6 +1008,22 @@ Deno.serve(async (req) => {
     } else if (trialStage === 'paid') {
       console.warn(`[generateLeads] trial_stage=paid aber plan_id leer. Nutze Fallback-Limit.`);
       planLimits = { max_leads_per_month: 300 };
+    }
+
+    // verified_trial nutzt das Plan-Limit, nicht eine harte 75er Grenze
+    if (trialStage === 'verified_trial') {
+      const planLimit = planLimits.max_leads_per_month ?? 300;
+      const contactsSavedThisMonth = currentUsage.leads_created || 0;
+      
+      if (planLimit !== -1 && contactsSavedThisMonth >= planLimit) {
+        return Response.json({
+          success: false,
+          error: 'trial_monthly_contact_limit_reached',
+          message: `Ihr Testzugang-Kontingent von ${planLimit} Firmenkontakten wurde erreicht. Ihr Kontingent erneuert sich mit dem nächsten Abrechnungszeitraum.`,
+          cta: 'Zum Billing',
+          cta_url: '/settings?tab=billing'
+        }, { status: 403 });
+      }
     }
 
     if (trialStage === 'paid') {
