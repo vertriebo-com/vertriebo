@@ -17,10 +17,7 @@ const FAQS = [
     question: "Was sind KI-Aktionen?",
     answer: "KI-Aktionen umfassen Lead-Bewertung, E-Mail-Entwürfe, Gesprächseinstiege, Follow-up-Vorschläge und Vertriebs-Coaching. Der KI-Morgenreport (Professional+) nutzt auch KI-Aktionen. Jede KI-gestützte Funktion verbraucht eine Aktion.",
   },
-  {
-    question: "Wie funktioniert der E-Mail-Versand?",
-    answer: "E-Mails werden über Brevo oder SMTP versendet. Sie können vorgefertigte Vorlagen mit Ihrem Logo und Signatur nutzen. Antworten gehen direkt an Ihre hinterlegte Reply-To-Adresse. SPF/DKIM-Einrichtung wird unterstützt.",
-  },
+
   {
     question: "Was ist im KI-Morgenreport enthalten?",
     answer: "Der KI-Morgenreport (Professional & Gold) erstellt täglich automatisch einen Brief für Ihr Team mit Top-Prioritäten des Tages, offenen Aufgaben, besprochenen Leads und Erfolgsquoten. Spart Zeit und fokussiert Ihr Team.",
