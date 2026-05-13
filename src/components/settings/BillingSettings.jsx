@@ -67,6 +67,7 @@ export default function BillingSettings({ org: orgProp, user }) {
   const [checkoutLoading, setCheckoutLoading] = useState(null); // plan_id being checked out
 
   const loadData = async (showRefresh = false) => {
+    console.log('[BillingSettings] loadData() CALLED, showRefresh:', showRefresh, 'org.id:', org?.id);
     if (showRefresh) setRefreshing(true);
     try {
       const [orgs, subs] = await Promise.all([
