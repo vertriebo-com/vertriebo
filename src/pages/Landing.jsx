@@ -379,19 +379,19 @@ export default function Landing() {
             {
               icon: "⭐",
               title: "Priorisierte Tagesliste",
-              desc: "Ihr Team sieht jeden Tag, welche Kontakte heute angerufen, nachgefasst oder erneut kontaktiert werden sollten.",
+              desc: "Tagesprioritäten statt Chaos. Heute fällige Rückrufe, priorisierte Neuleads und offene Angebote – Ihr Team sieht auf einen Blick, wer heute angerufen werden sollte.",
               color: "border-amber-200 bg-amber-50"
             },
             {
               icon: "📞",
-              title: "Rückrufe & Follow-ups",
-              desc: "Aus Gesprächen entstehen direkt Aufgaben und Erinnerungen – damit kein Kontakt verloren geht.",
+              title: "Komplette Kontakthistorie",
+              desc: "Alle Gespräche, E-Mails und Notizen zu jeder Firma an einem Ort. Anrufe dokumentiert, E-Mail-Verlauf, gespeicherte Notizen – nichts geht verloren.",
               color: "border-emerald-200 bg-emerald-50"
             },
             {
               icon: "✉️",
-              title: "E-Mail-Vorlagen mit Branding",
-              desc: "Vorlagen, Signatur und Antwortadresse sind je Unternehmen anpassbar – professionell und einheitlich.",
+              title: "E-Mails & Follow-ups",
+              desc: "E-Mail-Vorlagen mit Ihrem Logo und Signatur, automatische Aufgaben und Follow-up-Erinnerungen – von Erstansprache bis Nachfassen alles organisiert.",
               color: "border-purple-200 bg-purple-50"
             },
             {
