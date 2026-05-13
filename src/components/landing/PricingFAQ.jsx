@@ -3,11 +3,11 @@ import { Info, HelpCircle } from "lucide-react";
 const FAQS = [
   {
     question: "Was sind gespeicherte Firmenkontakte?",
-    answer: "Das sind alle Firmen, die Sie mit Vertriebo recherchieren oder manuell erfassen. Sie behalten alle Kontakte dauerhaft in Ihrer Datenbank – es gibt kein 'Leads pro Monat'-Limit. Blacklisted Kontakte zählen nicht auf Ihr Limit.",
+    answer: "Das sind alle Firmen, die Sie mit Vertriebo recherchieren oder manuell erfassen. Sie behalten alle Kontakte dauerhaft in Ihrer Datenbank. Die monatlichen Limits (z.B. 300 beim Starter-Plan) zeigen, wie viele neue Kontakte Sie pro Monat speichern können. Alle Ihre Kontakte bleiben unbegrenzt abrufbar.",
   },
   {
     question: "Wie funktionieren Recherche-Läufe?",
-    answer: "Mit einem Recherche-Lauf starten Sie eine automatische Firmensuche in Ihrer Region. Pro Lauf wählen Sie 25, 50 oder 100 Kontakte. Gespeicherte Kontakte zählen zu Ihrem monatlichen Limit (z.B. 300 beim Starter-Plan). Läufe selbst sind unbegrenzt — nur die gespeicherten Kontakte werden gezählt.",
+    answer: "Mit einem Recherche-Lauf starten Sie eine automatische Firmensuche in Ihrer Region. Pro Lauf wählen Sie die Anzahl der zu recherchierenden Kontakte. Gespeicherte Kontakte zählen zu Ihrem monatlichen Limit (z.B. 300 beim Starter-Plan). Die Anzahl der Recherche-Läufe selbst ist nicht begrenzt – nur die Kontakte, die Sie speichern, werden gezählt.",
   },
   {
     question: "Was beinhalten die Research-Läufe?",
@@ -23,8 +23,12 @@ const FAQS = [
     answer: "Der KI-Morgenreport (Professional & Gold) erstellt täglich automatisch einen Brief für Ihr Team mit Top-Prioritäten des Tages, offenen Aufgaben, besprochenen Leads und Erfolgsquoten. Spart Zeit und fokussiert Ihr Team.",
   },
   {
+    question: "Was ist der Agency-Plan?",
+    answer: "Der Agency-Plan ist für Agenturen und größere Teams mit Bedarf für mehrere Kundenorganisationen und hohem Kontaktvolumen. Dieser Plan ist kein Self-Service-Produkt – wir arbeiten mit Ihnen zusammen, um eine maßgeschneiderte Lösung zu schaffen. Kontaktieren Sie uns für ein Gespräch und ein individuelles Angebot.",
+  },
+  {
     question: "Kann ich monatlich kündigen?",
-    answer: "Ja, alle Pläne sind monatlich kündbar. Keine langfristigen Verträge, keine versteckten Kosten. Sie können jederzeit über Ihr Konto kündigen.",
+    answer: "Ja, alle Self-Service-Pläne (Starter, Professional, Gold) sind monatlich kündbar. Keine langfristigen Verträge, keine versteckten Kosten. Sie können jederzeit über Ihr Konto kündigen. Der Agency-Plan wird individuell vereinbart.",
   },
   {
     question: "Was passiert mit meinen Daten nach Kündigung?",

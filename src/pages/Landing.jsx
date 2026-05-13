@@ -12,60 +12,65 @@ import VertrieboLogo from "@/components/VertrieboLogo";
 const PLANS = [
 {
   name: "Starter",
+  slug: "starter",
   planId: "69fb1b37d7433caf98c34ff9",
   price: "99",
-  description: "Für Einzelkämpfer und kleine Betriebe",
+  description: "Für kleine Dienstleister, die regelmäßig neue Firmenkunden gewinnen möchten.",
   popular: false,
   features: [
   "300 Firmenkontakte/Monat",
-  "Unbegrenzte Recherche-Läufe",
+  "KI-Recherche inklusive",
   "2 Nutzer",
   "CRM & Pipeline",
-  "Basis-Reports"]
-
+  "Basis-Reports"],
+  cta: "Starter testen"
 },
 {
   name: "Professional",
+  slug: "professional",
   planId: "69fb1b37d7433caf98c34ffa",
   price: "199",
   description: "Für Teams, die regelmäßig aktiv Vertrieb machen",
   popular: true,
   features: [
   "1.500 Firmenkontakte/Monat",
-  "Unbegrenzte Recherche-Läufe",
+  "KI-Recherche inklusive",
   "5 Nutzer",
-  "Alle Starter-Features",
-  "KI-Priorisierung — System lernt welche Leads funktionieren",
-  "Eigene E-Mail-Vorlagen"]
-
+  "KI-Priorisierung für heiße Leads",
+  "Eigene E-Mail-Vorlagen",
+  "Erweiterte Reports"],
+  cta: "Professional testen"
 },
 {
   name: "Gold",
+  slug: "gold",
   planId: "69fb7de571a0504da10ef985",
   price: "349",
   description: "Für wachsende Vertriebsteams mit hohem Kontaktvolumen",
   popular: false,
   features: [
   "5.000 Firmenkontakte/Monat",
-  "Unbegrenzte Recherche-Läufe",
+  "KI-Recherche inklusive",
   "10 Nutzer",
-  "Alle Professional-Features",
-  "Priority Support"]
-
+  "Erweiterte Automationen / Professional-Features",
+  "Priority Support"],
+  cta: "Gold testen"
 },
 {
   name: "Agency",
+  slug: "agency",
   planId: "69fb1b37d7433caf98c34ffb",
-  price: "599",
-  description: "Für größere Teams mit persönlicher Einrichtung",
+  price: null,
+  description: "Für Agenturen & größere Teams",
   popular: false,
+  isAgency: true,
   features: [
-  "Unlimitierte Firmenkontakte",
-  "Unbegrenzte Recherche-Läufe",
-  "Unbegrenzte Nutzer",
-  "Alle Gold-Features",
-  "Persönliches Onboarding"]
-
+  "Mehrere Kundenorganisationen",
+  "Hohes Kontaktvolumen / Fair-Use",
+  "Unbegrenzte Nutzer oder individuelle Nutzeranzahl",
+  "Persönliches Onboarding",
+  "Eigene Kundenverwaltung"],
+  cta: "Kontakt aufnehmen"
 }];
 
 
@@ -88,6 +93,12 @@ export default function Landing() {
   };
 
   const handleCheckout = async (plan) => {
+    // Agency = Kontakt-/Demo-Flow, nicht Stripe Checkout
+    if (plan.slug === "agency") {
+      window.location.href = "mailto:info@huwa-gebaeudedienste.de?subject=Vertriebo Agency Plan - Demo anfragen";
+      return;
+    }
+
     if (window.self !== window.top) {
       alert("Der Checkout funktioniert nur in der veröffentlichten App, nicht in der Vorschau.");
       return;
@@ -518,7 +529,7 @@ export default function Landing() {
       <div id="pricing" className="max-w-6xl mx-auto px-6 py-20">
         <h2 className="text-3xl font-bold text-center mb-4 text-slate-900">Einfache, transparente Preise</h2>
         <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
-          Monatlich kündbar. Keine versteckten Kosten. 14 Tage kostenlos testen.
+          14 Tage kostenlos testen. Monatlich kündbar. Keine versteckten Kosten.
         </p>
         
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">
@@ -542,8 +553,14 @@ export default function Landing() {
                 <p className="text-sm text-slate-600">{plan.description}</p>
               </div>
               <div className="mb-6">
-                <span className="text-4xl font-extrabold text-slate-900">{plan.price}€</span>
-                <span className="text-sm ml-1 text-slate-500">/Monat</span>
+                {plan.isAgency ? (
+                  <p className="text-sm text-slate-500 font-medium">Individuelle Preisgestaltung</p>
+                ) : (
+                  <>
+                    <span className="text-4xl font-extrabold text-slate-900">{plan.price}€</span>
+                    <span className="text-sm ml-1 text-slate-500">/Monat</span>
+                  </>
+                )}
               </div>
               <ul className="space-y-2 mb-6 flex-1">
                 {plan.features.map((f) =>
@@ -557,12 +574,14 @@ export default function Landing() {
               onClick={() => handleCheckout(plan)}
               disabled={loading === plan.name}
               className={`w-full py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-50 ${
-              plan.popular ?
+              plan.popular && !plan.isAgency ?
               "bg-blue-600 text-white hover:bg-blue-700" :
+              plan.isAgency ?
+              "bg-slate-800 text-white hover:bg-slate-900" :
               "bg-slate-100 text-slate-900 hover:bg-slate-200"}`
               }>
               
-                {loading === plan.name ? "Wird geladen..." : "Jetzt starten"}
+                {loading === plan.name ? "Wird geladen..." : plan.cta}
               </button>
             </div>
           )}
