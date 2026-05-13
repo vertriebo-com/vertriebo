@@ -93,7 +93,8 @@ export default function AgencyDemoModal({ isOpen, onClose }) {
     }
   };
 
-  const checkRateLimit = () => {
+  // Frontend-only rate limit (UI feedback, not security)
+  const checkFrontendRateLimit = () => {
     const now = Date.now();
     const stored = localStorage.getItem(RATE_LIMIT_KEY);
 
@@ -134,14 +135,14 @@ export default function AgencyDemoModal({ isOpen, onClose }) {
       return;
     }
 
-    // Rate limit check
-    if (!checkRateLimit()) {
+    // Frontend rate limit check (UX feedback only, real check happens server-side)
+    if (!checkFrontendRateLimit()) {
       setError("Zu viele Anfragen. Bitte versuchen Sie es später erneut.");
       return;
     }
 
     // Validation
-    if (!formData.name || !formData.email || !formData.phone) {
+    if (!formData.name || !formData.email || !formData.phone || !formData.company_name) {
       setError("Bitte füllen Sie alle Pflichtfelder aus.");
       return;
     }
@@ -154,44 +155,27 @@ export default function AgencyDemoModal({ isOpen, onClose }) {
     setSubmitting(true);
 
     try {
-      // Determine context
-      const isPublic = !isLoggedIn;
-      const organizationId = org?.id || null;
-      const userId = user?.id || null;
-
-      // Create agency request record
-      const agencyRequest = await base44.entities.create("AgencyRequest", {
-        organization_id: organizationId,
-        user_id: userId,
-        plan: "agency",
-        source: isPublic ? "public_pricing_page" : "pricing_page",
+      // Call backend function (handles auth context, rate limiting, storage)
+      const res = await base44.functions.invoke("submitAgencyRequest", {
         name: formData.name,
         company_name: formData.company_name,
         email: formData.email,
         phone: formData.phone,
         estimated_client_organizations: formData.estimated_client_organizations || null,
         message: formData.message,
-        status: "new",
-        submitted_at: new Date().toISOString(),
-        ip_source: "browser", // Client-side placeholder
+        [HONEYPOT_FIELD]: formData[HONEYPOT_FIELD],
       });
 
-      // Send confirmation email
-      await base44.functions.invoke("sendAgencyDemoEmail", {
-        name: formData.name,
-        email: formData.email,
-        company_name: formData.company_name,
-        phone: formData.phone,
-        agency_request_id: agencyRequest.id,
-      });
-
-      setSubmitted(true);
-      setTimeout(() => {
-        setSubmitted(false);
-        onClose();
-      }, 3000);
-
-      toast.success("Anfrage gesendet! Wir melden uns bald bei Ihnen.");
+      if (res.data?.success) {
+        setSubmitted(true);
+        setTimeout(() => {
+          setSubmitted(false);
+          onClose();
+        }, 3000);
+        toast.success("Anfrage gesendet! Wir melden uns bald bei Ihnen.");
+      } else {
+        setError(res.data?.error || "Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es später.");
+      }
     } catch (err) {
       console.error("[AgencyDemoModal] Submission error:", err);
       setError(err?.message || "Anfrage konnte nicht gesendet werden. Bitte versuchen Sie es später.");
