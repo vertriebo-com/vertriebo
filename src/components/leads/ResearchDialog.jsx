@@ -78,7 +78,6 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
         ]);
         if (plans[0]) {
           setPlanLimits({
-            max_lead_generations_per_month: plans[0].max_lead_generations_per_month ?? 100,
             max_leads_per_month: plans[0].max_leads_per_month ?? 300,
           });
         }
@@ -511,28 +510,19 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
                   {/* Credits aus DB (nach Refresh) – nur anzeigen wenn Credits verbraucht wurden */}
                 {planLimits && usageInfo && result.data.chargedLeadGeneration && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
-                    <div className="font-semibold text-blue-900 mb-1">Verbrauch diesen Monat (aktualisiert)</div>
-                    <div className="flex justify-between text-blue-800">
-                      <span>Recherche-Läufe:</span>
-                      <span className="font-semibold">
-                        {usageInfo.lead_generations_used} / {planLimits.max_lead_generations_per_month === -1 ? "∞" : planLimits.max_lead_generations_per_month}
-                        {planLimits.max_lead_generations_per_month !== -1 && (
-                          <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_lead_generations_per_month - usageInfo.lead_generations_used)} verfügbar</span>
-                        )}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-blue-800">
-                      <span>Gespeicherte Kontakte:</span>
-                      <span className="font-semibold">
-                        {usageInfo.leads_created} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month}
-                        {planLimits.max_leads_per_month !== -1 && (
-                          <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - usageInfo.leads_created)} verfügbar</span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                       <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
+                         <div className="font-semibold text-blue-900 mb-1">Verbrauch diesen Monat (aktualisiert)</div>
+                         <div className="flex justify-between text-blue-800">
+                           <span>Gespeicherte Kontakte:</span>
+                           <span className="font-semibold">
+                             {usageInfo.leads_created} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month}
+                             {planLimits.max_leads_per_month !== -1 && (
+                               <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - usageInfo.leads_created)} verfügbar</span>
+                             )}
+                           </span>
+                         </div>
+                       </div>
+                     )}
               </>
             ) : (
               <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-red-50 border-red-200">
@@ -605,30 +595,21 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             </div>
 
             {planLimits && (
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
-                <div className="font-semibold text-blue-900 mb-1">Credits diesen Monat</div>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-blue-800">
-                    <span>Recherche-Läufe:</span>
-                    <span className="font-semibold">
-                      {usageInfo?.lead_generations_used ?? 0} / {planLimits.max_lead_generations_per_month === -1 ? "∞" : planLimits.max_lead_generations_per_month} genutzt
-                      {planLimits.max_lead_generations_per_month !== -1 && (
-                        <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_lead_generations_per_month - (usageInfo?.lead_generations_used ?? 0))} verfügbar</span>
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-blue-800">
-                    <span>Gespeicherte Kontakte:</span>
-                    <span className="font-semibold">
-                      {usageInfo?.leads_created ?? 0} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month} genutzt
-                      {planLimits.max_leads_per_month !== -1 && (
-                        <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - (usageInfo?.leads_created ?? 0))} verfügbar</span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
+                 <div className="font-semibold text-blue-900 mb-1">Nutzung diesen Monat</div>
+                 <div className="space-y-1.5">
+                   <div className="flex justify-between text-blue-800">
+                     <span>Gespeicherte Kontakte:</span>
+                     <span className="font-semibold">
+                       {usageInfo?.leads_created ?? 0} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month} genutzt
+                       {planLimits.max_leads_per_month !== -1 && (
+                         <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - (usageInfo?.leads_created ?? 0))} verfügbar</span>
+                       )}
+                     </span>
+                   </div>
+                 </div>
+               </div>
+             )}
 
             {/* Trial Preview Info + remaining leads */}
             {trialStage === 'free_preview' && (() => {

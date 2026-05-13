@@ -1184,35 +1184,37 @@ Deno.serve(async (req) => {
     const effectiveTarget = Math.min(maxLeadsToSave, target_count);
 
     // Plan-Limits (paid) mit Fallback
-    // Wenn trial_stage=paid aber plan_id fehlt: nutze Fallback-Limits (Starter Plan Defaults)
-    let planLimits = { max_lead_generations_per_month: 100, max_leads_per_month: 300 };
+    // Neue Logik: NUR Kontakte limitieren, Läufe unlimitiert
+    let planLimits = { max_leads_per_month: 300 };
     if (org.plan_id) {
       const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
       if (plans[0]) {
         planLimits = {
-          max_lead_generations_per_month: plans[0].max_lead_generations_per_month ?? 100,
           max_leads_per_month: plans[0].max_leads_per_month ?? 300,
         };
       }
     } else if (trialStage === 'paid') {
-      // FIX: Fallback bei leerer plan_id aber trial_stage=paid
-      console.warn(`[generateLeads] trial_stage=paid aber plan_id leer. Nutze Fallback-Limits.`);
-      planLimits = { max_lead_generations_per_month: 100, max_leads_per_month: 300 };
+      console.warn(`[generateLeads] trial_stage=paid aber plan_id leer. Nutze Fallback-Limit.`);
+      planLimits = { max_leads_per_month: 300 };
     }
 
     const periodMonth = getPeriodMonth();
     const existingUsage = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
-    const currentUsage = existingUsage[0] || { lead_generations_used: 0, leads_created: 0 };
+    const currentUsage = existingUsage[0] || { leads_created: 0 };
 
     if (trialStage === 'paid') {
-      // FIX: Fallback auf 100 Runs wenn planLimits nicht gesetzt
-      const maxRuns = planLimits.max_lead_generations_per_month ?? 100;
-      if (maxRuns !== -1 && (currentUsage.lead_generations_used || 0) >= maxRuns) {
+      // NEUE LOGIK: Nur Kontakte prüfen, nicht Läufe
+      const maxContacts = planLimits.max_leads_per_month ?? 300;
+      const contactsSavedThisMonth = currentUsage.leads_created || 0;
+      
+      if (maxContacts !== -1 && contactsSavedThisMonth >= maxContacts) {
         return Response.json({
-          error: `Recherche-Limit ${currentUsage.lead_generations_used}/${maxRuns} erreicht.`,
           success: false,
-          limitReached: true,
-        }, { status: 403 });
+          error: 'monthly_contact_limit_reached',
+          message: `Ihr monatliches Kontakt-Limit von ${maxContacts} wurde erreicht.`,
+          cta: 'Upgraden Sie Ihren Plan für mehr Kontakte.',
+          cta_url: '/settings?tab=billing'
+        }, { status: 429 });
       }
     }
 

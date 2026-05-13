@@ -17,12 +17,11 @@ const PLANS = [
   description: "Für Einzelkämpfer und kleine Betriebe",
   popular: false,
   features: [
-  "2 Vertriebler",
-  "300 gespeicherte Firmenkontakte",
-  "100 Recherche-Credits",
+  "300 Firmenkontakte/Monat",
+  "Unbegrenzte Recherche-Läufe",
+  "2 Nutzer",
   "CRM & Pipeline",
-  "Basis-Reports",
-  "500 E-Mails/Monat"]
+  "Basis-Reports"]
 
 },
 {
@@ -32,13 +31,12 @@ const PLANS = [
   description: "Für Teams, die regelmäßig aktiv Vertrieb machen",
   popular: true,
   features: [
-  "5 Vertriebler",
-  "1.500 gespeicherte Firmenkontakte",
-  "750 Recherche-Credits",
+  "1.500 Firmenkontakte/Monat",
+  "Unbegrenzte Recherche-Läufe",
+  "5 Nutzer",
   "Alle Starter-Features",
-  "KI-Morgenreport + Team-Auswertung",
-  "Eigene E-Mail-Vorlagen",
-  "2.000 E-Mails/Monat"]
+  "KI-Priorisierung — System lernt welche Leads funktionieren",
+  "Eigene E-Mail-Vorlagen"]
 
 },
 {
@@ -48,12 +46,10 @@ const PLANS = [
   description: "Für wachsende Vertriebsteams mit hohem Kontaktvolumen",
   popular: false,
   features: [
-  "10 Vertriebler",
-  "5.000 gespeicherte Firmenkontakte",
-  "2.000 Recherche-Credits",
+  "5.000 Firmenkontakte/Monat",
+  "Unbegrenzte Recherche-Läufe",
+  "10 Nutzer",
   "Alle Professional-Features",
-  "1.000 KI-Aktionen",
-  "5.000 E-Mails/Monat",
   "Priority Support"]
 
 },
@@ -64,12 +60,10 @@ const PLANS = [
   description: "Für größere Teams mit persönlicher Einrichtung",
   popular: false,
   features: [
-  "Individuelle Vertriebler-Anzahl",
-  "15.000 gespeicherte Firmenkontakte",
-  "5.000 Recherche-Credits",
+  "Unlimitierte Firmenkontakte",
+  "Unbegrenzte Recherche-Läufe",
+  "Unbegrenzte Nutzer",
   "Alle Gold-Features",
-  "3.000 KI-Aktionen",
-  "10.000 E-Mails/Monat",
   "Persönliches Onboarding"]
 
 }];
