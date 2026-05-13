@@ -175,11 +175,14 @@ Deno.serve(async (req) => {
 </td></tr>
 </table></td></tr></table></body></html>`;
 
+      const fromEmail = settingsMap['email_reply_to'] || settingsMap['email_sender_email'] || 'noreply@vertriebo.com';
+      const fromName = settingsMap['email_from_name'] || settingsMap['company_name'] || 'Vertriebo';
+
       const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: { "accept":"application/json", "api-key":Deno.env.get("BREVO_API_KEY"), "content-type":"application/json" },
         body: JSON.stringify({
-          sender: { name:"Vertriebo Coach", email:"info@huwa-gebaeudedienste.de" },
+          sender: { name:fromName, email:fromEmail },
           to: [{ email:user.email }],
           subject: testMode ? `[TEST] ${motivation.emoji} ${firstName}, noch kein Kontakt heute!` : `${motivation.emoji} ${firstName}, dein Vertriebscoach meldet sich!`,
           htmlContent: emailBody,
@@ -197,16 +200,17 @@ Deno.serve(async (req) => {
 
     // ── 3. UsageLog: emails_sent ────────────────────────────────────────────
     if (results.length > 0) {
-      try {
-        const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-        const periodEnd = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59).toISOString();
-        const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_start: periodStart });
-        if (usageLogs[0]) {
-          await base44.asServiceRole.entities.UsageLog.update(usageLogs[0].id, { emails_sent:(usageLogs[0].emails_sent||0)+results.length });
-        } else {
-          await base44.asServiceRole.entities.UsageLog.create({ organization_id, period_start:periodStart, period_end:periodEnd, emails_sent:results.length });
-        }
-      } catch (e) { console.warn('[salesCoach] UsageLog failed:', e.message); }
+     try {
+       const periodMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+       const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
+       if (usageLogs[0]) {
+         await base44.asServiceRole.entities.UsageLog.update(usageLogs[0].id, { emails_sent:(usageLogs[0].emails_sent||0)+results.length });
+       } else {
+         const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+         const periodEnd = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59).toISOString();
+         await base44.asServiceRole.entities.UsageLog.create({ organization_id, period_month: periodMonth, period_start:periodStart, period_end:periodEnd, emails_sent:results.length });
+       }
+     } catch (e) { console.warn('[salesCoach] UsageLog failed:', e.message); }
     }
 
     console.info(`[salesCoach] org=${organization_id} reminders=${results.length}/${targetUsers.length}`);

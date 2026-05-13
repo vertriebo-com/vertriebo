@@ -178,6 +178,10 @@
       "type": "string",
       "title": "Suchgebiet PLZ"
     },
+    "service_area_city": {
+      "type": "string",
+      "title": "Suchgebiet Stadt"
+    },
     "service_area_radius_km": {
       "type": "number",
       "title": "Suchradius (km)"

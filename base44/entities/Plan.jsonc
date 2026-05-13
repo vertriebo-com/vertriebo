@@ -50,7 +50,7 @@
     "max_lead_generations_per_month": {
       "type": "number",
       "title": "Max. Recherche-Credits/Monat",
-      "default": 100
+      "default": -1
     },
     "supports_suborganizations": {
       "type": "boolean",

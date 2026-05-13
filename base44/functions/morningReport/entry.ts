@@ -217,10 +217,13 @@ Deno.serve(async (req) => {
         ? `[TEST] ☀️ Tagesbericht ${firstName} – ${dateStr}`
         : `${overdueFlag}☀️ Guten Morgen ${firstName}! ${totalItems>0?totalItems+' Aufgabe'+(totalItems===1?'':'n')+' heute':'Alles erledigt 🎉'} – ${dayName}`;
 
+      const fromEmail = settingsMap['email_reply_to'] || settingsMap['email_sender_email'] || 'noreply@vertriebo.com';
+      const fromName = settingsMap['email_from_name'] || settingsMap['company_name'] || 'Vertriebo';
+
       const brevoRes = await fetch("https://api.brevo.com/v3/smtp/email", {
         method: "POST",
         headers: { "accept":"application/json", "api-key":Deno.env.get("BREVO_API_KEY"), "content-type":"application/json" },
-        body: JSON.stringify({ sender:{name:"Vertriebo",email:"info@huwa-gebaeudedienste.de"}, to:[{email:user.email}], subject, htmlContent:emailBody }),
+        body: JSON.stringify({ sender:{name:fromName,email:fromEmail}, to:[{email:user.email}], subject, htmlContent:emailBody }),
       });
       if (!brevoRes.ok) {
         const err = await brevoRes.json();
@@ -233,17 +236,18 @@ Deno.serve(async (req) => {
 
     // ── 5. UsageLog: emails_sent ────────────────────────────────────────────
     if (reports.length > 0) {
-      try {
-        const nowPeriod = new Date();
-        const periodStart = new Date(nowPeriod.getFullYear(), nowPeriod.getMonth(), 1).toISOString();
-        const periodEnd = new Date(nowPeriod.getFullYear(), nowPeriod.getMonth()+1, 0, 23, 59, 59).toISOString();
-        const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_start: periodStart });
-        if (usageLogs[0]) {
-          await base44.asServiceRole.entities.UsageLog.update(usageLogs[0].id, { emails_sent: (usageLogs[0].emails_sent||0)+reports.length });
-        } else {
-          await base44.asServiceRole.entities.UsageLog.create({ organization_id, period_start:periodStart, period_end:periodEnd, emails_sent:reports.length });
-        }
-      } catch (e) { console.warn('[morningReport] UsageLog failed:', e.message); }
+     try {
+       const now = new Date();
+       const periodMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+       const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
+       if (usageLogs[0]) {
+         await base44.asServiceRole.entities.UsageLog.update(usageLogs[0].id, { emails_sent: (usageLogs[0].emails_sent||0)+reports.length });
+       } else {
+         const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+         const periodEnd = new Date(now.getFullYear(), now.getMonth()+1, 0, 23, 59, 59).toISOString();
+         await base44.asServiceRole.entities.UsageLog.create({ organization_id, period_month: periodMonth, period_start:periodStart, period_end:periodEnd, emails_sent:reports.length });
+       }
+     } catch (e) { console.warn('[morningReport] UsageLog failed:', e.message); }
     }
 
     console.info(`[morningReport] org=${organization_id} sent=${reports.length}/${targetUsers.length}`);
