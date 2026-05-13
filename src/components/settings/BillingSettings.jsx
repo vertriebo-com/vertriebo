@@ -233,7 +233,7 @@ export default function BillingSettings({ org: orgProp, user }) {
         billing_status={org?.billing_status}
         trial_leads_granted={org?.trial_leads_granted || 0}
         onUpgrade={() => window.location.href = "/settings#upgrade"}
-        onManagePlan={() => window.location.href = "/settings#upgrade"}
+        onManagePlan={handlePortal}
       />
 
       {/* Plan-Auswahl für Free Preview */}
