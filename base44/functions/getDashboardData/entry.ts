@@ -93,6 +93,20 @@ Deno.serve(async (req) => {
       return new Date(c.last_contact_date) >= weekStart;
     }).length;
 
+    // Weekly goal aus OrganizationSettings laden
+    const allSettings = await base44.entities.OrganizationSettings.filter({ organization_id: orgId });
+    const settingsMap = {};
+    allSettings.forEach(s => { settingsMap[s.key] = s.value; });
+    const weeklyGoal = parseInt(settingsMap['weekly_contact_goal'] || '20', 10);
+
+    // Current month usage log laden für Usage-Banner
+    const periodMonth = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    const usageLogs = await base44.entities.UsageLog.filter({ organization_id: orgId, period_month: periodMonth });
+    const usageLog = usageLogs?.[0] || {};
+
+    // Plan laden für max_leads_per_month
+    const plan = org.plan_id ? (await base44.entities.Plan.filter({ id: org.plan_id }))?.[0] : null;
+
     return Response.json({
       org,
       user: {
@@ -107,7 +121,7 @@ Deno.serve(async (req) => {
         todayTasksCount: todayTasks.length,
         overdueTasksCount: overdueTasks.length,
         contactsThisWeek,
-        weeklyGoal: 20,
+        weeklyGoal,
         newLeadsFromResearchCount: newLeadsFromResearch.length,
       },
       data: {
@@ -121,6 +135,11 @@ Deno.serve(async (req) => {
         totalCompanies: companies.length,
         totalTasks: tasks.length,
         loadedAt: new Date().toISOString(),
+        currentUsage: {
+          leads_created: usageLog.leads_created || 0,
+        },
+        maxContacts: plan?.max_leads_per_month || 300,
+        planName: plan?.name || null,
       },
     });
   } catch (error) {

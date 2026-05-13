@@ -127,7 +127,7 @@ const OnboardingGuard = ({ children }) => {
             return;
           }
 
-          const billingOk = ["active", "trialing"].includes(org.billing_status);
+          const billingOk = ["active", "trialing", "preview"].includes(org.billing_status);
           if (!billingOk) {
             // Kein aktives Abo → zurück zur Landing-Page zur Plan-Auswahl
             setRedirect("/");
