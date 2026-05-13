@@ -16,8 +16,6 @@ import {
   Building2,
   LogOut,
   ChevronRight,
-  Map,
-  FileText,
   CalendarCheck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -25,17 +23,15 @@ import { Button } from "@/components/ui/button";
 const NAV_ITEMS = [
   { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { path: "/leads", label: "Leads", icon: Building2 },
-  { path: "/map", label: "Karte", icon: Map },
   { path: "/tasks", label: "Aufgaben", icon: ListTodo },
   { path: "/calendar", label: "Kalender", icon: CalendarCheck },
-  { path: "/documents", label: "Dokumente", icon: FileText },
   { path: "/statistics", label: "Statistiken", icon: BarChart3, adminOnly: true },
   { path: "/blacklist", label: "Blacklist", icon: Ban },
   { path: "/settings", label: "Einstellungen", icon: Settings, adminOnly: true },
 ];
 
 // Sub-pages that should show a back button on mobile
-const SUB_PAGES = ["/leads/", "/tasks/", "/documents/"];
+const SUB_PAGES = ["/leads/", "/tasks/"];
 
 export default function Layout() {
   const location = useLocation();

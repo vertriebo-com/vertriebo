@@ -17,8 +17,6 @@ import Tasks from './pages/Tasks';
 import Statistics from './pages/Statistics';
 import BlacklistPage from './pages/BlacklistPage';
 import SettingsPage from './pages/SettingsPage';
-import MapView from './pages/MapView';
-import Documents from './pages/Documents';
 import CalendarView from './pages/CalendarView';
 import Landing from './pages/Landing';
 import Onboarding from './pages/Onboarding';
@@ -196,8 +194,6 @@ const AuthenticatedApp = () => {
           <Route path="/import" element={<Navigate to="/dashboard" replace />} />
           <Route path="/blacklist" element={<AnimatedRoutes><BlacklistPage /></AnimatedRoutes>} />
           <Route path="/settings" element={<AnimatedRoutes><SettingsPage /></AnimatedRoutes>} />
-          <Route path="/map" element={<AnimatedRoutes><MapView /></AnimatedRoutes>} />
-          <Route path="/documents" element={<AnimatedRoutes><Documents /></AnimatedRoutes>} />
           <Route path="/calendar" element={<AnimatedRoutes><CalendarView /></AnimatedRoutes>} />
           <Route path="/duplicates" element={<Navigate to="/dashboard" replace />} />
           <Route path="/onboarding" element={<Onboarding />} />

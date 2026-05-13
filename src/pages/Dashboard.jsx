@@ -138,14 +138,25 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Trial Status Banner */}
-      <TrialStatusBanner 
-        trial_stage={orgData?.trial_stage || user?.org?.trial_stage}
-        billing_status={orgData?.billing_status || user?.org?.billing_status}
-        trial_leads_granted={orgData?.trial_leads_granted || user?.org?.trial_leads_granted || 0}
-        onUpgrade={() => window.location.href = "/settings"}
-        onManagePlan={() => window.location.href = "/settings"}
-      />
+      {/* Usage Info Banner */}
+      {orgData?.plan_id && dashboardData?.meta?.currentUsage && (
+        <div className="bg-blue-50 border border-blue-100 rounded-xl px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-blue-600 font-semibold text-sm">{dashboardData?.meta?.planName || "Plan"}</span>
+            <span className="text-slate-500 text-sm">·</span>
+            <span className="text-slate-700 text-sm">
+              {dashboardData?.meta?.currentUsage?.leads_created || 0} von {dashboardData?.meta?.maxContacts || 300} Kontakten diesen Monat
+            </span>
+          </div>
+          <div className="w-48 h-2 bg-blue-100 rounded-full overflow-hidden">
+            <div 
+              className="h-2 bg-blue-500 rounded-full"
+              style={{ width: `${Math.min(100, ((dashboardData?.meta?.currentUsage?.leads_created || 0) / (dashboardData?.meta?.maxContacts || 300)) * 100)}%` }}
+            />
+          </div>
+          <span className="text-sm text-slate-500">{Math.max(0, (dashboardData?.meta?.maxContacts || 300) - (dashboardData?.meta?.currentUsage?.leads_created || 0))} verfügbar</span>
+        </div>
+      )}
 
       {/* Header with greeting */}
       <div className="mb-6">
