@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { TrendingUp, Loader2, AlertCircle, CheckCircle2, RefreshCw, Info } from "lucide-react";
+import { TrendingUp, Loader2, AlertCircle, AlertTriangle, CheckCircle2, RefreshCw, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import ResearchSuccessScreen from "../research/ResearchSuccessScreen";
@@ -598,86 +598,80 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               )}
             </div>
 
-            {planLimits && (
-               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
-                 <div className="font-semibold text-blue-900 mb-1">Nutzung diesen Monat</div>
-                 <div className="space-y-1.5">
-                   <div className="flex justify-between text-blue-800">
-                     <span>Gespeicherte Kontakte:</span>
-                     <span className="font-semibold">
-                       {usageInfo?.leads_created ?? 0} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month} genutzt
-                       {planLimits.max_leads_per_month !== -1 && (
-                         <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - (usageInfo?.leads_created ?? 0))} verfügbar</span>
-                       )}
-                     </span>
-                   </div>
-                 </div>
-               </div>
-             )}
+            {/* Quota-Anzeige: Nur EINE Ebene je trial_stage */}
+            {trialStage === 'free_preview' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
+                <div className="font-semibold text-blue-900 mb-1">Kostenlose Vorschau</div>
+                <div className="flex justify-between text-blue-800">
+                  <span>Vorschaukontakte:</span>
+                  <span className="font-semibold">{org?.trial_leads_granted || 0} / 10 genutzt</span>
+                </div>
+                <p className="text-blue-700 text-[10px] mt-1">Aktivieren Sie den Testzugang für mehr Recherchen.</p>
+              </div>
+            )}
 
-            {/* Trial Preview Info + remaining leads */}
-            {trialStage === 'free_preview' && (() => {
-               const remaining = Math.max(0, 10 - (org?.trial_leads_granted || 0));
-               const isBlocked = remaining === 0;
-               return (
-                 <div className={`rounded-xl p-3 border ${isBlocked ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
-                   <div className="flex items-start gap-2">
-                     <Info className={`w-4 h-4 shrink-0 mt-0.5 ${isBlocked ? 'text-red-600' : 'text-blue-600'}`} />
-                     <div className="text-xs space-y-1">
-                       <p className={`font-semibold ${isBlocked ? 'text-red-900' : 'text-blue-900'}`}>
-                         {isBlocked ? 'Vorschau-Limit erreicht' : 'Kostenlose Vorschau'}
-                       </p>
-                       <p className={isBlocked ? 'text-red-800' : 'text-blue-800'}>
-                         {isBlocked
-                           ? 'Sie haben alle 10 kostenlosen Vorschau-Kontakte aufgebraucht.'
-                           : <>Noch verfügbare Vorschaukontakte: <strong>{remaining} / 10</strong></>
-                         }
-                       </p>
-                      <p className={isBlocked ? 'text-red-700' : 'text-blue-700'}>
-                        Für weitere Recherchen aktivieren Sie den verifizierten Testzugang.
-                      </p>
-                    </div>
+            {trialStage === 'verified_trial' && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs space-y-2">
+                <div className="font-semibold text-amber-900 mb-1">Testzugang</div>
+                <div className="flex justify-between text-amber-800">
+                  <span>Firmenkontakte (Testzugang):</span>
+                  <span className="font-semibold">
+                    {Math.max(0, (usageInfo?.leads_created ?? 0) - (org?.trial_leads_granted ?? 0))} / 75 genutzt
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {trialStage === 'paid' && planLimits && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
+                <div className="font-semibold text-blue-900 mb-1">Monatliches Kontingent</div>
+                <div className="flex justify-between text-blue-800">
+                  <span>Firmenkontakte:</span>
+                  <span className="font-semibold">
+                    {usageInfo?.leads_created ?? 0} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month}
+                    {planLimits.max_leads_per_month !== -1 && (
+                      <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - (usageInfo?.leads_created ?? 0))} verfügbar</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Spezifische Warnung nur wenn Limit JETZT erreicht */}
+            {trialStage === 'free_preview' && (org?.trial_leads_granted || 0) >= 10 && (
+              <div className="rounded-xl p-3 border bg-red-50 border-red-200">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-semibold text-red-900">Vorschau-Limit erreicht</p>
+                    <p className="text-red-800">Aktivieren Sie den Testzugang, um weitere Firmenkontakte zu recherchieren.</p>
                   </div>
                 </div>
-              );
-            })()}
+              </div>
+            )}
 
-            {trialStage === 'verified_trial' && (() => {
-               const totalSaved = usageInfo?.leads_created ?? 0;
-               const fromFreePreview = org?.trial_leads_granted ?? 0;
-               const fromVerifiedTrial = Math.max(0, totalSaved - fromFreePreview);
-               const availableInVerifiedTrial = Math.max(0, 75 - fromVerifiedTrial);
-               return (
-                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
-                   <p className="font-semibold text-blue-900">Verfügbare Leads im Testzugang</p>
-                   <p className="text-blue-800">
-                     {fromVerifiedTrial} / 75 Leads genutzt
-                     {availableInVerifiedTrial > 0 ? ` · ${availableInVerifiedTrial} verfügbar` : ' (Limit erreicht)'}
-                   </p>
-                   {fromFreePreview > 0 && <p className="text-blue-700 text-[10px]">+ {fromFreePreview} aus free_preview</p>}
-                   <p className="text-blue-700 mt-1">Pro Recherche max. <strong>25 Leads</strong></p>
-                 </div>
-               );
-            })()}
-            {trialStage === 'paid' && (
-               <div>
-                 <p className="text-xs font-semibold text-slate-900 mb-2">Anzahl Firmenkontakte</p>
-                 <div className="flex gap-2">
-                   <button
-                     onClick={() => setTargetCount(25)}
-                     className={`px-4 py-2 text-sm font-semibold rounded-lg border-2 transition-all flex-1 ${
-                       targetCount === 25
-                         ? "border-blue-600 bg-blue-50 text-blue-700"
-                         : "border-slate-300 text-slate-700 hover:border-slate-400"
-                     }`}
-                   >
-                     25
-                   </button>
-                 </div>
-                 <p className="text-[11px] text-slate-500 mt-1">
-                   Entspricht ca. {targetCount + Math.ceil(targetCount * 0.5)} Google API Requests (geschätzt)
-                 </p>
-               </div>
+            {trialStage === 'verified_trial' && Math.max(0, 75 - Math.max(0, (usageInfo?.leads_created ?? 0) - (org?.trial_leads_granted ?? 0))) <= 0 && (
+              <div className="rounded-xl p-3 border bg-red-50 border-red-200">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-semibold text-red-900">Testzugang-Limit erreicht</p>
+                    <p className="text-red-800">Sie haben Ihr Testkontingent von 75 Firmenkontakten genutzt.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {trialStage === 'paid' && planLimits && planLimits.max_leads_per_month !== -1 && (usageInfo?.leads_created ?? 0) >= planLimits.max_leads_per_month && (
+              <div className="rounded-xl p-3 border bg-red-50 border-red-200">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
+                  <div className="text-xs space-y-1">
+                    <p className="font-semibold text-red-900">Monatliches Limit erreicht</p>
+                    <p className="text-red-800">Upgraden Sie Ihren Tarif für mehr Firmenkontakte.</p>
+                  </div>
+                </div>
+              </div>
             )}
 
             {targetCustomers.length === 0 && (
@@ -688,20 +682,41 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
             <div className="flex gap-2 pt-1">
               <Button variant="outline" onClick={onClose} className="flex-1 bg-white text-slate-700 border-slate-300 hover:bg-slate-50">Abbrechen</Button>
-              <Button
-                onClick={() => {
-                   // Hard-block wenn Free Preview Limit erreicht
-                   if (trialStage === 'free_preview' && (org?.trial_leads_granted || 0) >= 10) {
-                     setShowTrialInfoDialog(true);
-                     return;
-                   }
-                   handleStartResearch();
-                 }}
-                disabled={targetCustomers.length === 0}
-                className="flex-1 gap-2"
-              >
-                <TrendingUp className="w-4 h-4" />Recherche starten
-              </Button>
+              
+              {/* Quota Reached: Primary CTA ist Upgrade/Testzugang */}
+              {trialStage === 'free_preview' && (org?.trial_leads_granted || 0) >= 10 ? (
+                <Button
+                  onClick={() => window.location.href = "/settings?tab=billing"}
+                  className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Testzugang aktivieren
+                </Button>
+              ) : trialStage === 'verified_trial' && Math.max(0, 75 - Math.max(0, (usageInfo?.leads_created ?? 0) - (org?.trial_leads_granted ?? 0))) <= 0 ? (
+                <Button
+                  onClick={() => window.location.href = "/settings?tab=billing"}
+                  className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Tarif auswählen
+                </Button>
+              ) : trialStage === 'paid' && planLimits && planLimits.max_leads_per_month !== -1 && (usageInfo?.leads_created ?? 0) >= planLimits.max_leads_per_month ? (
+                <Button
+                  onClick={() => window.location.href = "/settings?tab=billing"}
+                  className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Tarif upgraden
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => {
+                    if (targetCustomers.length === 0) return;
+                    handleStartResearch();
+                  }}
+                  disabled={targetCustomers.length === 0}
+                  className="flex-1 gap-2"
+                >
+                  <TrendingUp className="w-4 h-4" />Recherche starten
+                </Button>
+              )}
             </div>
           </div>
         )}
