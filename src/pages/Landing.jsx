@@ -166,23 +166,32 @@ export default function Landing() {
                 Vertriebo verbindet Firmenrecherche, Lead-Priorisierung, Aufgaben, E-Mails und Teamsteuerung in einem einfachen System.
               </p>
               <p className="text-sm mb-8 text-slate-500 font-medium">
-                Für Gebäudereinigung, Hausmeister, Handwerk & lokale B2B-Dienstleister.
+                Für alle lokalen B2B-Dienstleister — Gebäudereinigung, IT-Service, Handwerk, Spedition, Pflege, Catering und 20 weitere Branchen.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3 mb-8">
-                <button
-                  onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}
-                  className="px-7 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/25">
-                  
-                  14 Tage kostenlos testen
-                </button>
-                <a
-                  href="#how-it-works"
-                  className="px-7 py-3.5 rounded-xl text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
-                  
-                  Wie es funktioniert
-                </a>
-              </div>
+                 <button
+                   onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}
+                   className="px-7 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/25">
+
+                   14 Tage kostenlos testen
+                 </button>
+                 <a
+                   href="#how-it-works"
+                   className="px-7 py-3.5 rounded-xl text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+
+                   Wie es funktioniert
+                 </a>
+               </div>
+
+               <div className="text-sm text-slate-700 bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+                 <p className="font-semibold text-blue-900 mb-3">Starten Sie kostenlos:</p>
+                 <div className="space-y-2">
+                   <p>→ 10 Firmenkontakte sofort — ohne Kreditkarte</p>
+                   <p>→ 14 Tage voller Zugang mit Kreditkarte</p>
+                   <p>→ Danach monatlich kündbar</p>
+                 </div>
+               </div>
               
               {/* Trust Badges */}
               <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-slate-600">
@@ -360,6 +369,12 @@ export default function Landing() {
               color: "border-blue-200 bg-blue-50"
             },
             {
+              icon: "🗺️",
+              title: "Lückenlose Gebiets-Abdeckung",
+              desc: "Nicht nur die Kreisstadt — Vertriebo durchsucht alle Orte in Ihrem Radius automatisch.",
+              color: "border-teal-200 bg-teal-50"
+            },
+            {
               icon: "⭐",
               title: "Priorisierte Tagesliste",
               desc: "Ihr Team sieht jeden Tag, welche Kontakte heute angerufen, nachgefasst oder erneut kontaktiert werden sollten.",
@@ -388,6 +403,12 @@ export default function Landing() {
               title: "Alles leicht bedienbar",
               desc: "Keine komplizierte CRM-Einrichtung. Zielgebiet festlegen, Kontakte recherchieren, losarbeiten.",
               color: "border-slate-200 bg-slate-50"
+            },
+            {
+              icon: "🧠",
+              title: "System das mitlernt",
+              desc: "Je mehr Sie nutzen, desto besser wird Vertriebo. Erfolgreiche Branchen werden automatisch priorisiert.",
+              color: "border-orange-200 bg-orange-50"
             }].
             map((item, i) =>
             <div key={i} className={`border-2 rounded-xl p-5 ${item.color}`}>
@@ -409,7 +430,7 @@ export default function Landing() {
             {
               step: "1",
               title: "Zielgebiet festlegen",
-              desc: "Wählen Sie Branche, PLZ-Gebiet und Radius. Vertriebo recherchiert automatisch passende Firmenkontakte in Ihrer Region.",
+              desc: "Branche wählen, PLZ eingeben, Radius einstellen. Vertriebo durchsucht automatisch alle Orte im Umkreis — nicht nur die Hauptstadt, sondern jeden Ort dazwischen.",
               icon: "🎯"
             },
             {
