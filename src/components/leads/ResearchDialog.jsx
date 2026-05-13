@@ -61,13 +61,13 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       setTrialStage(organization?.trial_stage || 'free_preview');
 
       // Sofort TrialInfoDialog wenn Free Preview Limit bereits erreicht
-      if ((organization?.trial_stage || 'free_preview') === 'free_preview' && (organization?.trial_leads_granted || 0) >= 3) {
+      if ((organization?.trial_stage || 'free_preview') === 'free_preview' && (organization?.trial_leads_granted || 0) >= 10) {
         setShowTrialInfoDialog(true);
       }
 
       // Set correct target count for free preview
       if ((organization?.trial_stage || 'free_preview') === 'free_preview') {
-        const remaining = Math.max(0, 3 - (organization?.trial_leads_granted || 0));
+        const remaining = Math.max(0, 10 - (organization?.trial_leads_granted || 0));
         setTargetCount(Math.max(1, remaining));
       }
       
@@ -286,7 +286,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               <p>✅ Passende Kontakte werden vorbereitet…</p>
               <p>🔄 Dubletten werden übersprungen…</p>
               {trialStage === 'free_preview' && (
-                <p className="text-blue-600 font-medium mt-2">Vorschau-Modus: Suche läuft schnell mit max. 3 Kontakten.</p>
+                <p className="text-blue-600 font-medium mt-2">Vorschau-Modus: Suche läuft schnell mit max. 10 Kontakten.</p>
               )}
             </div>
             {slowWarning && (
@@ -361,7 +361,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                     <div>
                       <div className={`text-sm font-semibold ${result.data.count >= 10 ? "text-green-900" : "text-amber-900"}`}>
                         {trialStage === 'free_preview'
-                          ? `Kostenlose Vorschau abgeschlossen – ${result.data.count} von 3 Vorschaukontakten gespeichert`
+                          ? `Kostenlose Vorschau abgeschlossen – ${result.data.count} von 10 Vorschaukontakten gespeichert`
                           : `${result.data.count} Firmenkontakte gespeichert`}
                       </div>
                       {trialStage === 'free_preview' && (
@@ -613,22 +613,22 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
             {/* Trial Preview Info + remaining leads */}
             {trialStage === 'free_preview' && (() => {
-              const remaining = Math.max(0, 3 - (org?.trial_leads_granted || 0));
-              const isBlocked = remaining === 0;
-              return (
-                <div className={`rounded-xl p-3 border ${isBlocked ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
-                  <div className="flex items-start gap-2">
-                    <Info className={`w-4 h-4 shrink-0 mt-0.5 ${isBlocked ? 'text-red-600' : 'text-blue-600'}`} />
-                    <div className="text-xs space-y-1">
-                      <p className={`font-semibold ${isBlocked ? 'text-red-900' : 'text-blue-900'}`}>
-                        {isBlocked ? 'Vorschau-Limit erreicht' : 'Kostenlose Vorschau'}
-                      </p>
-                      <p className={isBlocked ? 'text-red-800' : 'text-blue-800'}>
-                        {isBlocked
-                          ? 'Sie haben alle 3 kostenlosen Vorschau-Kontakte aufgebraucht.'
-                          : <>Noch verfügbare Vorschaukontakte: <strong>{remaining} / 3</strong></>
-                        }
-                      </p>
+               const remaining = Math.max(0, 10 - (org?.trial_leads_granted || 0));
+               const isBlocked = remaining === 0;
+               return (
+                 <div className={`rounded-xl p-3 border ${isBlocked ? 'bg-red-50 border-red-200' : 'bg-blue-50 border-blue-200'}`}>
+                   <div className="flex items-start gap-2">
+                     <Info className={`w-4 h-4 shrink-0 mt-0.5 ${isBlocked ? 'text-red-600' : 'text-blue-600'}`} />
+                     <div className="text-xs space-y-1">
+                       <p className={`font-semibold ${isBlocked ? 'text-red-900' : 'text-blue-900'}`}>
+                         {isBlocked ? 'Vorschau-Limit erreicht' : 'Kostenlose Vorschau'}
+                       </p>
+                       <p className={isBlocked ? 'text-red-800' : 'text-blue-800'}>
+                         {isBlocked
+                           ? 'Sie haben alle 10 kostenlosen Vorschau-Kontakte aufgebraucht.'
+                           : <>Noch verfügbare Vorschaukontakte: <strong>{remaining} / 10</strong></>
+                         }
+                       </p>
                       <p className={isBlocked ? 'text-red-700' : 'text-blue-700'}>
                         Für weitere Recherchen aktivieren Sie den verifizierten Testzugang.
                       </p>
@@ -672,13 +672,13 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               <Button variant="outline" onClick={onClose} className="flex-1 bg-white text-slate-700 border-slate-300 hover:bg-slate-50">Abbrechen</Button>
               <Button
                 onClick={() => {
-                  // Hard-block wenn Free Preview Limit erreicht
-                  if (trialStage === 'free_preview' && (org?.trial_leads_granted || 0) >= 3) {
-                    setShowTrialInfoDialog(true);
-                    return;
-                  }
-                  handleStartResearch();
-                }}
+                   // Hard-block wenn Free Preview Limit erreicht
+                   if (trialStage === 'free_preview' && (org?.trial_leads_granted || 0) >= 10) {
+                     setShowTrialInfoDialog(true);
+                     return;
+                   }
+                   handleStartResearch();
+                 }}
                 disabled={targetCustomers.length === 0}
                 className="flex-1 gap-2"
               >

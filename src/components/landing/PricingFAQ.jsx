@@ -6,8 +6,8 @@ const FAQS = [
     answer: "Das sind alle Firmen, die Sie mit Vertriebo recherchieren oder manuell erfassen. Sie behalten alle Kontakte dauerhaft in Ihrer Datenbank – es gibt kein 'Leads pro Monat'-Limit. Blacklisted Kontakte zählen nicht auf Ihr Limit.",
   },
   {
-    question: "Wie funktionieren Recherche-Credits?",
-    answer: "Mit Recherche-Credits starten Sie automatische Firmensuchen in Ihrer Region. Ein Credit deckt typisch 25 recherchierte Kontakte ab (je nach Zielgebiet und Branche). Die Kontakte sind danach dauerhaft gespeichert – Credits regenerieren sich nicht, sind aber monatlich neu enthalten.",
+    question: "Wie funktionieren Recherche-Läufe?",
+    answer: "Mit einem Recherche-Lauf starten Sie eine automatische Firmensuche in Ihrer Region. Pro Lauf wählen Sie 25, 50 oder 100 Kontakte. Gespeicherte Kontakte zählen zu Ihrem monatlichen Limit (z.B. 300 beim Starter-Plan). Läufe selbst sind unbegrenzt — nur die gespeicherten Kontakte werden gezählt.",
   },
   {
     question: "Was beinhalten die Research-Läufe?",
