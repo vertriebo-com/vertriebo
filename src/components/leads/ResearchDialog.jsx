@@ -389,13 +389,13 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   {(result.data.summary?.targetLocations?.length > 0) && (
                     <div className="flex justify-between text-blue-800">
                       <span>Manuelle Zielorte:</span>
-                      <span className="font-semibold">{result.data.summary.targetLocations.join(", ")}</span>
+                      <span className="font-semibold">{result.data.summary?.targetLocations?.join(", ")}</span>
                     </div>
                   )}
                   {(result.data.summary?.nearbyCitiesDynamic?.length > 0) && (
                     <div className="flex justify-between text-blue-800">
                       <span>Automatisch erkannte Orte:</span>
-                      <span className="font-semibold">{result.data.summary.nearbyCitiesDynamic.join(", ")}</span>
+                      <span className="font-semibold">{result.data.summary?.nearbyCitiesDynamic?.join(", ")}</span>
                     </div>
                   )}
                   <div className="text-blue-800">
@@ -482,7 +482,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                       </span>
                       <p className="text-[10px] text-amber-700 mb-1">Firmenname enthält „Verwaltung", aber kein Immobilien-/WEG-/Mietkontext erkennbar.</p>
                       <div className="space-y-0.5">
-                        {result.data.summary.ambiguousExamples?.map((ex, i) => (
+                        {(result.data.summary?.ambiguousExamples || []).map((ex, i) => (
                           <div key={i} className="text-[10px]">
                             <span className="font-semibold text-slate-700">{ex.name}</span>
                             <span className="ml-1 text-amber-600">– {ex.reason}</span>
