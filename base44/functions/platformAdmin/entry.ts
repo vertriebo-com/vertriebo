@@ -121,10 +121,35 @@ Deno.serve(async (req) => {
 
       const oldStage = org.trial_stage || 'free_preview';
 
-      // Update Organization trial_stage
-      await base44.asServiceRole.entities.Organization.update(organization_id, {
-        trial_stage: trial_stage,
-      });
+      // ── Bestimme alle Felder basierend auf trial_stage ──────────────────
+      let plan_id = null;
+      let billing_status = null;
+      const updateData = {
+        trial_stage,
+        trial_verified_at: new Date().toISOString(),
+        trial_verified_by: user.email,
+      };
+
+      if (trial_stage === 'paid') {
+        // Lade Starter-Plan (default für manuelle paid-Setzung)
+        const plans = await base44.asServiceRole.entities.Plan.filter({ name: 'Starter' });
+        plan_id = plans[0]?.id || null;
+        billing_status = 'active';
+      } else if (trial_stage === 'verified_trial') {
+        billing_status = 'trialing';
+        plan_id = null;
+        // Reset Research Runs bei Trial-Aktivierung
+        updateData.trial_research_runs_used = 0;
+      } else if (trial_stage === 'free_preview') {
+        billing_status = 'preview';
+        plan_id = null;
+      }
+
+      // Aktualisiere alle Felder synchron
+      if (billing_status) updateData.billing_status = billing_status;
+      if (plan_id) updateData.plan_id = plan_id;
+
+      await base44.asServiceRole.entities.Organization.update(organization_id, updateData);
 
       // Audit Log
       await base44.asServiceRole.entities.PlatformAuditLog.create({
@@ -135,17 +160,25 @@ Deno.serve(async (req) => {
         target_id: organization_id,
         organization_id: organization_id,
         parent_agency_id: org.parent_agency_id || null,
-        metadata: JSON.stringify({ old_stage: oldStage, new_stage: trial_stage }),
-        reason: `Admin changed trial_stage from ${oldStage} to ${trial_stage}`,
+        metadata: JSON.stringify({
+          old_stage: oldStage,
+          new_stage: trial_stage,
+          billing_status_set_to: billing_status,
+          plan_id_set_to: plan_id || 'null',
+        }),
+        reason: `Admin changed trial_stage from ${oldStage} to ${trial_stage}. billing_status=${billing_status}, plan_id=${plan_id || 'null'}`,
       });
 
-      console.info(`[platformAdmin] updateTrialStage: ${organization_id} ${oldStage} → ${trial_stage}`);
+      console.info(`[platformAdmin] updateTrialStage: ${organization_id} ${oldStage} → ${trial_stage} | billing=${billing_status} | plan=${plan_id || 'none'}`);
 
       return Response.json({
         success: true,
         action: 'updateTrialStage',
         organization_id,
         trial_stage,
+        billing_status,
+        plan_id: plan_id || null,
+        message: `Trial-Stage auf ${trial_stage} gesetzt. Billing: ${billing_status}. Plan: ${plan_id || 'keiner'}.`,
       });
     }
 
