@@ -204,6 +204,9 @@ export default function BillingSettings({ org: orgProp, user }) {
     setPortalLoading(false);
   };
 
+  // DEBUG: Immer loggen welchen trial_stage org hat
+  console.log('[BillingSettings] DEBUG org:', { id: org?.id, trial_stage: org?.trial_stage, billing_status: org?.billing_status, allPlans: allPlans.length });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-40">
