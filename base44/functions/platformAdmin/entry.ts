@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
     }
 
     const payload = await req.json();
-    const { action, organization_id, reason, severity, note } = payload;
+    const { action, organization_id, reason, severity, note, trial_stage } = payload;
 
     if (!action || !organization_id) {
       return Response.json({ error: 'Missing action or organization_id' }, { status: 400 });
@@ -111,6 +111,37 @@ Deno.serve(async (req) => {
         success: true,
         action: 'createSupportNote',
         support_note_id: supportNote.id,
+      });
+    }
+
+    if (action === 'updateTrialStage') {
+      if (!['free_preview', 'verified_trial', 'paid'].includes(trial_stage)) {
+        return Response.json({ error: 'Invalid trial_stage' }, { status: 400 });
+      }
+
+      // Update Organization trial_stage
+      await base44.asServiceRole.entities.Organization.update(organization_id, {
+        trial_stage: trial_stage,
+      });
+
+      // Audit Log
+      await base44.asServiceRole.entities.PlatformAuditLog.create({
+        actor_email: user.email,
+        actor_role: user.role,
+        action: 'update_trial_stage',
+        target_type: 'organization',
+        target_id: organization_id,
+        organization_id: organization_id,
+        parent_agency_id: org.parent_agency_id || null,
+        metadata: JSON.stringify({ old_stage: org.trial_stage, new_stage: trial_stage }),
+        reason: `Admin changed trial_stage to ${trial_stage}`,
+      });
+
+      return Response.json({
+        success: true,
+        action: 'updateTrialStage',
+        organization_id,
+        trial_stage,
       });
     }
 

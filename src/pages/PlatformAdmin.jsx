@@ -56,6 +56,8 @@ export default function PlatformAdmin() {
   const [googlePlacesEnabled, setGooglePlacesEnabled] = useState(true);
   const [disabledReason, setDisabledReason] = useState('');
   const [savingSystemConfig, setSavingSystemConfig] = useState(false);
+  const [showTrialStageDropdown, setShowTrialStageDropdown] = useState(false);
+  const [changingTrialStage, setChangingTrialStage] = useState(false);
 
   const { data: responseData = {}, isLoading, refetch } = useQuery({
     queryKey: ['platform-organizations'],
@@ -188,6 +190,25 @@ export default function PlatformAdmin() {
       toast.error('Reparatur fehlgeschlagen: ' + e.message);
     } finally {
       setRepairingTrialStage(false);
+    }
+  };
+
+  const handleChangeTrialStage = async (newStage) => {
+    if (!selectedOrg) return;
+    setChangingTrialStage(true);
+    try {
+      await base44.functions.invoke('platformAdmin', {
+        action: 'updateTrialStage',
+        organization_id: selectedOrg.id,
+        trial_stage: newStage,
+      });
+      toast.success(`Trial-Stage zu "${newStage}" geändert`);
+      refetch();
+      setShowTrialStageDropdown(false);
+    } catch (e) {
+      toast.error('Fehler: ' + e.message);
+    } finally {
+      setChangingTrialStage(false);
     }
   };
 
@@ -560,7 +581,7 @@ export default function PlatformAdmin() {
                     )}
                     <div>
                       <p className="text-xs text-slate-500 font-medium">Branche</p>
-                      <p className="text-sm font-semibold text-slate-900">{selectedOrg.industry || 'N/A'}</p>
+                      <p className="text-sm font-semibold text-slate-900 bg-emerald-50 px-2 py-1 rounded inline-block border border-emerald-200">{selectedOrg.industry || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500 font-medium">Website</p>
@@ -581,7 +602,7 @@ export default function PlatformAdmin() {
                     </div>
                     <div>
                        <p className="text-xs text-slate-500 font-medium">Plan</p>
-                       <p className="text-sm font-semibold text-slate-900">{getPlanName(selectedOrg.plan_id, selectedOrg.billing_status)}</p>
+                       <p className="text-sm font-semibold text-slate-900">{getPlanName(selectedOrg.plan_id, selectedOrg.billing_status)} {selectedOrg.trial_stage === 'paid' && selectedOrg.billing_status === 'active' && !selectedOrg.plan_id && '(Trial-Stage = paid, kein Plan zugewiesen)'}</p>
                      </div>
                     {selectedOrg.trial_ends_at && (
                       <div>
@@ -617,10 +638,10 @@ export default function PlatformAdmin() {
                   </div>
                 </div>
 
-                {/* Nutzung */}
+                {/* Nutzung (aktueller Monat) */}
                 <div>
-                  <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">Nutzung</h3>
-                  <div className="grid grid-cols-3 gap-4">
+                  <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">Nutzung (aktueller Monat)</h3>
+                  <div className="grid grid-cols-3 gap-4 mb-4">
                     <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                       <p className="text-xs text-slate-500 font-medium">Leads</p>
                       <p className="text-lg font-bold text-blue-700">{selectedOrg.leads_count}</p>
@@ -632,6 +653,61 @@ export default function PlatformAdmin() {
                     <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
                       <p className="text-xs text-slate-500 font-medium">KI-Aktionen</p>
                       <p className="text-lg font-bold text-amber-700">{selectedOrg.ai_actions_used}</p>
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded border border-slate-200">
+                    <p>💰 Google API Kosten: ${(selectedOrg.google_api_cost_month_cent / 100).toFixed(2)}</p>
+                    {selectedOrg.last_research_run_at && <p>🔍 Letzter Run: {moment(selectedOrg.last_research_run_at).format('DD.MM.YYYY HH:mm')}</p>}
+                  </div>
+                </div>
+
+                {/* System-Details */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">System-Details</h3>
+                  <div className="space-y-3">
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-700">Trial-Stage:</span>
+                        <div className="relative">
+                          <button
+                            onClick={() => setShowTrialStageDropdown(!showTrialStageDropdown)}
+                            disabled={changingTrialStage}
+                            className={`px-2 py-1 text-xs font-bold rounded border transition-all ${
+                              selectedOrg.trial_stage === 'free_preview' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                              selectedOrg.trial_stage === 'verified_trial' ? 'bg-purple-50 border-purple-200 text-purple-700' :
+                              'bg-green-50 border-green-200 text-green-700'
+                            }`}
+                          >
+                            {selectedOrg.trial_stage} ▾
+                          </button>
+                          {showTrialStageDropdown && (
+                            <div className="absolute right-0 mt-1 w-40 bg-white border border-slate-200 rounded shadow-lg z-10">
+                              {['free_preview', 'verified_trial', 'paid'].map(stage => (
+                                <button
+                                  key={stage}
+                                  onClick={() => handleChangeTrialStage(stage)}
+                                  disabled={changingTrialStage}
+                                  className={`block w-full text-left px-3 py-2 text-xs hover:bg-slate-50 border-b border-slate-100 last:border-b-0 ${
+                                    selectedOrg.trial_stage === stage ? 'font-bold text-blue-700' : 'text-slate-700'
+                                  }`}
+                                >
+                                  {stage}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-600">Trial-Leads gewährt: {selectedOrg.trial_leads_granted} / 10</p>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+                      <div className="text-xs space-y-1 text-slate-700">
+                        <p>🌐 Grid-Punkte: {selectedOrg.service_area_radius_km ? Math.ceil(selectedOrg.service_area_radius_km / 15) : '?'} (${selectedOrg.service_area_radius_km}km)</p>
+                        {selectedOrg.learned_signals_count > 0 && (
+                          <p>🧠 OrgLearnedSignals: {selectedOrg.learned_signals_count} Kategorien gelernt</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

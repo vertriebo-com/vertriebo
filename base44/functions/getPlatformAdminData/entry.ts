@@ -11,48 +11,84 @@ Deno.serve(async (req) => {
     }
 
     // ── Load Data via Service Role ────────────────────────────────────────
-    const [orgs, plans, usageLogs, researchRuns, supportNotes, auditLogs, platformConfigs] = await Promise.all([
+    const periodMonth = getPeriodMonth();
+    const [orgs, plans, usageLogs, researchRuns, supportNotes, auditLogs, platformConfigs, orgSettings] = await Promise.all([
       base44.asServiceRole.entities.Organization.list(),
       base44.asServiceRole.entities.Plan.list(),
-      base44.asServiceRole.entities.UsageLog.filter({ period_month: getPeriodMonth() }),
+      base44.asServiceRole.entities.UsageLog.filter({ period_month: periodMonth }),
       base44.asServiceRole.entities.ResearchRun.filter({}),
       base44.asServiceRole.entities.SupportNote.filter({}),
       base44.asServiceRole.entities.PlatformAuditLog.filter({}),
       base44.asServiceRole.entities.PlatformConfig.list(),
+      base44.asServiceRole.entities.OrganizationSettings.filter({}),
     ]);
 
     // ── Build Safe Response ───────────────────────────────────────────────
-    const organizations = (orgs || []).map(org => ({
-      id: org.id,
-      name: org.name,
-      owner_email: org.owner_email,
-      organization_type: org.organization_type,
-      parent_agency_id: org.parent_agency_id || null,
-      platform_status: org.platform_status,
-      billing_status: org.billing_status,
-      plan_id: org.plan_id,
-      onboarding_done: org.onboarding_done,
-      created_date: org.created_date,
-      suspended_reason: org.platform_status === 'suspended' ? org.suspended_reason : null,
-      suspended_at: org.platform_status === 'suspended' ? org.suspended_at : null,
-      suspended_by: org.platform_status === 'suspended' ? org.suspended_by : null,
-      // Aggregated metrics
-      leads_count: 0,
-      research_runs_count: 0,
-      ai_actions_used: 0,
-      manual_emails_logged: 0,
-    }));
+    const organizations = (orgs || []).map(org => {
+      // Fix 1: Read industry from both sources
+      const industryFromSettings = (orgSettings || []).find(s => 
+        s.organization_id === org.id && (s.key === 'own_industry' || s.key === 'industry_name')
+      )?.value;
+      const industry = org.industry || industryFromSettings || 'N/A';
+
+      return {
+        id: org.id,
+        name: org.name,
+        owner_email: org.owner_email,
+        organization_type: org.organization_type,
+        parent_agency_id: org.parent_agency_id || null,
+        platform_status: org.platform_status,
+        billing_status: org.billing_status,
+        plan_id: org.plan_id,
+        trial_stage: org.trial_stage || 'free_preview',
+        trial_leads_granted: org.trial_leads_granted || 0,
+        industry,
+        onboarding_done: org.onboarding_done,
+        created_date: org.created_date,
+        suspended_reason: org.platform_status === 'suspended' ? org.suspended_reason : null,
+        suspended_at: org.platform_status === 'suspended' ? org.suspended_at : null,
+        suspended_by: org.platform_status === 'suspended' ? org.suspended_by : null,
+        // Aggregated metrics
+        leads_count: 0,
+        research_runs_count: 0,
+        ai_actions_used: 0,
+        manual_emails_logged: 0,
+        last_research_run_at: null,
+        google_api_cost_month_cent: 0,
+        learned_signals_count: 0,
+      };
+    });
 
     // ── Add aggregated metrics ────────────────────────────────────────────
+    // Load OrgLearnedSignals and ResearchRuns
+    const learnedSignals = await base44.asServiceRole.entities.OrgLearnedSignals.filter({});
+    
     for (const org of organizations) {
+      // Fix 3: Get usage from current month
       const usage = usageLogs.find(u => u.organization_id === org.id);
       if (usage) {
         org.leads_count = usage.leads_created || 0;
         org.ai_actions_used = usage.ai_actions_used || 0;
         org.manual_emails_logged = usage.manual_emails_logged || 0;
+        org.google_api_cost_month_cent = usage.estimated_external_cost_cent || 0;
       }
 
-      org.research_runs_count = (researchRuns || []).filter(r => r.organization_id === org.id).length;
+      const orgResearchRuns = (researchRuns || []).filter(r => r.organization_id === org.id);
+      org.research_runs_count = orgResearchRuns.length;
+      org.last_research_run_at = orgResearchRuns.length > 0 
+        ? orgResearchRuns.sort((a, b) => new Date(b.created_date) - new Date(a.created_date))[0].created_date 
+        : null;
+
+      // Get learned signals count
+      const signals = learnedSignals.find(s => s.organization_id === org.id);
+      if (signals) {
+        try {
+          const cats = JSON.parse(signals.priority_categories || '[]');
+          org.learned_signals_count = cats.filter(c => c.score > 55).length;
+        } catch (e) {
+          org.learned_signals_count = 0;
+        }
+      }
     }
 
     // ── Calculate Summary ─────────────────────────────────────────────────
