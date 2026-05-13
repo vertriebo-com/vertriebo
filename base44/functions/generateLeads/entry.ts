@@ -979,8 +979,26 @@ Deno.serve(async (req) => {
     }
 
     const queryBudget = searchPlan.queryBudget || getQueryBudget(trialStage, remainingPreviewLeads);
-    const maxLeadsToSave = trialStage === 'free_preview' ? remainingPreviewLeads :
-                           trialStage === 'verified_trial' ? Math.min(target_count, 75) : target_count;
+    
+    // Für verified_trial: Limit ist 75 GESAMT, nicht pro Recherche
+    let maxLeadsToSave = target_count;
+    if (trialStage === 'free_preview') {
+      maxLeadsToSave = remainingPreviewLeads;
+    } else if (trialStage === 'verified_trial') {
+      const totalSavedSoFar = currentUsage.leads_created || 0;
+      const remainingTrialBudget = Math.max(0, 75 - totalSavedSoFar);
+      maxLeadsToSave = Math.min(target_count, remainingTrialBudget);
+      
+      if (remainingTrialBudget <= 0) {
+        return Response.json({
+          success: false,
+          error: 'verified_trial_limit_reached',
+          message: `Ihr Testzugang-Limit von 75 Kontakten wurde erreicht (${totalSavedSoFar}/75).`,
+          cta: 'Upgrade zu einem bezahlten Plan für unbegrenzte Recherchen.',
+          cta_url: '/settings?tab=billing'
+        }, { status: 403 });
+      }
+    }
     const effectiveTarget = Math.min(maxLeadsToSave, target_count);
 
     let planLimits = { max_leads_per_month: 300 };
