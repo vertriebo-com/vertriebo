@@ -405,8 +405,7 @@ const LEGACY_INDUSTRY_MAP = {
 };
 
 // ============================================================
-// INLINE: LEAD SEARCH ENGINE
-// (Quelle der Wahrheit: utils/leadSearchEngine.js)
+// INLINE: LEAD SEARCH ENGINE (Quelle der Wahrheit: utils/leadSearchEngine.js)
 // ============================================================
 
 function normStr(str) {
@@ -434,7 +433,6 @@ function getQueryBudget(trialStage, remainingLeadBudget) {
   if (trialStage === 'verified_trial') {
     return { blocked: false, maxLeadsToSave: 75, maxSearchQueries: 35, maxPlaceDetails: 90, stopWhenEnoughLeadsFound: true };
   }
-  // paid / agency
   return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 60, maxPlaceDetails: 120, stopWhenEnoughLeadsFound: true };
 }
 
@@ -458,27 +456,20 @@ function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerT
   const cityLimit = getCityLimit(trialStage, radiusKm);
   const searchCities = [location, ...additionalCities.slice(0, cityLimit - 1)].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i);
 
-  // NUR searchableBusinessCategories, gefiltert durch excludedCustomerTypes
   const usedCategories = (profile.searchableBusinessCategories || []).filter(c => !excludedCustomerTypes.includes(c));
   const ignoredIdealProfiles = profile.idealCustomerProfiles || [];
 
-  // DIVERSITY LIMIT: Begrenze Varianten pro Kategorie nach Trial-Stufe
   const maxVariantsPerCategory = 
     trialStage === 'free_preview' ? 2 :
     trialStage === 'verified_trial' ? 3 : 999;
 
-  // Queries generieren — Gelernte Prioritäten ZUERST
   const queries = [];
   const seen = new Set();
   const maxQ = queryBudget.maxSearchQueries;
   
-  // Gelernte Prioritäten VOR statischen queryPriority setzen
-  const learnedFirst = learnedPriorityCategories
-    .filter(c => usedCategories.includes(c));
-  const staticPriority = (profile.queryPriority || [])
-    .filter(c => usedCategories.includes(c) && !learnedFirst.includes(c));
-  const rest = usedCategories
-    .filter(c => !learnedFirst.includes(c) && !staticPriority.includes(c));
+  const learnedFirst = learnedPriorityCategories.filter(c => usedCategories.includes(c));
+  const staticPriority = (profile.queryPriority || []).filter(c => usedCategories.includes(c) && !learnedFirst.includes(c));
+  const rest = usedCategories.filter(c => !learnedFirst.includes(c) && !staticPriority.includes(c));
 
   const ordered = [...learnedFirst, ...staticPriority, ...rest];
 
@@ -532,7 +523,6 @@ function scoreLeadCandidate({ candidate, profile, distanceKm = null, radiusKm = 
   let matched_target_customer_type = null;
   let matched_service_context = null;
 
-  // +20: Kategorie
   if (!matched_search_category) {
     for (const cat of (profile.searchableBusinessCategories || [])) {
       const variants = profile.searchKeywordVariants?.[cat] ? profile.searchKeywordVariants[cat] : [cat];
@@ -542,38 +532,28 @@ function scoreLeadCandidate({ candidate, profile, distanceKm = null, radiusKm = 
   }
   if (matched_search_category) { score += 20; reasons.push(`Kategorie: "${matched_search_category}"`); }
 
-  // +20 Bonus: Gelernte Winning-Signals (zusätzlich zu statischen +15)
   for (const s of learnedWinningSignals) {
     if (text.includes(normStr(s))) { score += 20; reasons.push(`Gelernt: "${s}"`); break; }
   }
 
-  // +15: Scoring Signal (statisch)
   for (const s of (profile.scoringSignals || [])) {
     if (text.includes(normStr(s))) { score += 15; reasons.push(`Signal: "${s}"`); break; }
   }
 
-  // +10: Telefon
   if (candidate.formatted_phone_number || candidate.international_phone_number) { score += 10; reasons.push("Telefon"); }
-
-  // +10: Website
   if (candidate.website) { score += 10; reasons.push("Website"); }
-
-  // +10: Im Radius
   if (distanceKm !== null && distanceKm <= radiusKm) { score += 10; reasons.push(`Radius (${distanceKm}km)`); }
 
-  // Negative
   if (badFitResult.isBadFit) {
     const penalty = (badFitResult.signalType === 'job' || badFitResult.signalType === 'private') ? 50 : 30;
     score -= penalty;
     reasons.push(`BadFit: ${badFitResult.reason}`);
   }
 
-  // Target Customer Match
   for (const tc of (profile.targetCustomerTypes || [])) {
     if (text.includes(normStr(tc))) { matched_target_customer_type = tc; break; }
   }
 
-  // Service Context
   for (const svc of (profile.ownServices || [])) {
     if (text.includes(normStr(svc))) { matched_service_context = svc; break; }
   }
@@ -595,55 +575,34 @@ function scoreLeadCandidate({ candidate, profile, distanceKm = null, radiusKm = 
 // ============================================================
 
 const GOOGLE_SKU_PRICING_USD_PER_1000 = { 
-  places_text_search_pro: 32,      // Legacy (wird ersetzt)
-  places_new_text_search: 35,      // New API Text Search
-  place_details_essentials: 5,     // Legacy (wird ersetzt)
-  places_new_details_basic: 3,     // New API Details Basic SKU
+  places_text_search_pro: 32,
+  places_new_text_search: 35,
+  place_details_essentials: 5,
+  places_new_details_basic: 3,
 };
 function skuCostCent(sku, requests) { return (requests / 1000) * (GOOGLE_SKU_PRICING_USD_PER_1000[sku] || 0) * 100; }
 
 function isLikelyChain(candidate) {
-  // 100+ Kettenbegriffe
   const chainKeywords = [
-    // Lebensmittelhandel
     'aldi', 'aldisüd', 'aldinord', 'lidl', 'penny', 'netto', 'rewe', 'edeka', 'kaufland', 'real', 'marktkauf', 'selgros', 'metro', 'makro', 'costco',
-    // Drogerien
     'dm', 'rossmann', 'müller',
-    // Bekleidung
     'h&m', 'zara', 'primark', 'c&a', 'next', 'gap', 'mango', 'esprit', 'tommy hilfiger', 'calvin klein', 'guess', 'diesel',
-    // Schuhe
     'deichmann', 'foot locker', 'intersport', 'decathlon', 'nike store', 'adidas store', 'puma store',
-    // Paketdienste
     'deutsche post', 'dhl', 'ups store', 'fedex', 'hermes', 'dpd', 'gls', 'postamt', 'postfiliale',
-    // Banken
     'sparkasse', 'deutsche bank', 'commerzbank', 'comdirect', 'ing-diba', 'ing diba', 'hypovereinsbank', 'unicredit', 'santander', 'postbank', 'targobank',
-    // Gastronomie
     'mcdonalds', 'burger king', 'subway', 'kfc', 'pizza hut', 'dominos', 'vapiano', 'maredo', 'segafredo', 'starbucks', 'costa coffee',
-    // Hotels
     'hilton', 'marriott', 'accor', 'ibis', 'novotel', 'mercure', 'sofitel', 'holiday inn', 'hyatt', 'sheraton', 'radisson', 'best western', 'motel one',
-    // Einzelhandel
     'karstadt', 'kaufhof', 'galeria', 'peek & cloppenburg', 'breuninger',
-    // Auto
     'sixt', 'hertz', 'avis', 'enterprise', 'europcar', 'budget',
-    // Fitness
     'fitx', 'mcfit', 'easyfit', 'fitness first', 'john reed',
-    // Beauty
     'david garrett', 'klier', 'haar und farbe',
-    // Optiker
     'fielmann', 'apollo optik',
-    // Telekommunikation
     'telekom', 't-mobile', 'vodafone', 'o2', 'telefonica',
-    // Kino
     'cinemaxx', 'uci', 'cinestar',
-    // Möbel
     'ikea', 'hoffner', 'segmuller', 'poco', 'roller', 'xxxlutz', 'conforama',
-    // Baumarkt
     'obi', 'bauhaus', 'hornbach', 'hagebau', 'hellweg',
-    // Gartencenter
     'dehner', 'gartencenter müller',
-    // Spielzeug
     'toys r us', 'smyths',
-    // Generisch
     'franchise', 'filiale', 'kette', 'filialen', 'niederlassung', 'zentrale', 'konzern', 'holding'
   ];
   
@@ -654,7 +613,6 @@ function isLikelyChain(candidate) {
     if (nameLower.includes(kw)) return { isChain: true, reason: `Kette: ${kw}` };
   }
   
-  // Bewertungsanzahl-Heuristic: >1500 = sehr wahrscheinlich Kette
   const reviews = candidate.user_ratings_total || 0;
   if (reviews > 1500) return { isChain: true, reason: `>1500 Bewertungen (${reviews})` };
   
@@ -698,7 +656,7 @@ async function searchPlaces(query, cityCoords, radiusMeters, apiCounters, pageTo
     locationBias: {
       circle: {
         center: { latitude: cityCoords.lat, longitude: cityCoords.lng },
-        radius: Math.min(radiusMeters, 50000), // New API max 50km
+        radius: Math.min(radiusMeters, 50000),
       },
     },
     maxResultCount: 20,
@@ -718,7 +676,6 @@ async function searchPlaces(query, cityCoords, radiusMeters, apiCounters, pageTo
   if (!res.ok) return { results: [], nextPageToken: null };
   const data = await res.json();
 
-  // Neue API → Legacy-Format normalisieren damit der Rest unverändert bleibt
   const results = (data.places || []).map((p) => ({
     place_id: p.id,
     name: p.displayName?.text || "",
@@ -742,7 +699,7 @@ async function searchPlacesWithPagination(query, cityCoords, radiusMeters, apiCo
     allResults.push(...results);
     pageToken = nextPageToken || null;
     page++;
-    if (pageToken) await new Promise(resolve => setTimeout(resolve, 2000)); // 2 sec delay (Google requirement)
+    if (pageToken) await new Promise(resolve => setTimeout(resolve, 2000));
   } while (pageToken && page < maxPages);
   
   return allResults;
@@ -753,7 +710,6 @@ async function getPlaceDetails(placeId, apiCounters) {
   const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}?languageCode=de`, {
     headers: {
       "X-Goog-Api-Key": GOOGLE_PLACES_API_KEY,
-      // Basic SKU: günstiger als Pro. Nur Felder die wir wirklich brauchen.
       "X-Goog-FieldMask": "id,displayName,formattedAddress,nationalPhoneNumber,internationalPhoneNumber,websiteUri,location,addressComponents,types",
     },
   });
@@ -761,7 +717,6 @@ async function getPlaceDetails(placeId, apiCounters) {
   const p = await res.json();
   if (!p || p.error) return null;
 
-  // Legacy-Format normalisieren damit der Rest unverändert bleibt
   return {
     place_id: p.id,
     name: p.displayName?.text || "",
@@ -779,6 +734,7 @@ async function getPlaceDetails(placeId, apiCounters) {
 
 function extractAddressComponents(components = []) {
   let plz = '', ort = '', strasse = '', hausnummer = '';
+  if (!Array.isArray(components)) return { plz, ort, adresse: '' };
   for (const c of components) {
     if (c?.types?.includes('postal_code')) plz = c.long_name;
     if (c?.types?.includes('locality')) ort = c.long_name;
@@ -847,7 +803,7 @@ async function releaseLock(base44, organization_id) {
   try {
     const rec = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id, key: 'lead_research_running' });
     if (rec[0]) await base44.asServiceRole.entities.OrganizationSettings.update(rec[0].id, { value: 'false' });
-  } catch (e) { console.error('[generateLeads] Lock-Release fehler:', e.message); }
+  } catch (e) { console.error('[generateLeads] Lock-Release fehler:', e?.message); }
 }
 
 // ============================================================
@@ -910,12 +866,10 @@ Deno.serve(async (req) => {
 
     if (!organization_id) return Response.json({ error: 'organization_id fehlt', success: false }, { status: 400 });
 
-    // Auth
     const access = await checkAccess(req, { organization_id, action: 'generate_leads' });
     if (!access.allowed) return Response.json({ error: access.message, success: false, reason: access.reason }, { status: 403 });
     if (!GOOGLE_PLACES_API_KEY) return Response.json({ error: 'GOOGLE_PLACES_API_KEY nicht konfiguriert', success: false }, { status: 500 });
 
-    // ── FIX 1: Global Kill-Switch (PlatformConfig) ──────────────
     const configs = await base44.asServiceRole.entities.PlatformConfig.list();
     if (configs[0] && !configs[0].google_places_api_enabled) {
       return Response.json({
@@ -925,7 +879,6 @@ Deno.serve(async (req) => {
       }, { status: 503 });
     }
 
-    // Organisation laden
     const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
     const org = orgs[0];
     if (!org) return Response.json({ error: 'Organization not found', success: false }, { status: 404 });
@@ -937,12 +890,9 @@ Deno.serve(async (req) => {
     const billingOk = ['preview', 'active', 'trialing'].includes(org.billing_status);
     if (!billingOk) return Response.json({ error: `Billing status "${org.billing_status}" nicht erlaubt.`, success: false }, { status: 402 });
 
-    // ── Trial-Stufe & Remaining Leads ─────────────────────────
     const trialStage = org.trial_stage || 'free_preview';
     const remainingPreviewLeads = Math.max(0, 10 - (org.trial_leads_granted || 0));
 
-    // ── FIX 3: Free Preview Abuse-Schutz (Daily Limit) ─────────
-    // ResearchRun wird pro Lauf erstellt — das ist die einzige Entity die jeden Run zählt
     if (trialStage === 'free_preview') {
       const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recentRuns = await base44.asServiceRole.entities.ResearchRun.filter(
@@ -965,57 +915,37 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Search Plan via LeadSearchEngine ──────────────────────
-    // Settings laden
     const settingsRecords = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id });
     const settings = {};
     settingsRecords.forEach(s => { settings[s.key] = s.value; });
 
-    // ── OrgLearnedSignals laden ────────────────────────────────────
-    const learnedSignalsRecords = await base44.asServiceRole.entities.OrgLearnedSignals.filter(
-      { organization_id }
-    );
+    const learnedSignalsRecords = await base44.asServiceRole.entities.OrgLearnedSignals.filter({ organization_id });
     const learnedSignals = learnedSignalsRecords[0] || null;
 
     let learnedPriorityCategories = [];
     let learnedWinningSignals = [];
-    let learnedBoostedKeywords = [];
 
     if (learnedSignals) {
       try {
         const cats = JSON.parse(learnedSignals.priority_categories || '[]');
-        learnedPriorityCategories = cats
-          .filter(c => c.score > 55 && c.total >= 2)
-          .map(c => c.category);
-
-        learnedWinningSignals = JSON.parse(learnedSignals.winning_signals || '[]')
-          .map(s => s.signal);
-
-        learnedBoostedKeywords = JSON.parse(learnedSignals.boosted_keywords || '[]')
-          .map(b => b.keyword);
+        learnedPriorityCategories = cats.filter(c => c.score > 55 && c.total >= 2).map(c => c.category);
+        learnedWinningSignals = JSON.parse(learnedSignals.winning_signals || '[]').map(s => s.signal);
       } catch (e) {
-        console.warn('[generateLeads] OrgLearnedSignals parse error:', e.message);
+        console.warn('[generateLeads] OrgLearnedSignals parse error:', e?.message);
       }
     }
 
     const industry = settings.industry_name || settings.own_industry || settings.industry || '';
     const targetCustomerTypes = (settings.target_customer_types || settings.zielkunden || '').split(', ').filter(x => x.trim());
     const excludedCustomerTypes = (settings.excluded_customer_types || settings.zielkunden_ausschluss || '').split(', ').filter(x => x.trim());
-    const services = (settings.services || settings.dienstleistungen || '').split(', ').filter(x => x.trim());
     const city = settings.service_area_city || settings.lead_plz_city || settings.lead_plz || '';
     if (!city) return Response.json({ error: 'Kein Suchgebiet definiert.', success: false }, { status: 400 });
     const radiusKm = parseFloat(settings.lead_radius_km || settings.service_area_radius_km || '25') || 25;
     const radiusMeters = Math.min(radiusKm * 1000, 50000);
 
-    // ── Smart Radius Expansion ───────────────────────────────────────
-    // Automatisch Nachbarstädte finden wenn kein manueller additionalCities-Eintrag
-    const manualAdditionalCities = (settings.additional_cities || '')
-      .split(',').map(s => s.trim()).filter(Boolean);
-
-    // cityCoords wird später geladen — hier noch nicht verfügbar, daher placeholder
+    const manualAdditionalCities = (settings.additional_cities || '').split(',').map(s => s.trim()).filter(Boolean);
     let additionalCities = manualAdditionalCities.length > 0 ? manualAdditionalCities : [];
 
-    // SearchPlan bauen (searchPoints wird später befüllt nach Koordinaten-Ermittlung)
     const searchPlan = buildSearchPlan({
       industry,
       targetCustomerTypes,
@@ -1030,7 +960,6 @@ Deno.serve(async (req) => {
       learnedWinningSignals,
     });
 
-    // ── Hard-Block: Preview-Limit erreicht ────────────────────
     if (searchPlan.blocked || searchPlan.queryBudget?.blocked) {
       const reason = searchPlan.queryBudget?.reason || searchPlan.error;
       if (reason === 'preview_limit_reached' || trialStage === 'free_preview' && remainingPreviewLeads <= 0) {
@@ -1043,7 +972,6 @@ Deno.serve(async (req) => {
         }, { status: 403 });
       }
       if (reason === 'unknown_industry' || !searchPlan.industryProfile) {
-        // Fallback: ohne Taxonomie, nur mit targetCustomerTypes (Legacy)
         console.warn(`[generateLeads] Keine Taxonomie für Branche "${industry}" – nutze Legacy-Fallback`);
       } else {
         return Response.json({ error: searchPlan.error || 'SearchPlan-Fehler', success: false }, { status: 400 });
@@ -1055,15 +983,11 @@ Deno.serve(async (req) => {
                            trialStage === 'verified_trial' ? Math.min(target_count, 75) : target_count;
     const effectiveTarget = Math.min(maxLeadsToSave, target_count);
 
-    // Plan-Limits (paid) mit Fallback
-    // Neue Logik: NUR Kontakte limitieren, Läufe unlimitiert
     let planLimits = { max_leads_per_month: 300 };
     if (org.plan_id) {
       const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
       if (plans[0]) {
-        planLimits = {
-          max_leads_per_month: plans[0].max_leads_per_month ?? 300,
-        };
+        planLimits = { max_leads_per_month: plans[0].max_leads_per_month ?? 300 };
       }
     } else if (trialStage === 'paid') {
       console.warn(`[generateLeads] trial_stage=paid aber plan_id leer. Nutze Fallback-Limit.`);
@@ -1075,7 +999,6 @@ Deno.serve(async (req) => {
     const currentUsage = existingUsage[0] || { leads_created: 0 };
 
     if (trialStage === 'paid') {
-      // NEUE LOGIK: Nur Kontakte prüfen, nicht Läufe
       const maxContacts = planLimits.max_leads_per_month ?? 300;
       const contactsSavedThisMonth = currentUsage.leads_created || 0;
       
@@ -1090,7 +1013,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Koordinaten
     const cityQuery = city + ' Deutschland';
     const refRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(cityQuery)}&key=${GOOGLE_PLACES_API_KEY}&language=de`);
     const refData = await refRes.json();
@@ -1099,11 +1021,9 @@ Deno.serve(async (req) => {
     const savedLat = parseFloat(settings.lead_lat || '0'), savedLng = parseFloat(settings.lead_lng || '0');
     if (savedLat && savedLng && /^\d{5}$/.test(city)) cityCoords = { lat: savedLat, lng: savedLng };
 
-    // ── Grid-Suche (nach Koordinaten-Ermittlung) ──────────────────────
     const searchPoints = generateSearchGrid(cityCoords.lat, cityCoords.lng, radiusKm, trialStage);
     console.info(`[generateLeads] Grid: ${searchPoints.length} Punkte für ${radiusKm}km (${trialStage})`);
 
-    // SearchPlan mit Grid-Punkten neu bauen
     const fullSearchPlan = buildSearchPlan({
       industry,
       targetCustomerTypes,
@@ -1120,17 +1040,14 @@ Deno.serve(async (req) => {
     searchPlan.searchQueries = fullSearchPlan.searchQueries;
     searchPlan.searchPoints = fullSearchPlan.searchPoints;
 
-    // ── Lock ──────────────────────────────────────────────────
     const lockResult = await acquireLock(base44, organization_id, access.user.email);
     if (!lockResult.acquired) {
       return Response.json({ error: `Recherche läuft bereits (${lockResult.lockedBy}).`, success: false, parallelLockActive: true }, { status: 429 });
     }
     _lockAcquired = true;
 
-    // Suchqueries aus SearchPlan
     let searchQueryList = (searchPlan.searchQueries || []);
 
-    // Fallback wenn keine Taxonomie: Legacy targetCustomerTypes
     if (searchQueryList.length === 0 && targetCustomerTypes.length > 0) {
       console.warn(`[generateLeads] Fallback auf targetCustomerTypes für Queries`);
       const seen = new Set();
@@ -1147,11 +1064,10 @@ Deno.serve(async (req) => {
     console.info(`[generateLeads v2] START org=${organization_id} branche="${industry}" (${normalizeIndustryId(industry)}) stadt=${city} radius=${radiusKm}km trial=${trialStage} remaining=${remainingPreviewLeads} target=${effectiveTarget} queries=${searchQueryList.length}`);
     console.info(`[generateLeads v2] Engine: searchableCategories=${searchPlan.debug?.usedSearchableCategories?.length || 0} ignoredIdealProfiles=${searchPlan.debug?.ignoredIdealProfiles?.length || 0}`);
 
-    // ── Existierende Firmen (Duplikat-Check) ──────────────────
     const existing = await base44.asServiceRole.entities.Company.filter({ organization_id });
     const existingNames = new Set(existing.map(c => normStr(c.name || '')));
 
-    const apiCounters = { textSearch: 1, placeDetailsEssentials: 0 }; // +1 für Geocoding
+    const apiCounters = { textSearch: 1, placeDetailsEssentials: 0 };
     const seenPlaceIds = new Set();
     const createdIds = [];
     let raw_hits = 0, skipped_outside_radius = 0, skipped_duplicate = 0, skipped_no_match = 0, skipped_bad_fit = 0;
@@ -1160,7 +1076,6 @@ Deno.serve(async (req) => {
     let stopped_early = false, stop_reason = null;
     const maxPlaceDetails = queryBudget.maxPlaceDetails || 80;
 
-    // ── HAUPT-SUCHLAUF mit Grid-Punkten ─────────────────────────
     const gridPoints = searchPlan.searchPoints || [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center' }];
     const pointRadiusMeters = Math.min(15000, (radiusMeters / Math.max(gridPoints.length, 1)) * 1.5);
 
@@ -1168,25 +1083,21 @@ Deno.serve(async (req) => {
       const pointCoords = { lat: point.lat, lng: point.lng };
       
       for (const { query, category, variant } of searchQueryList) {
-        // Früh abbrechen: genug Leads
         if (createdIds.length >= effectiveTarget) {
           stopped_early = true; stop_reason = 'enough_leads_found';
           console.info(`[generateLeads v2] STOP: genug Leads (${createdIds.length}/${effectiveTarget})`);
           break outer;
         }
 
-        // Pagination: bis zu 2 Seiten pro Grid-Punkt
         const maxPages = trialStage === 'free_preview' ? 1 : 2;
         const places = await searchPlacesWithPagination(query, pointCoords, pointRadiusMeters, apiCounters, maxPages);
         raw_hits += places.length;
         console.info(`[generateLeads v2] Point=${point.label} Query="${query}" → ${places.length} Treffer`);
 
         for (const place of places) {
-        // Früh abbrechen: genug Leads
         if (createdIds.length >= effectiveTarget) {
           stopped_early = true; stop_reason = 'enough_leads_found'; break outer;
         }
-        // Place Details Limit
         if (apiCounters.placeDetailsEssentials >= maxPlaceDetails) {
           stopped_early = true; stop_reason = 'place_details_limit';
           console.warn(`[generateLeads v2] Place-Details-Limit erreicht (${maxPlaceDetails})`);
@@ -1196,32 +1107,27 @@ Deno.serve(async (req) => {
         if (seenPlaceIds.has(place.place_id)) continue;
         seenPlaceIds.add(place.place_id);
 
-        // Distanz-Vorfilter (vor Place Details Request!)
         const placeLat = place.geometry?.location?.lat, placeLng = place.geometry?.location?.lng;
         let distanceKm = null;
         if (placeLat && placeLng) {
           distanceKm = haversineKm(cityCoords.lat, cityCoords.lng, placeLat, placeLng);
-          // Hard filter: außerhalb des Radius = kein Place Details API Call
-          if (distanceKm > radiusKm * 1.05) { // 5% Puffer für Ungenauigkeit
+          if (distanceKm > radiusKm * 1.05) {
             skipped_outside_radius++;
             if (outsideRadiusExamples.length < 5) outsideRadiusExamples.push({ name: place.name, distance_km: Math.round(distanceKm * 10) / 10 });
-            continue; // Kein Place-Details-Request!
+            continue;
           }
         }
 
-        // Chain Detection
         const chainCheck = isLikelyChain(place);
         if (chainCheck.isChain) {
-          skipped_no_match++; // Kategorisiert als "nicht passend"
+          skipped_no_match++;
           if (noMatchExamples.length < 8) noMatchExamples.push({ name: place.name, reason: chainCheck.reason });
           console.info(`[generateLeads v2] SKIP CHAIN "${place.name}" (${chainCheck.reason})`);
           continue;
         }
 
-        // Duplikat
         if (existingNames.has(normStr(place.name || ''))) { skipped_duplicate++; continue; }
 
-        // ── SCORING via LeadSearchEngine ──────────────────────
         let scoring;
         if (industryProfile) {
           scoring = scoreLeadCandidate({ candidate: place, profile: industryProfile, distanceKm, radiusKm, matchedSearchCategory: category, learnedWinningSignals });
@@ -1232,13 +1138,11 @@ Deno.serve(async (req) => {
             continue;
           }
         } else {
-          // Legacy-Fallback ohne Taxonomie: minimale Prüfung
           const bf = isBadFit(place, { negativeKeywords: [], badFitSignals: [] });
           if (bf.isBadFit) { skipped_bad_fit++; continue; }
           scoring = { search_quality_score: 60, matched_search_category: category, matched_target_customer_type: null, matched_service_context: null, relevance_reason: `Legacy: ${category}`, bad_fit_reason: null, shouldSave: true };
         }
 
-        // Place Details
         const details = await getPlaceDetails(place.place_id, apiCounters);
         const { plz, ort, adresse } = extractAddressComponents(details?.address_components || []);
         const phone = details?.formatted_phone_number || '';
@@ -1262,13 +1166,12 @@ Deno.serve(async (req) => {
           quelle: 'Google Places API',
           status: 'Neu',
           is_hot: false,
-          // ── LeadSearchEngine Relevanzdaten (Feldnamen exakt nach Company Entity) ──
           matched_target_customer_type: scoring.matched_target_customer_type,
           matched_service_context: scoring.matched_service_context,
-          relevance_score: scoring.search_quality_score,   // Entity-Feld: relevance_score
-          relevance_reason: scoring.relevance_reason,       // Entity-Feld: relevance_reason
-          excluded_reason: scoring.bad_fit_reason,          // Entity-Feld: excluded_reason (kein bad_fit_reason in Company Entity)
-          source_query: variant || query,                   // Entity-Feld: source_query
+          relevance_score: scoring.search_quality_score,
+          relevance_reason: scoring.relevance_reason,
+          excluded_reason: scoring.bad_fit_reason,
+          source_query: variant || query,
           distance_km: roundedDist,
           search_center_city: city,
           search_center_lat: cityCoords.lat,
@@ -1292,7 +1195,6 @@ Deno.serve(async (req) => {
     const newLeadsSaved = createdIds.length;
     const chargedLeadGeneration = newLeadsSaved > 0;
 
-    // Run Type
     let runType = 'new_leads';
     if (newLeadsSaved === 0) {
       if (skipped_duplicate > 0 && skipped_no_match === 0) runType = 'duplicate_only';
@@ -1300,10 +1202,8 @@ Deno.serve(async (req) => {
       else runType = 'no_match';
     }
 
-    // Kosten
     const estimatedCostCent = skuCostCent('places_text_search_pro', apiCounters.textSearch) + skuCostCent('place_details_essentials', apiCounters.placeDetailsEssentials);
 
-    // ── UsageLog ──────────────────────────────────────────────
     const lastReport = {
       search_engine_version: SEARCH_ENGINE_VERSION,
       requestedTarget: target_count, effectiveTarget, saved: newLeadsSaved,
@@ -1331,7 +1231,6 @@ Deno.serve(async (req) => {
       }
     }, lastReport);
 
-    // ── ResearchRun ────────────────────────────────────────────
     let research_run_id = null;
     try {
       const run = await base44.asServiceRole.entities.ResearchRun.create({
@@ -1346,14 +1245,12 @@ Deno.serve(async (req) => {
         created_by: access.user.email,
       });
       research_run_id = run.id;
-    } catch (e) { console.error('[generateLeads v2] ResearchRun Fehler:', e.message); }
+    } catch (e) { console.error('[generateLeads v2] ResearchRun Fehler:', e?.message); }
 
-    // research_run_id zu Companies
     if (research_run_id && createdIds.length > 0) {
       try { await Promise.all(createdIds.map(id => base44.asServiceRole.entities.Company.update(id, { research_run_id }))); } catch {}
     }
 
-    // ── Trial-Leads kumulativ updaten ─────────────────────────
     if (trialStage === 'free_preview' && chargedLeadGeneration) {
       const newTotal = (org.trial_leads_granted || 0) + newLeadsSaved;
       await base44.asServiceRole.entities.Organization.update(organization_id, { trial_leads_granted: newTotal });
@@ -1370,7 +1267,6 @@ Deno.serve(async (req) => {
       chargedLeadGeneration,
       runType,
       research_run_id,
-      // ── Free Preview Bericht ─────────────────────────────────
       ...(trialStage === 'free_preview' ? {
         freePreviewReport: {
           saved: newLeadsSaved,
@@ -1387,7 +1283,6 @@ Deno.serve(async (req) => {
         noMatchExamples, outsideRadiusExamples, savedExamples,
         maxSavedDistanceKm, radiusKm, searchCenterCity: city,
       },
-      // ── Debug / Admin Report ─────────────────────────────────
       debug: {
         search_engine_version: SEARCH_ENGINE_VERSION,
         used_search_categories: searchPlan.debug?.usedSearchableCategories || [],
@@ -1404,21 +1299,8 @@ Deno.serve(async (req) => {
     });
 
   } catch (error) {
-    // ── FIX 2: Error-Alert an Plattform-Admin ────────────────────
-    console.error('[generateLeads v2] Error:', error.message, error.stack);
-    try {
-      await base44.functions.invoke('sendCriticalErrorAlert', {
-        function_name: 'generateLeads',
-        error_message: error.message,
-        stack: error.stack,
-        organization_id: _orgId,
-        user_email: null,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (alertErr) {
-      console.error('[generateLeads v2] Alert-Fehler:', alertErr?.message || 'unbekannt');
-    }
-    return Response.json({ error: error.message, success: false }, { status: 500 });
+    console.error('[generateLeads v2] Error:', error?.message, error?.stack);
+    return Response.json({ error: error?.message || 'Unbekannter Fehler', success: false }, { status: 500 });
   } finally {
     if (_lockAcquired && _base44 && _orgId) await releaseLock(_base44, _orgId);
   }
