@@ -148,24 +148,42 @@ export default function BillingSettings({ org: orgProp, user }) {
   }, []);
 
   const handleCheckout = async (planId) => {
+    console.log('[Checkout] Button clicked, plan_id:', planId);
+    
     if (window.self !== window.top) {
+      console.warn('[Checkout] Iframe detected – checkout not allowed');
       alert("Der Checkout funktioniert nur in der veröffentlichten App.");
       return;
     }
+    
+    console.log('[Checkout] Iframe check passed');
     setCheckoutLoading(planId);
-    const res = await base44.functions.invoke("createCheckoutSession", {
-      organization_id: org.id,
-      plan_id: planId,
-      success_url: window.location.origin + "/settings?tab=billing&checkout=success",
-      cancel_url: window.location.origin + "/settings?tab=billing",
-      allow_upgrade: false,
-    });
-    if (res.data?.url) {
-      window.location.href = res.data.url;
-    } else {
-      toast.error(res.data?.error || "Fehler beim Starten des Checkouts.");
+    
+    try {
+      console.log('[Checkout] Calling createCheckoutSession with org_id:', org.id, 'plan_id:', planId);
+      const res = await base44.functions.invoke("createCheckoutSession", {
+        organization_id: org.id,
+        plan_id: planId,
+        success_url: window.location.origin + "/settings?tab=billing&checkout=success",
+        cancel_url: window.location.origin + "/settings?tab=billing",
+        allow_upgrade: false,
+      });
+      console.log('[Checkout] Full response:', res);
+      console.log('[Checkout] Response data:', res.data);
+      
+      if (res.data?.url) {
+        console.log('[Checkout] URL received, redirecting:', res.data.url);
+        window.location.href = res.data.url;
+      } else {
+        console.error('[Checkout] No URL in response. Error:', res.data?.error);
+        toast.error(res.data?.error || "Fehler beim Starten des Checkouts.");
+      }
+    } catch (e) {
+      console.error('[Checkout] Exception caught:', e.message, e);
+      toast.error("Fehler: " + e.message);
+    } finally {
+      setCheckoutLoading(null);
     }
-    setCheckoutLoading(null);
   };
 
   const handlePortal = async () => {
