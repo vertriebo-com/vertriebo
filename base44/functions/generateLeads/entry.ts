@@ -909,15 +909,19 @@ Deno.serve(async (req) => {
     const remainingPreviewLeads = Math.max(0, 3 - (org.trial_leads_granted || 0));
 
     // ── FIX 3: Free Preview Abuse-Schutz (Daily Limit) ─────────
-    // ResearchRun wird pro Run erstellt → zähle ResearchRun-Records (nicht UsageLog, da monatlich aggregiert)
+    // ResearchRun wird pro Lauf erstellt — das ist die einzige Entity die jeden Run zählt
     if (trialStage === 'free_preview') {
       const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const recentRuns = await base44.asServiceRole.entities.ResearchRun.filter({
-        organization_id,
-        created_date: { $gte: last24h.toISOString() }
-      });
-      
-      if (recentRuns.length >= 5) {
+      const recentRuns = await base44.asServiceRole.entities.ResearchRun.filter(
+        { organization_id },
+        '-created_date',
+        10
+      );
+      const runsLast24h = recentRuns.filter(
+        r => new Date(r.created_date) >= last24h
+      ).length;
+
+      if (runsLast24h >= 5) {
         return Response.json({
           success: false,
           error: 'free_preview_daily_limit',
