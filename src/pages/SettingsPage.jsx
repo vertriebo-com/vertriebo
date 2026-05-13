@@ -17,12 +17,7 @@ const ADMIN_NAV_ITEMS = [
     description: "Firmendaten, Suchgebiet und Zielkunden",
     icon: Building 
   },
-  { 
-    id: "email", 
-    label: "Kommunikation", 
-    description: "Absender, Logo und E-Mail-Signatur",
-    icon: Mail 
-  },
+
   { 
     id: "templates", 
     label: "Vorlagen", 
@@ -107,7 +102,7 @@ export default function SettingsPage() {
     const salesRepDefault = "profile";
     const resolvedRole = foundRole || "sales_rep";
     const isAdminUser = resolvedRole === "organization_admin" || user.role === "admin";
-    const validAdminTabs = ["company", "email", "templates", "team", "billing"];
+    const validAdminTabs = ["company", "templates", "team", "billing"];
     const defaultTab = isAdminUser ? adminDefault : salesRepDefault;
     if (tabParam && isAdminUser && validAdminTabs.includes(tabParam)) {
       setActiveTab(tabParam);
@@ -176,7 +171,7 @@ export default function SettingsPage() {
             <CompanySettings org={org} />
           </>
         )}
-        {activeTab === "email"     && isAdmin && <EmailSettings org={org} />}
+
         {activeTab === "templates" && isAdmin && <EmailTemplateSettings />}
         {activeTab === "team"      && isAdmin && (
           <UserManagement users={users} currentUser={currentUser} onRefresh={loadData} />

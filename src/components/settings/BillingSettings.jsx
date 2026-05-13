@@ -359,7 +359,7 @@ export default function BillingSettings({ org: orgProp, user }) {
             </div>
             <div className="flex justify-between text-sm">
               <span className="font-semibold text-slate-700">Firmenkontakte:</span>
-              <span className="text-slate-900 font-bold">{org?.trial_leads_granted || 0} / 3 genutzt</span>
+              <span className="text-slate-900 font-bold">{org?.trial_leads_granted || 0} / 10 genutzt</span>
             </div>
           </div>
         </div>
