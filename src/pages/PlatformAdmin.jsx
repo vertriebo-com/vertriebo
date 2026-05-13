@@ -488,9 +488,9 @@ export default function PlatformAdmin() {
               </DialogHeader>
 
               <div className="space-y-6">
-                 {/* Diagnose & Reparatur - Oben für bessere Sichtbarkeit */}
-                 <div className={selectedOrg.trial_stage === 'free_preview' && selectedOrg.billing_status === 'active' ? 'bg-red-50 border border-red-200 rounded-lg p-4 space-y-3' : 'bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3'}>
-                   {selectedOrg.trial_stage === 'free_preview' && selectedOrg.billing_status === 'active' && (
+                 {/* Diagnose & Reparatur - nur bei echtem Bug-Zustand */}
+                 {selectedOrg.trial_stage === 'free_preview' && selectedOrg.billing_status === 'active' && (
+                   <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
                      <div className="flex items-start gap-3 mb-3">
                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                        <div>
@@ -500,28 +500,28 @@ export default function PlatformAdmin() {
                          </p>
                        </div>
                      </div>
-                   )}
-                   <div className="flex gap-2">
-                     <Button
-                       onClick={handleDiagnose}
-                       disabled={diagnosisLoading}
-                       variant="outline"
-                       size="sm"
-                       className="flex-1"
-                     >
-                       {diagnosisLoading ? 'Diagnose läuft…' : '🔍 Diagnose'}
-                     </Button>
-                     <Button
-                       onClick={handleRepairTrialStage}
-                       disabled={repairingTrialStage}
-                       size="sm"
-                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                     >
-                       <Wrench className="w-3.5 h-3.5" />
-                       {repairingTrialStage ? 'Repariert…' : 'Reparieren'}
-                     </Button>
+                     <div className="flex gap-2">
+                       <Button
+                         onClick={handleDiagnose}
+                         disabled={diagnosisLoading}
+                         variant="outline"
+                         size="sm"
+                         className="flex-1"
+                       >
+                         {diagnosisLoading ? 'Diagnose läuft…' : '🔍 Diagnose'}
+                       </Button>
+                       <Button
+                         onClick={handleRepairTrialStage}
+                         disabled={repairingTrialStage}
+                         size="sm"
+                         className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                       >
+                         <Wrench className="w-3.5 h-3.5" />
+                         {repairingTrialStage ? 'Repariert…' : 'Reparieren'}
+                       </Button>
+                     </div>
                    </div>
-                 </div>
+                 )}
 
                  {showDiagnosisTab && diagnosisData && (
                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
@@ -655,11 +655,7 @@ export default function PlatformAdmin() {
                       <p className="text-lg font-bold text-amber-700">{selectedOrg.ai_actions_used}</p>
                     </div>
                   </div>
-                  <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded border border-slate-200">
-                    <p>💰 Google API Kosten: ${((selectedOrg.estimated_external_cost_cent || 0) / 100).toFixed(2)}</p>
-                    {selectedOrg.last_lead_generation_at && <p>🔍 Letzter Run: {moment(selectedOrg.last_lead_generation_at).format('DD.MM.YYYY HH:mm')}</p>}
                   </div>
-                </div>
 
                 {/* System-Details */}
                 <div>
