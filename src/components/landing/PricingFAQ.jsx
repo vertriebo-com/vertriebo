@@ -3,31 +3,39 @@ import { Info, HelpCircle } from "lucide-react";
 const FAQS = [
   {
     question: "Was sind gespeicherte Firmenkontakte?",
-    answer: "Das sind alle Firmen, die Sie in Ihrem CRM erfassen. Blacklisted Kontakte zählen nicht mit. Sie behalten alle Kontakte dauerhaft – es gibt kein 'Leads pro Monat'-Limit.",
+    answer: "Das sind alle Firmen, die Sie mit Vertriebo recherchieren oder manuell erfassen. Sie behalten alle Kontakte dauerhaft in Ihrer Datenbank – es gibt kein 'Leads pro Monat'-Limit. Blacklisted Kontakte zählen nicht auf Ihr Limit.",
   },
   {
     question: "Wie funktionieren Recherche-Credits?",
-    answer: "Recherche-Credits werden für recherchierte oder angereicherte Firmenkontakte verwendet. Ein recherchierter Firmenkontakt verbraucht in der Regel einen Credit. Recherche-Läufe sind gestartete Suchvorgänge – je nach Ergebnis können dabei mehrere Credits verbraucht werden.",
+    answer: "Mit Recherche-Credits starten Sie automatische Firmensuchen in Ihrer Region. Ein Credit deckt typisch 25 recherchierte Kontakte ab (je nach Zielgebiet und Branche). Die Kontakte sind danach dauerhaft gespeichert – Credits regenerieren sich nicht, sind aber monatlich neu enthalten.",
   },
   {
-    question: "Sind Recherche-Credits garantierte Kundenanfragen?",
-    answer: "Nein. Recherche-Credits beziehen sich auf recherchierte oder angereicherte Firmenkontakte. Vertriebo liefert Kontakte und Struktur für Ihren Vertrieb, garantiert aber keine Kundenanfragen oder Abschlüsse.",
+    question: "Was beinhalten die Research-Läufe?",
+    answer: "Ein Research-Lauf ist eine automatische Suche nach Firmenkontakten in Ihrem definierten Zielgebiet, Branche und Kundentyp. Vertriebo findet passende Firmen, priorisiert sie nach Potenzial und speichert sie in Ihrem CRM – bereit zum Anrufen.",
   },
   {
     question: "Was sind KI-Aktionen?",
-    answer: "KI-Aktionen umfassen z. B. Lead-Bewertung, E-Mail-Entwürfe, Gesprächseinstiege, Follow-up-Vorschläge und Vertriebs-Coaching. Jede KI-gestützte Funktion verbraucht eine KI-Aktion.",
+    answer: "KI-Aktionen umfassen Lead-Bewertung, E-Mail-Entwürfe, Gesprächseinstiege, Follow-up-Vorschläge und Vertriebs-Coaching. Der KI-Morgenreport (Professional+) nutzt auch KI-Aktionen. Jede KI-gestützte Funktion verbraucht eine Aktion.",
   },
   {
     question: "Wie funktioniert der E-Mail-Versand?",
-    answer: "Der E-Mail-Versand erfolgt über einen angebundenen Versanddienstleister (Brevo/SMTP). Antworten gehen direkt an Ihre hinterlegte Reply-To-Adresse. SPF/DKIM-Einrichtung wird unterstützt.",
+    answer: "E-Mails werden über Brevo oder SMTP versendet. Sie können vorgefertigte Vorlagen mit Ihrem Logo und Signatur nutzen. Antworten gehen direkt an Ihre hinterlegte Reply-To-Adresse. SPF/DKIM-Einrichtung wird unterstützt.",
+  },
+  {
+    question: "Was ist im KI-Morgenreport enthalten?",
+    answer: "Der KI-Morgenreport (Professional & Gold) erstellt täglich automatisch einen Brief für Ihr Team mit Top-Prioritäten des Tages, offenen Aufgaben, besprochenen Leads und Erfolgsquoten. Spart Zeit und fokussiert Ihr Team.",
   },
   {
     question: "Kann ich monatlich kündigen?",
-    answer: "Ja, alle Pläne sind monatlich kündbar. Keine langfristigen Verträge, keine versteckten Kosten.",
+    answer: "Ja, alle Pläne sind monatlich kündbar. Keine langfristigen Verträge, keine versteckten Kosten. Sie können jederzeit über Ihr Konto kündigen.",
   },
   {
-    question: "Was passiert, wenn ich mein Limit überschreite?",
-    answer: "Sie erhalten eine Benachrichtigung, wenn Sie sich Ihrem Limit nähern. Im Agency-Plan passen wir die Limits individuell an Ihre Bedürfnisse an.",
+    question: "Was passiert mit meinen Daten nach Kündigung?",
+    answer: "Ihre Firmenkontakte und Dokumentation bleiben 30 Tage nach Kündigung einsehbar. Im Agency-Plan unterstützen wir Sie bei einem sanften Offboarding. Alle Daten sind DSGVO-konform und können exportiert werden.",
+  },
+  {
+    question: "Wie viele Vertriebler kann ich im Starter-Plan haben?",
+    answer: "Der Starter-Plan ist für bis zu 2 Vertriebler ausgelegt. Jeder sieht nur seine zugeordneten Leads. Der Professional-Plan unterstützt bis zu 5 Vertriebler, der Gold-Plan 10.",
   },
 ];
 
