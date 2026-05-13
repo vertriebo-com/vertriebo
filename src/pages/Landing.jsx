@@ -129,22 +129,24 @@ export default function Landing() {
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-          <a href="/" className="flex items-center shrink-0">
+      <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/95 backdrop-blur-xl shadow-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5 lg:px-8">
+          <a href="/" className="flex items-center shrink-0 group">
             <img src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/6bf8a2d63_ChatGPTImage11Mai202615_23_00.png"
-
             alt="Vertriebo"
-            className="h-14 md:h-16 w-auto object-contain" />
-            
+            className="h-10 md:h-12 w-auto object-contain transition-transform group-hover:scale-105" />
           </a>
 
-          <div className="flex items-center gap-3">
-            <button onClick={handleLogin} className="px-5 py-2 rounded-lg text-sm font-semibold text-slate-700 border border-slate-300 hover:bg-slate-50 transition-all">
+          <div className="flex items-center gap-2 md:gap-4">
+            <button 
+              onClick={handleLogin} 
+              className="px-4 md:px-5 py-2.5 rounded-lg text-xs md:text-sm font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all duration-200">
               Login
             </button>
-            <button onClick={handleRegister} className="px-5 py-2 rounded-lg text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all">
-              14 Tage testen
+            <button 
+              onClick={handleRegister} 
+              className="px-4 md:px-6 py-2.5 rounded-lg text-xs md:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-md shadow-blue-600/30 transition-all duration-200 flex items-center gap-1.5">
+              <span>🚀</span> 14 Tage testen
             </button>
           </div>
         </div>
