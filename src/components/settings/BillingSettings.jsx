@@ -55,6 +55,7 @@ function UsageBar({ label, icon: Icon, used, max, color = "bg-blue-500" }) {
 }
 
 export default function BillingSettings({ org: orgProp, user }) {
+  console.log('[BillingSettings] COMPONENT LOADED with orgProp:', orgProp?.trial_stage, orgProp?.billing_status);
   const [org, setOrg] = useState(orgProp);
   const [plan, setPlan] = useState(null);
   const [subscription, setSubscription] = useState(null);
