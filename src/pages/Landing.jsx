@@ -411,6 +411,12 @@ export default function Landing() {
               title: "System das mitlernt",
               desc: "Je mehr Sie nutzen, desto besser wird Vertriebo. Erfolgreiche Branchen werden automatisch priorisiert.",
               color: "border-orange-200 bg-orange-50"
+            },
+            {
+              icon: "📊",
+              title: "Echtzeit-Erfolgsquoten",
+              desc: "Sehen Sie sofort, wie Ihr Team performt: Quote pro Vertriebler, beste Branchen, ROI der Recherche.",
+              color: "border-rose-200 bg-rose-50"
             }].
             map((item, i) =>
             <div key={i} className={`border-2 rounded-xl p-5 ${item.color}`}>
