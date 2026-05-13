@@ -8,6 +8,7 @@ import TargetIndustriesCompact from "@/components/landing/TargetIndustriesCompac
 import ProductShowcase from "@/components/landing/ProductShowcase";
 import PricingFAQ from "@/components/landing/PricingFAQ";
 import VertrieboLogo from "@/components/VertrieboLogo";
+import AgencyDemoModal from "@/components/AgencyDemoModal";
 
 const PLANS = [
 {
@@ -70,12 +71,13 @@ const PLANS = [
   "Unbegrenzte Nutzer oder individuelle Nutzeranzahl",
   "Persönliches Onboarding",
   "Eigene Kundenverwaltung"],
-  cta: "Kontakt aufnehmen"
+  cta: "Demo anfragen"
 }];
 
 
 export default function Landing() {
   const [loading, setLoading] = useState(null);
+  const [showAgencyModal, setShowAgencyModal] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -92,10 +94,14 @@ export default function Landing() {
     base44.auth.redirectToLogin(window.location.origin + "/onboarding");
   };
 
+  const handleAgencyDemoClose = () => {
+    setShowAgencyModal(false);
+  };
+
   const handleCheckout = async (plan) => {
-    // Agency = Kontakt-/Demo-Flow, nicht Stripe Checkout
+    // Agency = Demo-Modal, nicht Stripe Checkout
     if (plan.slug === "agency") {
-      window.location.href = "mailto:info@huwa-gebaeudedienste.de?subject=Vertriebo Agency Plan - Demo anfragen";
+      setShowAgencyModal(true);
       return;
     }
 
@@ -629,6 +635,9 @@ export default function Landing() {
 
         </p>
       </div>
-    </div>);
 
-}
+      {/* Agency Demo Modal */}
+      <AgencyDemoModal isOpen={showAgencyModal} onClose={handleAgencyDemoClose} />
+      </div>);
+
+      }
