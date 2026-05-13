@@ -429,13 +429,13 @@ function getQueryBudget(trialStage, remainingLeadBudget) {
     if (!remainingLeadBudget || remainingLeadBudget <= 0) {
       return { blocked: true, reason: 'preview_limit_reached', maxLeadsToSave: 0, maxSearchQueries: 0, maxPlaceDetails: 0, stopWhenEnoughLeadsFound: true };
     }
-    return { blocked: false, maxLeadsToSave: Math.min(remainingLeadBudget, 3), maxSearchQueries: 6, maxPlaceDetails: 15, stopWhenEnoughLeadsFound: true };
+    return { blocked: false, maxLeadsToSave: Math.min(remainingLeadBudget, 10), maxSearchQueries: 8, maxPlaceDetails: 20, stopWhenEnoughLeadsFound: true };
   }
   if (trialStage === 'verified_trial') {
-    return { blocked: false, maxLeadsToSave: 25, maxSearchQueries: 20, maxPlaceDetails: 50, stopWhenEnoughLeadsFound: true };
+    return { blocked: false, maxLeadsToSave: 75, maxSearchQueries: 35, maxPlaceDetails: 90, stopWhenEnoughLeadsFound: true };
   }
   // paid / agency
-  return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 40, maxPlaceDetails: 80, stopWhenEnoughLeadsFound: true };
+  return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 60, maxPlaceDetails: 120, stopWhenEnoughLeadsFound: true };
 }
 
 function getCityLimit(trialStage, radiusKm) {
@@ -446,7 +446,7 @@ function getCityLimit(trialStage, radiusKm) {
   return 7;
 }
 
-function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerTypes = [], location, radiusKm = 25, trialStage = 'free_preview', remainingLeadBudget = 3, additionalCities = [], learnedPriorityCategories = [], learnedWinningSignals = [] }) {
+function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerTypes = [], location, radiusKm = 25, trialStage = 'free_preview', remainingLeadBudget = 3, additionalCities = [], searchPoints = [], learnedPriorityCategories = [], learnedWinningSignals = [] }) {
   const industryId = normalizeIndustryId(industry);
   const profile = LEAD_SEARCH_TAXONOMY[industryId] || null;
 
@@ -482,27 +482,25 @@ function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerT
 
   const ordered = [...learnedFirst, ...staticPriority, ...rest];
 
-  for (const city of searchCities) {
-    for (const cat of ordered) {
+  for (const cat of ordered) {
+    if (queries.length >= maxQ) break;
+    const variants = (profile.searchKeywordVariants?.[cat] ? profile.searchKeywordVariants[cat] : [cat])
+      .slice(0, maxVariantsPerCategory);
+    for (const variant of variants) {
       if (queries.length >= maxQ) break;
-      const variants = (profile.searchKeywordVariants?.[cat] ? profile.searchKeywordVariants[cat] : [cat])
-        .slice(0, maxVariantsPerCategory); // Begrenze auf maxVariantsPerCategory
-      for (const variant of variants) {
-        if (queries.length >= maxQ) break;
-        const q = `${variant} ${city}`;
-        if (!seen.has(q)) {
-          seen.add(q);
-          queries.push({ query: q, city, category: cat, variant });
-        }
+      const q = variant;
+      if (!seen.has(q)) {
+        seen.add(q);
+        queries.push({ query: q, category: cat, variant });
       }
     }
-    if (queries.length >= maxQ) break;
   }
 
   return {
     industryProfile: profile,
     searchCities,
     searchQueries: queries,
+    searchPoints,
     queryBudget,
     debug: {
       usedSearchableCategories: usedCategories,
@@ -667,6 +665,30 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   const R = 6371, dLat = (lat2 - lat1) * Math.PI / 180, dLng = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
   return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+function generateSearchGrid(centerLat, centerLng, radiusKm, trialStage) {
+  const points = [{ lat: centerLat, lng: centerLng, label: 'center' }];
+  if (trialStage === 'free_preview') return points;
+
+  const stepKm = 15;
+  const rings = radiusKm <= 20 ? 1 : radiusKm <= 35 ? 2 : 3;
+
+  for (let ring = 1; ring <= rings; ring++) {
+    const ringRadiusKm = ring * stepKm;
+    const pointsInRing = 6 * ring;
+    for (let i = 0; i < pointsInRing; i++) {
+      const angle = (2 * Math.PI * i) / pointsInRing;
+      const dLat = (ringRadiusKm / 111) * Math.cos(angle);
+      const dLng = (ringRadiusKm / (111 * Math.cos(centerLat * Math.PI / 180))) * Math.sin(angle);
+      const pLat = centerLat + dLat;
+      const pLng = centerLng + dLng;
+      if (haversineKm(centerLat, centerLng, pLat, pLng) <= radiusKm * 1.05) {
+        points.push({ lat: pLat, lng: pLng, label: `grid_${ring}_${i}` });
+      }
+    }
+  }
+  return points;
 }
 
 // ── Deutsche Städte für Radius-Expansion ────────────────────────
@@ -1045,7 +1067,7 @@ Deno.serve(async (req) => {
 
     // ── Trial-Stufe & Remaining Leads ─────────────────────────
     const trialStage = org.trial_stage || 'free_preview';
-    const remainingPreviewLeads = Math.max(0, 3 - (org.trial_leads_granted || 0));
+    const remainingPreviewLeads = Math.max(0, 10 - (org.trial_leads_granted || 0));
 
     // ── FIX 3: Free Preview Abuse-Schutz (Daily Limit) ─────────
     // ResearchRun wird pro Lauf erstellt — das ist die einzige Entity die jeden Run zählt
@@ -1060,7 +1082,7 @@ Deno.serve(async (req) => {
         r => new Date(r.created_date) >= last24h
       ).length;
 
-      if (runsLast24h >= 5) {
+      if (runsLast24h >= 3) {
         return Response.json({
           success: false,
           error: 'free_preview_daily_limit',
@@ -1121,7 +1143,7 @@ Deno.serve(async (req) => {
     // cityCoords wird später geladen — hier noch nicht verfügbar, daher placeholder
     let additionalCities = manualAdditionalCities.length > 0 ? manualAdditionalCities : [];
 
-    // SearchPlan bauen (additionalCities wird später befüllt nach Koordinaten-Ermittlung)
+    // SearchPlan bauen (searchPoints wird später befüllt nach Koordinaten-Ermittlung)
     const searchPlan = buildSearchPlan({
       industry,
       targetCustomerTypes,
@@ -1130,7 +1152,8 @@ Deno.serve(async (req) => {
       radiusKm,
       trialStage,
       remainingLeadBudget: remainingPreviewLeads,
-      additionalCities: [], // Wird nach cityCoords update gesetzt
+      additionalCities: [],
+      searchPoints: [],
       learnedPriorityCategories,
       learnedWinningSignals,
     });
@@ -1185,18 +1208,12 @@ Deno.serve(async (req) => {
     const savedLat = parseFloat(settings.lead_lat || '0'), savedLng = parseFloat(settings.lead_lng || '0');
     if (savedLat && savedLng && /^\d{5}$/.test(city)) cityCoords = { lat: savedLat, lng: savedLng };
 
-    // ── Smart Radius Expansion (nach Koordinaten-Ermittlung) ──────────
-    const cityLimit = trialStage === 'free_preview' ? 0 :
-                      trialStage === 'verified_trial' ? 2 : 4;
+    // ── Grid-Suche (nach Koordinaten-Ermittlung) ──────────────────────
+    const searchPoints = generateSearchGrid(cityCoords.lat, cityCoords.lng, radiusKm, trialStage);
+    console.info(`[generateLeads] Grid: ${searchPoints.length} Punkte für ${radiusKm}km (${trialStage})`);
 
-    if (additionalCities.length === 0 && manualAdditionalCities.length === 0 && cityLimit > 0) {
-      additionalCities = findNearbyCities(cityCoords.lat, cityCoords.lng, radiusKm, city, cityLimit);
-    }
-
-    console.info(`[generateLeads] Radius-Expansion: ${city} + [${additionalCities.join(', ')}] (${radiusKm}km trial=${trialStage})`);
-
-    // SearchPlan mit gefüllten additionalCities neu bauen
-    searchPlan.searchQueries = buildSearchPlan({
+    // SearchPlan mit Grid-Punkten neu bauen
+    const fullSearchPlan = buildSearchPlan({
       industry,
       targetCustomerTypes,
       excludedCustomerTypes,
@@ -1204,10 +1221,13 @@ Deno.serve(async (req) => {
       radiusKm,
       trialStage,
       remainingLeadBudget: remainingPreviewLeads,
-      additionalCities,
+      additionalCities: manualAdditionalCities,
+      searchPoints,
       learnedPriorityCategories,
       learnedWinningSignals,
-    }).searchQueries;
+    });
+    searchPlan.searchQueries = fullSearchPlan.searchQueries;
+    searchPlan.searchPoints = fullSearchPlan.searchPoints;
 
     // ── Lock ──────────────────────────────────────────────────
     const lockResult = await acquireLock(base44, organization_id, access.user.email);
@@ -1249,22 +1269,28 @@ Deno.serve(async (req) => {
     let stopped_early = false, stop_reason = null;
     const maxPlaceDetails = queryBudget.maxPlaceDetails || 80;
 
-    // ── HAUPT-SUCHLAUF ────────────────────────────────────────
-    outer: for (const { query, city: searchCity, category, variant } of searchQueryList) {
-      // Früh abbrechen: genug Leads
-      if (createdIds.length >= effectiveTarget) {
-        stopped_early = true; stop_reason = 'enough_leads_found';
-        console.info(`[generateLeads v2] STOP: genug Leads (${createdIds.length}/${effectiveTarget})`);
-        break;
-      }
+    // ── HAUPT-SUCHLAUF mit Grid-Punkten ─────────────────────────
+    const gridPoints = searchPlan.searchPoints || [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center' }];
+    const pointRadiusMeters = Math.min(15000, (radiusMeters / Math.max(gridPoints.length, 1)) * 1.5);
 
-      // Pagination: bis zu 3 Seiten (60 Ergebnisse statt 20)
-      const maxPages = trialStage === 'free_preview' ? 1 : 3;
-      const places = await searchPlacesWithPagination(query, cityCoords, radiusMeters, apiCounters, maxPages);
-      raw_hits += places.length;
-      console.info(`[generateLeads v2] Query="${query}" → ${places.length} Treffer (Seiten: bis zu ${maxPages})`);
+    outer: for (const point of gridPoints) {
+      const pointCoords = { lat: point.lat, lng: point.lng };
+      
+      for (const { query, category, variant } of searchQueryList) {
+        // Früh abbrechen: genug Leads
+        if (createdIds.length >= effectiveTarget) {
+          stopped_early = true; stop_reason = 'enough_leads_found';
+          console.info(`[generateLeads v2] STOP: genug Leads (${createdIds.length}/${effectiveTarget})`);
+          break outer;
+        }
 
-      for (const place of places) {
+        // Pagination: bis zu 2 Seiten pro Grid-Punkt
+        const maxPages = trialStage === 'free_preview' ? 1 : 2;
+        const places = await searchPlacesWithPagination(query, pointCoords, pointRadiusMeters, apiCounters, maxPages);
+        raw_hits += places.length;
+        console.info(`[generateLeads v2] Point=${point.label} Query="${query}" → ${places.length} Treffer`);
+
+        for (const place of places) {
         // Früh abbrechen: genug Leads
         if (createdIds.length >= effectiveTarget) {
           stopped_early = true; stop_reason = 'enough_leads_found'; break outer;
@@ -1334,7 +1360,7 @@ Deno.serve(async (req) => {
           organization_id,
           name: place.name || '',
           branche: scoring.matched_target_customer_type || scoring.matched_search_category || category,
-          ort: ort || searchCity,
+          ort: ort || city,
           plz: plz || '',
           adresse: adresse || '',
           telefon: phone,
@@ -1362,10 +1388,12 @@ Deno.serve(async (req) => {
         createdIds.push(company.id);
         existingNames.add(normStr(place.name || ''));
         if (roundedDist !== null && roundedDist > maxSavedDistanceKm) maxSavedDistanceKm = roundedDist;
-        if (savedExamples.length < 10) savedExamples.push({ name: place.name, city: ort || searchCity, distance_km: roundedDist, score: scoring.search_quality_score });
+        if (savedExamples.length < 10) savedExamples.push({ name: place.name, city: ort || city, distance_km: roundedDist, score: scoring.search_quality_score });
         console.info(`[generateLeads v2] SAVED "${place.name}" (cat=${scoring.matched_search_category} score=${scoring.search_quality_score} dist=${roundedDist}km)`);
-      }
-    }
+        }
+        }
+        if (createdIds.length >= effectiveTarget) break outer;
+        }
 
     if (!stopped_early && createdIds.length >= effectiveTarget) { stopped_early = true; stop_reason = 'enough_leads_found'; }
     if (!stopped_early) { stop_reason = 'query_budget_exhausted'; }
@@ -1455,10 +1483,10 @@ Deno.serve(async (req) => {
       ...(trialStage === 'free_preview' ? {
         freePreviewReport: {
           saved: newLeadsSaved,
-          totalPreviewBudget: 3,
+          totalPreviewBudget: 10,
           usedBefore: org.trial_leads_granted || 0,
           usedAfter: (org.trial_leads_granted || 0) + newLeadsSaved,
-          remaining: Math.max(0, 3 - ((org.trial_leads_granted || 0) + newLeadsSaved)),
+          remaining: Math.max(0, 10 - ((org.trial_leads_granted || 0) + newLeadsSaved)),
           message: `Kostenlose Vorschau: ${newLeadsSaved} von ${remainingPreviewLeads} verfügbaren Vorschaukontakten gespeichert.`,
         }
       } : {}),
