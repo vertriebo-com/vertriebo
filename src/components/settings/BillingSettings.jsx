@@ -88,9 +88,11 @@ export default function BillingSettings({ org: orgProp, user }) {
 
       // Alle aktiven Pläne laden (für Plan-Auswahl)
       const availablePlans = await base44.entities.Plan.filter({ is_active: true });
+      console.log('[BillingSettings] availablePlans from DB:', availablePlans.length, availablePlans.map(p => ({ name: p.name, plan_type: p.plan_type, stripe_price_id: p.stripe_price_id, is_active: p.is_active })));
       const standardPlans = availablePlans
         .filter(p => p.plan_type === 'standard' && p.stripe_price_id)
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+      console.log('[BillingSettings] standardPlans after filter:', standardPlans.length);
       setAllPlans(standardPlans);
 
       // Aktuellen UsageLog laden – nach period_month filtern (zuverlässiger als period_start-Datumsvergleich)
