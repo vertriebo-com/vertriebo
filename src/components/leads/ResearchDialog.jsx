@@ -642,16 +642,23 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               );
             })()}
 
-            {trialStage === 'verified_trial' && (
-               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
-                 <p className="font-semibold text-blue-900">Verfügbare Leads im Testzugang</p>
-                 <p className="text-blue-800">
-                   {(usageInfo?.leads_created ?? 0) + (org?.trial_leads_granted ?? 0)} / 75 Leads verfügbar
-                   {org?.trial_leads_granted ? ` (${org.trial_leads_granted} aus free_preview-Phase)` : ''}
-                 </p>
-                 <p className="text-blue-700 mt-2">Pro Recherche max. <strong>25 Leads</strong></p>
-               </div>
-            )}
+            {trialStage === 'verified_trial' && (() => {
+               const totalSaved = usageInfo?.leads_created ?? 0;
+               const fromFreePreview = org?.trial_leads_granted ?? 0;
+               const fromVerifiedTrial = Math.max(0, totalSaved - fromFreePreview);
+               const availableInVerifiedTrial = Math.max(0, 75 - fromVerifiedTrial);
+               return (
+                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
+                   <p className="font-semibold text-blue-900">Verfügbare Leads im Testzugang</p>
+                   <p className="text-blue-800">
+                     {fromVerifiedTrial} / 75 Leads genutzt
+                     {availableInVerifiedTrial > 0 ? ` · ${availableInVerifiedTrial} verfügbar` : ' (Limit erreicht)'}
+                   </p>
+                   {fromFreePreview > 0 && <p className="text-blue-700 text-[10px]">+ {fromFreePreview} aus free_preview</p>}
+                   <p className="text-blue-700 mt-1">Pro Recherche max. <strong>25 Leads</strong></p>
+                 </div>
+               );
+            })()}
             {trialStage === 'paid' && (
                <div>
                  <p className="text-xs font-semibold text-slate-900 mb-2">Anzahl Firmenkontakte</p>
