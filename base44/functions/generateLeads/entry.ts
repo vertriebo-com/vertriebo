@@ -919,6 +919,11 @@ Deno.serve(async (req) => {
     const settings = {};
     settingsRecords.forEach(s => { settings[s.key] = s.value; });
 
+    // Load currentUsage early (needed for verified_trial budget check)
+    const periodMonth = getPeriodMonth();
+    const existingUsage = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
+    const currentUsage = existingUsage[0] || { leads_created: 0 };
+
     const learnedSignalsRecords = await base44.asServiceRole.entities.OrgLearnedSignals.filter({ organization_id });
     const learnedSignals = learnedSignalsRecords[0] || null;
 
@@ -1011,10 +1016,6 @@ Deno.serve(async (req) => {
       console.warn(`[generateLeads] trial_stage=paid aber plan_id leer. Nutze Fallback-Limit.`);
       planLimits = { max_leads_per_month: 300 };
     }
-
-    const periodMonth = getPeriodMonth();
-    const existingUsage = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
-    const currentUsage = existingUsage[0] || { leads_created: 0 };
 
     if (trialStage === 'paid') {
       const maxContacts = planLimits.max_leads_per_month ?? 300;
