@@ -71,24 +71,24 @@ export default function TrialInfoDialog({
           {isFreePreview && (
             <>
               <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                <p className="text-sm text-blue-900 font-medium mb-2">
+                <p className="text-sm text-blue-900 font-bold mb-2">
                   {isLimitReached 
                     ? 'Sie haben Ihre kostenlosen Vorschau-Kontakte genutzt.'
                     : 'Sie testen Vertriebo mit einer begrenzten Vorschau.'}
                 </p>
-                <p className="text-xs text-blue-800">
-                  {isLimitReached
-                    ? `Sie haben alle 10 Firmenkontakte der kostenlosen Vorschau aufgebraucht.`
-                    : `Sie können bis zu 10 Firmenkontakte zum Ausprobieren prüfen (${trial_leads_granted} / 10 genutzt).`}
-                </p>
+                <p className="text-xs text-blue-900 font-medium">
+                      {isLimitReached
+                        ? `Sie haben alle 10 Firmenkontakte der kostenlosen Vorschau aufgebraucht.`
+                        : `Sie können bis zu 10 Firmenkontakte zum Ausprobieren prüfen (${trial_leads_granted} / 10 genutzt).`}
+                    </p>
               </div>
 
               {!isLimitReached && (
                 <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <p className="text-xs text-slate-700">
+                  <p className="text-xs text-slate-800 font-bold">
                     <strong>Bereit für mehr?</strong> Aktivieren Sie den verifizierten Testzugang für:
                   </p>
-                  <ul className="text-xs text-slate-600 mt-2 space-y-1 ml-4">
+                  <ul className="text-xs text-slate-700 font-medium mt-2 space-y-1 ml-4">
                     <li>✓ {planLimit === -1 ? 'Unbegrenzte' : `Bis zu ${planLimit}`} Firmenkontakte pro Abrechnungszeitraum</li>
                     <li>✓ Vollständige Kontaktdaten</li>
                     <li>✓ KI-Analysen</li>
@@ -99,10 +99,10 @@ export default function TrialInfoDialog({
 
               {isLimitReached && (
                 <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <p className="text-xs text-slate-700 font-medium mb-2">
+                  <p className="text-xs text-slate-800 font-bold mb-2">
                     Was bietet der verifizierte Testzugang?
                   </p>
-                  <ul className="text-xs text-slate-600 space-y-1 ml-4">
+                  <ul className="text-xs text-slate-700 font-medium space-y-1 ml-4">
                     <li>✓ {planLimit === -1 ? 'Unbegrenzte' : `Bis zu ${planLimit}`} Firmenkontakte pro Abrechnungszeitraum</li>
                     <li>✓ Vollständige Kontaktinformationen</li>
                     <li>✓ KI-Analysen</li>
@@ -115,19 +115,19 @@ export default function TrialInfoDialog({
 
           {isVerifiedTrial && plan && (
             <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-              <p className="text-sm text-amber-900 font-medium mb-2">
-                {planName}-Testphase aktiv
-              </p>
-              <p className="text-xs text-amber-800 mb-3">
+                <p className="text-sm text-amber-900 font-bold mb-2">
+                  {planName}-Testphase aktiv
+                </p>
+                <p className="text-xs text-amber-900 font-medium mb-3">
                 Sie testen den {planName}-Tarif mit bis zu {planLimit === -1 ? 'unbegrenzten' : planLimit} Firmenkontakten pro Abrechnungszeitraum.
               </p>
               {trialEndsAt && (
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-amber-900 font-medium">
                   <strong>Testphase endet am:</strong> {new Date(trialEndsAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                 </p>
               )}
               {!trialEndsAt && (
-                <p className="text-xs text-amber-700">
+                <p className="text-xs text-amber-900 font-medium">
                   Nach Ablauf der Testphase wird Ihr {planName}-Abo für {planPrice}/Monat aktiviert, wenn Sie nicht kündigen.
                 </p>
               )}
@@ -136,10 +136,10 @@ export default function TrialInfoDialog({
 
           {isPaid && plan && (
             <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-              <p className="text-sm text-green-900 font-medium mb-2">
+              <p className="text-sm text-green-900 font-bold mb-2">
                 {planName}-Plan aktiv
               </p>
-              <p className="text-xs text-green-800">
+              <p className="text-xs text-green-900 font-medium">
                 Sie haben {planLimit === -1 ? 'unbegrenzte' : `bis zu ${planLimit}`} Firmenkontakte pro Monat.
               </p>
             </div>

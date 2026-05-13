@@ -397,8 +397,8 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
                 {/* Radius-Transparenz */}
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
-                  <div className="font-semibold text-blue-900 mb-1">Suchgebiet & Radius</div>
-                  <div className="flex justify-between text-blue-800">
+                  <div className="font-bold text-blue-900 mb-1">Suchgebiet & Radius</div>
+                  <div className="flex justify-between text-blue-900 font-medium">
                     <span>Angefragter Radius:</span>
                     <span className="font-semibold">{result.data.summary?.radiusKm ?? "–"} km um {result.data.summary?.searchCenterCity ?? "–"}</span>
                   </div>
@@ -435,22 +435,22 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                 {trialStage !== 'free_preview' && (<div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
                   <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-200 text-center">
                     <div>
-                      <span className="text-slate-500 block text-[10px] font-semibold uppercase">Angefragt</span>
+                      <span className="text-slate-700 block text-[10px] font-bold uppercase">Angefragt</span>
                       <span className="text-lg font-bold text-slate-700">{result.data.requestedTarget}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[10px] font-semibold uppercase">Roh-Treffer</span>
+                      <span className="text-slate-700 block text-[10px] font-bold uppercase">Roh-Treffer</span>
                       <span className="text-lg font-bold text-slate-700">{result.data.summary?.raw_hits ?? "–"}</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-[10px] font-semibold uppercase">Gespeichert</span>
+                      <span className="text-slate-700 block text-[10px] font-bold uppercase">Gespeichert</span>
                       <span className="text-lg font-bold text-green-600">{result.data.summary?.saved ?? result.data.count}</span>
                     </div>
                   </div>
-                  <div className="space-y-1 text-slate-600">
-                    <div className="flex justify-between">
+                  <div className="space-y-1 text-slate-700">
+                    <div className="flex justify-between font-medium">
                       <span>Dubletten (übersprungen):</span>
-                      <span className="font-semibold text-slate-900">{result.data.summary?.duplicates ?? 0}</span>
+                      <span className="font-bold text-slate-900">{result.data.summary?.duplicates ?? 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Außerhalb Radius verworfen:</span>

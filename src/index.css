@@ -112,13 +112,13 @@
     user-select: none;
   }
   
-  /* Placeholder nur maximal text-slate-400 */
+  /* Placeholder mit guter Lesbarkeit */
   ::placeholder {
-    color: hsl(var(--muted-foreground) / 0.7);
+    color: hsl(217 19% 45%); /* text-slate-500 equivalent */
     opacity: 1;
   }
   
-  /* Globale Typografie-Klassen für konsistenten Kontrast */
+  /* Globale Typografie-Klassen mit verbessertem Kontrast */
   .page-title {
     @apply text-3xl font-bold text-slate-900;
   }
@@ -129,19 +129,28 @@
     @apply text-sm font-semibold text-slate-900;
   }
   .section-description {
-    @apply text-xs text-slate-600 font-medium;
+    @apply text-xs text-slate-700 font-medium;
   }
   .form-label {
-    @apply text-xs font-semibold text-slate-900;
+    @apply text-xs font-bold text-slate-800;
   }
   .card-title {
     @apply text-sm font-semibold text-slate-900;
   }
   .card-description {
-    @apply text-xs text-slate-600 font-medium;
+    @apply text-xs text-slate-700 font-medium;
   }
   .muted-text {
-    @apply text-slate-600;
+    @apply text-slate-700;
+  }
+  .form-helper {
+    @apply text-xs text-slate-600 font-medium;
+  }
+  .input-label {
+    @apply text-xs font-bold text-slate-800;
+  }
+  .input-placeholder {
+    @apply placeholder:text-slate-500;
   }
 }
 
