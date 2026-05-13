@@ -138,13 +138,13 @@ export default function Landing() {
           </a>
 
           <div className="flex items-center gap-2 md:gap-4">
-            <button 
-              onClick={handleLogin} 
+            <button
+              onClick={handleLogin}
               className="px-4 md:px-5 py-2.5 rounded-lg text-xs md:text-sm font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all duration-200">
               Login
             </button>
-            <button 
-              onClick={handleRegister} 
+            <button
+              onClick={handleRegister}
               className="px-4 md:px-6 py-2.5 rounded-lg text-xs md:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-md shadow-blue-600/30 transition-all duration-200 flex items-center gap-1.5">
               <span>🚀</span> 14 Tage testen
             </button>
@@ -173,14 +173,14 @@ export default function Landing() {
               
               <div className="flex flex-col sm:flex-row gap-3 mb-8">
                  <button
-                   onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}
-                   className="px-7 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/25">
+                  onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}
+                  className="px-7 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/25">
 
                    14 Tage kostenlos testen
                  </button>
                  <a
-                   href="#how-it-works"
-                   className="px-7 py-3.5 rounded-xl text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+                  href="#how-it-works"
+                  className="px-7 py-3.5 rounded-xl text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
 
                    Wie es funktioniert
                  </a>
@@ -612,8 +612,8 @@ export default function Landing() {
           <a href="/agb" className="hover:text-slate-900 transition-colors font-semibold">AGB</a>
           <a href="mailto:info@huwa-gebaeudedienste.de" className="hover:text-slate-900 transition-colors font-semibold">Kontakt</a>
         </div>
-        <p className="text-xs text-slate-400">
-          Ein Produkt der Huwa Gebäudereinigung & Hausmeisterdienste GmbH
+        <p className="text-xs text-slate-400">Ein Produkt der Huwa Gebäudereinigung & Hausmeisterdienste 
+
         </p>
       </div>
     </div>);
