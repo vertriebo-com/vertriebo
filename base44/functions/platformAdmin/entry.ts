@@ -131,9 +131,13 @@ Deno.serve(async (req) => {
       };
 
       if (trial_stage === 'paid') {
-        // Lade Starter-Plan (default für manuelle paid-Setzung)
-        const plans = await base44.asServiceRole.entities.Plan.filter({ name: 'Starter' });
-        plan_id = plans[0]?.id || null;
+        // Lade Starter-Plan robust (mit Fallback)
+        const plans = await base44.asServiceRole.entities.Plan.list('-created_date', 10);
+        const starterPlan = plans.find(p => 
+          p.name?.toLowerCase().includes('starter') || 
+          p.plan_type === 'standard'
+        ) || plans[0]; // Fallback: ersten verfügbaren Plan
+        plan_id = starterPlan?.id || null;
         billing_status = 'active';
       } else if (trial_stage === 'verified_trial') {
         billing_status = 'trialing';
