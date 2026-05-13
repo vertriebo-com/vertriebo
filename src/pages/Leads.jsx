@@ -10,6 +10,7 @@ import AddCompanyDialog from "../components/AddCompanyDialog";
 import FocusCards from "../components/leads/FocusCards";
 import PipelineBar from "../components/leads/PipelineBar";
 import LeadRow from "../components/leads/LeadRow";
+import EngineStatsBox from "../components/leads/EngineStatsBox";
 import ResearchDialog from "../components/leads/ResearchDialog";
 import LearnedIntelligencePanel from "../components/settings/LearnedIntelligencePanel";
 import moment from "moment";
@@ -160,6 +161,9 @@ export default function Leads() {
           </button>
         )}
       </div>
+
+      {/* Vertriebo Engine Stats */}
+      <EngineStatsBox companies={filtered} />
 
       {/* LearnedIntelligence Widget */}
       <LearnedIntelligencePanel organizationId={orgId} />

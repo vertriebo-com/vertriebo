@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
 import CallScriptDialog from "../components/CallScriptDialog";
-import KiRecommendationCard from "../components/KiRecommendationCard";
+import EngineBox from "../components/lead-detail/EngineBox";
 import AddContactLogDialog from "../components/AddContactLogDialog";
 import AddTaskDialog from "../components/AddTaskDialog";
 import SendEmailDialog from "../components/SendEmailDialog";
@@ -38,7 +38,7 @@ export default function LeadDetail() {
   const [showSonstigesDialog, setShowSonstigesDialog] = useState(false);
   const [sonstigesNotiz, setSonstigesNotiz] = useState("");
   const [sonstigesSaving, setSonstigesSaving] = useState(false);
-  const [showKiDialog, setShowKiDialog] = useState(false); // kept for quick-access button in header
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showBlacklistConfirm, setShowBlacklistConfirm] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -320,13 +320,7 @@ export default function LeadDetail() {
             }
             {enriching ? "Läuft…" : "Anreichern"}
           </button>
-          <button
-            onClick={() => setShowKiDialog(true)}
-            title="KI-Handlungsempfehlung anzeigen"
-            className="inline-flex items-center gap-1.5 h-9 text-sm font-semibold border border-purple-200 bg-purple-50 text-purple-700 px-3 rounded-lg hover:bg-purple-100 transition-colors"
-          >
-            <Sparkles className="w-3.5 h-3.5" /> KI-Empfehlung
-          </button>
+
           {canUseAdminActions && (
             <>
               <button
@@ -516,11 +510,13 @@ export default function LeadDetail() {
               </Button>
             </div>
 
-            {/* KI-Empfehlung */}
-            <KiRecommendationCard
+            {/* Vertriebo Engine */}
+            <EngineBox
               company={company}
+              contactLogs={contactLogs}
+              tasks={tasks}
               orgId={orgId}
-              onCompanyUpdated={loadData}
+              onAddTask={() => setShowAddTask(true)}
             />
           </div>
 
@@ -618,20 +614,7 @@ export default function LeadDetail() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showKiDialog} onOpenChange={setShowKiDialog}>
-        <DialogContent className="max-w-md bg-white border border-slate-200 shadow-xl rounded-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-slate-900">
-              <Sparkles className="w-4 h-4 text-purple-600" /> KI-Handlungsempfehlung
-            </DialogTitle>
-          </DialogHeader>
-          <KiRecommendationCard
-            company={company}
-            orgId={orgId}
-            onCompanyUpdated={loadData}
-          />
-        </DialogContent>
-      </Dialog>
+
 
       <AddContactLogDialog open={showAddLog} onClose={() => setShowAddLog(false)} companyId={id} companyName={company.name} onCreated={loadData} />
       <AddTaskDialog open={showAddTask} onClose={() => setShowAddTask(false)} companyId={id} companyName={company.name} onCreated={loadData} />
