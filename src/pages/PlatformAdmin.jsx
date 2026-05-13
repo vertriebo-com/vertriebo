@@ -664,50 +664,77 @@ export default function PlatformAdmin() {
                 {/* System-Details */}
                 <div>
                   <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">System-Details</h3>
-                  <div className="space-y-3">
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-semibold text-slate-700">Trial-Stage:</span>
-                        <div className="relative">
-                          <button
-                            onClick={() => setShowTrialStageDropdown(!showTrialStageDropdown)}
-                            disabled={changingTrialStage}
-                            className={`px-2 py-1 text-xs font-bold rounded border transition-all ${
-                              selectedOrg.trial_stage === 'free_preview' ? 'bg-blue-50 border-blue-200 text-blue-700' :
-                              selectedOrg.trial_stage === 'verified_trial' ? 'bg-purple-50 border-purple-200 text-purple-700' :
-                              'bg-green-50 border-green-200 text-green-700'
-                            }`}
-                          >
-                            {selectedOrg.trial_stage} ▾
-                          </button>
-                          {showTrialStageDropdown && (
-                            <div className="absolute right-0 mt-1 w-40 bg-white border border-slate-200 rounded shadow-lg z-10">
-                              {['free_preview', 'verified_trial', 'paid'].map(stage => (
-                                <button
-                                  key={stage}
-                                  onClick={() => handleChangeTrialStage(stage)}
-                                  disabled={changingTrialStage}
-                                  className={`block w-full text-left px-3 py-2 text-xs hover:bg-slate-50 border-b border-slate-100 last:border-b-0 ${
-                                    selectedOrg.trial_stage === stage ? 'font-bold text-blue-700' : 'text-slate-700'
-                                  }`}
-                                >
-                                  {stage}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                  <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 space-y-3">
+
+                    {/* Trial-Stage mit Dropdown */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-slate-500 font-medium">Trial-Stage</p>
+                        <p className="text-sm font-semibold text-slate-900">{selectedOrg.trial_stage || 'free_preview'}</p>
                       </div>
-                      <p className="text-xs text-slate-600">Trial-Leads gewährt: {selectedOrg.trial_leads_granted} / 10</p>
+                      <select
+                        defaultValue={selectedOrg.trial_stage || 'free_preview'}
+                        onChange={async (e) => {
+                          try {
+                            await base44.functions.invoke('platformAdmin', {
+                              action: 'updateTrialStage',
+                              organization_id: selectedOrg.id,
+                              trial_stage: e.target.value,
+                            });
+                            toast.success(`Trial-Stage → ${e.target.value}`);
+                            refetch();
+                          } catch (err) {
+                            toast.error('Fehler: ' + err.message);
+                          }
+                        }}
+                        className="text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 font-medium"
+                      >
+                        <option value="free_preview">free_preview</option>
+                        <option value="verified_trial">verified_trial</option>
+                        <option value="paid">paid</option>
+                      </select>
                     </div>
 
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                      <div className="text-xs space-y-1 text-slate-700">
-                        <p>🌐 Grid-Punkte: {selectedOrg.service_area_radius_km ? Math.ceil(selectedOrg.service_area_radius_km / 15) : '?'} (${selectedOrg.service_area_radius_km}km)</p>
-                        {selectedOrg.learned_signals_count > 0 && (
-                          <p>🧠 OrgLearnedSignals: {selectedOrg.learned_signals_count} Kategorien gelernt</p>
-                        )}
-                      </div>
+                    {/* Trial-Leads */}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Trial-Leads gewährt</span>
+                      <span className="font-semibold text-slate-900">{selectedOrg.trial_leads_granted || 0} / 10</span>
+                    </div>
+
+                    {/* Letzter Run */}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Letzter Recherche-Run</span>
+                      <span className="font-semibold text-slate-900">
+                        {selectedOrg.last_lead_generation_at 
+                          ? moment(selectedOrg.last_lead_generation_at).format('DD.MM.YYYY HH:mm')
+                          : 'Noch keiner'}
+                      </span>
+                    </div>
+
+                    {/* API-Kosten diesen Monat */}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">API-Kosten (Monat)</span>
+                      <span className="font-semibold text-slate-900">
+                        ${((selectedOrg.estimated_external_cost_cent || 0) / 100).toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* OrgLearnedSignals */}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">System gelernt</span>
+                      <span className="font-semibold text-slate-900">
+                        {selectedOrg.learned_categories_count > 0 
+                          ? `${selectedOrg.learned_categories_count} Kategorien`
+                          : 'Noch keine Daten'}
+                      </span>
+                    </div>
+
+                    {/* Grid-Punkte & Suchgebiet */}
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-500">Suchgebiet</span>
+                      <span className="font-semibold text-slate-900">
+                        {selectedOrg.service_area_city || 'N/A'} · {selectedOrg.service_area_radius_km || 25}km
+                      </span>
                     </div>
                   </div>
                 </div>

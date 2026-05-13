@@ -119,6 +119,8 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Invalid trial_stage' }, { status: 400 });
       }
 
+      const oldStage = org.trial_stage || 'free_preview';
+
       // Update Organization trial_stage
       await base44.asServiceRole.entities.Organization.update(organization_id, {
         trial_stage: trial_stage,
@@ -133,9 +135,11 @@ Deno.serve(async (req) => {
         target_id: organization_id,
         organization_id: organization_id,
         parent_agency_id: org.parent_agency_id || null,
-        metadata: JSON.stringify({ old_stage: org.trial_stage, new_stage: trial_stage }),
-        reason: `Admin changed trial_stage to ${trial_stage}`,
+        metadata: JSON.stringify({ old_stage: oldStage, new_stage: trial_stage }),
+        reason: `Admin changed trial_stage from ${oldStage} to ${trial_stage}`,
       });
+
+      console.info(`[platformAdmin] updateTrialStage: ${organization_id} ${oldStage} → ${trial_stage}`);
 
       return Response.json({
         success: true,

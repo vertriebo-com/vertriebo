@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
 
     // ── Load Data via Service Role ────────────────────────────────────────
     const periodMonth = getPeriodMonth();
-    const [orgs, plans, usageLogs, researchRuns, supportNotes, auditLogs, platformConfigs, orgSettings] = await Promise.all([
+    const [orgs, plans, usageLogs, researchRuns, supportNotes, auditLogs, platformConfigs, orgSettings, learnedSignals] = await Promise.all([
       base44.asServiceRole.entities.Organization.list(),
       base44.asServiceRole.entities.Plan.list(),
       base44.asServiceRole.entities.UsageLog.filter({ period_month: periodMonth }),
@@ -21,6 +21,7 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.PlatformAuditLog.filter({}),
       base44.asServiceRole.entities.PlatformConfig.list(),
       base44.asServiceRole.entities.OrganizationSettings.filter({}),
+      base44.asServiceRole.entities.OrgLearnedSignals.filter({}),
     ]);
 
     // ── Build Safe Response ───────────────────────────────────────────────
@@ -43,6 +44,8 @@ Deno.serve(async (req) => {
         trial_stage: org.trial_stage || 'free_preview',
         trial_leads_granted: org.trial_leads_granted || 0,
         industry,
+        service_area_city: org.service_area_city || 'N/A',
+        service_area_radius_km: org.service_area_radius_km || 25,
         onboarding_done: org.onboarding_done,
         created_date: org.created_date,
         suspended_reason: org.platform_status === 'suspended' ? org.suspended_reason : null,
@@ -53,29 +56,26 @@ Deno.serve(async (req) => {
         research_runs_count: 0,
         ai_actions_used: 0,
         manual_emails_logged: 0,
-        last_research_run_at: null,
-        google_api_cost_month_cent: 0,
-        learned_signals_count: 0,
+        last_lead_generation_at: null,
+        estimated_external_cost_cent: 0,
+        learned_categories_count: 0,
       };
     });
 
     // ── Add aggregated metrics ────────────────────────────────────────────
-    // Load OrgLearnedSignals and ResearchRuns
-    const learnedSignals = await base44.asServiceRole.entities.OrgLearnedSignals.filter({});
-    
     for (const org of organizations) {
-      // Fix 3: Get usage from current month
+      // Get usage from current month
       const usage = usageLogs.find(u => u.organization_id === org.id);
       if (usage) {
         org.leads_count = usage.leads_created || 0;
         org.ai_actions_used = usage.ai_actions_used || 0;
         org.manual_emails_logged = usage.manual_emails_logged || 0;
-        org.google_api_cost_month_cent = usage.estimated_external_cost_cent || 0;
+        org.estimated_external_cost_cent = usage.estimated_external_cost_cent || 0;
       }
 
       const orgResearchRuns = (researchRuns || []).filter(r => r.organization_id === org.id);
       org.research_runs_count = orgResearchRuns.length;
-      org.last_research_run_at = orgResearchRuns.length > 0 
+      org.last_lead_generation_at = orgResearchRuns.length > 0 
         ? orgResearchRuns.sort((a, b) => new Date(b.created_date) - new Date(a.created_date))[0].created_date 
         : null;
 
@@ -84,9 +84,9 @@ Deno.serve(async (req) => {
       if (signals) {
         try {
           const cats = JSON.parse(signals.priority_categories || '[]');
-          org.learned_signals_count = cats.filter(c => c.score > 55).length;
+          org.learned_categories_count = cats.length;
         } catch (e) {
-          org.learned_signals_count = 0;
+          org.learned_categories_count = 0;
         }
       }
     }
