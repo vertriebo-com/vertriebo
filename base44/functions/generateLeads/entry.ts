@@ -780,10 +780,10 @@ async function getPlaceDetails(placeId, apiCounters) {
 function extractAddressComponents(components = []) {
   let plz = '', ort = '', strasse = '', hausnummer = '';
   for (const c of components) {
-    if (c.types.includes('postal_code')) plz = c.long_name;
-    if (c.types.includes('locality')) ort = c.long_name;
-    if (c.types.includes('route')) strasse = c.long_name;
-    if (c.types.includes('street_number')) hausnummer = c.long_name;
+    if (c?.types?.includes('postal_code')) plz = c.long_name;
+    if (c?.types?.includes('locality')) ort = c.long_name;
+    if (c?.types?.includes('route')) strasse = c.long_name;
+    if (c?.types?.includes('street_number')) hausnummer = c.long_name;
   }
   return { plz, ort, adresse: [strasse, hausnummer].filter(Boolean).join(' ') };
 }
@@ -1416,7 +1416,7 @@ Deno.serve(async (req) => {
         timestamp: new Date().toISOString(),
       });
     } catch (alertErr) {
-      console.error('[generateLeads v2] Alert-Fehler:', alertErr.message);
+      console.error('[generateLeads v2] Alert-Fehler:', alertErr?.message || 'unbekannt');
     }
     return Response.json({ error: error.message, success: false }, { status: 500 });
   } finally {
