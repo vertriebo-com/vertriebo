@@ -581,7 +581,7 @@ export default function PlatformAdmin() {
                     )}
                     <div>
                       <p className="text-xs text-slate-500 font-medium">Branche</p>
-                      <p className="text-sm font-semibold text-slate-900 bg-emerald-50 px-2 py-1 rounded inline-block border border-emerald-200">{selectedOrg.industry || 'N/A'}</p>
+                      <p className="text-sm font-semibold text-slate-900 bg-emerald-50 px-2 py-1 rounded inline-block border border-emerald-200">{selectedOrg.industry ? selectedOrg.industry : '(noch nicht angegeben)'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-slate-500 font-medium">Website</p>
@@ -656,8 +656,8 @@ export default function PlatformAdmin() {
                     </div>
                   </div>
                   <div className="text-xs text-slate-600 bg-slate-50 p-3 rounded border border-slate-200">
-                    <p>💰 Google API Kosten: ${(selectedOrg.google_api_cost_month_cent / 100).toFixed(2)}</p>
-                    {selectedOrg.last_research_run_at && <p>🔍 Letzter Run: {moment(selectedOrg.last_research_run_at).format('DD.MM.YYYY HH:mm')}</p>}
+                    <p>💰 Google API Kosten: ${((selectedOrg.estimated_external_cost_cent || 0) / 100).toFixed(2)}</p>
+                    {selectedOrg.last_lead_generation_at && <p>🔍 Letzter Run: {moment(selectedOrg.last_lead_generation_at).format('DD.MM.YYYY HH:mm')}</p>}
                   </div>
                 </div>
 
@@ -733,7 +733,7 @@ export default function PlatformAdmin() {
                     <div className="flex justify-between text-xs">
                       <span className="text-slate-500">Suchgebiet</span>
                       <span className="font-semibold text-slate-900">
-                        {selectedOrg.service_area_city || 'N/A'} · {selectedOrg.service_area_radius_km || 25}km
+                        {selectedOrg.service_area_city ? `${selectedOrg.service_area_city} · ${selectedOrg.service_area_radius_km}km` : '(noch nicht konfiguriert)'}
                       </span>
                     </div>
                   </div>
@@ -766,9 +766,9 @@ export default function PlatformAdmin() {
                   <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">Support-Notizen</h3>
                   
                   {/* Existing Notes */}
-                  {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id).length > 0 && (
+                  {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id && !n.created_by?.includes('no-reply.base44.com')).length > 0 && (
                     <div className="space-y-2 mb-4">
-                      {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id).map(note => (
+                      {(responseData.supportNotes || []).filter(n => n.organization_id === selectedOrg.id && !n.created_by?.includes('no-reply.base44.com')).map(note => (
                         <div key={note.id} className={`rounded-lg p-3 border text-xs ${
                           note.severity === 'critical' ? 'bg-red-50 border-red-200' :
                           note.severity === 'warning' ? 'bg-amber-50 border-amber-200' :

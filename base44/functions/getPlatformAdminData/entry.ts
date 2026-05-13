@@ -26,11 +26,26 @@ Deno.serve(async (req) => {
 
     // ── Build Safe Response ───────────────────────────────────────────────
     const organizations = (orgs || []).map(org => {
-      // Fix 1: Read industry from both sources
-      const industryFromSettings = (orgSettings || []).find(s => 
-        s.organization_id === org.id && (s.key === 'own_industry' || s.key === 'industry_name')
+      // Enrich org data from OrganizationSettings
+      const orgSettingsForThisOrg = (orgSettings || []).filter(s => s.organization_id === org.id);
+      
+      // Get industry from multiple possible keys
+      const industryFromSettings = orgSettingsForThisOrg.find(s => 
+        ['own_industry', 'industry_name', 'industry', 'branche'].includes(s.key)
       )?.value;
-      const industry = org.industry || industryFromSettings || 'N/A';
+      const industry = org.industry || industryFromSettings || null;
+      
+      // Get city/location from multiple possible keys
+      const cityFromSettings = orgSettingsForThisOrg.find(s =>
+        ['lead_plz_city', 'service_area_city', 'lead_plz', 'city', 'ort'].includes(s.key)
+      )?.value;
+      const serviceAreaCity = org.service_area_city || cityFromSettings || null;
+      
+      // Get radius from multiple possible keys
+      const radiusFromSettings = orgSettingsForThisOrg.find(s =>
+        ['lead_radius_km', 'service_area_radius_km', 'radius_km'].includes(s.key)
+      )?.value;
+      const serviceAreaRadiusKm = org.service_area_radius_km || (radiusFromSettings ? parseInt(radiusFromSettings) : 25);
 
       return {
         id: org.id,
@@ -44,8 +59,8 @@ Deno.serve(async (req) => {
         trial_stage: org.trial_stage || 'free_preview',
         trial_leads_granted: org.trial_leads_granted || 0,
         industry,
-        service_area_city: org.service_area_city || 'N/A',
-        service_area_radius_km: org.service_area_radius_km || 25,
+        service_area_city: serviceAreaCity,
+        service_area_radius_km: serviceAreaRadiusKm,
         onboarding_done: org.onboarding_done,
         created_date: org.created_date,
         suspended_reason: org.platform_status === 'suspended' ? org.suspended_reason : null,
