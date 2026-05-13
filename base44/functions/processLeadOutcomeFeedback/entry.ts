@@ -9,12 +9,11 @@ async function processFeedbackForOrg(base44, organization_id) {
     500
   );
 
-  // Alle zugehörigen Companies laden um matched_search_category zu lesen
-  const companyIds = [...new Set(outcomes.map(o => o.company_id).filter(Boolean))];
-  if (companyIds.length === 0) {
+  if (outcomes.length === 0) {
     return { success: true, updated: false, message: 'Keine Outcomes vorhanden.' };
   }
 
+  // Alle zugehörigen Companies laden
   const companies = await base44.asServiceRole.entities.Company.filter(
     { organization_id },
     '-created_date',
@@ -23,36 +22,98 @@ async function processFeedbackForOrg(base44, organization_id) {
   const companyMap = {};
   companies.forEach(c => { companyMap[c.id] = c; });
 
-  // Kategorie-Performance berechnen
+  // ── Kategorie-Stats, Keywords, Signals ──────────────────────────
   const categoryStats = {};
+  const keywordWins = {};
+  const signalWins = {};
+
   for (const outcome of outcomes) {
     const company = companyMap[outcome.company_id];
-    const category = company?.matched_search_category || company?.source_query || null;
-    if (!category) continue;
+    if (!company) continue;
 
-    if (!categoryStats[category]) {
-      categoryStats[category] = { relevant: 0, not_relevant: 0, won: 0, total: 0 };
+    const category = company.matched_search_category || company.source_query || null;
+    const keyword = company.source_query || null;
+    const signals = (company.relevance_reason || '').split(' | ');
+
+    // Kategorie-Stats
+    if (category) {
+      if (!categoryStats[category]) {
+        categoryStats[category] = { won: 0, relevant: 0, not_relevant: 0, total: 0 };
+      }
+      categoryStats[category].total++;
+      if (outcome.outcome_type === 'won') categoryStats[category].won++;
+      else if (outcome.outcome_type === 'relevant') categoryStats[category].relevant++;
+      else if (outcome.outcome_type === 'not_relevant') categoryStats[category].not_relevant++;
     }
-    categoryStats[category].total++;
-    if (outcome.outcome_type === 'won') categoryStats[category].won++;
-    else if (outcome.outcome_type === 'relevant') categoryStats[category].relevant++;
-    else if (outcome.outcome_type === 'not_relevant') categoryStats[category].not_relevant++;
+
+    // Keywords die zu Abschlüssen geführt haben
+    if (keyword && outcome.outcome_type === 'won') {
+      keywordWins[keyword] = (keywordWins[keyword] || 0) + 1;
+    }
+
+    // Scoring-Signale die zu Abschlüssen geführt haben
+    if (outcome.outcome_type === 'won') {
+      for (const signal of signals) {
+        const s = signal.replace('Signal: ', '').replace(/"/g, '').trim();
+        if (s && s.length > 2) {
+          signalWins[s] = (signalWins[s] || 0) + 1;
+        }
+      }
+    }
   }
 
-  // Kategorien mit schlechter Performance identifizieren
-  // Regel: min 3 Feedbacks UND >60% nicht relevant → ausschließen
-  const badCategories = Object.entries(categoryStats)
-    .filter(([_, stats]) => 
-      stats.total >= 3 && 
-      (stats.not_relevant / stats.total) > 0.6
-    )
-    .map(([cat]) => cat);
+  // ── Kategorie-Score berechnen ──────────────────────────────────
+  // Score 0-100: won=+3, relevant=+1, not_relevant=-2
+  const categoryScores = Object.entries(categoryStats).map(([cat, stats]) => ({
+    category: cat,
+    ...stats,
+    score: Math.max(0, Math.min(100,
+      50 + (stats.won * 3) + (stats.relevant * 1) - (stats.not_relevant * 2)
+    ))
+  })).sort((a, b) => b.score - a.score);
 
-  if (badCategories.length === 0) {
-    return { success: true, updated: false, message: 'Keine schlechten Kategorien gefunden.' };
+  // ── Ausschlüsse (min 3 Feedbacks UND >60% not_relevant) ───────
+  const badCategories = categoryScores
+    .filter(c => c.total >= 3 && (c.not_relevant / c.total) > 0.6)
+    .map(c => c.category);
+
+  // ── Top-Keywords nach Abschlüssen ──────────────────────────────
+  const boostedKeywords = Object.entries(keywordWins)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([keyword, won_count]) => ({ keyword, won_count, source: 'outcome_won' }));
+
+  // ── Winning Signals nach Abschlüssen ────────────────────────────
+  const winningSignals = Object.entries(signalWins)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 15)
+    .map(([signal, won_count]) => ({ signal, won_count }));
+
+  // ── OrgLearnedSignals speichern ─────────────────────────────────
+  const learnedData = {
+    organization_id,
+    priority_categories: JSON.stringify(categoryScores),
+    boosted_keywords: JSON.stringify(boostedKeywords),
+    excluded_categories: JSON.stringify(badCategories),
+    winning_signals: JSON.stringify(winningSignals),
+    last_computed_at: new Date().toISOString(),
+    total_outcomes_analyzed: outcomes.length,
+    version: 1
+  };
+
+  const existing = await base44.asServiceRole.entities.OrgLearnedSignals.filter(
+    { organization_id }
+  );
+  if (existing[0]) {
+    await base44.asServiceRole.entities.OrgLearnedSignals.update(
+      existing[0].id,
+      learnedData
+    );
+  } else {
+    await base44.asServiceRole.entities.OrgLearnedSignals.create(learnedData);
   }
 
-  // Aktuelle excluded_customer_types laden
+  // ── excluded_customer_types in OrganizationSettings aktualisieren ──
   const settingsRecords = await base44.asServiceRole.entities.OrganizationSettings.filter(
     { organization_id }
   );
@@ -62,22 +123,18 @@ async function processFeedbackForOrg(base44, organization_id) {
   const currentExcluded = (settings['excluded_customer_types']?.value || '')
     .split(', ')
     .filter(x => x.trim());
-  
-  // Neue Ausschlüsse zusammenführen (keine Duplikate)
   const newExcluded = [...new Set([...currentExcluded, ...badCategories])];
-  const newValue = newExcluded.join(', ');
 
-  // Speichern
   if (settings['excluded_customer_types']) {
     await base44.asServiceRole.entities.OrganizationSettings.update(
       settings['excluded_customer_types'].id,
-      { value: newValue }
+      { value: newExcluded.join(', ') }
     );
-  } else {
+  } else if (newExcluded.length > 0) {
     await base44.asServiceRole.entities.OrganizationSettings.create({
       organization_id,
       key: 'excluded_customer_types',
-      value: newValue
+      value: newExcluded.join(', ')
     });
   }
 
@@ -96,13 +153,16 @@ async function processFeedbackForOrg(base44, organization_id) {
     console.warn('[processLeadOutcomeFeedback] Audit-Log-Fehler:', auditErr.message);
   }
 
-  console.info(`[processLeadOutcomeFeedback] org=${organization_id} auto_excluded=${badCategories.length} categories=${badCategories.join(', ')}`);
+  console.info(`[processLeadOutcomeFeedback] org=${organization_id} categories=${categoryScores.length} won=${Object.values(categoryStats).reduce((s,c)=>s+c.won,0)} excluded=${badCategories.length}`);
 
-  return { 
-    success: true, 
+  return {
+    success: true,
     updated: true,
-    auto_excluded: badCategories,
-    category_stats: categoryStats
+    categories_analyzed: categoryScores.length,
+    bad_categories: badCategories,
+    boosted_keywords: boostedKeywords.length,
+    winning_signals: winningSignals.length,
+    total_outcomes: outcomes.length
   };
 }
 

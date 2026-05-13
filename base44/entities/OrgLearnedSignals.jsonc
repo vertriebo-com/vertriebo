@@ -1,0 +1,43 @@
+{
+  "name": "OrgLearnedSignals",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "priority_categories": {
+      "type": "string",
+      "title": "Priorit\u00e4ts-Kategorien (JSON)"
+    },
+    "boosted_keywords": {
+      "type": "string",
+      "title": "Geboosted Keywords (JSON)"
+    },
+    "excluded_categories": {
+      "type": "string",
+      "title": "Ausgeschlossene Kategorien (JSON)"
+    },
+    "winning_signals": {
+      "type": "string",
+      "title": "Winning Signals (JSON)"
+    },
+    "last_computed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Zuletzt berechnet am"
+    },
+    "total_outcomes_analyzed": {
+      "type": "number",
+      "title": "Analyseierte Outcomes"
+    },
+    "version": {
+      "type": "number",
+      "title": "Schemaversion",
+      "default": 1
+    }
+  },
+  "required": [
+    "organization_id"
+  ]
+}

@@ -446,7 +446,7 @@ function getCityLimit(trialStage, radiusKm) {
   return 7;
 }
 
-function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerTypes = [], location, radiusKm = 25, trialStage = 'free_preview', remainingLeadBudget = 3, additionalCities = [] }) {
+function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerTypes = [], location, radiusKm = 25, trialStage = 'free_preview', remainingLeadBudget = 3, additionalCities = [], learnedPriorityCategories = [], learnedWinningSignals = [] }) {
   const industryId = normalizeIndustryId(industry);
   const profile = LEAD_SEARCH_TAXONOMY[industryId] || null;
 
@@ -467,14 +467,20 @@ function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerT
     trialStage === 'free_preview' ? 2 :
     trialStage === 'verified_trial' ? 3 : 999;
 
-  // Queries generieren
+  // Queries generieren — Gelernte Prioritäten ZUERST
   const queries = [];
   const seen = new Set();
   const maxQ = queryBudget.maxSearchQueries;
-  const ordered = [
-    ...(profile.queryPriority || []).filter(c => usedCategories.includes(c)),
-    ...usedCategories.filter(c => !(profile.queryPriority || []).includes(c))
-  ];
+  
+  // Gelernte Prioritäten VOR statischen queryPriority setzen
+  const learnedFirst = learnedPriorityCategories
+    .filter(c => usedCategories.includes(c));
+  const staticPriority = (profile.queryPriority || [])
+    .filter(c => usedCategories.includes(c) && !learnedFirst.includes(c));
+  const rest = usedCategories
+    .filter(c => !learnedFirst.includes(c) && !staticPriority.includes(c));
+
+  const ordered = [...learnedFirst, ...staticPriority, ...rest];
 
   for (const city of searchCities) {
     for (const cat of ordered) {
@@ -518,7 +524,7 @@ function isBadFit(candidate, profile) {
   return { isBadFit: false, reason: null };
 }
 
-function scoreLeadCandidate({ candidate, profile, distanceKm = null, radiusKm = 25, matchedSearchCategory = null }) {
+function scoreLeadCandidate({ candidate, profile, distanceKm = null, radiusKm = 25, matchedSearchCategory = null, learnedWinningSignals = [] }) {
   const text = normStr([candidate.name, (candidate.types || []).join(' '), candidate.vicinity || '', candidate.editorial_summary?.overview || '', candidate.formatted_address || ''].join(' '));
   const badFitResult = isBadFit(candidate, profile);
 
@@ -538,7 +544,12 @@ function scoreLeadCandidate({ candidate, profile, distanceKm = null, radiusKm = 
   }
   if (matched_search_category) { score += 20; reasons.push(`Kategorie: "${matched_search_category}"`); }
 
-  // +15: Scoring Signal
+  // +20 Bonus: Gelernte Winning-Signals (zusätzlich zu statischen +15)
+  for (const s of learnedWinningSignals) {
+    if (text.includes(normStr(s))) { score += 20; reasons.push(`Gelernt: "${s}"`); break; }
+  }
+
+  // +15: Scoring Signal (statisch)
   for (const s of (profile.scoringSignals || [])) {
     if (text.includes(normStr(s))) { score += 15; reasons.push(`Signal: "${s}"`); break; }
   }
@@ -938,6 +949,33 @@ Deno.serve(async (req) => {
     const settings = {};
     settingsRecords.forEach(s => { settings[s.key] = s.value; });
 
+    // ── OrgLearnedSignals laden ────────────────────────────────────
+    const learnedSignalsRecords = await base44.asServiceRole.entities.OrgLearnedSignals.filter(
+      { organization_id }
+    );
+    const learnedSignals = learnedSignalsRecords[0] || null;
+
+    let learnedPriorityCategories = [];
+    let learnedWinningSignals = [];
+    let learnedBoostedKeywords = [];
+
+    if (learnedSignals) {
+      try {
+        const cats = JSON.parse(learnedSignals.priority_categories || '[]');
+        learnedPriorityCategories = cats
+          .filter(c => c.score > 55 && c.total >= 2)
+          .map(c => c.category);
+
+        learnedWinningSignals = JSON.parse(learnedSignals.winning_signals || '[]')
+          .map(s => s.signal);
+
+        learnedBoostedKeywords = JSON.parse(learnedSignals.boosted_keywords || '[]')
+          .map(b => b.keyword);
+      } catch (e) {
+        console.warn('[generateLeads] OrgLearnedSignals parse error:', e.message);
+      }
+    }
+
     const industry = settings.industry_name || settings.own_industry || settings.industry || '';
     const targetCustomerTypes = (settings.target_customer_types || settings.zielkunden || '').split(', ').filter(x => x.trim());
     const excludedCustomerTypes = (settings.excluded_customer_types || settings.zielkunden_ausschluss || '').split(', ').filter(x => x.trim());
@@ -956,6 +994,8 @@ Deno.serve(async (req) => {
       radiusKm,
       trialStage,
       remainingLeadBudget: remainingPreviewLeads,
+      learnedPriorityCategories,
+      learnedWinningSignals,
     });
 
     // ── Hard-Block: Preview-Limit erreicht ────────────────────
@@ -1106,7 +1146,7 @@ Deno.serve(async (req) => {
         // ── SCORING via LeadSearchEngine ──────────────────────
         let scoring;
         if (industryProfile) {
-          scoring = scoreLeadCandidate({ candidate: place, profile: industryProfile, distanceKm, radiusKm, matchedSearchCategory: category });
+          scoring = scoreLeadCandidate({ candidate: place, profile: industryProfile, distanceKm, radiusKm, matchedSearchCategory: category, learnedWinningSignals });
           if (!scoring.shouldSave) {
             skipped_no_match++;
             if (noMatchExamples.length < 8) noMatchExamples.push({ name: place.name, reason: scoring.bad_fit_reason || scoring.relevance_reason });
