@@ -247,6 +247,8 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           }}
           trial_stage={trialStage}
           trial_leads_granted={org?.trial_leads_granted || 0}
+          plan={planLimits ? { name: org?.name || 'Starter', max_leads_per_month: planLimits.max_leads_per_month } : null}
+          trialEndsAt={org?.trial_ends_at}
           onUpgrade={() => {
             setShowTrialInfoDialog(false);
             window.location.href = "/settings?tab=billing";

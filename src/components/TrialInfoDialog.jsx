@@ -9,10 +9,19 @@ export default function TrialInfoDialog({
   onClose, 
   trial_stage, 
   trial_leads_granted = 0,
-  onUpgrade 
+  onUpgrade,
+  plan = null,
+  subscription = null,
+  trialEndsAt = null
 }) {
   const isFreePreview = trial_stage === 'free_preview';
+  const isVerifiedTrial = trial_stage === 'verified_trial';
+  const isPaid = trial_stage === 'paid';
   const isLimitReached = isFreePreview && trial_leads_granted >= 10;
+  
+  const planLimit = plan?.max_leads_per_month ?? 300;
+  const planName = plan?.name || 'Starter';
+  const planPrice = plan?.price_monthly ? `${(plan.price_monthly / 100).toFixed(0)} €` : '99 €';
 
   if (!isOpen) return null;
 
@@ -40,8 +49,8 @@ export default function TrialInfoDialog({
                 </p>
                 <p className="text-xs text-blue-800">
                   {isLimitReached
-                    ? `Sie haben alle 10 kostenlosen Vorschau-Kontakte aufgebraucht.`
-                    : `Sie können bis zu 10 Firmenkontakte prüfen (${trial_leads_granted} / 10 genutzt).`}
+                    ? `Sie haben alle 10 Firmenkontakte der kostenlosen Vorschau aufgebraucht.`
+                    : `Sie können bis zu 10 Firmenkontakte zum Ausprobieren prüfen (${trial_leads_granted} / 10 genutzt).`}
                 </p>
               </div>
 
@@ -51,9 +60,9 @@ export default function TrialInfoDialog({
                     <strong>Bereit für mehr?</strong> Aktivieren Sie den verifizierten Testzugang für:
                   </p>
                   <ul className="text-xs text-slate-600 mt-2 space-y-1 ml-4">
-                    <li>✓ 75 Firmenkontakte testen</li>
+                    <li>✓ {planLimit === -1 ? 'Unbegrenzte' : `Bis zu ${planLimit}`} Firmenkontakte pro Abrechnungszeitraum</li>
                     <li>✓ Vollständige Kontaktdaten</li>
-                    <li>✓ 5 KI-Analysen</li>
+                    <li>✓ KI-Analysen</li>
                     <li>✓ 14 Tage kostenloses Testen</li>
                   </ul>
                 </div>
@@ -65,14 +74,46 @@ export default function TrialInfoDialog({
                     Was bietet der verifizierte Testzugang?
                   </p>
                   <ul className="text-xs text-slate-600 space-y-1 ml-4">
-                    <li>✓ Bis zu 75 Firmenkontakte</li>
+                    <li>✓ {planLimit === -1 ? 'Unbegrenzte' : `Bis zu ${planLimit}`} Firmenkontakte pro Abrechnungszeitraum</li>
                     <li>✓ Vollständige Kontaktinformationen</li>
-                    <li>✓ Unbegrenzte KI-Analysen</li>
+                    <li>✓ KI-Analysen</li>
                     <li>✓ 14 Tage kostenloses Testen</li>
                   </ul>
                 </div>
               )}
             </>
+          )}
+
+          {isVerifiedTrial && plan && (
+            <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+              <p className="text-sm text-amber-900 font-medium mb-2">
+                {planName}-Testphase aktiv
+              </p>
+              <p className="text-xs text-amber-800 mb-3">
+                Sie testen den {planName}-Tarif mit bis zu {planLimit === -1 ? 'unbegrenzten' : planLimit} Firmenkontakten pro Abrechnungszeitraum.
+              </p>
+              {trialEndsAt && (
+                <p className="text-xs text-amber-700">
+                  <strong>Testphase endet am:</strong> {new Date(trialEndsAt).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </p>
+              )}
+              {!trialEndsAt && (
+                <p className="text-xs text-amber-700">
+                  Nach Ablauf der Testphase wird Ihr {planName}-Abo für {planPrice}/Monat aktiviert, wenn Sie nicht kündigen.
+                </p>
+              )}
+            </div>
+          )}
+
+          {isPaid && plan && (
+            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <p className="text-sm text-green-900 font-medium mb-2">
+                {planName}-Plan aktiv
+              </p>
+              <p className="text-xs text-green-800">
+                Sie haben {planLimit === -1 ? 'unbegrenzte' : `bis zu ${planLimit}`} Firmenkontakte pro Monat.
+              </p>
+            </div>
           )}
         </div>
 

@@ -9,6 +9,7 @@ export default function TrialStatusBanner({
   trial_leads_granted = 0,
   onUpgrade,
   onManagePlan,
+  plan = null,
   className = ''
 }) {
   const getFreePreviewContent = () => ({
@@ -23,17 +24,21 @@ export default function TrialStatusBanner({
     iconColor: 'text-blue-500',
   });
 
-  const getVerifiedTrialContent = () => ({
-    icon: <Clock className="w-5 h-5" />,
-    title: 'Verifizierter Testzugang aktiv',
-    description: 'Sie können Vertriebo 14 Tage lang testen.',
-    stats: 'Verfügbare Firmenkontakte im Testzugang: bis zu 75',
-    ctaLabel: 'Plan verwalten',
-    ctaAction: onManagePlan,
-    bgColor: 'bg-amber-50 border-amber-200',
-    textColor: 'text-amber-900',
-    iconColor: 'text-amber-500',
-  });
+  const getVerifiedTrialContent = () => {
+    const planLimit = plan?.max_leads_per_month ?? 300;
+    const planName = plan?.name || 'Starter';
+    return {
+      icon: <Clock className="w-5 h-5" />,
+      title: 'Verifizierter Testzugang aktiv',
+      description: `Sie testen den ${planName}-Tarif. Die Testphase läuft 14 Tage.`,
+      stats: `Verfügbare Firmenkontakte: ${planLimit === -1 ? 'unbegrenzt' : `bis zu ${planLimit}`} pro Abrechnungszeitraum`,
+      ctaLabel: 'Plan verwalten',
+      ctaAction: onManagePlan,
+      bgColor: 'bg-amber-50 border-amber-200',
+      textColor: 'text-amber-900',
+      iconColor: 'text-amber-500',
+    };
+  };
 
   const getPaidContent = () => ({
     icon: <CheckCircle2 className="w-5 h-5" />,
