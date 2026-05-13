@@ -91,6 +91,10 @@ export default function OutcomeFeedback({ companyId, organizationId, onStatusSyn
         onStatusSync?.("Gewonnen");
       }
 
+      // Feedback-Loop direkt auslösen (asynchron, wartet nicht auf Ergebnis)
+      base44.functions.invoke('processLeadOutcomeFeedback', { organization_id: organizationId })
+        .catch(() => {}); // silent fail, nicht kritisch
+
       setCurrentOutcome(pendingType);
       setShowReasonInput(false);
       setPendingType(null);
