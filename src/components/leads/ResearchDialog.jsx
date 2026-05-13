@@ -645,7 +645,10 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             {trialStage === 'verified_trial' && (
                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
                  <p className="font-semibold text-blue-900">Verfügbare Leads im Testzugang</p>
-                 <p className="text-blue-800">10 / 75 Leads verfügbar (10 aus free_preview-Phase)</p>
+                 <p className="text-blue-800">
+                   {(usageInfo?.leads_created ?? 0) + (org?.trial_leads_granted ?? 0)} / 75 Leads verfügbar
+                   {org?.trial_leads_granted ? ` (${org.trial_leads_granted} aus free_preview-Phase)` : ''}
+                 </p>
                  <p className="text-blue-700 mt-2">Pro Recherche max. <strong>25 Leads</strong></p>
                </div>
             )}
