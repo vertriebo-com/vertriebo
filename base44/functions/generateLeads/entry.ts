@@ -1162,12 +1162,12 @@ Deno.serve(async (req) => {
     if (searchPlan.blocked || searchPlan.queryBudget?.blocked) {
       const reason = searchPlan.queryBudget?.reason || searchPlan.error;
       if (reason === 'preview_limit_reached' || trialStage === 'free_preview' && remainingPreviewLeads <= 0) {
-        console.warn(`[generateLeads] Preview-Limit: ${org.trial_leads_granted}/3 für org=${organization_id}`);
+        console.warn(`[generateLeads] Preview-Limit: ${org.trial_leads_granted}/10 für org=${organization_id}`);
         return Response.json({
           error: 'trial_preview_limit_reached',
           message: 'Kostenlose Vorschau aufgebraucht. Aktivieren Sie den verifizierten Testzugang.',
           success: false, trial_stage: trialStage,
-          limits: { max_leads: 3, used: org.trial_leads_granted || 0 }
+          limits: { max_leads: 10, used: org.trial_leads_granted || 0 }
         }, { status: 403 });
       }
       if (reason === 'unknown_industry' || !searchPlan.industryProfile) {
@@ -1180,7 +1180,7 @@ Deno.serve(async (req) => {
 
     const queryBudget = searchPlan.queryBudget || getQueryBudget(trialStage, remainingPreviewLeads);
     const maxLeadsToSave = trialStage === 'free_preview' ? remainingPreviewLeads :
-                           trialStage === 'verified_trial' ? Math.min(target_count, 25) : target_count;
+                           trialStage === 'verified_trial' ? Math.min(target_count, 75) : target_count;
     const effectiveTarget = Math.min(maxLeadsToSave, target_count);
 
     // Plan-Limits (paid) mit Fallback

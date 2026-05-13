@@ -20,7 +20,7 @@ const ACTION_ROLES = {
   send_bulk_email: ['organization_admin','sales_rep'], manage_blacklist: ['organization_admin'],
   platform_admin_access: [],
 };
-const BILLING_ACCESS = { active:'full', trialing:'full', past_due:'degraded', incomplete:'degraded', unpaid:'blocked', canceled:'blocked', incomplete_expired:'blocked' };
+const BILLING_ACCESS = { preview:'full', active:'full', trialing:'full', past_due:'degraded', incomplete:'degraded', unpaid:'blocked', canceled:'blocked', incomplete_expired:'blocked' };
 const DEGRADED_BLOCKED = new Set(['create_lead','generate_leads','use_ai_scoring','send_bulk_email']);
 const BLOCKED_ADMIN_OK = new Set(['manage_billing','data_export']);
 const DEGRADED_SALES_OK = new Set(['view_leads','view_tasks','create_contact_log','update_assigned_lead','complete_task']);

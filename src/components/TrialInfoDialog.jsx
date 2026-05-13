@@ -12,7 +12,7 @@ export default function TrialInfoDialog({
   onUpgrade 
 }) {
   const isFreePreview = trial_stage === 'free_preview';
-  const isLimitReached = isFreePreview && trial_leads_granted >= 3;
+  const isLimitReached = isFreePreview && trial_leads_granted >= 10;
 
   if (!isOpen) return null;
 
@@ -40,8 +40,8 @@ export default function TrialInfoDialog({
                 </p>
                 <p className="text-xs text-blue-800">
                   {isLimitReached
-                    ? `Sie haben alle 3 kostenlosen Vorschau-Kontakte aufgebraucht.`
-                    : `Sie können bis zu 3 Firmenkontakte prüfen (${trial_leads_granted} / 3 genutzt).`}
+                    ? `Sie haben alle 10 kostenlosen Vorschau-Kontakte aufgebraucht.`
+                    : `Sie können bis zu 10 Firmenkontakte prüfen (${trial_leads_granted} / 10 genutzt).`}
                 </p>
               </div>
 
@@ -51,7 +51,7 @@ export default function TrialInfoDialog({
                     <strong>Bereit für mehr?</strong> Aktivieren Sie den verifizierten Testzugang für:
                   </p>
                   <ul className="text-xs text-slate-600 mt-2 space-y-1 ml-4">
-                    <li>✓ 25 Firmenkontakte testen</li>
+                    <li>✓ 75 Firmenkontakte testen</li>
                     <li>✓ Vollständige Kontaktdaten</li>
                     <li>✓ 5 KI-Analysen</li>
                     <li>✓ 14 Tage kostenloses Testen</li>
@@ -65,7 +65,7 @@ export default function TrialInfoDialog({
                     Was bietet der verifizierte Testzugang?
                   </p>
                   <ul className="text-xs text-slate-600 space-y-1 ml-4">
-                    <li>✓ Bis zu 25 Firmenkontakte</li>
+                    <li>✓ Bis zu 75 Firmenkontakte</li>
                     <li>✓ Vollständige Kontaktinformationen</li>
                     <li>✓ Unbegrenzte KI-Analysen</li>
                     <li>✓ 14 Tage kostenloses Testen</li>

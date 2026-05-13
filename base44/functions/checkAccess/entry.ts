@@ -31,6 +31,7 @@ const ACTION_ROLES = {
 //  blocked     – niemand hat Zugriff außer admin auf billing + data_export
 //
 const BILLING_ACCESS = {
+  preview:              'full',
   active:               'full',
   trialing:             'full',
   past_due:             'degraded',       // sales_rep: lesen+bearbeiten; kein create/AI
