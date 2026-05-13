@@ -130,11 +130,11 @@ export default function Landing() {
     <div className="min-h-screen bg-white">
       {/* Navbar */}
       <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/95 backdrop-blur-xl shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3.5 lg:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2.5 lg:px-8">
           <a href="/" className="flex items-center shrink-0 group">
             <img src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/6bf8a2d63_ChatGPTImage11Mai202615_23_00.png"
             alt="Vertriebo"
-            className="h-10 md:h-12 w-auto object-contain transition-transform group-hover:scale-105" />
+            className="h-20 md:h-24 lg:h-28 w-auto object-contain transition-transform group-hover:scale-105" />
           </a>
 
           <div className="flex items-center gap-2 md:gap-4">
