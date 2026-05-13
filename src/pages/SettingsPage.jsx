@@ -6,6 +6,7 @@ import EmailSettings from "@/components/settings/EmailSettings";
 import EmailTemplateSettings from "@/components/settings/EmailTemplateSettings";
 import UserManagement from "@/components/settings/UserManagement";
 import BillingSettings from "@/components/settings/BillingSettings";
+import LearnedIntelligencePanel from "@/components/settings/LearnedIntelligencePanel";
 import { Button } from "@/components/ui/button";
 
 // ─── Navigation Items ─────────────────────────────────────────────────────────────
@@ -169,7 +170,12 @@ export default function SettingsPage() {
       {/* Content Area */}
       <div className="space-y-6">
         {/* Admin Content */}
-        {activeTab === "company"   && isAdmin && <CompanySettings org={org} />}
+        {activeTab === "company"   && isAdmin && (
+          <>
+            <LearnedIntelligencePanel organizationId={org?.id} />
+            <CompanySettings org={org} />
+          </>
+        )}
         {activeTab === "email"     && isAdmin && <EmailSettings org={org} />}
         {activeTab === "templates" && isAdmin && <EmailTemplateSettings />}
         {activeTab === "team"      && isAdmin && (

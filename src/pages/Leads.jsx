@@ -11,6 +11,7 @@ import FocusCards from "../components/leads/FocusCards";
 import PipelineBar from "../components/leads/PipelineBar";
 import LeadRow from "../components/leads/LeadRow";
 import ResearchDialog from "../components/leads/ResearchDialog";
+import LearnedIntelligencePanel from "../components/settings/LearnedIntelligencePanel";
 import moment from "moment";
 
 export default function Leads() {
@@ -159,6 +160,9 @@ export default function Leads() {
           </button>
         )}
       </div>
+
+      {/* LearnedIntelligence Widget */}
+      <LearnedIntelligencePanel organizationId={orgId} />
 
       {/* Focus Cards */}
       <FocusCards companies={companies} activeFocus={focusFilter} onFilterClick={setFocusFilter} />
