@@ -77,51 +77,49 @@ export default function ResearchSuccessScreen({ researchRun, orgId, onClose, onV
           </div>
 
           {/* Summary Stats */}
-          <div className="px-6 py-6 space-y-4">
-            <div className={`${isFreePreview ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-emerald-50 border-l-4 border-emerald-600'} rounded-lg p-4`}>
-              <p className={`text-2xl font-bold ${isFreePreview ? 'text-blue-900' : 'text-emerald-900'}`}>{researchRunData.leads_saved} von {isFreePreview ? '3 verfügbaren Vorschaukontakten' : `${researchRunData.requested_target} angeforderten`} gespeichert</p>
+          <div className="px-6 py-4 space-y-3">
+            {/* Main Result */}
+            <div className={`${isFreePreview ? 'bg-blue-50 border-l-4 border-blue-600' : 'bg-emerald-50 border-l-4 border-emerald-600'} rounded-lg p-3`}>
+              <p className={`text-lg font-bold ${isFreePreview ? 'text-blue-900' : 'text-emerald-900'}`}>
+                {researchRunData.leads_saved} von {isFreePreview ? '3' : researchRunData.requested_target} {isFreePreview ? 'Vorschau' : 'angeforderten'} gespeichert
+              </p>
               {isFreePreview && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-sm text-blue-800 font-medium">Für vollständige Recherchen aktivieren Sie den verifizierten Testzugang.</p>
-                  <a href="/settings?tab=billing" className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 underline hover:text-blue-900">
+                <p className="text-xs text-blue-800 font-medium mt-2">
+                  <a href="/settings?tab=billing" className="underline hover:text-blue-900">
                     Testzugang aktivieren →
                   </a>
-                </div>
+                </p>
               )}
             </div>
 
-            {/* Breakdown – nur für paid/trial, NICHT für Free Preview als Hauptbotschaft */}
-            {!isFreePreview && <div className="grid sm:grid-cols-3 gap-3">
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <p className="text-2xl font-bold text-slate-900">{researchRunData.raw_hits || researchRunData.requested_target}</p>
-                <p className="text-xs text-slate-600 font-medium mt-1">Geprüfte Firmenprofile</p>
+            {/* Breakdown – kompakt in 3er-Grid */}
+            {!isFreePreview && (
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-200 text-center">
+                  <p className="text-lg font-bold text-slate-900">{researchRunData.raw_hits || researchRunData.requested_target}</p>
+                  <p className="text-[10px] text-slate-600 font-medium mt-0.5">Geprüfte Profile</p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-200 text-center">
+                  <p className="text-lg font-bold text-slate-900">{researchRunData.duplicates_skipped || 0}</p>
+                  <p className="text-[10px] text-slate-600 font-medium mt-0.5">Übersprungen</p>
+                </div>
+                <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-200 text-center">
+                  <p className="text-lg font-bold text-slate-900">{researchRunData.no_match_count || 0}</p>
+                  <p className="text-[10px] text-slate-600 font-medium mt-0.5">Ausgeschlossen</p>
+                </div>
               </div>
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <p className="text-2xl font-bold text-slate-900">{researchRunData.duplicates_skipped || 0}</p>
-                <p className="text-xs text-slate-600 font-medium mt-1">Bestehende Firmen übersprungen</p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                <p className="text-2xl font-bold text-slate-900">{researchRunData.no_match_count || 0}</p>
-                <p className="text-xs text-slate-600 font-medium mt-1">Unpassende Treffer ausgeschlossen</p>
-              </div>
-            </div>}
+            )}
 
-            {/* Suchgebiet */}
+            {/* Suchgebiet – kompakt */}
             {(researchRunData.search_center_city || researchRunData.target_customer_types) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-xs font-bold text-blue-900 uppercase tracking-wide mb-2">Suchgebiet & Zielgruppe</p>
-                <div className="space-y-1.5 text-sm text-blue-900">
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
+                <p className="font-bold text-slate-700 mb-1.5">Suchgebiet & Zielgruppe</p>
+                <div className="space-y-0.5 text-slate-600">
                   {researchRunData.search_center_city && (
-                    <div className="flex justify-between">
-                      <span className="font-medium">Gebiet:</span>
-                      <span>{researchRunData.search_radius_km || 25} km um {researchRunData.search_center_city}</span>
-                    </div>
+                    <p><span className="font-medium">Gebiet:</span> {researchRunData.search_radius_km || 25} km um {researchRunData.search_center_city}</p>
                   )}
                   {researchRunData.target_customer_types && (
-                    <div className="flex justify-between">
-                      <span className="font-medium">Zielkunden:</span>
-                      <span className="text-right max-w-[50%]">{researchRunData.target_customer_types}</span>
-                    </div>
+                    <p><span className="font-medium">Zielkunden:</span> {researchRunData.target_customer_types}</p>
                   )}
                 </div>
               </div>
