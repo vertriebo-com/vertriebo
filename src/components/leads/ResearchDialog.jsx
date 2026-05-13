@@ -638,28 +638,32 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               );
             })()}
 
-            {trialStage !== 'free_preview' && (
-              <div>
-                <p className="text-xs font-semibold text-slate-900 mb-2">Anzahl Firmenkontakte</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {[25, 50, 100].map(count => (
-                    <button
-                      key={count}
-                      onClick={() => setTargetCount(count)}
-                      className={`px-3 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${
-                        targetCount === count
-                          ? "border-blue-600 bg-blue-50 text-blue-700"
-                          : "border-slate-300 text-slate-700 hover:border-slate-400"
-                      }`}
-                    >
-                      {count}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1">
-                  Entspricht ca. {targetCount + Math.ceil(targetCount * 0.5)} Google API Requests (geschätzt)
-                </p>
-              </div>
+            {trialStage === 'verified_trial' && (
+               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
+                 <p className="font-semibold text-blue-900">Verfügbare Leads im Testzugang</p>
+                 <p className="text-blue-800">10 / 75 Leads verfügbar (10 aus free_preview-Phase)</p>
+                 <p className="text-blue-700 mt-2">Pro Recherche max. <strong>25 Leads</strong></p>
+               </div>
+            )}
+            {trialStage === 'paid' && (
+               <div>
+                 <p className="text-xs font-semibold text-slate-900 mb-2">Anzahl Firmenkontakte</p>
+                 <div className="flex gap-2">
+                   <button
+                     onClick={() => setTargetCount(25)}
+                     className={`px-4 py-2 text-sm font-semibold rounded-lg border-2 transition-all flex-1 ${
+                       targetCount === 25
+                         ? "border-blue-600 bg-blue-50 text-blue-700"
+                         : "border-slate-300 text-slate-700 hover:border-slate-400"
+                     }`}
+                   >
+                     25
+                   </button>
+                 </div>
+                 <p className="text-[11px] text-slate-500 mt-1">
+                   Entspricht ca. {targetCount + Math.ceil(targetCount * 0.5)} Google API Requests (geschätzt)
+                 </p>
+               </div>
             )}
 
             {targetCustomers.length === 0 && (
