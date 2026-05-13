@@ -22,6 +22,7 @@ export default function LeadGenSettings({ users }) {
   const [plzCity, setPlzCity] = useState("");
   const [plzLoading, setPlzLoading] = useState(false);
   const [assignTo, setAssignTo] = useState("");
+  const [additionalCities, setAdditionalCities] = useState("");
   const [keywords, setKeywords] = useState(DEFAULT_KEYWORDS);
   const [newKeyword, setNewKeyword] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -62,6 +63,7 @@ export default function LeadGenSettings({ users }) {
     if (map.lead_plz) setPlz(map.lead_plz);
     if (map.lead_plz_city) setPlzCity(map.lead_plz_city);
     if (map.lead_assign_to) setAssignTo(map.lead_assign_to);
+    if (map.additional_cities) setAdditionalCities(map.additional_cities);
     if (map.lead_keywords) {
       try { setKeywords(JSON.parse(map.lead_keywords)); } catch (_) {}
     }
@@ -83,6 +85,7 @@ export default function LeadGenSettings({ users }) {
       lead_plz: plz,
       lead_plz_city: plzCity,
       lead_assign_to: assignTo,
+      additional_cities: additionalCities,
       lead_keywords: JSON.stringify(keywords),
     };
 
@@ -196,6 +199,16 @@ export default function LeadGenSettings({ users }) {
               <option key={u.id} value={u.email}>{u.full_name || u.email}</option>
             ))}
           </select>
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-xs mb-1 block">Zusätzliche Suchgebiete (optional)</Label>
+          <Input
+            value={additionalCities}
+            onChange={e => setAdditionalCities(e.target.value)}
+            placeholder="z.B. Köln, Neuwied, Andernach"
+            className="w-full"
+          />
+          <p className="text-xs text-muted-foreground mt-1">Kommagetrennte Liste — werden zusätzlich zum Radius durchsucht. Leer lassen für automatische Nachberstädte-Erkennung.</p>
         </div>
       </div>
 

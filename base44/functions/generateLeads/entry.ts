@@ -669,6 +669,134 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.asin(Math.sqrt(a));
 }
 
+// ── Deutsche Städte für Radius-Expansion ────────────────────────
+// Top ~130 Städte nach Bevölkerung mit Koordinaten
+const DE_CITIES = [
+  { n: "Berlin", lat: 52.5200, lng: 13.4050, p: 3700000 },
+  { n: "Hamburg", lat: 53.5753, lng: 10.0153, p: 1800000 },
+  { n: "München", lat: 48.1351, lng: 11.5820, p: 1500000 },
+  { n: "Köln", lat: 50.9333, lng: 6.9500, p: 1080000 },
+  { n: "Frankfurt", lat: 50.1109, lng: 8.6821, p: 760000 },
+  { n: "Stuttgart", lat: 48.7758, lng: 9.1829, p: 630000 },
+  { n: "Düsseldorf", lat: 51.2217, lng: 6.7762, p: 620000 },
+  { n: "Leipzig", lat: 51.3397, lng: 12.3731, p: 600000 },
+  { n: "Dortmund", lat: 51.5136, lng: 7.4653, p: 590000 },
+  { n: "Essen", lat: 51.4556, lng: 7.0116, p: 580000 },
+  { n: "Bremen", lat: 53.0793, lng: 8.8017, p: 570000 },
+  { n: "Dresden", lat: 51.0504, lng: 13.7373, p: 560000 },
+  { n: "Hannover", lat: 52.3759, lng: 9.7320, p: 535000 },
+  { n: "Nürnberg", lat: 49.4521, lng: 11.0767, p: 515000 },
+  { n: "Duisburg", lat: 51.4344, lng: 6.7623, p: 495000 },
+  { n: "Bochum", lat: 51.4818, lng: 7.2162, p: 365000 },
+  { n: "Wuppertal", lat: 51.2562, lng: 7.1508, p: 355000 },
+  { n: "Bielefeld", lat: 52.0302, lng: 8.5325, p: 334000 },
+  { n: "Bonn", lat: 50.7374, lng: 7.0982, p: 330000 },
+  { n: "Mannheim", lat: 49.4875, lng: 8.4660, p: 309000 },
+  { n: "Karlsruhe", lat: 49.0069, lng: 8.4037, p: 308000 },
+  { n: "Wiesbaden", lat: 50.0782, lng: 8.2398, p: 278000 },
+  { n: "Münster", lat: 51.9607, lng: 7.6261, p: 315000 },
+  { n: "Augsburg", lat: 48.3717, lng: 10.8983, p: 295000 },
+  { n: "Aachen", lat: 50.7753, lng: 6.0839, p: 248000 },
+  { n: "Krefeld", lat: 51.3388, lng: 6.5853, p: 226000 },
+  { n: "Chemnitz", lat: 50.8278, lng: 12.9214, p: 247000 },
+  { n: "Halle", lat: 51.4828, lng: 11.9697, p: 239000 },
+  { n: "Mönchengladbach", lat: 51.1805, lng: 6.4428, p: 261000 },
+  { n: "Braunschweig", lat: 52.2689, lng: 10.5268, p: 249000 },
+  { n: "Kiel", lat: 54.3213, lng: 10.1349, p: 246000 },
+  { n: "Magdeburg", lat: 52.1205, lng: 11.6276, p: 238000 },
+  { n: "Freiburg", lat: 47.9990, lng: 7.8421, p: 231000 },
+  { n: "Oberhausen", lat: 51.4963, lng: 6.8638, p: 210000 },
+  { n: "Erfurt", lat: 50.9787, lng: 11.0328, p: 213000 },
+  { n: "Rostock", lat: 54.0924, lng: 12.0991, p: 209000 },
+  { n: "Kassel", lat: 51.3127, lng: 9.4797, p: 201000 },
+  { n: "Mainz", lat: 49.9929, lng: 8.2473, p: 218000 },
+  { n: "Hagen", lat: 51.3671, lng: 7.4632, p: 188000 },
+  { n: "Hamm", lat: 51.6739, lng: 7.8225, p: 178000 },
+  { n: "Saarbrücken", lat: 49.2354, lng: 6.9967, p: 180000 },
+  { n: "Mülheim", lat: 51.4272, lng: 6.8828, p: 170000 },
+  { n: "Potsdam", lat: 52.3906, lng: 13.0645, p: 182000 },
+  { n: "Ludwigshafen", lat: 49.4744, lng: 8.4102, p: 163000 },
+  { n: "Oldenburg", lat: 53.1435, lng: 8.2146, p: 168000 },
+  { n: "Leverkusen", lat: 51.0459, lng: 6.9894, p: 163000 },
+  { n: "Osnabrück", lat: 52.2799, lng: 8.0472, p: 165000 },
+  { n: "Solingen", lat: 51.1702, lng: 7.0832, p: 158000 },
+  { n: "Heidelberg", lat: 49.3988, lng: 8.6724, p: 161000 },
+  { n: "Darmstadt", lat: 49.8728, lng: 8.6512, p: 158000 },
+  { n: "Paderborn", lat: 51.7189, lng: 8.7575, p: 151000 },
+  { n: "Regensburg", lat: 49.0134, lng: 12.1016, p: 153000 },
+  { n: "Würzburg", lat: 49.7944, lng: 9.9294, p: 127000 },
+  { n: "Ingolstadt", lat: 48.7630, lng: 11.4239, p: 137000 },
+  { n: "Wolfsburg", lat: 52.4227, lng: 10.7865, p: 124000 },
+  { n: "Ulm", lat: 48.3984, lng: 9.9908, p: 126000 },
+  { n: "Göttingen", lat: 51.5413, lng: 9.9158, p: 119000 },
+  { n: "Heilbronn", lat: 49.1427, lng: 9.2109, p: 126000 },
+  { n: "Pforzheim", lat: 48.8915, lng: 8.6986, p: 125000 },
+  { n: "Bottrop", lat: 51.5236, lng: 6.9289, p: 117000 },
+  { n: "Offenbach", lat: 50.0956, lng: 8.7761, p: 130000 },
+  { n: "Bremerhaven", lat: 53.5494, lng: 8.5785, p: 113000 },
+  { n: "Recklinghausen", lat: 51.6151, lng: 7.1979, p: 114000 },
+  { n: "Fürth", lat: 49.4771, lng: 10.9888, p: 128000 },
+  { n: "Reutlingen", lat: 48.4913, lng: 9.2042, p: 115000 },
+  { n: "Koblenz", lat: 50.3569, lng: 7.5890, p: 113000 },
+  { n: "Trier", lat: 49.7596, lng: 6.6441, p: 111000 },
+  { n: "Jena", lat: 50.9272, lng: 11.5898, p: 111000 },
+  { n: "Moers", lat: 51.4516, lng: 6.6279, p: 104000 },
+  { n: "Lübeck", lat: 53.8655, lng: 10.6866, p: 217000 },
+  { n: "Siegen", lat: 50.8748, lng: 8.0243, p: 102000 },
+  { n: "Hildesheim", lat: 52.1522, lng: 9.9521, p: 101000 },
+  { n: "Cottbus", lat: 51.7563, lng: 14.3329, p: 100000 },
+  { n: "Gera", lat: 50.8821, lng: 12.0806, p: 94000 },
+  { n: "Kaiserslautern", lat: 49.4440, lng: 7.7689, p: 100000 },
+  { n: "Neuwied", lat: 50.4299, lng: 7.4615, p: 64000 },
+  { n: "Andernach", lat: 50.4428, lng: 7.3950, p: 29000 },
+  { n: "Mayen", lat: 50.3287, lng: 7.2232, p: 20000 },
+  { n: "Bendorf", lat: 50.4314, lng: 7.5701, p: 17000 },
+  { n: "Boppard", lat: 50.2298, lng: 7.5901, p: 15000 },
+  { n: "Lahnstein", lat: 50.3064, lng: 7.6063, p: 18000 },
+  { n: "Bad Kreuznach", lat: 49.8489, lng: 7.8686, p: 52000 },
+  { n: "Idar-Oberstein", lat: 49.7133, lng: 7.3229, p: 28000 },
+  { n: "Ludwigsburg", lat: 48.8975, lng: 9.1919, p: 93000 },
+  { n: "Esslingen", lat: 48.7394, lng: 9.3049, p: 93000 },
+  { n: "Sindelfingen", lat: 48.7103, lng: 9.0026, p: 64000 },
+  { n: "Villingen-Schwenningen", lat: 48.0603, lng: 8.4539, p: 83000 },
+  { n: "Konstanz", lat: 47.6779, lng: 9.1732, p: 84000 },
+  { n: "Ravensburg", lat: 47.7831, lng: 9.6116, p: 50000 },
+  { n: "Friedrichshafen", lat: 47.6547, lng: 9.4785, p: 61000 },
+  { n: "Bayreuth", lat: 49.9456, lng: 11.5713, p: 75000 },
+  { n: "Bamberg", lat: 49.8988, lng: 10.9028, p: 77000 },
+  { n: "Erlangen", lat: 49.5897, lng: 11.0078, p: 113000 },
+  { n: "Passau", lat: 48.5748, lng: 13.4617, p: 52000 },
+  { n: "Landshut", lat: 48.5372, lng: 12.1522, p: 73000 },
+  { n: "Rosenheim", lat: 47.8561, lng: 12.1289, p: 63000 },
+  { n: "Kempten", lat: 47.7267, lng: 10.3156, p: 69000 },
+  { n: "Fulda", lat: 50.5558, lng: 9.6808, p: 67000 },
+  { n: "Marburg", lat: 50.8021, lng: 8.7710, p: 73000 },
+  { n: "Gießen", lat: 50.5841, lng: 8.6784, p: 90000 },
+  { n: "Lüneburg", lat: 53.2508, lng: 10.4145, p: 77000 },
+  { n: "Celle", lat: 52.6250, lng: 10.0820, p: 70000 },
+  { n: "Salzgitter", lat: 52.1508, lng: 10.3431, p: 98000 },
+  { n: "Görlitz", lat: 51.1539, lng: 14.9896, p: 56000 },
+  { n: "Zwickau", lat: 50.7186, lng: 12.4963, p: 89000 },
+  { n: "Plauen", lat: 50.4950, lng: 12.1342, p: 64000 },
+  { n: "Dessau", lat: 51.8372, lng: 12.2427, p: 81000 },
+];
+
+function findNearbyCities(centerLat, centerLng, radiusKm, mainCity, limit = 5) {
+  return DE_CITIES
+    .map(city => ({
+      ...city,
+      distKm: haversineKm(centerLat, centerLng, city.lat, city.lng)
+    }))
+    .filter(city =>
+      city.distKm <= radiusKm &&
+      city.distKm > 3 &&
+      city.n.toLowerCase() !== mainCity.toLowerCase()
+    )
+    .sort((a, b) => b.p - a.p)
+    .slice(0, limit)
+    .map(city => city.n);
+}
+
 async function searchPlaces(query, cityCoords, radiusMeters, apiCounters, pageToken = null) {
   const body = {
     textQuery: query,
@@ -985,7 +1113,15 @@ Deno.serve(async (req) => {
     const radiusKm = parseFloat(settings.lead_radius_km || settings.service_area_radius_km || '25') || 25;
     const radiusMeters = Math.min(radiusKm * 1000, 50000);
 
-    // SearchPlan bauen
+    // ── Smart Radius Expansion ───────────────────────────────────────
+    // Automatisch Nachbarstädte finden wenn kein manueller additionalCities-Eintrag
+    const manualAdditionalCities = (settings.additional_cities || '')
+      .split(',').map(s => s.trim()).filter(Boolean);
+
+    // cityCoords wird später geladen — hier noch nicht verfügbar, daher placeholder
+    let additionalCities = manualAdditionalCities.length > 0 ? manualAdditionalCities : [];
+
+    // SearchPlan bauen (additionalCities wird später befüllt nach Koordinaten-Ermittlung)
     const searchPlan = buildSearchPlan({
       industry,
       targetCustomerTypes,
@@ -994,6 +1130,7 @@ Deno.serve(async (req) => {
       radiusKm,
       trialStage,
       remainingLeadBudget: remainingPreviewLeads,
+      additionalCities: [], // Wird nach cityCoords update gesetzt
       learnedPriorityCategories,
       learnedWinningSignals,
     });
@@ -1047,6 +1184,30 @@ Deno.serve(async (req) => {
     if (!cityCoords) return Response.json({ error: `Stadt "${city}" nicht gefunden.`, success: false }, { status: 400 });
     const savedLat = parseFloat(settings.lead_lat || '0'), savedLng = parseFloat(settings.lead_lng || '0');
     if (savedLat && savedLng && /^\d{5}$/.test(city)) cityCoords = { lat: savedLat, lng: savedLng };
+
+    // ── Smart Radius Expansion (nach Koordinaten-Ermittlung) ──────────
+    const cityLimit = trialStage === 'free_preview' ? 0 :
+                      trialStage === 'verified_trial' ? 2 : 4;
+
+    if (additionalCities.length === 0 && manualAdditionalCities.length === 0 && cityLimit > 0) {
+      additionalCities = findNearbyCities(cityCoords.lat, cityCoords.lng, radiusKm, city, cityLimit);
+    }
+
+    console.info(`[generateLeads] Radius-Expansion: ${city} + [${additionalCities.join(', ')}] (${radiusKm}km trial=${trialStage})`);
+
+    // SearchPlan mit gefüllten additionalCities neu bauen
+    searchPlan.searchQueries = buildSearchPlan({
+      industry,
+      targetCustomerTypes,
+      excludedCustomerTypes,
+      location: city,
+      radiusKm,
+      trialStage,
+      remainingLeadBudget: remainingPreviewLeads,
+      additionalCities,
+      learnedPriorityCategories,
+      learnedWinningSignals,
+    }).searchQueries;
 
     // ── Lock ──────────────────────────────────────────────────
     const lockResult = await acquireLock(base44, organization_id, access.user.email);
