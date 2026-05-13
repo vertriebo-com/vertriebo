@@ -195,15 +195,15 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
         }
       }
     } catch (e) {
-      console.error("[ResearchDialog] generateLeads error:", e);
-      const errorMsg = e?.response?.data?.error || e?.message || "Recherche fehlgeschlagen. Bitte erneut versuchen.";
-      // Friendly error messages
-      if (errorMsg.includes('trial') || errorMsg.includes('preview')) {
-        setShowTrialInfoDialog(true);
-        setError("Vorschau-Limit erreicht");
-      } else {
-        setError(errorMsg);
-      }
+       console.error("[ResearchDialog] generateLeads error:", e);
+       const errorMsg = e?.response?.data?.error || e?.message || "Recherche fehlgeschlagen. Bitte erneut versuchen.";
+       // Friendly error messages
+       if (errorMsg && (errorMsg.includes('trial') || errorMsg.includes('preview'))) {
+         setShowTrialInfoDialog(true);
+         setError("Vorschau-Limit erreicht");
+       } else {
+         setError(errorMsg || "Recherche fehlgeschlagen. Bitte erneut versuchen.");
+       }
     } finally {
       clearTimeout(slowTimerRef.current);
       setResearching(false);
