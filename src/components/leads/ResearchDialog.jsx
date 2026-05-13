@@ -58,18 +58,22 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
       const organization = orgs[0];
       setOrg(organization);
-      setTrialStage(organization?.trial_stage || 'free_preview');
+      const ts = organization?.trial_stage || 'free_preview';
+      setTrialStage(ts);
 
       // Sofort TrialInfoDialog wenn Free Preview Limit bereits erreicht
-      if ((organization?.trial_stage || 'free_preview') === 'free_preview' && (organization?.trial_leads_granted || 0) >= 10) {
+      if (ts === 'free_preview' && (organization?.trial_leads_granted || 0) >= 10) {
         setShowTrialInfoDialog(true);
       }
 
-      // Set correct target count for free preview
-      if ((organization?.trial_stage || 'free_preview') === 'free_preview') {
+      // Set correct target count basierend auf trial_stage
+      if (ts === 'free_preview') {
         const remaining = Math.max(0, 10 - (organization?.trial_leads_granted || 0));
         setTargetCount(Math.max(1, remaining));
+      } else if (ts === 'verified_trial') {
+        setTargetCount(25); // verified_trial kann max. 25 pro Recherche
       }
+      // paid: bleibt auf initial 25
       
       if (organization?.plan_id) {
         const [plans, usageLogs] = await Promise.all([
