@@ -1,3 +1,31 @@
+/**
+ * EngineBox – Vertriebo Engine Frontend MVP Preview
+ * 
+ * STATUS: Frontend Preview nur – nicht final
+ * 
+ * Diese Komponente zeigt das UI für die Vertriebo Engine mit:
+ * - Hot/Warm/Cold Temperatur-Klassifizierung (Score 0-100)
+ * - Kaufsignale, Risiken, fehlende Daten
+ * - Nächster Schritt-Empfehlung
+ * 
+ * ⚠️  WICHTIG:
+ * - analyzeLeadTemperature ist derzeit eine reine Frontend-Utils-Funktion
+ * - Diese Funktion berechnet lokal + deterministisch (kein Backend-Call)
+ * - KEINE KI wird auf jedem Render aufgerufen
+ * - Ergebnisse werden NICHT auf Company persistiert
+ * 
+ * Backend-Persistenz geplant:
+ * - Backend-Funktion analyzeLeadEngine wird entwickelt
+ * - Company-Entity wird erweitert um: lead_temperature, lead_temperature_score,
+ *   lead_temperature_reason, next_best_action, buying_signals, risk_signals,
+ *   missing_data, last_ai_analyzed_at, engine_version
+ * - Analyse nur bei: manueller Button-Click oder nach ContactLog-Create
+ * 
+ * Existierende KI-Logik (getKiRecommendation):
+ * - Wird in analyzeLeadEngine integriert
+ * - Keine doppelte oder konkurrierende KI-Analyse
+ */
+
 import { useState } from "react";
 import { Zap, Flame, Thermometer, AlertCircle, CheckCircle2, Clock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";

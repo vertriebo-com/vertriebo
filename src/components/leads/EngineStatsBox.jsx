@@ -1,3 +1,23 @@
+/**
+ * EngineStatsBox – Vertriebo Engine Leads-Seite MVP Preview
+ * 
+ * STATUS: Frontend Preview nur – nicht final
+ * 
+ * Diese Komponente zeigt:
+ * - Hot/Warm/Cold Verteilung über alle gefilterten Leads
+ * - Top 3 Leads nach Engine-Score
+ * 
+ * ⚠️  WICHTIG:
+ * - analyzeLeadTemperature wird lokal für ALLE Leads berechnet
+ * - Nur auf gefilterte Companies (mit organization_id) angewendet
+ * - KEINE KI auf Render
+ * - Nur deterministische lokale Berechnung
+ * 
+ * Backend-Persistenz geplant:
+ * - Lead-Ergebnisse werden auf Company gespeichert (analyzeLeadEngine)
+ * - EngineStatsBox wird dann auf persistierte Felder auslesen
+ */
+
 import { Zap, Flame, Thermometer } from "lucide-react";
 import { analyzeLeadTemperature } from "@/utils/analyzeLeadTemperature";
 
