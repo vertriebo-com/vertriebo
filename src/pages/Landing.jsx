@@ -487,21 +487,29 @@ export default function Landing() {
           <div className="text-center mb-8">
             <h2 className="text-2xl font-bold text-slate-900 mb-2">Für lokale Dienstleister</h2>
             <p className="text-sm text-slate-600">
-              Vertriebo wurde von Vertriebsprofis entwickelt – für Betriebe, die aktiv neue Firmenkunden gewinnen wollen.
+              Vertriebo wurde von Vertriebsprofis entwickelt – für Betriebe, die aktiv neue Firmenkunden gewinnen wollen. Gebäudereinigung, IT-Service, Handwerk, Facility Service, Spedition, Pflege, Catering und 20+ weitere Branchen nutzen Vertriebo bereits.
             </p>
           </div>
-          
+
           {/* Kompakte Tag-Liste */}
           <div className="flex flex-wrap justify-center gap-3">
             {[
             { icon: "🏢", name: "Gebäudereinigung" },
             { icon: "🛡️", name: "Sicherheitsdienst" },
-            { icon: "🏠", name: "Hausmeisterdienste" },
+            { icon: "🏠", name: "Facility Service" },
             { icon: "📦", name: "Entrümpelung" },
             { icon: "🔨", name: "Handwerk" },
             { icon: "💻", name: "IT-Service" },
             { icon: "🌿", name: "Gartenbau" },
-            { icon: "🚚", name: "Logistik" }].
+            { icon: "🚚", name: "Spedition" },
+            { icon: "🔧", name: "SHK / Heizung" },
+            { icon: "⚡", name: "Elektro" },
+            { icon: "🍽️", name: "Catering" },
+            { icon: "👥", name: "Personal / Zeitarbeit" },
+            { icon: "⚙️", name: "Industrieservice" },
+            { icon: "🧹", name: "Maler / Renovierung" },
+            { icon: "💰", name: "Buchhaltung" },
+            { icon: "🏥", name: "Gesundheit / Pflege" }].
             map((ind) =>
             <div key={ind.name} className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-50 border border-slate-200">
                 <span className="text-base">{ind.icon}</span>
