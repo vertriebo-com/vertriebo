@@ -23,6 +23,35 @@ export default function TrialInfoDialog({
   const planName = plan?.name || 'Starter';
   const planPrice = plan?.price_monthly ? `${(plan.price_monthly / 100).toFixed(0)} €` : '99 €';
 
+  // Dynamische Title-Logik basierend auf trial_stage
+  const getDialogTitle = () => {
+    if (isFreePreview) {
+      return isLimitReached ? 'Vorschau-Limit erreicht' : 'Kostenlose Vorschau';
+    }
+    if (isVerifiedTrial) {
+      return `${planName}-Testphase aktiv`;
+    }
+    if (isPaid) {
+      return `${planName}-Plan aktiv`;
+    }
+    return 'Abonnement';
+  };
+
+  // Dynamische CTA-Logik basierend auf trial_stage
+  const getCtaLabel = () => {
+    if (isFreePreview) return 'Testzugang aktivieren';
+    if (isVerifiedTrial || isPaid) return 'Plan verwalten';
+    return 'Zum Billing';
+  };
+
+  const getTitleColor = () => {
+    if (isLimitReached) return 'text-red-600';
+    if (isFreePreview) return 'text-blue-600';
+    if (isVerifiedTrial) return 'text-amber-600';
+    if (isPaid) return 'text-emerald-600';
+    return 'text-slate-900';
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -31,10 +60,10 @@ export default function TrialInfoDialog({
         <DialogHeader>
           <DialogTitle className={cn(
             'flex items-center gap-2',
-            isLimitReached ? 'text-red-600' : 'text-blue-600'
+            getTitleColor()
           )}>
             <AlertCircle className="w-5 h-5" />
-            {isLimitReached ? 'Vorschau-Limit erreicht' : 'Kostenlose Vorschau'}
+            {getDialogTitle()}
           </DialogTitle>
         </DialogHeader>
 
@@ -123,22 +152,39 @@ export default function TrialInfoDialog({
             variant="outline"
             className="flex-1 bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"
           >
-            Später
+            Schließen
           </Button>
-          <Button
-            onClick={() => {
-              onClose();
-              if (onUpgrade) {
-                onUpgrade();
-              } else {
+          {(isFreePreview || isVerifiedTrial) && (
+            <Button
+              onClick={() => {
+                onClose();
+                if (onUpgrade) {
+                  onUpgrade();
+                } else {
+                  window.location.href = "/settings?tab=billing";
+                }
+              }}
+              className={cn(
+                "flex-1 text-white gap-1",
+                isFreePreview ? "bg-blue-600 hover:bg-blue-700" : "bg-amber-600 hover:bg-amber-700"
+              )}
+            >
+              {getCtaLabel()}
+              <ArrowRight className="w-3 h-3" />
+            </Button>
+          )}
+          {isPaid && (
+            <Button
+              onClick={() => {
+                onClose();
                 window.location.href = "/settings?tab=billing";
-              }
-            }}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-1"
-          >
-            Testzugang aktivieren
-            <ArrowRight className="w-3 h-3" />
-          </Button>
+              }}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+            >
+              {getCtaLabel()}
+              <ArrowRight className="w-3 h-3" />
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

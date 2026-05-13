@@ -22,6 +22,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [targetCount, setTargetCount] = useState(25);
   const [usageInfo, setUsageInfo] = useState(null);
   const [planLimits, setPlanLimits] = useState(null);
+  const [currentPlan, setCurrentPlan] = useState(null);
   const [slowWarning, setSlowWarning] = useState(false);
   const [researchRun, setResearchRun] = useState(null);
   const [showSuccessScreen, setShowSuccessScreen] = useState(false);
@@ -81,6 +82,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           base44.entities.UsageLog.filter({ organization_id: orgId, period_month: new Date().toISOString().slice(0, 7) }),
         ]);
         if (plans[0]) {
+          setCurrentPlan(plans[0]);
           setPlanLimits({
             max_leads_per_month: plans[0].max_leads_per_month ?? 300,
           });
@@ -247,7 +249,15 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           }}
           trial_stage={trialStage}
           trial_leads_granted={org?.trial_leads_granted || 0}
-          plan={planLimits ? { name: org?.name || 'Starter', max_leads_per_month: planLimits.max_leads_per_month } : null}
+          plan={currentPlan ? {
+            name: currentPlan.name || 'Starter',
+            max_leads_per_month: currentPlan.max_leads_per_month ?? 300,
+            price_monthly: currentPlan.price_monthly ?? 9900
+          } : {
+            name: 'Starter',
+            max_leads_per_month: 300,
+            price_monthly: 9900
+          }}
           trialEndsAt={org?.trial_ends_at}
           onUpgrade={() => {
             setShowTrialInfoDialog(false);

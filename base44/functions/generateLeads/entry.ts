@@ -431,7 +431,7 @@ function getQueryBudget(trialStage, remainingLeadBudget) {
     return { blocked: false, maxLeadsToSave: Math.min(remainingLeadBudget, 10), maxSearchQueries: 8, maxPlaceDetails: 20, stopWhenEnoughLeadsFound: true };
   }
   if (trialStage === 'verified_trial') {
-    return { blocked: false, maxLeadsToSave: 75, maxSearchQueries: 35, maxPlaceDetails: 90, stopWhenEnoughLeadsFound: true };
+    return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 35, maxPlaceDetails: 90, stopWhenEnoughLeadsFound: true };
   }
   return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 60, maxPlaceDetails: 120, stopWhenEnoughLeadsFound: true };
 }
@@ -985,7 +985,7 @@ Deno.serve(async (req) => {
 
     const queryBudget = searchPlan.queryBudget || getQueryBudget(trialStage, remainingPreviewLeads);
     
-    // Für verified_trial: Limit ist 75 GESAMT, nicht pro Recherche
+    // Für verified_trial: dynamisches Plan-Limit, nicht hardcoded
     let maxLeadsToSave = target_count;
     if (trialStage === 'free_preview') {
       maxLeadsToSave = remainingPreviewLeads;
@@ -1010,7 +1010,7 @@ Deno.serve(async (req) => {
       planLimits = { max_leads_per_month: 300 };
     }
 
-    // verified_trial nutzt das Plan-Limit, nicht eine harte 75er Grenze
+    // verified_trial nutzt das echte Plan-Limit
     if (trialStage === 'verified_trial') {
       const planLimit = planLimits.max_leads_per_month ?? 300;
       const contactsSavedThisMonth = currentUsage.leads_created || 0;

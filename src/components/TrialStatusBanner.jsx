@@ -10,6 +10,7 @@ export default function TrialStatusBanner({
   onUpgrade,
   onManagePlan,
   plan = null,
+  usageInfo = null,
   className = ''
 }) {
   const getFreePreviewContent = () => ({
@@ -27,11 +28,16 @@ export default function TrialStatusBanner({
   const getVerifiedTrialContent = () => {
     const planLimit = plan?.max_leads_per_month ?? 300;
     const planName = plan?.name || 'Starter';
+    const usedContacts = usageInfo?.leads_created || 0;
+    const available = planLimit === -1 ? 'unbegrenzt' : Math.max(0, planLimit - usedContacts);
+    
     return {
       icon: <Clock className="w-5 h-5" />,
-      title: 'Verifizierter Testzugang aktiv',
+      title: `${planName}-Testphase aktiv`,
       description: `Sie testen den ${planName}-Tarif. Die Testphase läuft 14 Tage.`,
-      stats: `Verfügbare Firmenkontakte: ${planLimit === -1 ? 'unbegrenzt' : `bis zu ${planLimit}`} pro Abrechnungszeitraum`,
+      stats: planLimit === -1 
+        ? 'Unbegrenzte Firmenkontakte pro Abrechnungszeitraum'
+        : `${usedContacts} von ${planLimit} Firmenkontakten genutzt · ${available} verfügbar`,
       ctaLabel: 'Plan verwalten',
       ctaAction: onManagePlan,
       bgColor: 'bg-amber-50 border-amber-200',
