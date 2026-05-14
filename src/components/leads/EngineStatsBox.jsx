@@ -29,7 +29,7 @@ function getSafeTemperature(company) {
   return ["Hot", "Warm", "Cold"].includes(normalized) ? normalized : "Cold";
 }
 
-export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMap = {}, onAnalyzeLatest }) {
+export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMap = {}, onAnalyzeLatest, analyzingLatest = false }) {
   if (!companies || companies.length === 0) {
     return (
       <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
@@ -161,9 +161,10 @@ export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMa
         <div className="border-t border-[#E2E8F0] px-5 py-3">
           <button
             onClick={onAnalyzeLatest}
-            className="text-xs font-semibold text-blue-600 hover:text-blue-700 underline"
+            disabled={analyzingLatest}
+            className="text-xs font-semibold text-blue-600 hover:text-blue-700 underline disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Neueste Leads analysieren
+            {analyzingLatest ? "Analysiere neueste Leads…" : "Neueste Leads analysieren"}
           </button>
         </div>
       )}

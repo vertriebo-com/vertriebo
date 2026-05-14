@@ -127,7 +127,7 @@ export default function Leads() {
   };
 
   const handleAnalyzeLatest = async () => {
-    if (!orgId) return;
+    if (!orgId || researching) return;
     try {
       setResearching(true);
       const result = await base44.functions.invoke("analyzeLeadEngine", {
@@ -182,7 +182,7 @@ export default function Leads() {
       </div>
 
       {/* Vertriebo Engine Stats */}
-      <EngineStatsBox companies={filtered} onAnalyzeLatest={isAdmin ? handleAnalyzeLatest : null} />
+      <EngineStatsBox companies={filtered} onAnalyzeLatest={isAdmin ? handleAnalyzeLatest : null} analyzingLatest={researching} />
 
       {/* LearnedIntelligence Widget */}
       <LearnedIntelligencePanel organizationId={orgId} />
