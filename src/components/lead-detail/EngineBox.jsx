@@ -69,6 +69,42 @@ function extractSignals(engineAnalysisJson) {
   };
 }
 
+// Human-readable signal labels
+const SIGNAL_LABELS = {
+  phone_available: "Telefonnummer vorhanden",
+  email_available: "E-Mail-Adresse vorhanden",
+  website_available: "Website vorhanden",
+  contact_person_available: "Ansprechpartner vorhanden",
+  contact_log_exists: "Kontaktversuch dokumentiert",
+  industry_match: "Passt zum Zielkundenprofil",
+  recent_contact: "Kürzlich kontaktiert",
+  new_lead: "Neuer Lead",
+  task_due_today: "Aufgabe heute fällig",
+  task_overdue: "Aufgabe überfällig",
+  offer_requested: "Angebot angefordert",
+  offer_sent: "Angebot versendet",
+  appointment_scheduled: "Termin vereinbart",
+  callback_scheduled: "Rückruf vereinbart",
+};
+
+const RISK_LABELS = {
+  lost_status: "Status: Verloren",
+  no_contact_data: "Keine Kontaktdaten vorhanden",
+  unknown_decision_maker: "Entscheider noch nicht bekannt",
+  no_response: "Bisher keine positive Reaktion",
+  poor_fit: "Zielgruppenpassung unklar",
+  poor_data_quality: "Datenqualität unvollständig",
+  long_time_no_contact: "Lange kein Kontakt",
+};
+
+function labelSignal(raw) {
+  return SIGNAL_LABELS[raw] || raw;
+}
+
+function labelRisk(raw) {
+  return RISK_LABELS[raw] || raw;
+}
+
 // Clean placeholder text from AI-generated content
 function cleanPlaceholderText(text) {
   if (!text) return '';
@@ -232,7 +268,7 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
               <div key={i} className="flex gap-2 text-xs">
                 <span className="text-emerald-600 font-bold">✓</span>
                 <div>
-                  <p className="font-semibold text-slate-900">{signal.signal}</p>
+                  <p className="font-semibold text-slate-900">{labelSignal(signal.signal)}</p>
                   {signal.reason && <p className="text-slate-600 text-[11px]">{signal.reason}</p>}
                 </div>
               </div>
@@ -252,7 +288,7 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
               <div key={i} className="flex gap-2 text-xs">
                 <span className="text-red-600 font-bold">⚠</span>
                 <div>
-                  <p className="font-semibold text-slate-900">{risk.signal}</p>
+                  <p className="font-semibold text-slate-900">{labelRisk(risk.signal)}</p>
                   {risk.reason && <p className="text-slate-600 text-[11px]">{risk.reason}</p>}
                 </div>
               </div>

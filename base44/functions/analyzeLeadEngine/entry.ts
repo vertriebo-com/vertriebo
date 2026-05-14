@@ -36,6 +36,7 @@ function buildLeadContext(company, contactLogs, tasks) {
 
   const allTasks = (tasks || []);
   const openTasks = allTasks.filter(t => !t.erledigt);
+  const openCallOrFollowUpTasks = openTasks.filter(t => ["Rückruf", "Nachfassen"].includes(t.typ));
   const todayTasks = openTasks.filter(t => t.faellig_am && t.faellig_am.startsWith(today));
   const callbackTasks = openTasks.filter(t => t.typ === "Rückruf");
   const appointmentTasks = openTasks.filter(t => t.typ === "Termin");
@@ -84,6 +85,8 @@ function buildLeadContext(company, contactLogs, tasks) {
     callbackTasks,
     appointmentTasks,
     overdueTasks,
+    openCallOrFollowUpTasks,
+    allTasks: openTasks,
     now,
     today,
   };
@@ -483,18 +486,19 @@ function buildSummary(temperature, context, fitScore, contactabilityScore, urgen
 
   if (temperature === "cold") {
     if (context.status === "Verloren") {
-      return `Kalt: Status 'Verloren' – nur bei Situation-Wechsel reaktivieren.`;
+      return `Aktuell kalt: Status ist 'Verloren' – nur bei veränderter Situation reaktivieren.`;
     }
     if (!context.hasAnyContact && contactabilityScore < 40) {
-      return `Kalt: Kontaktdaten unvollständig – erst Daten anreichern.`;
+      return `Aktuell kalt: Kontaktdaten sind noch unvollständig. Erst Daten anreichern, dann kontaktieren.`;
     }
     if (!context.hasSuccessfulContact && context.hasAnyContact) {
-      return `Kalt: Bisherige Kontakte erfolglos – anderer Ansatz nötig.`;
+      const attempts = context.contactResultCounts.notReached;
+      return `Aktuell kalt: ${attempts > 0 ? `${attempts} Kontaktversuch${attempts > 1 ? 'e' : ''} dokumentiert, aber noch keine positive Reaktion` : 'Kontaktversuch dokumentiert, aber noch keine Reaktion'}. Rückruf vorbereiten und beim nächsten Kontakt Ansprechpartner sowie Bedarf kurz qualifizieren.`;
     }
-    return `Kalt: Noch keine Kaufsignale – Datenlage verbessern oder warten.`;
+    return `Aktuell kalt: Noch keine Kaufsignale vorhanden. Datenlage verbessern oder in der nächsten Woche erneut kontaktieren.`;
   }
 
-  return "Offen: Nicht ausreichend Informationen zur Klassifizierung.";
+  return "Offen: Noch zu wenig Informationen für eine eindeutige Einschätzung. Erstkontakt herstellen und Bedarf klären.";
 }
 
 function buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals) {
@@ -554,14 +558,25 @@ function buildReason(temperature, context, fitScore, contactabilityScore, engage
   return reasons.join(". ") + ".";
 }
 
+const MISSING_FIELD_LABELS = {
+  contact_person: "Ansprechpartner",
+  email: "E-Mail-Adresse",
+  phone: "Telefonnummer",
+  website: "Website",
+  target_customer_confirmation: "Zielgruppen-Match",
+  concrete_need: "konkreter Bedarf"
+};
+
 function buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData) {
+  const openCallOrFollowUpTask = (context.openCallOrFollowUpTasks && context.openCallOrFollowUpTasks[0]) || context.callbackTasks[0] || null;
+
   // Priority 1: Overdue Tasks
   if (context.overdueTasks.length > 0) {
     const task = context.overdueTasks[0];
     return {
       type: "task",
-      title: `Überfällige Aufgabe: "${task.titel}"`,
-      reason: `${Math.ceil((context.now - new Date(task.faellig_am)) / (1000 * 60 * 60 * 24))} Tage überfällig`,
+      title: `Überfällige Aufgabe bearbeiten: "${task.titel}"`,
+      reason: `Diese Aufgabe ist ${Math.ceil((context.now - new Date(task.faellig_am)) / (1000 * 60 * 60 * 24))} Tag(e) überfällig. Jetzt abarbeiten.`,
       due: "today"
     };
   }
@@ -571,8 +586,8 @@ function buildNextBestAction(context, temperature, urgencyScore, contactabilityS
     const task = context.todayTasks[0];
     return {
       type: "task",
-      title: `Aufgabe heute: "${task.titel}"`,
-      reason: "Aufgabe fällig heute",
+      title: `Aufgabe heute erledigen: "${task.titel}"`,
+      reason: "Diese Aufgabe ist heute fällig.",
       due: "today"
     };
   }
@@ -582,7 +597,7 @@ function buildNextBestAction(context, temperature, urgencyScore, contactabilityS
     return {
       type: "call",
       title: "Angebot nachfassen",
-      reason: "Angebot wurde angefordert – Feedback einholen und nächsten Schritt sichern",
+      reason: "Angebot wurde angefordert – Feedback einholen und Entscheidung herbeiführen.",
       due: "tomorrow"
     };
   }
@@ -592,77 +607,95 @@ function buildNextBestAction(context, temperature, urgencyScore, contactabilityS
     return {
       type: "research",
       title: "Termin vorbereiten",
-      reason: "Termin vereinbart – Unterlagen zusammenstellen und Agenda klären",
+      reason: "Termin vereinbart – Unterlagen zusammenstellen, Agenda und Entscheidungskriterien klären.",
       due: "tomorrow"
     };
   }
 
-  // Priority 5: First Contact (when contactable)
+  // Priority 5: Open call/follow-up task exists → prepare it
+  if (openCallOrFollowUpTask) {
+    return {
+      type: "call",
+      title: "Rückruf vorbereiten",
+      reason: `Es gibt bereits eine offene Aufgabe "${openCallOrFollowUpTask.titel}". Beim nächsten Kontakt gezielt Ansprechpartner, Bedarf und Entscheidungsprozess klären.`,
+      due: "this_week"
+    };
+  }
+
+  // Priority 6: First Contact (when contactable, no contact yet)
   if (!context.hasAnyContact && contactabilityScore >= 60) {
     const via = context.hasPhone ? "Anruf" : "E-Mail";
     return {
       type: "call",
       title: `Erstkontakt herstellen (${via})`,
-      reason: `Kontaktdaten vorhanden, aber noch kein Kontakt dokumentiert. ${context.matchedTargetCustomerType ? "Branche passt." : "Bedarf und Zielgruppe noch unklar."}`,
+      reason: `Kontaktdaten vorhanden, aber noch kein Kontakt dokumentiert. Ziel: Ansprechpartner klären und Bedarf kurz qualifizieren.`,
       due: "this_week"
     };
   }
 
-  // Priority 6: Enrich Missing Data
-  if (missingData.length > 0 && missingData[0].priority === "high") {
-    return {
-      type: "enrich",
-      title: `Fehldaten recherchieren: ${missingData[0].field}`,
-      reason: `${missingData[0].impact} – dann kontaktieren`,
-      due: "tomorrow"
-    };
-  }
-
-  // Priority 7: Retry Failed Contact
+  // Priority 7: Retry after failed contact
   if (context.hasOnlyFailedContact) {
     return {
       type: "call",
-      title: "Erneut anrufen",
-      reason: `${context.contactResultCounts.notReached}x nicht erreicht – mit anderem Kanal versuchen`,
+      title: "Erneut kontaktieren",
+      reason: `${context.contactResultCounts.notReached}x nicht erreicht. Anderen Kanal oder Uhrzeit versuchen. Ziel: Ansprechpartner finden.`,
       due: "this_week"
+    };
+  }
+
+  // Priority 8: Enrich Missing Data
+  if (missingData.length > 0 && missingData[0].priority === "high") {
+    const fieldLabel = MISSING_FIELD_LABELS[missingData[0].field] || missingData[0].field;
+    return {
+      type: "enrich",
+      title: `${fieldLabel} recherchieren`,
+      reason: `${missingData[0].impact}. Danach direkt kontaktieren.`,
+      due: "tomorrow"
     };
   }
 
   // Fallback
   return {
     type: "wait",
-    title: "Vorerst nicht priorisieren",
-    reason: "Nicht ausreichend Informationen für nächsten Schritt",
+    title: "Beobachten und bei Gelegenheit kontaktieren",
+    reason: "Noch nicht genug Informationen für einen gezielten nächsten Schritt.",
     due: null
   };
 }
 
 function buildOutreachAngle(context, temperature, fitSignals, engagementSignals) {
-  // Leverage existing engagement
   if (context.logs.length > 0 && context.hasSuccessfulContact) {
     const days = context.daysSinceLastContact || 1;
-    return `Folge-up nach existierendem Kontakt (${days} Tage). Referenziere das letzte Gespräch und bringe neue Information.`;
+    return `Anknüpfen an bisherigen Kontakt (vor ${days} Tag${days !== 1 ? 'en' : ''}): Vorheriges Gespräch kurz referenzieren und fragen, ob sich etwas verändert hat. Keine Produktpräsentation – erst Bedarf und Zeitplan klären.`;
   }
 
-  // Cold outreach with fit
   if (!context.hasAnyContact && context.matchedTargetCustomerType) {
-    return `Kompetenz-basierter Ansatz: "Wir arbeiten speziell mit ${context.branche}-Unternehmen in der Region ${context.ort}."`;
+    return `Branchenspezifischer Einstieg: Kurz erklären, dass man speziell mit ${context.branche || 'Unternehmen dieser Art'} in der Region arbeitet. Ziel des ersten Gesprächs: Ansprechpartner und aktuellen Bedarf klären – kein Verkaufsversuch im Erstkontakt.`;
   }
 
-  // Generic approach
-  return `Direkter Ansatz: Klare Wertproposition + Bedarf-Frage. Kurz halten.`;
+  if (context.hasOnlyFailedContact) {
+    return `Anderer Kanal oder Uhrzeit versuchen. Kurze, sachliche Nachricht: Wer ist zuständig für externe Dienstleistungen? Kein Druck – nur Ansprechpartner ermitteln.`;
+  }
+
+  return `Direkter, sachlicher Einstieg: Klären, wer intern für externe Dienstleister zuständig ist. Kurz und respektvoll – Ziel ist der richtige Ansprechpartner, nicht der sofortige Abschluss.`;
 }
 
 function buildSuggestedOpening(context, outreachAngle) {
+  const anrede = context.hasContactPerson ? `${context.name}` : "zusammen";
+
   if (context.logs.length > 0 && context.hasSuccessfulContact) {
-    return `Hallo ${context.ansprechpartner || context.name}, wir hatten vor ${context.daysSinceLastContact} Wochen kurz miteinander geredet. Ich wollte dir nur schnell zeigen, wie wir anderen ${context.branche}-Unternehmen gerade helfen…`;
+    return `Guten Tag, wir hatten uns vor einiger Zeit kurz gesprochen. Ich wollte kurz nachfragen, ob sich bei Ihnen etwas verändert hat – speziell beim Thema externe Dienstleistungen.`;
   }
 
   if (context.matchedTargetCustomerType && context.hasPhone) {
-    return `Guten Morgen, ich bin [Ihr Name] von [Ihr Unternehmen]. Wir arbeiten speziell mit ${context.branche}-Unternehmen in Ihrer Region. Ich hätte eine schnelle Frage…`;
+    return `Guten Tag, ich wollte kurz klären, wer bei Ihnen Ansprechpartner für externe Dienstleister ist – geht nur um einen kurzen Abgleich, ob unser Angebot für Sie passen könnte.`;
   }
 
-  return `Hallo ${context.ansprechpartner || "zusammen"}, kurze Frage: Wie gehen Sie aktuell mit dem Thema [Thema] um?`;
+  if (context.hasOnlyFailedContact) {
+    return `Guten Tag, ich hatte es schon einmal versucht – vielleicht war der Zeitpunkt ungünstig. Kurze Frage: Wer ist bei Ihnen zuständig für externe Service-Anfragen?`;
+  }
+
+  return `Guten Tag, kurze Frage: Wer ist bei Ihnen der richtige Ansprechpartner für externe Dienstleistungen? Ich wollte kurz klären, ob unser Angebot für Sie relevant sein könnte.`;
 }
 
 function buildQualificationQuestions(context, missingData) {
