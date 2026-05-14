@@ -13,6 +13,10 @@ function withTimeout(promise, ms = 45000, msg = "Recherche hat zu lange gedauert
   ]);
 }
 
+const DEFAULT_PLAN_LIMITS = {
+  max_leads_per_month: 300,
+};
+
 export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [loading, setLoading] = useState(true);
   const [researching, setResearching] = useState(false);
@@ -21,7 +25,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [settings, setSettings] = useState({});
   const [targetCount, setTargetCount] = useState(25);
   const [usageInfo, setUsageInfo] = useState(null);
-  const [planLimits, setPlanLimits] = useState(null);
+  const [planLimits, setPlanLimits] = useState(DEFAULT_PLAN_LIMITS);
   const [currentPlan, setCurrentPlan] = useState(null);
   const [slowWarning, setSlowWarning] = useState(false);
   const [researchRun, setResearchRun] = useState(null);
@@ -525,15 +529,15 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   </div>)}
 
                   {/* Credits aus DB (nach Refresh) – nur anzeigen wenn Credits verbraucht wurden */}
-                {planLimits && usageInfo && result.data.chargedLeadGeneration && (
+                  {usageInfo && result.data.chargedLeadGeneration && (
                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
                          <div className="font-semibold text-blue-900 mb-1">Verbrauch diesen Monat (aktualisiert)</div>
                          <div className="flex justify-between text-blue-800">
                            <span>Gespeicherte Kontakte:</span>
                            <span className="font-semibold">
-                             {usageInfo.leads_created} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month}
-                             {planLimits.max_leads_per_month !== -1 && (
-                               <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - usageInfo.leads_created)} verfügbar</span>
+                             {usageInfo.leads_created} / {(planLimits?.max_leads_per_month ?? 300) === -1 ? "∞" : planLimits?.max_leads_per_month ?? 300}
+                             {(planLimits?.max_leads_per_month ?? 300) !== -1 && (
+                               <span className="ml-1 text-blue-600">· {Math.max(0, (planLimits?.max_leads_per_month ?? 300) - usageInfo.leads_created)} verfügbar</span>
                              )}
                            </span>
                          </div>
@@ -622,30 +626,30 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               </div>
             )}
 
-            {trialStage === 'verified_trial' && planLimits && (
+            {trialStage === 'verified_trial' && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs space-y-2">
                 <div className="font-semibold text-amber-900 mb-1">Testzugang aktiv</div>
                 <div className="flex justify-between text-amber-800">
                   <span>Firmenkontakte:</span>
                   <span className="font-semibold">
-                    {usageInfo?.leads_created ?? 0} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month}
-                    {planLimits.max_leads_per_month !== -1 && (
-                      <span className="ml-1 text-amber-600">· {Math.max(0, planLimits.max_leads_per_month - (usageInfo?.leads_created ?? 0))} verfügbar</span>
+                    {usageInfo?.leads_created ?? 0} / {planLimits?.max_leads_per_month === -1 ? "∞" : planLimits?.max_leads_per_month ?? 300}
+                    {planLimits?.max_leads_per_month !== -1 && (
+                      <span className="ml-1 text-amber-600">· {Math.max(0, (planLimits?.max_leads_per_month ?? 300) - (usageInfo?.leads_created ?? 0))} verfügbar</span>
                     )}
                   </span>
                 </div>
               </div>
             )}
 
-            {trialStage === 'paid' && planLimits && (
+            {trialStage === 'paid' && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
                 <div className="font-semibold text-blue-900 mb-1">Monatliches Kontingent</div>
                 <div className="flex justify-between text-blue-800">
                   <span>Firmenkontakte:</span>
                   <span className="font-semibold">
-                    {usageInfo?.leads_created ?? 0} / {planLimits.max_leads_per_month === -1 ? "∞" : planLimits.max_leads_per_month}
-                    {planLimits.max_leads_per_month !== -1 && (
-                      <span className="ml-1 text-blue-600">· {Math.max(0, planLimits.max_leads_per_month - (usageInfo?.leads_created ?? 0))} verfügbar</span>
+                    {usageInfo?.leads_created ?? 0} / {planLimits?.max_leads_per_month === -1 ? "∞" : planLimits?.max_leads_per_month ?? 300}
+                    {planLimits?.max_leads_per_month !== -1 && (
+                      <span className="ml-1 text-blue-600">· {Math.max(0, (planLimits?.max_leads_per_month ?? 300) - (usageInfo?.leads_created ?? 0))} verfügbar</span>
                     )}
                   </span>
                 </div>
@@ -665,19 +669,19 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               </div>
             )}
 
-            {trialStage === 'verified_trial' && planLimits && planLimits.max_leads_per_month !== -1 && (usageInfo?.leads_created ?? 0) >= planLimits.max_leads_per_month && (
+            {trialStage === 'verified_trial' && (planLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (planLimits?.max_leads_per_month ?? 300) && (
               <div className="rounded-xl p-3 border bg-red-50 border-red-200">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
                   <div className="text-xs space-y-1">
                     <p className="font-semibold text-red-900">Testzugang-Kontingent erreicht</p>
-                    <p className="text-red-800">Sie haben {planLimits.max_leads_per_month} Firmenkontakte in diesem Abrechnungszeitraum genutzt.</p>
+                    <p className="text-red-800">Sie haben {planLimits?.max_leads_per_month ?? 300} Firmenkontakte in diesem Abrechnungszeitraum genutzt.</p>
                   </div>
                 </div>
               </div>
             )}
 
-            {trialStage === 'paid' && planLimits && planLimits.max_leads_per_month !== -1 && (usageInfo?.leads_created ?? 0) >= planLimits.max_leads_per_month && (
+            {trialStage === 'paid' && (planLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (planLimits?.max_leads_per_month ?? 300) && (
               <div className="rounded-xl p-3 border bg-red-50 border-red-200">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
@@ -706,14 +710,14 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                 >
                   Testzugang aktivieren
                 </Button>
-              ) : trialStage === 'verified_trial' && planLimits && planLimits.max_leads_per_month !== -1 && (usageInfo?.leads_created ?? 0) >= planLimits.max_leads_per_month ? (
+              ) : trialStage === 'verified_trial' && (planLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (planLimits?.max_leads_per_month ?? 300) ? (
                 <Button
                   onClick={() => window.location.href = "/settings?tab=billing"}
                   className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Zum Billing
                 </Button>
-              ) : trialStage === 'paid' && planLimits && planLimits.max_leads_per_month !== -1 && (usageInfo?.leads_created ?? 0) >= planLimits.max_leads_per_month ? (
+              ) : trialStage === 'paid' && (planLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (planLimits?.max_leads_per_month ?? 300) ? (
                 <Button
                   onClick={() => window.location.href = "/settings?tab=billing"}
                   className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
