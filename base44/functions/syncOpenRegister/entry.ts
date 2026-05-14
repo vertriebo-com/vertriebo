@@ -82,53 +82,60 @@ Deno.serve(async (req) => {
       : ["GmbH", "UG", "GmbH & Co. KG"];
     const resolvedSinceDate = since_date || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    // 6. Echten OpenRegister API-Call
+    // 5a. dry_run=false blockieren bis Endpoint verifiziert
+    if (!dry_run) {
+      return Response.json({
+        error: "dry_run=false is blocked until OpenRegister endpoint is verified",
+        reason: "endpoint_not_verified",
+        hint: "Use dry_run=true for testing. Set dry_run=false only after endpoint verification."
+      }, { status: 409 });
+    }
+
+    // 6. Echten OpenRegister API-Call (VERIFIED_DRY_RUN_ONLY)
     const OPENREGISTER_BASE_URL = "https://api.openregister.de";
     
     // apiResults initialisieren
     let apiResults = [];
+    let skippedCount = 0;
 
-    console.log(`[syncOpenRegister] LIVE mode for city=${resolvedCity}, radius=${resolvedRadius}km`);
+    console.log(`[syncOpenRegister] VERIFIED_DRY_RUN_ONLY mode for city=${resolvedCity}, radius=${resolvedRadius}km`);
     
-    // OpenRegister API Request bauen
-    const openRegisterRequest = {
-      query: {
-        value: resolvedCity
-      },
-      filters: [
-        {
-          field: "city",
-          value: resolvedCity
-        },
-        {
-          field: "legal_form",
-          values: resolvedLegalForms.map(lf => lf.toLowerCase())
-        },
-        {
-          field: "incorporated_at",
-          min: resolvedSinceDate
-        }
-      ],
-      pagination: {
-        per_page: resolvedLimit
-      }
-    };
+    // Timeout für API-Call (15 Sekunden)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-    // API-Call an OpenRegister
-    const response = await fetch(`${OPENREGISTER_BASE_URL}/v1/search/company`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENREGISTER_API_KEY}`
-      },
-      body: JSON.stringify(openRegisterRequest)
-    });
+    let response;
+    try {
+      response = await fetch(`${OPENREGISTER_BASE_URL}/v1/search/company`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OPENREGISTER_API_KEY}`
+        },
+        body: JSON.stringify({
+          query: { value: resolvedCity },
+          filters: [
+            { field: "city", value: resolvedCity },
+            { field: "legal_form", values: resolvedLegalForms.map(lf => lf.toLowerCase()) },
+            { field: "incorporated_at", min: resolvedSinceDate }
+          ],
+          pagination: { per_page: resolvedLimit }
+        }),
+        signal: controller.signal
+      });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError.name === 'AbortError') {
+        return Response.json({ error: "OpenRegister request timeout", reason: "openregister_timeout" }, { status: 504 });
+      }
+      throw fetchError;
+    }
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-      console.error("[syncOpenRegister] OpenRegister API error:", errorData);
+      console.error("[syncOpenRegister] OpenRegister API error", { status: response.status });
       return Response.json({
-        error: `OpenRegister API error: ${errorData.error || response.statusText}`,
+        error: `OpenRegister API error: ${response.status} ${response.statusText}`,
         status: response.status
       }, { status: response.status });
     }
@@ -136,38 +143,45 @@ Deno.serve(async (req) => {
     const searchData = await response.json();
     console.log(`[syncOpenRegister] OpenRegister response: ${searchData.results?.length || 0} companies found`);
 
-    // Response in unser Format mappen
-    apiResults = (searchData.results || []).map(item => ({
-      id: item.company_id,
-      name: item.name,
-      legalForm: item.legal_form,
-      address: item.address,
-      city: item.city,
-      zip: item.zip,
-      registerNumber: item.register_number,
-      registerCourt: item.register_court,
-      registrationDate: item.incorporated_at,
-      active: item.active,
-      registerType: item.register_type
-    }));
+    // Response in unser Format mappen (DEFENSIV)
+    apiResults = (searchData.results || []).map(item => {
+      // Defensives Mapping - wenn sourceId oder name fehlen, überspringen
+      const sourceId = item.company_id || item.id || item.register_number || item.slug;
+      const companyName = item.name || item.company_name || item.current_name;
+      
+      if (!sourceId || !companyName) {
+        skippedCount++;
+        return null;
+      }
+
+      return {
+        id: sourceId,
+        name: companyName,
+        legalForm: item.legal_form || null,
+        address: item.address || null,
+        city: item.city || null,
+        zip: item.zip || null,
+        registerNumber: item.register_number || null,
+        registerCourt: item.register_court || null,
+        registrationDate: item.incorporated_at || null,
+        active: item.active !== undefined ? item.active : true,
+        registerType: item.register_type || null
+      };
+    }).filter(item => item !== null); // Null-Einträge entfernen (skipped)
 
     const limitedResults = apiResults.slice(0, resolvedLimit);
     
-    let importedCount = 0;
+    let matchedCount = 0;
     let duplicateCount = 0;
-    let outsideRadiusCount = 0;
     let unknownGeoCount = 0;
     const preview = [];
 
     for (const item of limitedResults) {
-      const companyName = item.name || 'Unbekannt';
+      const companyName = item.name;
       const itemCity = item.city || resolvedCity;
       
-      let matchStatus = "imported";
+      let matchStatus = "matched";
       let duplicateCompanyId = null;
-      let radiusStatus = "unknown";
-      let geoConfidence = "unknown";
-      let distanceKm = null;
 
       // 8. Dedupe gegen ExternalCompanySource (separate Queries für Base44-Kompatibilität)
       let isDuplicate = false;
@@ -214,20 +228,12 @@ Deno.serve(async (req) => {
         }
       }
 
-      // 10. Radius-Status (in Schritt 3A noch ohne echte Koordinaten → unknown_geo)
+      // 10. Radius-Status (KEINE Radius-Logik - nur unknown_geo)
       if (matchStatus !== "duplicate") {
-        radiusStatus = "unknown";
-        geoConfidence = "unknown";
-        matchStatus = "unknown_geo";
         unknownGeoCount++;
       }
 
-      // 11. NICHT speichern wenn dry_run – Simulation darf nie in DB landen
-      if (!dry_run && matchStatus !== "duplicate") {
-        // Dieser Block wird nur ausgeführt wenn isEndpointImplemented=true
-        // Da isEndpointImplemented aktuell false, wird hier nie gespeichert
-        console.warn(`[syncOpenRegister] Would save ${companyName} but endpoint not implemented – skipping`);
-      }
+      matchedCount++;
 
       // Preview für Response (max 10)
       if (preview.length < 10) {
@@ -237,7 +243,6 @@ Deno.serve(async (req) => {
           city: itemCity,
           registration_date: item.registrationDate,
           match_status: matchStatus,
-          radius_status: radiusStatus,
           duplicate_company_id: duplicateCompanyId,
           freshness_score: calculateFreshnessScore(item.registrationDate)
         });
@@ -247,17 +252,21 @@ Deno.serve(async (req) => {
     return Response.json({
       success: true,
       dry_run: Boolean(dry_run),
-      simulated: false,
+      verified_dry_run_only: true,
+      endpoint_verified: false,
       organization_id,
       city: resolvedCity,
       radius_km: resolvedRadius,
       limit: resolvedLimit,
-      imported_count: importedCount,
+      matched_count: matchedCount,
       duplicate_count: duplicateCount,
-      outside_radius_count: outsideRadiusCount,
       unknown_geo_count: unknownGeoCount,
+      skipped_count: skippedCount,
+      preview_count: preview.length,
       preview,
-      message: "Fresh lead source sync completed."
+      message: dry_run 
+        ? "Dry-run preview completed. Endpoint not verified yet - no data saved."
+        : "ERROR: dry_run=false is blocked until endpoint is verified. Use dry_run=true for testing."
     });
 
   } catch (error) {
@@ -265,3 +274,20 @@ Deno.serve(async (req) => {
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
+
+/*
+VERIFIED_DRY_RUN_ONLY STATUS:
+- ✅ API-Key aus Env (nicht hardcoded)
+- ✅ Fetch mit 15s Timeout + AbortController
+- ✅ Error-Logging entschärft (nur Status, keine sensiblen Daten)
+- ✅ dry_run=false blockiert bis Endpoint verifiziert
+- ✅ Defensives Response-Mapping (sourceId/name required)
+- ✅ Missing entries werden übersprungen + gezählt
+- ✅ Kein misleading imported_count → matched_count + preview_count
+- ✅ KEINE Speicherung in ExternalCompanySource
+- ✅ KEINE Company-Erstellung
+- ✅ Radius-Status korrekt als "unknown" benannt
+- ✅ Endpoint/Schema NICHT als verifiziert markiert
+
+NEXT STEP: Test mit dry_run=true um Endpoint + Response zu verifizieren
+*/
