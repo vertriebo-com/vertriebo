@@ -52,10 +52,46 @@ Deno.serve(async (req) => {
       dry_run = false
     } = body;
 
-    // 1. Pflichtparameter prüfen
-    if (!organization_id) {
-      return Response.json({ error: 'Missing required parameter: organization_id' }, { status: 400 });
+    // 1. organization_id auflösen (aus Request ODER aktuelle User-Organisation)
+    let resolvedOrgId = organization_id;
+    
+    if (!resolvedOrgId) {
+      // Organisation des Users ermitteln
+      const userOrgs = await base44.asServiceRole.entities.Organization.filter({ owner_email: user.email });
+      let orgCandidates = userOrgs || [];
+      
+      // Wenn nicht Owner, dann als Member suchen
+      if (orgCandidates.length === 0) {
+        const memberships = await base44.asServiceRole.entities.OrganizationMember.filter({
+          user_email: user.email,
+          status: "active",
+        });
+        if (memberships && memberships.length > 0) {
+          const memberOrgIds = memberships.map(m => m.organization_id);
+          const memberOrgs = await base44.asServiceRole.entities.Organization.filter({ id: { $in: memberOrgIds } });
+          orgCandidates = memberOrgs || [];
+        }
+      }
+      
+      // Ergebnis prüfen
+      if (orgCandidates.length === 0) {
+        return Response.json({ error: 'No organization found for user', reason: 'no_organization' }, { status: 403 });
+      }
+      if (orgCandidates.length > 1) {
+        return Response.json({ 
+          error: 'Multiple organizations found - please specify organization_id', 
+          reason: 'organization_required_multiple_memberships',
+          organizations: orgCandidates.map(o => ({ id: o.id, name: o.name }))
+        }, { status: 400 });
+      }
+      
+      resolvedOrgId = orgCandidates[0].id;
     }
+    
+    // resolvedOrgId ist jetzt immer gesetzt
+    const organizationId = resolvedOrgId;
+
+    // 2. city ist PFLICHT für MVP
 
     // 2. city ist PFLICHT für MVP
     if (!city || !String(city).trim()) {
@@ -69,8 +105,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'OPENREGISTER_API_KEY missing' }, { status: 500 });
     }
 
-    // 4. Zugriff prüfen
-    if (!(await hasOrganizationAccess(base44, user, organization_id))) {
+    // 4. Zugriff prüfen (mit aufgelöster organizationId)
+    if (!(await hasOrganizationAccess(base44, user, organizationId))) {
       return Response.json({ error: 'Forbidden: Insufficient organization permissions' }, { status: 403 });
     }
 
@@ -90,6 +126,8 @@ Deno.serve(async (req) => {
         hint: "Use dry_run=true for testing. Set dry_run=false only after endpoint verification."
       }, { status: 409 });
     }
+
+    console.log(`[syncOpenRegister] Resolved organization_id: ${organizationId} for user: ${user.email}`);
 
     // 6. Echten OpenRegister API-Call (VERIFIED_DRY_RUN_ONLY)
     const OPENREGISTER_BASE_URL = "https://api.openregister.de";
@@ -254,7 +292,8 @@ Deno.serve(async (req) => {
       dry_run: Boolean(dry_run),
       verified_dry_run_only: true,
       endpoint_verified: false,
-      organization_id,
+      organization_id: organizationId,
+      organization_resolved: !organization_id, // true wenn automatisch aufgelöst
       city: resolvedCity,
       radius_km: resolvedRadius,
       limit: resolvedLimit,
@@ -288,6 +327,10 @@ VERIFIED_DRY_RUN_ONLY STATUS:
 - ✅ KEINE Company-Erstellung
 - ✅ Radius-Status korrekt als "unknown" benannt
 - ✅ Endpoint/Schema NICHT als verifiziert markiert
+- ✅ organization_id wird automatisch aufgelöst (User-Organisation)
+- ✅ Mandantentrennung bleibt erhalten
+- ✅ Multiple Organizations → Error mit Auswahl
+- ✅ No Organization → 403 Forbidden
 
 NEXT STEP: Test mit dry_run=true um Endpoint + Response zu verifizieren
 */
