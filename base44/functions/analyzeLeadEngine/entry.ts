@@ -689,29 +689,59 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Organisation des Users ermitteln
+    const body = await req.json();
+    const { mode = "single", company_id, limit = 10, organization_id, requested_organization_id } = body;
+    
+    // Determine which organization to use: requested_organization_id or organization_id
+    const requestedOrgId = requested_organization_id || organization_id;
+    
+    // Multi-Org Access Check
     let organizationId = null;
-    const memberOrgs = await base44.entities.OrganizationMember.filter({
-      user_email: user.email,
-      status: "active"
-    });
-    if (memberOrgs && memberOrgs.length > 0) {
-      organizationId = memberOrgs[0].organization_id;
+    if (requestedOrgId) {
+      // Explicit organization requested – validate access
+      const isAdmin = user.role === 'admin';
+      if (!isAdmin) {
+        // Check if user owns this org or is active member
+        const ownerOrgs = await base44.asServiceRole.entities.Organization.filter({
+          id: requestedOrgId,
+          owner_email: user.email
+        });
+        const isOwner = ownerOrgs && ownerOrgs.length > 0;
+        
+        if (!isOwner) {
+          const members = await base44.asServiceRole.entities.OrganizationMember.filter({
+            organization_id: requestedOrgId,
+            user_email: user.email,
+            status: 'active'
+          });
+          if (!members || members.length === 0) {
+            console.warn(`[analyzeLeadEngine] Access denied: user ${user.email} not member of org ${requestedOrgId}`);
+            return Response.json({ error: 'Zugriff verweigert' }, { status: 403 });
+          }
+        }
+      }
+      organizationId = requestedOrgId;
     } else {
-      const ownerOrgs = await base44.entities.Organization.filter({
-        owner_email: user.email
+      // Fallback: determine from user's memberships (single-org flow)
+      const memberOrgs = await base44.entities.OrganizationMember.filter({
+        user_email: user.email,
+        status: "active"
       });
-      if (ownerOrgs && ownerOrgs.length > 0) {
-        organizationId = ownerOrgs[0].id;
+      if (memberOrgs && memberOrgs.length > 0) {
+        organizationId = memberOrgs[0].organization_id;
+      } else {
+        const ownerOrgs = await base44.entities.Organization.filter({
+          owner_email: user.email
+        });
+        if (ownerOrgs && ownerOrgs.length > 0) {
+          organizationId = ownerOrgs[0].id;
+        }
       }
     }
     
     if (!organizationId) {
       return Response.json({ error: 'Keine Organisation zugeordnet' }, { status: 403 });
     }
-    
-    const body = await req.json();
-    const { mode = "single", company_id, limit = 10 } = body;
     
     if (mode === "single") {
       if (!company_id) {

@@ -50,16 +50,34 @@ Deno.serve(async (req) => {
 
     const company = companies[0];
 
-    // Blacklist-Eintrag erstellen (falls noch nicht vorhanden)
-    await base44.asServiceRole.entities.Blacklist.create({
-      organization_id,
-      firmenname: company.name,
-      telefon: company.telefon || '',
-      email: company.email || '',
-      grund: 'Manuell hinzugefügt',
+    // Duplikatprüfung: Blacklist-Eintrag nur erstellen, wenn nicht bereits vorhanden
+    const existing = await base44.asServiceRole.entities.Blacklist.filter({ organization_id });
+    const normalizedName = (company.name || '').toLowerCase().trim();
+    const normalizedPhone = (company.telefon || '').replace(/\D/g, '');
+    const normalizedEmail = (company.email || '').toLowerCase().trim();
+
+    const alreadyExists = existing.some(b => {
+      const bName = (b.firmenname || '').toLowerCase().trim();
+      const bPhone = (b.telefon || '').replace(/\D/g, '');
+      const bEmail = (b.email || '').toLowerCase().trim();
+      return (
+        (normalizedName && bName === normalizedName) ||
+        (normalizedPhone && bPhone === normalizedPhone && normalizedPhone !== '') ||
+        (normalizedEmail && bEmail === normalizedEmail && normalizedEmail !== '')
+      );
     });
 
-    // Firma als blacklisted und Verloren markieren
+    if (!alreadyExists) {
+      await base44.asServiceRole.entities.Blacklist.create({
+        organization_id,
+        firmenname: company.name,
+        telefon: company.telefon || '',
+        email: company.email || '',
+        grund: 'Manuell hinzugefügt',
+      });
+    }
+
+    // Firma trotzdem als blacklisted und Verloren markieren
     await base44.asServiceRole.entities.Company.update(company_id, {
       is_blacklisted: true,
       status: 'Verloren',

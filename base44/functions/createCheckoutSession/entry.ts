@@ -127,6 +127,18 @@ Deno.serve(async (req) => {
     if (!plan.stripe_price_id) return Response.json({ error: `Plan hat keine Stripe Price ID – bitte zuerst Stripe Products anlegen` }, { status: 400 });
     if (!plan.is_active) return Response.json({ error: `Plan ist nicht buchbar` }, { status: 400 });
 
+    // ── 3a. HARD-BLOCK: Agency ist nur auf Anfrage verfügbar ─────────────────
+    const planName = (plan.name || '').toLowerCase();
+    const planSlug = (plan.slug || '').toLowerCase();
+    const isAgencyPlan = planName.includes('agency') || planSlug.includes('agency');
+    if (isAgencyPlan) {
+      console.warn(`[createCheckoutSession] Access denied: Agency plan checkout attempt for org ${organization_id}`);
+      return Response.json({
+        error: 'Agency ist nur auf Anfrage verfügbar',
+        reason: 'agency_contact_required'
+      }, { status: 400 });
+    }
+
     // ── 4. Organisation laden ───────────────────────────────────────────────
     let org = null;
     try {
