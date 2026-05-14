@@ -47,6 +47,43 @@ function safeParseArray(value) {
   }
 }
 
+// Normalize temperature to consistent format
+function normalizeTemperature(value) {
+  const raw = String(value || 'open').toLowerCase();
+  if (raw.includes('hot')) return 'Hot';
+  if (raw.includes('warm')) return 'Warm';
+  if (raw.includes('cold') || raw.includes('kalt')) return 'Cold';
+  return 'Open';
+}
+
+// Extract signals from various possible shapes
+function extractSignals(engineAnalysisJson) {
+  const signals = engineAnalysisJson?.signals || engineAnalysisJson?.signal_groups || {};
+  return {
+    fit: signals.fit || signals.fit_signals || engineAnalysisJson?.fit_signals || [],
+    contactability: signals.contactability || signals.contactability_signals || engineAnalysisJson?.contactability_signals || [],
+    engagement: signals.engagement || signals.engagement_signals || engineAnalysisJson?.engagement_signals || [],
+    timing: signals.timing || signals.timing_signals || engineAnalysisJson?.timing_signals || [],
+    risk: signals.risk || signals.risk_signals || engineAnalysisJson?.risk_signals || [],
+    missing_data: signals.missing_data || signals.missingData || engineAnalysisJson?.missing_data || []
+  };
+}
+
+// Clean placeholder text from AI-generated content
+function cleanPlaceholderText(text) {
+  if (!text) return '';
+  return text
+    .replace(/\[Ihr Name\]/g, 'ich')
+    .replace(/\[Ihr Unternehmen\]/g, 'unserem Unternehmen')
+    .replace(/\[Dein Name\]/g, 'ich')
+    .replace(/\[Dein Unternehmen\]/g, 'unserem Unternehmen')
+    .replace(/\[Thema\]/g, 'Ihrem aktuellen Bedarf')
+    .replace(/\[Service\]/g, 'externe Dienstleistungen')
+    .replace(/\[your_name\]/gi, 'ich')
+    .replace(/\[your_company\]/gi, 'unserem Unternehmen')
+    .replace(/\$\{.*?\}/g, '[...]');
+}
+
 export default function EngineBox({ company, contactLogs = [], tasks = [], orgId, onAddTask, onReanalyze }) {
   const [analyzing, setAnalyzing] = useState(false);
   
@@ -56,31 +93,33 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
   const hasPersisted = !!engineAnalysisJson || (company?.lead_temperature && company.lead_temperature !== "unknown");
   
   // Extract from new engine bundle (priority) or legacy fields (fallback)
+  const extractedSignals = engineAnalysisJson ? extractSignals(engineAnalysisJson) : {};
+  
   const analysis = engineAnalysisJson ? {
-    temperature: engineAnalysisJson.temperature?.charAt(0).toUpperCase() + engineAnalysisJson.temperature?.slice(1) || "Open",
+    temperature: normalizeTemperature(engineAnalysisJson.temperature),
     score: engineAnalysisJson.vertriebo_score || 0,
     confidence: engineAnalysisJson.confidence_score || 0,
-    summary: engineAnalysisJson.summary || "",
-    reason: engineAnalysisJson.reason || "",
+    summary: cleanPlaceholderText(engineAnalysisJson.summary || ""),
+    reason: cleanPlaceholderText(engineAnalysisJson.reason || ""),
     nextBestAction: engineAnalysisJson.next_best_action || {},
-    outreachAngle: engineAnalysisJson.outreach_angle || "",
-    suggestedOpening: engineAnalysisJson.suggested_opening || "",
-    qualificationQuestions: engineAnalysisJson.qualification_questions || [],
+    outreachAngle: cleanPlaceholderText(engineAnalysisJson.outreach_angle || ""),
+    suggestedOpening: cleanPlaceholderText(engineAnalysisJson.suggested_opening || ""),
+    qualificationQuestions: (engineAnalysisJson.qualification_questions || []).map(q => cleanPlaceholderText(q)),
     objectionsToExpect: engineAnalysisJson.objections_to_expect || [],
     topSignals: [
-      ...(engineAnalysisJson.signals?.fit || []),
-      ...(engineAnalysisJson.signals?.contactability || []),
-      ...(engineAnalysisJson.signals?.engagement || []),
-      ...(engineAnalysisJson.signals?.timing || [])
-    ].filter(s => s.present).slice(0, 5),
-    riskSignals: engineAnalysisJson.signals?.risk || [],
-    missingData: engineAnalysisJson.signals?.missing_data || []
+      ...extractedSignals.fit,
+      ...extractedSignals.contactability,
+      ...extractedSignals.engagement,
+      ...extractedSignals.timing
+    ].filter(s => s.present !== false).slice(0, 5),
+    riskSignals: extractedSignals.risk || [],
+    missingData: extractedSignals.missing_data || []
   } : {
-    temperature: (company?.lead_temperature || "open").charAt(0).toUpperCase() + (company?.lead_temperature || "open").slice(1),
+    temperature: normalizeTemperature(company?.lead_temperature),
     score: company?.lead_temperature_score || 0,
     confidence: 0,
     summary: "",
-    reason: company?.lead_temperature_reason || "",
+    reason: cleanPlaceholderText(company?.lead_temperature_reason || ""),
     nextBestAction: {},
     outreachAngle: "",
     suggestedOpening: "",
@@ -114,8 +153,8 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
 
   const handleAddTask = () => {
     if (onAddTask) {
-      onAddTask();
-      toast.success("Neue Aufgabe erstellen");
+      onAddTask(analysis.nextBestAction);
+      toast.success("Aufgabe vorbereitet");
     }
   };
 
