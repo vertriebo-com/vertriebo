@@ -438,7 +438,7 @@ function calculateConfidenceScore(context, riskSignals) {
 // TEMPERATURE + RECOMMENDATIONS (Evidenzbasiert)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, context) {
+function classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, contactabilityScore, context) {
   // Hard Rules (Blockers)
   if (context.status === "Verloren") return "cold";
   if (context.logs.some(l => l.ergebnis === "Kein Interesse")) return "cold";
@@ -448,7 +448,7 @@ function classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementS
   if (engagementScore >= 60) return "hot";
   
   if (fitScore >= 70 && engagementScore >= 40) return "warm";
-  if (fitScore >= 70 && context.contactabilityScore >= 60) return "warm";
+  if (fitScore >= 70 && contactabilityScore >= 60) return "warm";
   if (engagementScore >= 40) return "warm";
   
   if (fitScore >= 40) return "cold";
@@ -632,7 +632,7 @@ function buildOutreachAngle(context, temperature, fitSignals, engagementSignals)
   // Leverage existing engagement
   if (context.logs.length > 0 && context.hasSuccessfulContact) {
     const days = context.daysSinceLastContact || 1;
-    return `Folge-up nach existierendem Kontakt (${days} Tage). Referenziere letzte Gespräch und bringe neue Information.`;
+    return `Folge-up nach existierendem Kontakt (${days} Tage). Referenziere das letzte Gespräch und bringe neue Information.`;
   }
 
   // Cold outreach with fit
@@ -645,18 +645,15 @@ function buildOutreachAngle(context, temperature, fitSignals, engagementSignals)
 }
 
 function buildSuggestedOpening(context, outreachAngle) {
-  const yourName = "[Dein Name]";
-  const yourCompany = "[Dein Unternehmen]";
-
   if (context.logs.length > 0 && context.hasSuccessfulContact) {
     return `Hallo ${context.ansprechpartner || context.name}, wir hatten vor ${context.daysSinceLastContact} Wochen kurz miteinander geredet. Ich wollte dir nur schnell zeigen, wie wir anderen ${context.branche}-Unternehmen gerade helfen…`;
   }
 
   if (context.matchedTargetCustomerType && context.hasPhone) {
-    return `Guten Morgen, ich bin ${yourName} von ${yourCompany}. Wir arbeiten speziell mit ${context.branche}-Unternehmen in Ihrer Region. Ich hätte eine schnelle Frage…`;
+    return `Guten Morgen, ich bin [Ihr Name] von [Ihr Unternehmen]. Wir arbeiten speziell mit ${context.branche}-Unternehmen in Ihrer Region. Ich hätte eine schnelle Frage…`;
   }
 
-  return `Hallo ${context.ansprechpartner || "zusammen"}, kurze Frage: Wie managen Sie aktuell [Relevant Topic]?`;
+  return `Hallo ${context.ansprechpartner || "zusammen"}, kurze Frage: Wie gehen Sie aktuell mit dem Thema [Thema] um?`;
 }
 
 function buildQualificationQuestions(context, missingData) {
@@ -759,10 +756,10 @@ async function analyzeLeadSingle(base44, organizationId, companyId) {
     const timingScore = calculateTimingScore(context);
     const urgencyScore = calculateUrgencyScore(context);
     const confidenceScore = calculateConfidenceScore(context, riskSignals);
-    const vertrieboScore = Math.round((fitScore * 0.3 + contactabilityScore * 0.25 + engagementScore * 0.25 + timingScore * 0.2) / 100 * 100);
+    const vertrieboScore = Math.round(fitScore * 0.3 + contactabilityScore * 0.25 + engagementScore * 0.25 + timingScore * 0.2);
     
     // ═══ CLASSIFICATION ═══
-    const temperature = classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, context);
+    const temperature = classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, contactabilityScore, context);
     const summary = buildSummary(temperature, context, fitScore, contactabilityScore, urgencyScore, missingData);
     const reason = buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals);
     
@@ -808,45 +805,43 @@ async function analyzeLeadSingle(base44, organizationId, companyId) {
     
     // ═══ PERSISTENCE ═══
     const now = new Date().toISOString();
+    const engineAnalysis = {
+      version: "phase1",
+      temperature,
+      vertriebo_score: vertrieboScore,
+      urgency_score: Math.round(urgencyScore),
+      fit_score: Math.round(fitScore),
+      contactability_score: Math.round(contactabilityScore),
+      timing_score: Math.round(timingScore),
+      confidence_score: Math.round(confidenceScore),
+      summary,
+      reason,
+      signals: {
+        fit: fitSignals,
+        contactability: contactabilitySignals,
+        engagement: engagementSignals,
+        timing: timingSignals,
+        risk: riskSignals,
+        missing_data: missingData
+      },
+      next_best_action: nextBestAction,
+      outreach_angle: outreachAngle,
+      suggested_opening: suggestedOpening,
+      qualification_questions: qualificationQuestions,
+      objections_to_expect: objectionsToExpect,
+      recommended_status: recommendedStatus
+    };
+    
     await base44.entities.Company.update(companyId, {
-      // Main Scores
+      // Legacy Fields (Compat)
       lead_temperature: temperature.toLowerCase(),
       lead_temperature_score: vertrieboScore,
-      engine_score: vertrieboScore,
-      engine_confidence: confidenceScore,
-      engine_urgency_score: Math.round(urgencyScore),
-      engine_fit_score: Math.round(fitScore),
-      engine_contactability_score: Math.round(contactabilityScore),
-      engine_timing_score: Math.round(timingScore),
-      
-      // Text Fields
       lead_temperature_reason: reason,
-      engine_summary: summary,
-      engine_reason: reason,
       
-      // JSON Bundles
-      engine_signals_json: JSON.stringify({
-        version: "phase1",
-        fit_signals: fitSignals,
-        contactability_signals: contactabilitySignals,
-        engagement_signals: engagementSignals,
-        timing_signals: timingSignals,
-        risk_signals: riskSignals,
-        missing_data: missingData
-      }),
-      
-      engine_next_action_json: JSON.stringify(nextBestAction),
-      
-      // Outreach Intelligence
-      engine_outreach_angle: outreachAngle,
-      engine_suggested_opening: suggestedOpening,
-      engine_qualification_questions_json: JSON.stringify(qualificationQuestions),
-      engine_objections_json: JSON.stringify(objectionsToExpect),
-      engine_recommended_status: recommendedStatus,
-      
-      // Metadata
-      engine_last_analyzed_at: now,
+      // New Engine Bundle (Safe + Versioned)
+      engine_analysis_json: JSON.stringify(engineAnalysis),
       engine_version: result.engine_version,
+      engine_last_analyzed_at: now,
       
       // Legacy Compat
       is_hot: temperature === "hot"
@@ -911,9 +906,9 @@ async function analyzeLatestLeads(base44, organizationId, limit = 10) {
         const timingScore = calculateTimingScore(context);
         const urgencyScore = calculateUrgencyScore(context);
         const confidenceScore = calculateConfidenceScore(context, riskSignals);
-        const vertrieboScore = Math.round((fitScore * 0.3 + contactabilityScore * 0.25 + engagementScore * 0.25 + timingScore * 0.2) / 100 * 100);
+        const vertrieboScore = Math.round(fitScore * 0.3 + contactabilityScore * 0.25 + engagementScore * 0.25 + timingScore * 0.2);
         
-        const temperature = classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, context);
+        const temperature = classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, contactabilityScore, context);
         const summary = buildSummary(temperature, context, fitScore, contactabilityScore, urgencyScore, missingData);
         const reason = buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals);
         const nextBestAction = buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData);
@@ -939,35 +934,45 @@ async function analyzeLatestLeads(base44, organizationId, limit = 10) {
         
         // Persistence
         const now = new Date().toISOString();
+        const engineAnalysis = {
+          version: "phase1",
+          temperature,
+          vertriebo_score: vertrieboScore,
+          urgency_score: Math.round(urgencyScore),
+          fit_score: Math.round(fitScore),
+          contactability_score: Math.round(contactabilityScore),
+          timing_score: Math.round(timingScore),
+          confidence_score: Math.round(confidenceScore),
+          summary,
+          reason,
+          signals: {
+            fit: fitSignals,
+            contactability: contactabilitySignals,
+            engagement: engagementSignals,
+            timing: timingSignals,
+            risk: riskSignals,
+            missing_data: missingData
+          },
+          next_best_action: nextBestAction,
+          outreach_angle: outreachAngle,
+          suggested_opening: suggestedOpening,
+          qualification_questions: qualificationQuestions,
+          objections_to_expect: objectionsToExpect,
+          recommended_status: recommendedStatus
+        };
+        
         await base44.entities.Company.update(company.id, {
+          // Legacy Fields (Compat)
           lead_temperature: temperature.toLowerCase(),
           lead_temperature_score: vertrieboScore,
-          engine_score: vertrieboScore,
-          engine_confidence: confidenceScore,
-          engine_urgency_score: Math.round(urgencyScore),
-          engine_fit_score: Math.round(fitScore),
-          engine_contactability_score: Math.round(contactabilityScore),
-          engine_timing_score: Math.round(timingScore),
           lead_temperature_reason: reason,
-          engine_summary: summary,
-          engine_reason: reason,
-          engine_signals_json: JSON.stringify({
-            version: "phase1",
-            fit_signals: fitSignals,
-            contactability_signals: contactabilitySignals,
-            engagement_signals: engagementSignals,
-            timing_signals: timingSignals,
-            risk_signals: riskSignals,
-            missing_data: missingData
-          }),
-          engine_next_action_json: JSON.stringify(nextBestAction),
-          engine_outreach_angle: outreachAngle,
-          engine_suggested_opening: suggestedOpening,
-          engine_qualification_questions_json: JSON.stringify(qualificationQuestions),
-          engine_objections_json: JSON.stringify(objectionsToExpect),
-          engine_recommended_status: recommendedStatus,
-          engine_last_analyzed_at: now,
+          
+          // New Engine Bundle (Safe + Versioned)
+          engine_analysis_json: JSON.stringify(engineAnalysis),
           engine_version: result.engine_version,
+          engine_last_analyzed_at: now,
+          
+          // Legacy Compat
           is_hot: temperature === "hot"
         });
         
