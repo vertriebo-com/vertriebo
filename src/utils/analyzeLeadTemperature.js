@@ -464,19 +464,28 @@ function buildTemperatureReason(context, temperature, buyingSignals, riskSignals
     if (context.todayTasks.length > 0) {
       return `${context.todayTasks.length} Aufgabe(n) heute fällig. Diese heute bearbeiten und klären, ob Lead weiter qualifiziert wird.`;
     }
-    if (context.matchedTargetCustomerType && context.hasAnyContact) {
-      const reason = context.hasSuccessfulContact 
-        ? "Erstkontakt bereits gelungen" 
-        : "passt zur Zielgruppe, aber noch kein erfolgreicher Kontakt";
-      return `${reason}. Regelmäßig verfolgen und Bedarf dokumentieren.`;
+    if (context.matchedTargetCustomerType && context.hasSuccessfulContact) {
+      const daysSince = context.daysSinceLastContact;
+      const recency = daysSince <= 7 ? "kürzlich erreicht" : `vor ${daysSince} Tagen erreicht`;
+      return `Passende Branche und ${recency}. Bedarf und Entscheider dokumentieren – dann nächste Aktivität planen.`;
+    }
+    if (context.matchedTargetCustomerType && context.hasOnlyFailedContact) {
+      return `Passende Branche, aber bisher nur nicht erreicht. Erneut anrufen oder E-Mail schreiben – Bedarf und Entscheider klären.`;
     }
     if (context.matchedTargetCustomerType && !context.hasAnyContact) {
-      return `Passende Branche und gute Kontaktdaten vorhanden, aber noch kein Kontakt. Erstkontakt herstellen.`;
+      return `Passende Branche (${context.branche}) und gute Kontaktdaten vorhanden. Erstkontakt herstellen und Zielgruppen-Match sowie Bedarf bestätigen.`;
     }
     if (context.hasAnyContact && !context.hasSuccessfulContact && context.hasPhone) {
-      return `Bisher nicht erreicht, aber Telefon vorhanden. Erneut versuchen oder E-Mail schreiben.`;
+      return `Bisher nicht erreicht, aber Telefonnummer vorhanden. Erneut anrufen – Bedarf und Entscheider klären.`;
     }
-    return `Moderate Signale (${score} Punkte). Regelmäßig verfolgen und bei Veränderungen neu bewerten.`;
+    // Fallback mit konkreten Daten statt generischem Text
+    if (context.matchedTargetCustomerType) {
+      return `Passende Branche vorhanden. Kontaktdaten ${context.hasPhone ? "und Telefon" : ""} bekannt – Erstkontakt herstellen und Bedarf qualifizieren.`;
+    }
+    if (context.hasPhone || context.hasEmail) {
+      return `Kontaktdaten vorhanden (${[context.hasPhone && "Telefon", context.hasEmail && "E-Mail"].filter(Boolean).join(", ")}), aber Zielgruppen-Match noch unklar. Erstkontakt herstellen und Passung klären.`;
+    }
+    return `Teilweise Kontaktdaten vorhanden. Fehlende Informationen anreichern, dann Erstkontakt herstellen und Bedarf klären.`;
   }
 
   // Cold
@@ -563,17 +572,41 @@ function buildNextBestAction(context, buyingSignals, riskSignals) {
 
 function buildFirstContactSummary(contactLogs) {
   if (!contactLogs || contactLogs.length === 0) {
-    return "Noch kein Kontakt dokumentiert.";
+    return "Noch kein qualifizierter Erstkontakt dokumentiert.";
   }
 
   const logs = contactLogs
-    .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+    .sort((a, b) => new Date(a.created_date) - new Date(b.created_date)); // Sortiere aufsteigend (ältester zuerst)
+  const firstLog = logs[0];
+
+  // Erstkontakt war nicht erreicht
+  if (firstLog.ergebnis === "Nicht erreicht") {
+    return "Bisheriger Kontaktversuch: nicht erreicht. Es wurde noch kein Bedarf oder Ansprechpartner bestätigt.";
+  }
+
+  // Erstkontakt mit Notiz
+  if (firstLog.notiz) {
+    const shortNote = firstLog.notiz.split('\n')[0].substring(0, 80);
+    return `${firstLog.typ}: ${firstLog.ergebnis}. "${shortNote}${firstLog.notiz.length > 80 ? '…' : ''}"`;
+  }
+
+  // Nur Ergebnis
+  return `${firstLog.typ}: ${firstLog.ergebnis}`;
+}
+
+function buildLastContactSummary(contactLogs) {
+  if (!contactLogs || contactLogs.length === 0) {
+    return null;
+  }
+
+  const logs = contactLogs
+    .sort((a, b) => new Date(b.created_date) - new Date(a.created_date)); // Sortiere absteigend (neuester zuerst)
   const lastLog = logs[0];
 
   // Mit Notiz
   if (lastLog.notiz) {
-    const shortNote = lastLog.notiz.split('\n')[0].substring(0, 100);
-    return `${lastLog.typ}: ${lastLog.ergebnis}. "${shortNote}${lastLog.notiz.length > 100 ? '…' : ''}"`;
+    const shortNote = lastLog.notiz.split('\n')[0].substring(0, 80);
+    return `${lastLog.typ}: ${lastLog.ergebnis}. "${shortNote}${lastLog.notiz.length > 80 ? '…' : ''}"`;
   }
 
   // Nur Ergebnis
@@ -605,6 +638,7 @@ export function analyzeLeadTemperature(company, contactLogs, tasks) {
   const reason = buildTemperatureReason(context, temperature, buyingSignals, riskSignals, score);
   const nextBestAction = buildNextBestAction(context, buyingSignals, riskSignals);
   const firstContactSummary = buildFirstContactSummary(contactLogs);
+  const lastContactSummary = buildLastContactSummary(contactLogs);
 
   // 6. Standardisiertes JSON-Output
   return {
@@ -617,6 +651,7 @@ export function analyzeLeadTemperature(company, contactLogs, tasks) {
     reason,
     nextBestAction,
     firstContactSummary,
+    lastContactSummary,
     
     // Signale detailliert
     signals: {

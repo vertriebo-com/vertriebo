@@ -82,7 +82,7 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
           </div>
           <span className={`text-2xl font-black ${tempText}`}>{analysis.score}</span>
         </div>
-        <p className="text-xs font-semibold text-slate-700">Engagement-Score</p>
+        <p className="text-xs font-semibold text-slate-700">Vertriebo Score</p>
       </div>
 
       {/* Begründung */}
@@ -144,10 +144,18 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
         </div>
       )}
 
-      {/* Erstkontakt-Zusammenfassung */}
-      <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-2">Kontaktstatus</p>
-        <p className="text-xs text-slate-900 font-medium leading-relaxed">{analysis.firstContactSummary}</p>
+      {/* Erstkontakt & Letzter Kontakt */}
+      <div className="space-y-3">
+        <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Erstkontakt</p>
+          <p className="text-xs text-slate-900 font-medium">{analysis.firstContactSummary}</p>
+        </div>
+        {analysis.lastContactSummary && (
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1">Letzter Kontakt</p>
+            <p className="text-xs text-slate-900 font-medium">{analysis.lastContactSummary}</p>
+          </div>
+        )}
       </div>
 
       {/* Actions */}
