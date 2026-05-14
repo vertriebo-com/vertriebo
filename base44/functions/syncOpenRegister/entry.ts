@@ -21,7 +21,7 @@ function normalizeString(str) {
   return str ? str.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
 }
 
-// Calculate freshness score based on registration date
+// Calculate freshness score based on registration date (0-100 scale)
 function calculateFreshnessScore(registrationDate) {
   if (!registrationDate) return 30;
   const daysSince = (Date.now() - new Date(registrationDate).getTime()) / (1000 * 60 * 60 * 24);
@@ -49,7 +49,8 @@ Deno.serve(async (req) => {
       since_date,
       legal_forms,
       limit,
-      dry_run = false
+      dry_run = false,
+      simulate = false // Nur für Testing ohne echten Endpoint
     } = body;
 
     // 1. Pflichtparameter prüfen
@@ -57,19 +58,24 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Missing required parameter: organization_id' }, { status: 400 });
     }
 
-    // 2. API-Key prüfen (NIEMALS loggen oder zurückgeben)
+    // 2. city ist PFLICHT für MVP
+    if (!city || !String(city).trim()) {
+      return Response.json({ error: 'Missing required parameter: city' }, { status: 400 });
+    }
+    const resolvedCity = String(city).trim();
+
+    // 3. API-Key prüfen (NIEMALS loggen oder zurückgeben)
     if (!OPENREGISTER_API_KEY) {
       console.error("[syncOpenRegister] OPENREGISTER_API_KEY is not configured.");
       return Response.json({ error: 'OPENREGISTER_API_KEY missing' }, { status: 500 });
     }
 
-    // 3. Zugriff prüfen
+    // 4. Zugriff prüfen
     if (!(await hasOrganizationAccess(base44, user, organization_id))) {
       return Response.json({ error: 'Forbidden: Insufficient organization permissions' }, { status: 403 });
     }
 
-    // 4. Parameter validieren
-    const resolvedCity = city || null;
+    // 5. Parameter validieren
     const resolvedRadius = Math.min(Math.max(Number(radius_km || 25), 1), 100);
     const resolvedLimit = Math.min(Math.max(Number(limit || 25), 1), 50);
     const resolvedLegalForms = Array.isArray(legal_forms) && legal_forms.length
@@ -77,37 +83,49 @@ Deno.serve(async (req) => {
       : ["GmbH", "UG", "GmbH & Co. KG"];
     const resolvedSinceDate = since_date || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    // 5. OpenRegister API abrufen (PLACEHOLDER - muss mit echter API ersetzt werden)
-    // Hinweis: Da die genaue OpenRegister-API-Dokumentation nicht vorliegt,
-    // wird hier eine simulierte Antwort verwendet. In Produktion muss der echte
-    // API-Endpoint mit korrekten Parametern verwendet werden.
-    console.log(`[syncOpenRegister] Fetching from OpenRegister for city=${resolvedCity}, since=${resolvedSinceDate}`);
-    
-    // TODO: Echten API-Call implementieren wenn API-Dokumentation vorliegt
-    // const response = await fetch(`https://api.openregister.de/v1/companies?city=${resolvedCity}&since=${resolvedSinceDate}`, {
-    //   method: "GET",
-    //   headers: {
-    //     "Authorization": `Bearer ${OPENREGISTER_API_KEY}`,
-    //     "Accept": "application/json"
-    //   },
-    //   signal: AbortSignal.timeout(15000)
-    // });
-    // if (!response.ok) { ... }
-    // const apiData = await response.json();
+    // 6. Echten API-Call prüfen
+    const isEndpointImplemented = false; // TODO: Auf true setzen wenn Endpoint ready
 
-    // Simulierte API-Antwort für MVP-Testing
-    const apiResults = [
-      {
-        id: `reg-${Date.now()}-1`,
-        name: "Beispiel Firma GmbH",
-        legalForm: "GmbH",
-        address: "Musterstraße 123, 10115 Berlin",
-        city: "Berlin",
-        registerNumber: "HRB 12345 B",
-        registerCourt: "Amtsgericht Berlin (Charlottenburg)",
-        registrationDate: new Date().toISOString()
-      }
-    ];
+    if (!isEndpointImplemented && !dry_run && !simulate) {
+      return Response.json({
+        error: "OpenRegister endpoint not implemented yet",
+        reason: "real_endpoint_required",
+        hint: "Use dry_run=true or simulate=true for testing, or implement the real endpoint."
+      }, { status: 501 });
+    }
+
+    // 7. OpenRegister API abrufen (aktuell nur Simulation)
+    console.log(`[syncOpenRegister] Processing for city=${resolvedCity}, radius=${resolvedRadius}km, since=${resolvedSinceDate}`);
+    
+    let apiResults = [];
+
+    if (isEndpointImplemented) {
+      // TODO: Echten API-Call implementieren wenn API-Dokumentation vorliegt
+    } else if (dry_run || simulate) {
+      // Simulation nur für dry_run oder explicit simulate=true
+      apiResults = [
+        {
+          id: `reg-${Date.now()}-1`,
+          name: "Beispiel Firma GmbH",
+          legalForm: "GmbH",
+          address: "Musterstraße 123, 10115 Berlin",
+          city: "Berlin",
+          registerNumber: "HRB 12345 B",
+          registerCourt: "Amtsgericht Berlin (Charlottenburg)",
+          registrationDate: new Date().toISOString()
+        },
+        {
+          id: `reg-${Date.now()}-2`,
+          name: "Test UG",
+          legalForm: "UG",
+          address: "Beispielweg 45, 10117 Berlin",
+          city: "Berlin",
+          registerNumber: "HRB 67890 B",
+          registerCourt: "Amtsgericht Berlin (Charlottenburg)",
+          registrationDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+        }
+      ];
+    }
 
     const limitedResults = apiResults.slice(0, resolvedLimit);
     
@@ -127,51 +145,60 @@ Deno.serve(async (req) => {
       let geoConfidence = "unknown";
       let distanceKm = null;
 
-      // 6. Dedupe gegen ExternalCompanySource
-      const existingExternal = await base44.asServiceRole.entities.ExternalCompanySource.filter({
+      // 8. Dedupe gegen ExternalCompanySource (separate Queries für Base44-Kompatibilität)
+      let isDuplicate = false;
+      
+      // Check by source_id
+      const existingBySourceId = await base44.asServiceRole.entities.ExternalCompanySource.filter({
         organization_id,
         source: "openregister",
-        $or: [
-          { source_id: item.id },
-          { register_number: item.registerNumber }
-        ]
+        source_id: item.id
       });
+      
+      if (existingBySourceId.length > 0) {
+        isDuplicate = true;
+        console.log(`[syncOpenRegister] Duplicate by source_id: ${companyName}`);
+      } else {
+        // Check by register_number (separate query)
+        const existingByRegisterNumber = await base44.asServiceRole.entities.ExternalCompanySource.filter({
+          organization_id,
+          source: "openregister",
+          register_number: item.registerNumber
+        });
+        
+        if (existingByRegisterNumber.length > 0) {
+          isDuplicate = true;
+          console.log(`[syncOpenRegister] Duplicate by register_number: ${companyName}`);
+        }
+      }
 
-      if (existingExternal.length > 0) {
+      if (isDuplicate) {
         matchStatus = "duplicate";
         duplicateCount++;
-        console.log(`[syncOpenRegister] Duplicate in ExternalCompanySource: ${companyName}`);
       } else {
-        // 7. Dedupe gegen Company
-        const existingCompanies = await base44.asServiceRole.entities.Company.filter({
+        // 9. Dedupe gegen Company (separate Queries)
+        const existingCompaniesByName = await base44.asServiceRole.entities.Company.filter({
           organization_id,
-          $or: [
-            { name: companyName },
-            { name: normalizeString(companyName) }
-          ]
+          name: companyName
         });
 
-        if (existingCompanies.length > 0) {
+        if (existingCompaniesByName.length > 0) {
           matchStatus = "duplicate";
-          duplicateCompanyId = existingCompanies[0].id;
+          duplicateCompanyId = existingCompaniesByName[0].id;
           duplicateCount++;
           console.log(`[syncOpenRegister] Duplicate in Company: ${companyName}, ID: ${duplicateCompanyId}`);
         }
       }
 
-      // 8. Radius-Status (in Schritt 3A noch ohne echte Koordinaten → unknown_geo)
+      // 10. Radius-Status (in Schritt 3A noch ohne echte Koordinaten → unknown_geo)
       if (matchStatus !== "duplicate") {
-        // OpenRegister liefert typischerweise keine Koordinaten in MVP
-        // Daher erstmal unknown_geo
         radiusStatus = "unknown";
         geoConfidence = "unknown";
         matchStatus = "unknown_geo";
         unknownGeoCount++;
-      } else if (matchStatus === "outside_radius") {
-        outsideRadiusCount++;
       }
 
-      // 9. Nur bei dry_run=false und nicht duplicate speichern
+      // 11. Nur bei dry_run=false und nicht duplicate speichern
       if (!dry_run && matchStatus !== "duplicate") {
         await base44.asServiceRole.entities.ExternalCompanySource.create({
           organization_id,
@@ -213,7 +240,8 @@ Deno.serve(async (req) => {
           registration_date: item.registrationDate,
           match_status: matchStatus,
           radius_status: radiusStatus,
-          duplicate_company_id: duplicateCompanyId
+          duplicate_company_id: duplicateCompanyId,
+          freshness_score: calculateFreshnessScore(item.registrationDate)
         });
       }
     }
@@ -221,13 +249,19 @@ Deno.serve(async (req) => {
     return Response.json({
       success: true,
       dry_run: Boolean(dry_run),
+      simulated: !isEndpointImplemented,
       organization_id,
+      city: resolvedCity,
+      radius_km: resolvedRadius,
+      limit: resolvedLimit,
       imported_count: importedCount,
       duplicate_count: duplicateCount,
       outside_radius_count: outsideRadiusCount,
       unknown_geo_count: unknownGeoCount,
       preview,
-      message: "Fresh lead source sync completed – Step 3A complete. Ready for geocoding/radius logic in Step 3B."
+      message: isEndpointImplemented 
+        ? "Fresh lead source sync completed." 
+        : "Simulation mode – real OpenRegister endpoint not implemented yet."
     });
 
   } catch (error) {
