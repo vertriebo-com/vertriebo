@@ -18,6 +18,8 @@ import moment from "moment";
 
 export default function Leads() {
   const { user, org, filterCompanies, loading: filterLoading } = useLeadsFilter();
+  
+  // ═ States
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(null);
   const [focusFilter, setFocusFilter] = useState(null);
@@ -33,7 +35,10 @@ export default function Leads() {
   const [researching, setResearching] = useState(false);
   const [newRunFilter, setNewRunFilter] = useState(null);
   const [lastEngineResult, setLastEngineResult] = useState(null);
+  const [showAllLeads, setShowAllLeads] = useState(false);
+  const [learnedIntelligenceLoaded, setLearnedIntelligenceLoaded] = useState(false);
 
+  // ═ Effects
   // Parse new_run query parameter
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -90,19 +95,9 @@ export default function Leads() {
     return () => clearTimeout(timer);
   }, []);
 
-  const [showAllLeads, setShowAllLeads] = useState(false);
-  const [learnedIntelligenceLoaded, setLearnedIntelligenceLoaded] = useState(false);
-
+  // ═ Helpers & Derived Values
   const loadData = () => refetch();
   const isAdmin = user?.role === "admin" || user?.org_role === "organization_admin" || (org && org.owner_email === user?.email);
-
-  // Pagination: Nur erste 50 initial, danach alle
-  const visibleLeads = useMemo(() => {
-    console.time("[Leads] visibleLeads slice");
-    const result = showAllLeads ? filtered : filtered.slice(0, 50);
-    console.timeEnd("[Leads] visibleLeads slice");
-    return result;
-  }, [filtered, showAllLeads]);
 
   const applySort = (arr) => {
     const sorted = [...arr];
@@ -153,6 +148,14 @@ export default function Leads() {
     console.timeEnd("[Leads] filter + sort");
     return result;
   }, [companies, filterCompanies, showArchived, statusFilter, priorityFilter, assignedFilter, newRunFilter, focusFilter, search]);
+
+  // Pagination: Nur erste 50 initial, danach alle
+  const visibleLeads = useMemo(() => {
+    console.time("[Leads] visibleLeads slice");
+    const result = showAllLeads ? filtered : filtered.slice(0, 50);
+    console.timeEnd("[Leads] visibleLeads slice");
+    return result;
+  }, [filtered, showAllLeads]);
 
   const handleCsvExport = () => {
     const headers = ["Name","Branche","Telefon","E-Mail","Status","Priorität"];
