@@ -130,7 +130,6 @@ const DUE_LABELS = {
 
 export default function EngineBox({ company, contactLogs = [], tasks = [], orgId, onAddTask, onReanalyze }) {
   const [analyzing, setAnalyzing] = useState(false);
-  const [showDetails, setShowDetails] = useState(false);
   
   // Parse persisted engine_analysis_json or fallback to legacy fields
   const engineAnalysisJson = safeParseJSON(company?.engine_analysis_json);
@@ -266,6 +265,14 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
             {analysis.nextBestAction.due && <p className="text-[10px] text-slate-600 mt-1 font-semibold">Fällig: {DUE_LABELS[analysis.nextBestAction.due] || analysis.nextBestAction.due}</p>}
           </div>
         )}
+
+        {/* Warum diese Bewertung – kurz */}
+        {analysis.reason && (
+          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs font-bold uppercase tracking-wide text-blue-700 mb-1">Warum?</p>
+            <p className="text-xs text-blue-900 leading-relaxed">{analysis.reason}</p>
+          </div>
+        )}
       </div>
 
       {/* ═══ SIGNALE/RISIKEN/FEHLENDE DATEN ALS CHIPS ═══ */}
@@ -337,16 +344,6 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
         >
           <Clock className="w-4 h-4" /> Aufgabe erstellen
         </Button>
-        {(analysis.outreachAngle || analysis.suggestedOpening || analysis.qualificationQuestions.length > 0 || analysis.objectionsToExpect.length > 0) && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowDetails(!showDetails)}
-            className="flex-1 gap-1.5 bg-white border-[#E2E8F0] text-slate-700 hover:bg-slate-50"
-          >
-            <ChevronDown className={`w-4 h-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} /> Leitfaden
-          </Button>
-        )}
         <Button 
           variant="default" 
           size="sm" 
@@ -357,67 +354,6 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
           <RefreshCw className={`w-4 h-4 ${analyzing ? 'animate-spin' : ''}`} /> {analyzing ? "Läuft..." : "Neu analysieren"}
         </Button>
       </div>
-
-      {/* ═══ DETAILS/LEITFADEN (ACCORDION) ═══ */}
-      {showDetails && (
-        <div className="border-t border-[#E2E8F0] pt-3 mt-3 space-y-3 max-h-[500px] overflow-y-auto pr-1">
-          {/* Warum diese Bewertung */}
-          {analysis.reason && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Warum diese Bewertung?</p>
-              <p className="text-xs text-slate-900 leading-relaxed">{analysis.reason}</p>
-            </div>
-          )}
-
-          {/* Gesprächsansatz */}
-          {analysis.outreachAngle && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Gesprächsansatz</p>
-              <p className="text-xs text-slate-900 leading-relaxed italic">{analysis.outreachAngle}</p>
-            </div>
-          )}
-
-          {/* Eröffnungssatz */}
-          {analysis.suggestedOpening && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Eröffnungssatz</p>
-              <p className="text-xs text-slate-900 leading-relaxed font-medium border-l-2 border-slate-400 pl-2">
-                "{analysis.suggestedOpening}"
-              </p>
-            </div>
-          )}
-
-          {/* Qualifizierungsfragen */}
-          {analysis.qualificationQuestions.length > 0 && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Fragen</p>
-              <ul className="space-y-1">
-                {analysis.qualificationQuestions.map((q, i) => (
-                  <li key={i} className="text-[11px] text-slate-900 font-medium flex gap-1.5">
-                    <span className="text-slate-400 flex-shrink-0">•</span>
-                    <span>{q}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Einwände */}
-          {analysis.objectionsToExpect.length > 0 && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Einwände</p>
-              <ul className="space-y-1">
-                {analysis.objectionsToExpect.map((obj, i) => (
-                  <li key={i} className="text-[11px] text-slate-900 flex gap-1.5">
-                    <span className="text-slate-400 flex-shrink-0">◦</span>
-                    <span>"{obj}"</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* ═══ METADATA ═══ */}
       {hasPersisted && (
