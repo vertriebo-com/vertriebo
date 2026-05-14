@@ -84,7 +84,9 @@ Deno.serve(async (req) => {
 
     // 6. Echten API-Call prüfen – SICHERHEIT: Simulation NUR mit dry_run
     const isEndpointImplemented = false; // TODO: Auf true setzen wenn Endpoint ready
-    const simulate = body.simulate === true; // Explizites simulate-Flag required
+    
+    // apiResults initialisieren
+    let apiResults = [];
 
     // Wenn Endpoint nicht implementiert ist: NUR dry_run erlaubt
     if (!isEndpointImplemented) {
