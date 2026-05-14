@@ -50,6 +50,7 @@ export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMa
       return {
         temperature: getSafeTemperature(company),
         score: company?.lead_temperature_score || 0,
+        reason: company?.lead_temperature_reason || "Noch keine Engine-Begründung vorhanden.",
       };
     }
     
@@ -57,9 +58,13 @@ export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMa
       const logs = contactLogsMap[company?.id] || [];
       const tasks = tasksMap[company?.id] || [];
       const result = analyzeLeadTemperature(company, logs, tasks);
-      return { temperature: result?.temperature || "Cold", score: result?.score || 0 };
+      return {
+        temperature: result?.temperature || "Cold",
+        score: result?.score || 0,
+        reason: result?.reason || "Noch keine Engine-Begründung vorhanden.",
+      };
     } catch {
-      return { temperature: "Cold", score: 0 };
+      return { temperature: "Cold", score: 0, reason: "Noch keine Engine-Begründung vorhanden." };
     }
   });
 
@@ -121,7 +126,7 @@ export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMa
                            company.analysis?.temperature === "Warm" ? "#fffbeb" : "#f9fafb";
              const tempText = company.analysis?.temperature === "Hot" ? "#991b1b" :
                              company.analysis?.temperature === "Warm" ? "#92400e" : "#374151";
-             const reasonText = company.analysis?.reason || "Analyse ausstehend";
+             const reason = company.analysis?.reason || "Noch keine Engine-Begründung vorhanden.";
 
              return (
                <div key={company.id} className="px-5 py-3 hover:bg-slate-50 transition-colors">
@@ -142,7 +147,9 @@ export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMa
                      <p className="text-xs font-bold text-slate-900 mt-1">{company.analysis?.score || 0}</p>
                    </div>
                  </div>
-                 <p className="text-xs text-slate-600 mt-1.5 leading-snug">{reasonText.substring(0, 60)}...</p>
+                 <p className="text-xs text-slate-600 mt-1.5 leading-snug">
+                   {reason.length > 60 ? `${reason.substring(0, 60)}...` : reason}
+                 </p>
                </div>
              );
            })}
