@@ -91,46 +91,23 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
       </div>
 
       {/* Nächster Schritt */}
-      <div className="mb-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-600 mb-2">Nächster Schritt</p>
-        <div className="flex flex-wrap gap-2">
-          {analysis.nextBestAction === "anrufen" && (
-            <span className="inline-flex items-center gap-1 text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg">
-              📞 Anrufen
-            </span>
-          )}
-          {analysis.nextBestAction === "email_senden" && (
-            <span className="inline-flex items-center gap-1 text-sm font-semibold bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-lg">
-              ✉️ E-Mail senden
-            </span>
-          )}
-          {analysis.nextBestAction === "daten_anreichern" && (
-            <span className="inline-flex items-center gap-1 text-sm font-semibold bg-purple-50 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-lg">
-              ✨ Daten anreichern
-            </span>
-          )}
-          {analysis.nextBestAction === "heute_aufgaben_erledigen" && (
-            <span className="inline-flex items-center gap-1 text-sm font-semibold bg-orange-50 text-orange-700 border border-orange-200 px-3 py-1.5 rounded-lg">
-              ⏰ Heute Aufgaben
-            </span>
-          )}
-          {analysis.nextBestAction === "ueberfaellige_aufgaben" && (
-            <span className="inline-flex items-center gap-1 text-sm font-semibold bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg">
-              🔴 Überfällig
-            </span>
-          )}
-        </div>
+      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-xs font-bold uppercase tracking-wide text-blue-700 mb-2">Nächster bester Schritt</p>
+        <p className="text-sm font-semibold text-blue-900 leading-relaxed">{analysis.nextBestAction}</p>
       </div>
 
       {/* Kaufsignale */}
       {analysis.signals.buying.length > 0 && (
         <div className="mb-4">
           <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 mb-2 flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Positive Signale
+            <CheckCircle2 className="w-3.5 h-3.5" /> Kaufsignale
           </p>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {analysis.signals.buying.map((signal, i) => (
-              <p key={i} className="text-xs text-emerald-800 font-medium">✓ {signal}</p>
+              <div key={i} className="text-xs">
+                <p className="text-emerald-800 font-semibold">✓ {signal.label}</p>
+                <p className="text-emerald-700 text-[10px] ml-4">{signal.evidence}</p>
+              </div>
             ))}
           </div>
         </div>
@@ -142,9 +119,12 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
           <p className="text-xs font-bold uppercase tracking-wide text-red-700 mb-2 flex items-center gap-1">
             <AlertCircle className="w-3.5 h-3.5" /> Risiken
           </p>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {analysis.signals.risks.map((risk, i) => (
-              <p key={i} className="text-xs text-red-800 font-medium">⚠ {risk}</p>
+              <div key={i} className="text-xs">
+                <p className="text-red-800 font-semibold">⚠ {risk.label}</p>
+                <p className="text-red-700 text-[10px] ml-4">{risk.evidence}</p>
+              </div>
             ))}
           </div>
         </div>
@@ -164,22 +144,11 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
         </div>
       )}
 
-      {/* Erstkontakt */}
-      {analysis.firstContact ? (
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-xs font-bold uppercase tracking-wide text-blue-700 mb-2">Erstkontakt</p>
-          <p className="text-xs text-blue-900 font-medium">
-            {analysis.firstContact.typ} · {analysis.firstContact.ergebnis}
-          </p>
-          {analysis.firstContact.notiz && (
-            <p className="text-xs text-blue-800 mt-1">"{analysis.firstContact.notiz}"</p>
-          )}
-        </div>
-      ) : (
-        <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-          <p className="text-xs text-slate-700 font-medium">Noch kein qualifizierter Erstkontakt dokumentiert</p>
-        </div>
-      )}
+      {/* Erstkontakt-Zusammenfassung */}
+      <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+        <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-2">Kontaktstatus</p>
+        <p className="text-xs text-slate-900 font-medium leading-relaxed">{analysis.firstContactSummary}</p>
+      </div>
 
       {/* Actions */}
       <div className="flex gap-2">
