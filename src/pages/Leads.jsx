@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import { useQuery } from "@tanstack/react-query";
@@ -43,18 +44,28 @@ export default function Leads() {
   const orgId = org?.id || null;
   const { data: companies = [], isLoading: loading, refetch } = useQuery({
     queryKey: ["companies", orgId],
-    queryFn: () => orgId
-      ? base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 500)
-      : Promise.resolve([]),
+    queryFn: () => {
+      console.time("[Leads] Company query");
+      const result = orgId
+        ? base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 100)
+        : Promise.resolve([]);
+      console.timeEnd("[Leads] Company query");
+      return result;
+    },
     enabled: !!orgId,
     staleTime: 60_000,
   });
 
   const { data: outcomes = [] } = useQuery({
     queryKey: ["leadOutcomes", orgId],
-    queryFn: () => orgId
-      ? base44.entities.LeadOutcome.filter({ organization_id: orgId }, "-created_date", 1000)
-      : Promise.resolve([]),
+    queryFn: () => {
+      console.time("[Leads] Outcome query");
+      const result = orgId
+        ? base44.entities.LeadOutcome.filter({ organization_id: orgId }, "-created_date", 200)
+        : Promise.resolve([]);
+      console.timeEnd("[Leads] Outcome query");
+      return result;
+    },
     enabled: !!orgId,
     staleTime: 60_000,
   });
@@ -71,8 +82,28 @@ export default function Leads() {
     }
   }, [orgId]);
 
+  // LearnedIntelligence deferred laden (nach 2s)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      console.log("[Leads] Enabling LearnedIntelligence after 2s");
+      setLearnedIntelligenceLoaded(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const [showAllLeads, setShowAllLeads] = useState(false);
+  const [learnedIntelligenceLoaded, setLearnedIntelligenceLoaded] = useState(false);
+
   const loadData = () => refetch();
   const isAdmin = user?.role === "admin" || user?.org_role === "organization_admin" || (org && org.owner_email === user?.email);
+
+  // Pagination: Nur erste 50 initial, danach alle
+  const visibleLeads = useMemo(() => {
+    console.time("[Leads] visibleLeads slice");
+    const result = showAllLeads ? filtered : filtered.slice(0, 50);
+    console.timeEnd("[Leads] visibleLeads slice");
+    return result;
+  }, [filtered, showAllLeads]);
 
   const applySort = (arr) => {
     const sorted = [...arr];
@@ -90,34 +121,39 @@ export default function Leads() {
     }
   };
 
-  const filtered = applySort(
-    filterCompanies(companies).filter(c => {
-      if (!showArchived && ["Gewonnen", "Verloren"].includes(c.status)) return false;
-      if (statusFilter && c.status !== statusFilter) return false;
-      if (priorityFilter !== "Alle") {
-        const score = c.priority_score || 0;
-        if (priorityFilter === "Hoch" && score < 60) return false;
-        if (priorityFilter === "Mittel" && (score < 30 || score >= 60)) return false;
-        if (priorityFilter === "Niedrig" && score >= 30) return false;
-      }
-      if (assignedFilter !== "Alle" && c.assigned_to !== assignedFilter) return false;
-      if (newRunFilter && c.research_run_id !== newRunFilter) return false;
-      
-      // Focus Filters
-      const today = moment().format("YYYY-MM-DD");
-      const weekAgo = moment().subtract(7, "days").toISOString();
-      if (focusFilter === "call_today" && !(c.last_contact_date && c.last_contact_date.startsWith(today))) return false;
-      if (focusFilter === "callback_open" && c.status !== "Rückruf") return false;
-      if (focusFilter === "hot_leads" && !c.is_hot) return false;
-      if (focusFilter === "new_this_week" && !(c.created_date && c.created_date >= weekAgo)) return false;
-      
-      if (search) {
-        const s = search.toLowerCase();
-        return (c.name?.toLowerCase().includes(s) || c.branche?.toLowerCase().includes(s) || c.ort?.toLowerCase().includes(s));
-      }
-      return true;
-    })
-  );
+  const filtered = useMemo(() => {
+    console.time("[Leads] filter + sort");
+    const result = applySort(
+      filterCompanies(companies).filter(c => {
+        if (!showArchived && ["Gewonnen", "Verloren"].includes(c.status)) return false;
+        if (statusFilter && c.status !== statusFilter) return false;
+        if (priorityFilter !== "Alle") {
+          const score = c.priority_score || 0;
+          if (priorityFilter === "Hoch" && score < 60) return false;
+          if (priorityFilter === "Mittel" && (score < 30 || score >= 60)) return false;
+          if (priorityFilter === "Niedrig" && score >= 30) return false;
+        }
+        if (assignedFilter !== "Alle" && c.assigned_to !== assignedFilter) return false;
+        if (newRunFilter && c.research_run_id !== newRunFilter) return false;
+        
+        // Focus Filters
+        const today = moment().format("YYYY-MM-DD");
+        const weekAgo = moment().subtract(7, "days").toISOString();
+        if (focusFilter === "call_today" && !(c.last_contact_date && c.last_contact_date.startsWith(today))) return false;
+        if (focusFilter === "callback_open" && c.status !== "Rückruf") return false;
+        if (focusFilter === "hot_leads" && !c.is_hot) return false;
+        if (focusFilter === "new_this_week" && !(c.created_date && c.created_date >= weekAgo)) return false;
+        
+        if (search) {
+          const s = search.toLowerCase();
+          return (c.name?.toLowerCase().includes(s) || c.branche?.toLowerCase().includes(s) || c.ort?.toLowerCase().includes(s));
+        }
+        return true;
+      })
+    );
+    console.timeEnd("[Leads] filter + sort");
+    return result;
+  }, [companies, filterCompanies, showArchived, statusFilter, priorityFilter, assignedFilter, newRunFilter, focusFilter, search]);
 
   const handleCsvExport = () => {
     const headers = ["Name","Branche","Telefon","E-Mail","Status","Priorität"];
@@ -198,8 +234,15 @@ export default function Leads() {
       {/* Vertriebo Engine Stats */}
       <EngineStatsBox companies={filtered} onAnalyzeLatest={isAdmin ? handleAnalyzeLatest : null} analyzingLatest={researching} lastEngineResult={lastEngineResult} />
 
-      {/* LearnedIntelligence Widget */}
-      <LearnedIntelligencePanel organizationId={orgId} />
+      {/* LearnedIntelligence Widget – Deferred laden */}
+      {learnedIntelligenceLoaded && (
+        <LearnedIntelligencePanel organizationId={orgId} />
+      )}
+      {!learnedIntelligenceLoaded && (
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 shadow-sm text-center text-sm text-slate-500">
+          Intelligente Signale werden geladen…
+        </div>
+      )}
 
       {/* Focus Cards */}
       <FocusCards companies={companies} activeFocus={focusFilter} onFilterClick={setFocusFilter} />
@@ -316,9 +359,24 @@ export default function Leads() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filtered.map(company => (
+          {visibleLeads.map(company => (
             <LeadRow key={company.id} company={company} isAdmin={isAdmin} onLogged={loadData} outcome={outcomeByCompany[company.id] || null} />
           ))}
+
+          {/* Mehr-Laden Button */}
+          {!showAllLeads && filtered.length > 50 && (
+            <div className="flex justify-center pt-4">
+              <button
+                onClick={() => {
+                  console.log("[Leads] Load more clicked, showing all", filtered.length);
+                  setShowAllLeads(true);
+                }}
+                className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-50"
+              >
+                {filtered.length - 50} weitere Leads laden
+              </button>
+            </div>
+          )}
         </div>
       )}
 
