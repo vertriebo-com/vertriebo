@@ -1,22 +1,28 @@
 /**
- * analyzeLeadEngine – Backend Engine Persistierung
+ * analyzeLeadEngine Phase 1 – Erweiterte Vertriebo Engine
  * 
- * SOURCE OF TRUTH (Temp): Keep in sync with src/utils/analyzeLeadTemperature.js
- * 
- * Funktion: Analysiert Leads mit der Vertriebo Engine und speichert Ergebnisse.
+ * SOURCE OF TRUTH: Diese Datei ist die zentrale Engine-Implementierung
+ * Später: Langfristig könnte in Frontend-Lib ausgelagert werden
  * 
  * Mandantenregeln (CRITICAL):
- * - Jede Company: id + organization_id laden
+ * - Jede Company: id + organization_id laden + validieren
  * - ContactLogs: company_id + organization_id filtern
  * - Tasks: company_id + organization_id filtern
  * - Company update: nur der Organisation gehörend
  * - Kein Cross-Tenant
+ * 
+ * Phase 1 Garantien:
+ * ✅ Keine automatischen Tasks, Status-Änderungen oder E-Mails
+ * ✅ Nur Analyse berechnen + speichern
+ * ✅ Evidenzbasierte Texte (keine generischen Aussagen)
+ * ✅ Strukturierte Signal-Gruppen
+ * ✅ Multi-dimensionales Scoring
  */
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ENGINE CORE (kopiert von Frontend, TODO: langfristig in gemeinsame Lib auslagern)
+// CONTEXT BUILDER
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function buildLeadContext(company, contactLogs, tasks) {
@@ -50,6 +56,8 @@ function buildLeadContext(company, contactLogs, tasks) {
     ? Math.floor((now - new Date(lastLog.created_date)) / (1000 * 60 * 60 * 24))
     : null;
 
+  const daysSinceCreation = Math.floor((now - new Date(company.created_date)) / (1000 * 60 * 60 * 24));
+
   return {
     companyId: company.id,
     organizationId: company.organization_id,
@@ -62,13 +70,13 @@ function buildLeadContext(company, contactLogs, tasks) {
     hasWebsite: Boolean(company.website),
     hasContactPerson: Boolean(company.ansprechpartner),
     matchedTargetCustomerType: company.matched_target_customer_type,
-    relevanceScore: company.priority_score || 0,
-    relevanceReason: company.relevance_reason,
+    priorityScore: company.priority_score || 0,
     logs,
     lastLog,
     firstLog,
     contactResultCounts,
     daysSinceLastContact,
+    daysSinceCreation,
     hasAnyContact: logs.length > 0,
     hasSuccessfulContact: contactResultCounts.reached > 0 || contactResultCounts.callbackScheduled > 0 || contactResultCounts.appointmentScheduled > 0 || contactResultCounts.offerSent > 0,
     hasOnlyFailedContact: logs.length > 0 && contactResultCounts.notReached > 0 && contactResultCounts.reached === 0,
@@ -81,420 +89,631 @@ function buildLeadContext(company, contactLogs, tasks) {
   };
 }
 
-function detectBuyingSignals(context) {
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIGNAL DETECTION (strukturiert nach Gruppen)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function detectFitSignals(context) {
   const signals = [];
-  
-  if (context.status === "Angebot") {
-    signals.push({
-      type: "offer_requested",
-      label: "Angebot angefragt",
-      weight: 30,
-      evidence: "Status: Angebot",
-    });
-  }
-  if (context.status === "Termin") {
-    signals.push({
-      type: "appointment_scheduled",
-      label: "Termin vereinbart",
-      weight: 35,
-      evidence: "Status: Termin",
-    });
-  }
-  
-  if (context.todayTasks.length > 0) {
-    signals.push({
-      type: "callback_due_today",
-      label: "Rückruf heute",
-      weight: 20,
-      evidence: `${context.todayTasks.length} Aufgabe(n) heute fällig`,
-    });
-  }
-  
-  if (context.appointmentTasks.length > 0) {
-    signals.push({
-      type: "appointment_scheduled",
-      label: "Termin vereinbart",
-      weight: 35,
-      evidence: `${context.appointmentTasks.length} Termin(e) gebucht`,
-    });
-  }
-  
-  if (context.lastLog?.ergebnis === "Termin vereinbart") {
-    signals.push({
-      type: "appointment_scheduled",
-      label: "Termin vereinbart",
-      weight: 35,
-      evidence: "Letzter Kontakt: Termin vereinbart",
-    });
-  }
-  if (context.lastLog?.ergebnis === "Angebot gesendet") {
-    signals.push({
-      type: "offer_sent",
-      label: "Angebot versendet",
-      weight: 25,
-      evidence: "Angebot versendet",
-    });
-  }
-  if (context.lastLog?.ergebnis === "Rückruf vereinbart") {
-    signals.push({
-      type: "callback_scheduled",
-      label: "Rückruf geplant",
-      weight: 18,
-      evidence: "Rückruf vereinbart",
-    });
-  }
-  if (context.lastLog?.ergebnis === "Erreicht" && context.lastLog.notiz) {
-    signals.push({
-      type: "successful_contact",
-      label: "Erfolgreich kontaktiert",
-      weight: 22,
-      evidence: `Erfolgreich kontaktiert${context.daysSinceLastContact <= 7 ? " (kürzlich)" : ""}`,
-    });
-  }
-  
+
   if (context.matchedTargetCustomerType) {
     signals.push({
-      type: "matched_target_customer",
-      label: "Passende Branche",
-      weight: 14,
-      evidence: `Passt zu Zielgruppe${context.branche ? ` (${context.branche})` : ""}`,
+      signal: "industry_match",
+      present: true,
+      confidence: 95,
+      reason: `Branche '${context.branche}' passt zu Zielkunden`
     });
-  }
-  
-  if (context.hasContactPerson) {
+  } else if (context.branche) {
     signals.push({
-      type: "contact_person_known",
-      label: "Ansprechpartner bekannt",
-      weight: 12,
-      evidence: "Ansprechpartner bekannt",
+      signal: "industry_match",
+      present: false,
+      confidence: 60,
+      reason: `Branche '${context.branche}' – Match unklar`
     });
   }
-  
-  if (context.hasPhone) {
-    signals.push({
-      type: "phone_available",
-      label: "Telefonnummer vorhanden",
-      weight: 8,
-      evidence: "Telefonnummer vorhanden",
-    });
-  }
-  
-  if (context.hasEmail) {
-    signals.push({
-      type: "email_available",
-      label: "E-Mail vorhanden",
-      weight: 6,
-      evidence: "E-Mail vorhanden",
-    });
-  }
-  
+
   if (context.hasWebsite) {
     signals.push({
-      type: "website_available",
-      label: "Website vorhanden",
-      weight: 5,
-      evidence: "Website vorhanden",
+      signal: "website_available",
+      present: true,
+      confidence: 80,
+      reason: "Website vorhanden"
     });
   }
-  
+
+  return signals;
+}
+
+function detectContactabilitySignals(context) {
+  const signals = [];
+
+  if (context.hasPhone) {
+    signals.push({
+      signal: "phone_available",
+      present: true,
+      quality: "complete",
+      reason: "Telefonnummer vorhanden"
+    });
+  } else {
+    signals.push({
+      signal: "phone_available",
+      present: false,
+      quality: null,
+      reason: "Telefonnummer fehlt"
+    });
+  }
+
+  if (context.hasEmail) {
+    signals.push({
+      signal: "email_available",
+      present: true,
+      quality: "complete",
+      reason: "E-Mail vorhanden"
+    });
+  } else {
+    signals.push({
+      signal: "email_available",
+      present: false,
+      quality: null,
+      reason: "E-Mail fehlt"
+    });
+  }
+
+  if (context.hasContactPerson) {
+    signals.push({
+      signal: "contact_person_available",
+      present: true,
+      quality: "complete",
+      reason: "Ansprechpartner bekannt"
+    });
+  } else {
+    signals.push({
+      signal: "contact_person_available",
+      present: false,
+      quality: null,
+      reason: "Ansprechpartner fehlt"
+    });
+  }
+
+  return signals;
+}
+
+function detectEngagementSignals(context) {
+  const signals = [];
+
+  if (context.hasAnyContact) {
+    signals.push({
+      signal: "contact_log_exists",
+      present: true,
+      count: context.logs.length,
+      lastAt: context.lastLog?.created_date,
+      reason: `${context.logs.length} Kontakt(e) dokumentiert`
+    });
+  }
+
+  if (context.status === "Angebot") {
+    signals.push({
+      signal: "offer_requested",
+      present: true,
+      reason: "Status: Angebot angefragt"
+    });
+  }
+
+  if (context.status === "Termin") {
+    signals.push({
+      signal: "appointment_scheduled",
+      present: true,
+      reason: "Status: Termin vereinbart"
+    });
+  }
+
+  if (context.contactResultCounts.appointmentScheduled > 0) {
+    signals.push({
+      signal: "callback_scheduled",
+      present: true,
+      count: context.contactResultCounts.appointmentScheduled,
+      reason: `${context.contactResultCounts.appointmentScheduled}x Termin vereinbart`
+    });
+  }
+
+  if (context.contactResultCounts.offerSent > 0) {
+    signals.push({
+      signal: "offer_sent",
+      present: true,
+      count: context.contactResultCounts.offerSent,
+      reason: `${context.contactResultCounts.offerSent}x Angebot versendet`
+    });
+  }
+
+  return signals;
+}
+
+function detectTimingSignals(context) {
+  const signals = [];
+
+  if (context.daysSinceCreation <= 7) {
+    signals.push({
+      signal: "new_lead",
+      present: true,
+      daysSince: context.daysSinceCreation,
+      reason: `Neuer Lead (vor ${context.daysSinceCreation} Tagen hinzugefügt)`
+    });
+  }
+
+  if (context.lastLog && context.daysSinceLastContact <= 7) {
+    signals.push({
+      signal: "recent_contact",
+      present: true,
+      daysSince: context.daysSinceLastContact,
+      reason: `Letzter Kontakt vor ${context.daysSinceLastContact} Tagen`
+    });
+  }
+
+  if (context.todayTasks.length > 0) {
+    signals.push({
+      signal: "task_due_today",
+      present: true,
+      count: context.todayTasks.length,
+      reason: `${context.todayTasks.length} Aufgabe(n) heute fällig`
+    });
+  }
+
+  if (context.overdueTasks.length > 0) {
+    signals.push({
+      signal: "task_overdue",
+      present: true,
+      count: context.overdueTasks.length,
+      daysOverdue: Math.ceil((context.now - new Date(context.overdueTasks[0].faellig_am)) / (1000 * 60 * 60 * 24)),
+      reason: `${context.overdueTasks.length} Aufgabe(n) überfällig`
+    });
+  }
+
+  if (context.daysSinceLastContact && context.daysSinceLastContact > 60) {
+    signals.push({
+      signal: "long_time_no_contact",
+      present: true,
+      daysSince: context.daysSinceLastContact,
+      reason: `Sehr lange nicht kontaktiert (${context.daysSinceLastContact} Tage)`
+    });
+  }
+
   return signals;
 }
 
 function detectRiskSignals(context) {
   const risks = [];
-  
+
   if (context.status === "Verloren") {
     risks.push({
-      type: "status_lost",
-      label: "Status: Verloren",
-      weight: -50,
-      evidence: "Lead wurde als Verloren markiert",
+      signal: "lost_status",
+      severity: "high",
+      reason: "Status 'Verloren' – Low-Priorität"
     });
   }
-  
-  if (!context.hasAnyContact) {
+
+  if (!context.hasPhone && !context.hasEmail) {
     risks.push({
-      type: "no_contact_logs",
-      label: "Kein Kontakt dokumentiert",
-      weight: -8,
-      evidence: "Noch kein Kontakt dokumentiert",
-    });
-  } else if (context.hasOnlyFailedContact) {
-    risks.push({
-      type: "not_reached_only",
-      label: "Nur nicht erreicht",
-      weight: -10,
-      evidence: `${context.contactResultCounts.notReached}x nicht erreicht`,
+      signal: "no_contact_data",
+      severity: "high",
+      reason: "Weder Telefon noch E-Mail vorhanden"
     });
   }
-  
-  if (!context.hasPhone) {
+
+  if (!context.hasContactPerson && context.hasAnyContact) {
     risks.push({
-      type: "missing_phone",
-      label: "Telefonnummer fehlt",
-      weight: -20,
-      evidence: "Telefonnummer fehlt",
+      signal: "unknown_decision_maker",
+      severity: "medium",
+      reason: "Ansprechpartner unbekannt – unklar wer entscheidet"
     });
   }
-  
-  if (!context.hasEmail) {
+
+  if (context.hasOnlyFailedContact) {
     risks.push({
-      type: "missing_email",
-      label: "E-Mail fehlt",
-      weight: -6,
-      evidence: "E-Mail fehlt",
+      signal: "no_response",
+      severity: "medium",
+      reason: `${context.contactResultCounts.notReached}x nicht erreicht`
     });
   }
-  
-  if (!context.hasContactPerson) {
+
+  if (!context.matchedTargetCustomerType && context.priorityScore < 30) {
     risks.push({
-      type: "unknown_decision_maker",
-      label: "Entscheider unbekannt",
-      weight: -10,
-      evidence: "Ansprechpartner/Entscheider unbekannt",
+      signal: "poor_fit",
+      severity: "medium",
+      reason: "Zielgruppenpassung unklar"
     });
   }
-  
-  if (!context.matchedTargetCustomerType) {
+
+  if (context.hasAnyContact && !context.hasSuccessfulContact && !context.logs.some(l => l.notiz)) {
     risks.push({
-      type: "unclear_fit",
-      label: "Zielgruppen-Match unklar",
-      weight: -16,
-      evidence: "Zielgruppen-Match noch nicht bestätigt",
+      signal: "poor_data_quality",
+      severity: "low",
+      reason: "Kontakte dokumentiert, aber keine Notizen – Qualität unklar"
     });
   }
-  
-  if (context.overdueTasks.length > 0) {
-    risks.push({
-      type: "overdue_tasks",
-      label: "Überfällige Aufgaben",
-      weight: -12,
-      evidence: `${context.overdueTasks.length} überfällige Aufgabe(n)`,
-    });
-  }
-  
-  if (context.daysSinceLastContact && context.daysSinceLastContact > 60) {
-    risks.push({
-      type: "very_old_no_activity",
-      label: "Sehr alter Kontakt, keine Aktivität",
-      weight: -15,
-      evidence: `Letzter Kontakt vor ${context.daysSinceLastContact} Tagen`,
-    });
-  }
-  
+
   return risks;
 }
 
 function detectMissingData(context) {
   const missing = [];
-  if (!context.hasContactPerson) missing.push("Ansprechpartner");
-  if (!context.hasPhone) missing.push("Telefonnummer");
-  if (!context.hasEmail) missing.push("E-Mail");
-  if (!context.hasWebsite) missing.push("Website");
-  if (!context.matchedTargetCustomerType) missing.push("Zielgruppen-Bestätigung");
+
+  if (!context.hasContactPerson) {
+    missing.push({ field: "contact_person", priority: "high", impact: "Entscheidungsträger unbekannt" });
+  }
+  if (!context.hasPhone) {
+    missing.push({ field: "phone", priority: "high", impact: "Direkte Ansprache nicht möglich" });
+  }
+  if (!context.hasEmail) {
+    missing.push({ field: "email", priority: "high", impact: "E-Mail-Kontakt nicht möglich" });
+  }
+  if (!context.hasWebsite) {
+    missing.push({ field: "website", priority: "medium", impact: "Firmeninformationen begrenzt" });
+  }
+  if (!context.matchedTargetCustomerType) {
+    missing.push({ field: "target_customer_confirmation", priority: "high", impact: "Zielgruppen-Match noch nicht bestätigt" });
+  }
   if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("bedarf"))) {
-    missing.push("Konkreter Bedarf");
+    missing.push({ field: "concrete_need", priority: "high", impact: "Konkreter Bedarf unklar" });
   }
-  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("entscheid"))) {
-    missing.push("Entscheiderrolle");
-  }
+
   return missing;
 }
 
-function calculateTemperatureScore(context, buyingSignals, riskSignals, missingData) {
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCORING-DIMENSIONEN (Multi-dimensional)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function calculateFitScore(context, fitSignals) {
+  let score = 30;
+  
+  if (context.matchedTargetCustomerType) score += 50;
+  if (context.hasWebsite) score += 15;
+  if (context.branche) score += 5;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+function calculateContactabilityScore(context) {
+  let score = 0;
+  
+  if (context.hasPhone) score += 35;
+  if (context.hasEmail) score += 25;
+  if (context.hasWebsite) score += 15;
+  if (context.hasContactPerson) score += 25;
+
+  return Math.min(100, score);
+}
+
+function calculateEngagementScore(context) {
+  let score = 0;
+  
+  if (context.status === "Angebot") score += 40;
+  if (context.status === "Termin") score += 35;
+  if (context.contactResultCounts.appointmentScheduled > 0) score += 30;
+  if (context.contactResultCounts.offerSent > 0) score += 25;
+  if (context.hasSuccessfulContact) score += 20;
+  if (context.hasAnyContact && !context.hasSuccessfulContact) score += 5;
+
+  return Math.min(100, score);
+}
+
+function calculateTimingScore(context) {
+  let score = 40;
+  
+  if (context.daysSinceCreation <= 7) score += 25;
+  else if (context.daysSinceCreation <= 30) score += 15;
+  
+  if (context.overdueTasks.length > 0) score += 40;
+  if (context.todayTasks.length > 0) score += 25;
+  
+  if (context.daysSinceLastContact && context.daysSinceLastContact <= 7) score += 15;
+  else if (context.daysSinceLastContact && context.daysSinceLastContact > 60) score -= 20;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+function calculateUrgencyScore(context) {
+  let score = 30;
+  
+  if (context.overdueTasks.length > 0) score += 50;
+  if (context.todayTasks.length > 0) score += 30;
+  if (context.status === "Termin") score += 25;
+  if (context.status === "Angebot") score += 20;
+
+  return Math.min(100, Math.max(0, score));
+}
+
+function calculateConfidenceScore(context, riskSignals) {
   let score = 50;
-  buyingSignals.forEach(s => { score += s.weight; });
-  riskSignals.forEach(r => { score += r.weight; });
-  score -= missingData.length * 3;
-  if (context.todayTasks.some(t => t.typ === "Rückruf")) {
-    score += 5;
-  }
-  return Math.max(0, Math.min(100, score));
+  
+  if (context.hasPhone && context.hasEmail && context.hasContactPerson) score += 30;
+  if (context.logs.length >= 2) score += 15;
+  if (context.logs.some(l => l.notiz && l.notiz.length > 50)) score += 10;
+  if (riskSignals.filter(r => r.severity === "high").length > 0) score -= 20;
+
+  return Math.min(100, Math.max(0, score));
 }
 
-function classifyTemperature(score, context, buyingSignals, riskSignals) {
-  const hasNegativeStatus = context.status === "Verloren";
-  const hasNotInterested = context.lastLog?.ergebnis === "Kein Interesse";
-  const isWrongTargetGroup = !context.matchedTargetCustomerType && context.relevanceScore < 20;
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEMPERATURE + RECOMMENDATIONS (Evidenzbasiert)
+// ═══════════════════════════════════════════════════════════════════════════════
 
-  if (hasNegativeStatus || hasNotInterested || isWrongTargetGroup) {
-    return "Cold";
-  }
-
-  const hasRealBuyingSignal = buyingSignals.some(s => 
-    ["offer_requested", "appointment_scheduled", "offer_sent", "callback_scheduled"].includes(s.type)
-  );
-
-  if (score >= 70 && hasRealBuyingSignal) {
-    return "Hot";
-  }
-
-  if (score >= 70 && !hasRealBuyingSignal) {
-    return "Warm";
-  }
-
-  if (score >= 50) {
-    return "Warm";
-  }
-
-  return "Cold";
+function classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, context) {
+  // Hard Rules (Blockers)
+  if (context.status === "Verloren") return "cold";
+  if (context.logs.some(l => l.ergebnis === "Kein Interesse")) return "cold";
+  
+  // Positive Rules
+  if (urgencyScore >= 70 && (fitScore >= 60 || engagementScore >= 50)) return "hot";
+  if (engagementScore >= 60) return "hot";
+  
+  if (fitScore >= 70 && engagementScore >= 40) return "warm";
+  if (fitScore >= 70 && context.contactabilityScore >= 60) return "warm";
+  if (engagementScore >= 40) return "warm";
+  
+  if (fitScore >= 40) return "cold";
+  
+  return "open";
 }
 
-function buildFirstContactSummary(contactLogs) {
-  if (!contactLogs || contactLogs.length === 0) {
-    return "Noch kein qualifizierter Erstkontakt dokumentiert.";
-  }
-
-  const logs = contactLogs
-    .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
-  const firstLog = logs[0];
-
-  if (firstLog.ergebnis === "Nicht erreicht") {
-    return "Bisheriger Kontaktversuch: nicht erreicht. Es wurde noch kein Bedarf oder Ansprechpartner bestätigt.";
-  }
-
-  if (firstLog.notiz) {
-    const shortNote = firstLog.notiz.split('\n')[0].substring(0, 80);
-    return `${firstLog.typ}: ${firstLog.ergebnis}. "${shortNote}${firstLog.notiz.length > 80 ? '…' : ''}"`;
-  }
-
-  return `${firstLog.typ}: ${firstLog.ergebnis}`;
-}
-
-function buildLastContactSummary(contactLogs) {
-  if (!contactLogs || contactLogs.length === 0) {
-    return null;
-  }
-
-  const logs = contactLogs
-    .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-  const lastLog = logs[0];
-
-  if (lastLog.notiz) {
-    const shortNote = lastLog.notiz.split('\n')[0].substring(0, 80);
-    return `${lastLog.typ}: ${lastLog.ergebnis}. "${shortNote}${lastLog.notiz.length > 80 ? '…' : ''}"`;
-  }
-
-  return `${lastLog.typ}: ${lastLog.ergebnis}`;
-}
-
-function buildTemperatureReason(context, temperature, buyingSignals, riskSignals, score) {
-  if (temperature === "Hot") {
+function buildSummary(temperature, context, fitScore, contactabilityScore, urgencyScore, missingData) {
+  if (temperature === "hot") {
+    if (context.overdueTasks.length > 0) {
+      return `Hot Lead: ${context.overdueTasks.length} Aufgabe(n) überfällig – sofort bearbeiten.`;
+    }
     if (context.status === "Angebot") {
-      return "Angebot wurde angefragt. Jetzt zeitnah nachfassen und Entscheidungsprozess voranbringen.";
+      return `Hot Lead: Angebot angefordert – zügig nachfassen und Entscheidung herbeiführen.`;
     }
     if (context.status === "Termin") {
-      return "Termin ist vereinbart. Vorbereitung durchführen und Abschluss vorbereiten.";
+      return `Hot Lead: Termin vereinbart – Vorbereitung durchführen und Abschluss vorbereiten.`;
     }
-    if (buyingSignals.length > 0) {
-      const signal = buyingSignals[0];
-      return `${signal.evidence}. Das ist ein echtes Kaufsignal – aktiv bearbeiten und nächsten Schritt festlegen.`;
-    }
-    return "Starke Kaufsignale vorhanden – Lead aktiv verfolgen.";
+    return `Hot Lead: Kaufsignale vorhanden – aktiv bearbeiten.`;
   }
 
-  if (temperature === "Warm") {
-    if (context.todayTasks.length > 0) {
-      return `${context.todayTasks.length} Aufgabe(n) heute fällig. Diese heute bearbeiten und klären, ob Lead weiter qualifiziert wird.`;
-    }
-    if (context.matchedTargetCustomerType && context.hasSuccessfulContact) {
-      const daysSince = context.daysSinceLastContact;
-      const recency = daysSince <= 7 ? "kürzlich erreicht" : `vor ${daysSince} Tagen erreicht`;
-      return `Passende Branche und ${recency}. Bedarf und Entscheider dokumentieren – dann nächste Aktivität planen.`;
-    }
-    if (context.matchedTargetCustomerType && context.hasOnlyFailedContact) {
-      return `Passende Branche, aber bisher nur nicht erreicht. Erneut anrufen oder E-Mail schreiben – Bedarf und Entscheider klären.`;
-    }
-    if (context.matchedTargetCustomerType && !context.hasAnyContact) {
-      return `Passende Branche (${context.branche}) und gute Kontaktdaten vorhanden. Erstkontakt herstellen und Zielgruppen-Match sowie Bedarf bestätigen.`;
-    }
-    if (context.hasAnyContact && !context.hasSuccessfulContact && context.hasPhone) {
-      return `Bisher nicht erreicht, aber Telefonnummer vorhanden. Erneut anrufen – Bedarf und Entscheider klären.`;
-    }
-    if (context.matchedTargetCustomerType) {
-      return `Passende Branche vorhanden. Kontaktdaten ${context.hasPhone ? "und Telefon" : ""} bekannt – Erstkontakt herstellen und Bedarf qualifizieren.`;
-    }
-    if (context.hasPhone || context.hasEmail) {
-      return `Kontaktdaten vorhanden (${[context.hasPhone && "Telefon", context.hasEmail && "E-Mail"].filter(Boolean).join(", ")}), aber Zielgruppen-Match noch unklar. Erstkontakt herstellen und Passung klären.`;
-    }
-    return `Teilweise Kontaktdaten vorhanden. Fehlende Informationen anreichern, dann Erstkontakt herstellen und Bedarf klären.`;
+  if (temperature === "warm") {
+    const reasons = [];
+    if (fitScore >= 70) reasons.push("Branche passt");
+    if (contactabilityScore >= 60) reasons.push("Kontaktdaten vorhanden");
+    if (context.hasSuccessfulContact) reasons.push("bereits kontaktiert");
+    
+    const reason = reasons.length > 0 ? reasons.join(", ") : "gute Ausgangslage";
+    const missing = missingData.length > 0 ? ` Fehlt: ${missingData[0].field}.` : "";
+    return `Warm Lead: ${reason}.${missing}`;
   }
 
-  if (context.status === "Verloren") {
-    return "Lead wurde als Verloren markiert. Nur wieder kontaktieren bei Bedarf- oder Ansprechpartner-Wechsel.";
-  }
-  if (!context.hasAnyContact) {
-    const via = context.hasPhone ? "Telefon" : context.hasEmail ? "E-Mail" : "verfügbarer Kontaktweg";
-    return `Noch kein Kontakt dokumentiert. Erstkontakt herstellen via ${via} und Bedarf sowie Ansprechpartner klären.`;
-  }
-  if (context.hasOnlyFailedContact) {
-    return `${context.contactResultCounts.notReached}x nicht erreicht. Mit anderem Kontaktweg erneut versuchen oder Lead zurückstellen.`;
-  }
-  if (riskSignals.length > 3) {
-    const topRisks = riskSignals.slice(0, 2).map(r => r.label).join(", ");
-    return `Mehrere Risiken (${topRisks}). Datenlage verbessern oder Lead neu bewerten.`;
+  if (temperature === "cold") {
+    if (context.status === "Verloren") {
+      return `Kalt: Status 'Verloren' – nur bei Situation-Wechsel reaktivieren.`;
+    }
+    if (!context.hasAnyContact && contactabilityScore < 40) {
+      return `Kalt: Kontaktdaten unvollständig – erst Daten anreichern.`;
+    }
+    if (!context.hasSuccessfulContact && context.hasAnyContact) {
+      return `Kalt: Bisherige Kontakte erfolglos – anderer Ansatz nötig.`;
+    }
+    return `Kalt: Noch keine Kaufsignale – Datenlage verbessern oder warten.`;
   }
 
-  return `Aktuell fehlen belastbare Kaufsignale. Erst Datenlage verbessern oder Lead zurückstellen, bis Bedarf oder Ansprechpartner klarer sind.`;
+  return "Offen: Nicht ausreichend Informationen zur Klassifizierung.";
 }
 
-function buildNextBestAction(context, buyingSignals, riskSignals) {
-  if (context.overdueTasks.length > 0) {
-    return `Überfällige Aufgabe abarbeiten: ${context.overdueTasks[0].titel}`;
+function buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals) {
+  const reasons = [];
+
+  // Fit-Gründe
+  if (context.matchedTargetCustomerType) {
+    reasons.push(`Branche '${context.branche}' passt zu Zielkunden`);
+  }
+  
+  // Contactability-Gründe
+  const contactChannels = [];
+  if (context.hasPhone) contactChannels.push("Telefon");
+  if (context.hasEmail) contactChannels.push("E-Mail");
+  if (context.hasWebsite) contactChannels.push("Website");
+  if (contactChannels.length > 0) {
+    reasons.push(`Kontaktierbar via ${contactChannels.join(", ")}`);
+  } else {
+    reasons.push("Kontaktdaten unvollständig");
   }
 
-  if (context.todayTasks.length > 0) {
-    return `Heute durchführen: ${context.todayTasks[0].titel}`;
-  }
-
+  // Engagement-Gründe
   if (context.status === "Angebot") {
-    return "Angebot nachfassen – Feedback einholen und nächsten Entscheidungsschritt sichern.";
-  }
-  if (context.status === "Termin") {
-    return "Termin vorbereiten – Unterlagen zusammenstellen und Agenda klären.";
-  }
-
-  if (context.appointmentTasks.length > 0) {
-    const date = context.appointmentTasks[0].faellig_am;
-    return `Termin vorbereiten (${new Date(date).toLocaleDateString('de-DE')}) – Unterlagen zusammenstellen.`;
-  }
-  if (context.callbackTasks.length > 0) {
-    return "Zum geplanten Rückruf anrufen – Bedarf und Entscheider klären.";
+    reasons.push("Angebot angefordert");
+  } else if (context.status === "Termin") {
+    reasons.push("Termin vereinbart");
+  } else if (context.hasSuccessfulContact) {
+    reasons.push(`Bereits erreicht (${context.logs.length} Kontakt(e))`);
+  } else if (context.hasAnyContact) {
+    reasons.push(`Kontaktversuche dokumentiert, aber erfolglos`);
+  } else {
+    reasons.push("Noch kein Erstkontakt");
   }
 
-  if (context.lastLog?.ergebnis === "Angebot gesendet") {
-    return "Angebot nachfassen – Rückfragen beantworten und nächsten Schritt festlegen.";
+  // Missing-Gründe
+  if (missingData.length > 0) {
+    reasons.push(`Fehlt: ${missingData.map(m => m.field).join(", ")}`);
   }
-  if (context.lastLog?.ergebnis === "Termin vereinbart") {
-    return "Termin vorbereiten – alle offenen Fragen vorab recherchieren.";
-  }
-  if (context.lastLog?.ergebnis === "Erreicht") {
-    return `Nächsten Kontakt gemäß letzter Notiz durchführen.`;
-  }
-  if (context.lastLog?.ergebnis === "Nicht erreicht") {
-    if (context.hasEmail && !context.hasPhone) {
-      return "E-Mail schreiben – Erstkontakt mit Referenz zum Bedarf herstellen.";
+
+  // Risk-Gründe
+  if (riskSignals.length > 0) {
+    const highRisks = riskSignals.filter(r => r.severity === "high");
+    if (highRisks.length > 0) {
+      reasons.push(`Risiken: ${highRisks.map(r => r.signal).join(", ")}`);
     }
-    return "Erneut anrufen – Bedarf und Entscheider klären.";
   }
 
-  if (!context.hasAnyContact) {
-    if (context.matchedTargetCustomerType) {
-      return "Erstkontakt herstellen und klären, wer über externe Dienstleister entscheidet.";
-    }
-    if (!context.hasPhone && !context.hasEmail) {
-      return "Kontaktdaten anreichern – dann Erstkontakt vorbereiten.";
-    }
-    return `Erstkontakt herstellen via ${context.hasPhone ? "Telefon" : "E-Mail"}.`;
-  }
-
-  const missing = detectMissingData(context);
-  if (missing.length > 0) {
-    return `${missing[0]} recherchieren – dann erneut kontaktieren.`;
-  }
-
-  return "Lead neu bewerten – Bedarf und Passung unklar.";
+  return reasons.join(". ") + ".";
 }
+
+function buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData) {
+  // Priority 1: Overdue Tasks
+  if (context.overdueTasks.length > 0) {
+    const task = context.overdueTasks[0];
+    return {
+      type: "task",
+      title: `Überfällige Aufgabe: "${task.titel}"`,
+      reason: `${Math.ceil((context.now - new Date(task.faellig_am)) / (1000 * 60 * 60 * 24))} Tage überfällig`,
+      due: "today"
+    };
+  }
+
+  // Priority 2: Today Tasks
+  if (context.todayTasks.length > 0) {
+    const task = context.todayTasks[0];
+    return {
+      type: "task",
+      title: `Aufgabe heute: "${task.titel}"`,
+      reason: "Aufgabe fällig heute",
+      due: "today"
+    };
+  }
+
+  // Priority 3: Offer Follow-Up
+  if (context.status === "Angebot") {
+    return {
+      type: "call",
+      title: "Angebot nachfassen",
+      reason: "Angebot wurde angefordert – Feedback einholen und nächsten Schritt sichern",
+      due: "tomorrow"
+    };
+  }
+
+  // Priority 4: Appointment Prep
+  if (context.status === "Termin") {
+    return {
+      type: "research",
+      title: "Termin vorbereiten",
+      reason: "Termin vereinbart – Unterlagen zusammenstellen und Agenda klären",
+      due: "tomorrow"
+    };
+  }
+
+  // Priority 5: First Contact (when contactable)
+  if (!context.hasAnyContact && contactabilityScore >= 60) {
+    const via = context.hasPhone ? "Anruf" : "E-Mail";
+    return {
+      type: "call",
+      title: `Erstkontakt herstellen (${via})`,
+      reason: `Kontaktdaten vorhanden, aber noch kein Kontakt dokumentiert. ${context.matchedTargetCustomerType ? "Branche passt." : "Bedarf und Zielgruppe noch unklar."}`,
+      due: "this_week"
+    };
+  }
+
+  // Priority 6: Enrich Missing Data
+  if (missingData.length > 0 && missingData[0].priority === "high") {
+    return {
+      type: "enrich",
+      title: `Fehldaten recherchieren: ${missingData[0].field}`,
+      reason: `${missingData[0].impact} – dann kontaktieren`,
+      due: "tomorrow"
+    };
+  }
+
+  // Priority 7: Retry Failed Contact
+  if (context.hasOnlyFailedContact) {
+    return {
+      type: "call",
+      title: "Erneut anrufen",
+      reason: `${context.contactResultCounts.notReached}x nicht erreicht – mit anderem Kanal versuchen`,
+      due: "this_week"
+    };
+  }
+
+  // Fallback
+  return {
+    type: "wait",
+    title: "Vorerst nicht priorisieren",
+    reason: "Nicht ausreichend Informationen für nächsten Schritt",
+    due: null
+  };
+}
+
+function buildOutreachAngle(context, temperature, fitSignals, engagementSignals) {
+  // Leverage existing engagement
+  if (context.logs.length > 0 && context.hasSuccessfulContact) {
+    const days = context.daysSinceLastContact || 1;
+    return `Folge-up nach existierendem Kontakt (${days} Tage). Referenziere letzte Gespräch und bringe neue Information.`;
+  }
+
+  // Cold outreach with fit
+  if (!context.hasAnyContact && context.matchedTargetCustomerType) {
+    return `Kompetenz-basierter Ansatz: "Wir arbeiten speziell mit ${context.branche}-Unternehmen in der Region ${context.ort}."`;
+  }
+
+  // Generic approach
+  return `Direkter Ansatz: Klare Wertproposition + Bedarf-Frage. Kurz halten.`;
+}
+
+function buildSuggestedOpening(context, outreachAngle) {
+  const yourName = "[Dein Name]";
+  const yourCompany = "[Dein Unternehmen]";
+
+  if (context.logs.length > 0 && context.hasSuccessfulContact) {
+    return `Hallo ${context.ansprechpartner || context.name}, wir hatten vor ${context.daysSinceLastContact} Wochen kurz miteinander geredet. Ich wollte dir nur schnell zeigen, wie wir anderen ${context.branche}-Unternehmen gerade helfen…`;
+  }
+
+  if (context.matchedTargetCustomerType && context.hasPhone) {
+    return `Guten Morgen, ich bin ${yourName} von ${yourCompany}. Wir arbeiten speziell mit ${context.branche}-Unternehmen in Ihrer Region. Ich hätte eine schnelle Frage…`;
+  }
+
+  return `Hallo ${context.ansprechpartner || "zusammen"}, kurze Frage: Wie managen Sie aktuell [Relevant Topic]?`;
+}
+
+function buildQualificationQuestions(context, missingData) {
+  const questions = [];
+
+  if (!context.hasContactPerson) {
+    questions.push("Wer ist Ansprechpartner/Entscheider für externe Dienstleistungen?");
+  }
+
+  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("bedarf"))) {
+    questions.push(`Welche Herausforderungen hat Ihr Unternehmen aktuell beim Thema [Service]?`);
+  }
+
+  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("entscheid"))) {
+    questions.push("Wie läuft der Entscheidungsprozess ab? Wer ist beteiligt?");
+  }
+
+  questions.push("Welches Budget steht für diese Initiative zur Verfügung?");
+
+  return questions;
+}
+
+function buildObjectionsToExpect(context) {
+  const objections = [];
+
+  if (!context.matchedTargetCustomerType) {
+    objections.push("Das passt nicht zu unseren Prozessen");
+  }
+
+  if (!context.hasSuccessfulContact) {
+    objections.push("Wir sind zufrieden mit unserem aktuellen Anbieter");
+  }
+
+  if (context.hasOnlyFailedContact) {
+    objections.push("Das haben wir bereits versucht");
+  }
+
+  objections.push("Das ist für uns gerade nicht relevant");
+  objections.push("Wir haben kein Budget");
+
+  return objections;
+}
+
+function buildRecommendedStatus(temperature, urgencyScore, context) {
+  if (context.status === "Verloren") return "Nicht priorisieren";
+  
+  if (urgencyScore >= 80) return "Kontaktieren";
+  if (temperature === "hot") return "Kontaktieren";
+  if (temperature === "warm") return "Qualifizieren";
+  if (temperature === "cold") return "Warten";
+  
+  return "Neu";
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN ANALYSIS FUNCTION
+// ═══════════════════════════════════════════════════════════════════════════════
 
 async function analyzeLeadSingle(base44, organizationId, companyId) {
   try {
@@ -522,53 +741,115 @@ async function analyzeLeadSingle(base44, organizationId, companyId) {
       organization_id: organizationId
     });
     
-    // Engine berechnen
+    // ═══ CONTEXT ═══
     const context = buildLeadContext(company, contactLogs, tasks);
-    const buyingSignals = detectBuyingSignals(context).sort((a, b) => b.weight - a.weight);
-    const riskSignals = detectRiskSignals(context).sort((a, b) => b.weight - a.weight);
+    
+    // ═══ SIGNALS ═══
+    const fitSignals = detectFitSignals(context);
+    const contactabilitySignals = detectContactabilitySignals(context);
+    const engagementSignals = detectEngagementSignals(context);
+    const timingSignals = detectTimingSignals(context);
+    const riskSignals = detectRiskSignals(context);
     const missingData = detectMissingData(context);
     
-    const score = calculateTemperatureScore(context, buyingSignals, riskSignals, missingData);
-    const temperature = classifyTemperature(score, context, buyingSignals, riskSignals);
-    const reason = buildTemperatureReason(context, temperature, buyingSignals, riskSignals, score);
-    const nextBestAction = buildNextBestAction(context, buyingSignals, riskSignals);
-    const firstContactSummary = buildFirstContactSummary(contactLogs);
-    const lastContactSummary = buildLastContactSummary(contactLogs);
-    const confidence = Math.min(0.95, 0.5 + (buyingSignals.length + Math.abs(riskSignals.length)) * 0.1);
+    // ═══ SCORES ═══
+    const fitScore = calculateFitScore(context, fitSignals);
+    const contactabilityScore = calculateContactabilityScore(context);
+    const engagementScore = calculateEngagementScore(context);
+    const timingScore = calculateTimingScore(context);
+    const urgencyScore = calculateUrgencyScore(context);
+    const confidenceScore = calculateConfidenceScore(context, riskSignals);
+    const vertrieboScore = Math.round((fitScore * 0.3 + contactabilityScore * 0.25 + engagementScore * 0.25 + timingScore * 0.2) / 100 * 100);
     
+    // ═══ CLASSIFICATION ═══
+    const temperature = classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, context);
+    const summary = buildSummary(temperature, context, fitScore, contactabilityScore, urgencyScore, missingData);
+    const reason = buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals);
+    
+    // ═══ RECOMMENDATIONS ═══
+    const nextBestAction = buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData);
+    const outreachAngle = buildOutreachAngle(context, temperature, fitSignals, engagementSignals);
+    const suggestedOpening = buildSuggestedOpening(context, outreachAngle);
+    const qualificationQuestions = buildQualificationQuestions(context, missingData);
+    const objectionsToExpect = buildObjectionsToExpect(context);
+    const recommendedStatus = buildRecommendedStatus(temperature, urgencyScore, context);
+    
+    // ═══ RESULT ═══
     const result = {
       temperature,
-      score: Math.round(score),
+      vertriebo_score: vertrieboScore,
+      urgency_score: Math.round(urgencyScore),
+      fit_score: Math.round(fitScore),
+      contactability_score: Math.round(contactabilityScore),
+      timing_score: Math.round(timingScore),
+      confidence_score: Math.round(confidenceScore),
+      
+      summary,
       reason,
-      nextBestAction,
-      firstContactSummary,
-      lastContactSummary,
-      confidence,
-      signals: {
-        buying: buyingSignals.map(s => ({ label: s.label, evidence: s.evidence, weight: s.weight })),
-        risks: riskSignals.map(r => ({ label: r.label, evidence: r.evidence, weight: r.weight })),
-        missing: missingData,
-      },
-      engine_version: "vertriebo-engine-v1-signal-based",
+      top_signals: [
+        ...fitSignals.filter(s => s.present),
+        ...contactabilitySignals.filter(s => s.present),
+        ...engagementSignals.filter(s => s.present),
+        ...timingSignals.filter(s => s.present)
+      ].slice(0, 5),
+      
+      risk_signals: riskSignals,
+      missing_data: missingData,
+      
+      next_best_action: nextBestAction,
+      outreach_angle: outreachAngle,
+      suggested_opening: suggestedOpening,
+      qualification_questions: qualificationQuestions,
+      objections_to_expect: objectionsToExpect,
+      recommended_status: recommendedStatus,
+      
+      engine_version: "vertriebo-engine-phase1"
     };
     
-    // Auf Company speichern
+    // ═══ PERSISTENCE ═══
     const now = new Date().toISOString();
     await base44.entities.Company.update(companyId, {
+      // Main Scores
       lead_temperature: temperature.toLowerCase(),
-      lead_temperature_score: score,
+      lead_temperature_score: vertrieboScore,
+      engine_score: vertrieboScore,
+      engine_confidence: confidenceScore,
+      engine_urgency_score: Math.round(urgencyScore),
+      engine_fit_score: Math.round(fitScore),
+      engine_contactability_score: Math.round(contactabilityScore),
+      engine_timing_score: Math.round(timingScore),
+      
+      // Text Fields
       lead_temperature_reason: reason,
-      next_best_action: nextBestAction,
-      first_contact_summary: firstContactSummary,
-      last_contact_summary: lastContactSummary,
-      buying_signals: JSON.stringify(result.signals.buying),
-      risk_signals: JSON.stringify(result.signals.risks),
-      missing_data: JSON.stringify(missingData),
-      last_engine_analyzed_at: now,
-      last_ai_analyzed_at: now,
+      engine_summary: summary,
+      engine_reason: reason,
+      
+      // JSON Bundles
+      engine_signals_json: JSON.stringify({
+        version: "phase1",
+        fit_signals: fitSignals,
+        contactability_signals: contactabilitySignals,
+        engagement_signals: engagementSignals,
+        timing_signals: timingSignals,
+        risk_signals: riskSignals,
+        missing_data: missingData
+      }),
+      
+      engine_next_action_json: JSON.stringify(nextBestAction),
+      
+      // Outreach Intelligence
+      engine_outreach_angle: outreachAngle,
+      engine_suggested_opening: suggestedOpening,
+      engine_qualification_questions_json: JSON.stringify(qualificationQuestions),
+      engine_objections_json: JSON.stringify(objectionsToExpect),
+      engine_recommended_status: recommendedStatus,
+      
+      // Metadata
+      engine_last_analyzed_at: now,
       engine_version: result.engine_version,
-      engine_confidence: confidence,
-      is_hot: temperature === "Hot"
+      
+      // Legacy Compat
+      is_hot: temperature === "hot"
     });
     
     return {
@@ -586,7 +867,7 @@ async function analyzeLatestLeads(base44, organizationId, limit = 10) {
   try {
     const maxLimit = Math.min(limit, 25);
     
-    // Nur Companies der Organisation, neueste zuerst
+    // Nur Companies der Organisation
     const companies = await base44.entities.Company.filter({
       organization_id: organizationId
     });
@@ -595,7 +876,7 @@ async function analyzeLatestLeads(base44, organizationId, limit = 10) {
       return { success: true, analyzed_count: 0, results: [] };
     }
     
-    // Sortiere nach created_date (neueste zuerst) und nimm maxLimit
+    // Sortiere nach created_date (neueste zuerst)
     const sorted = companies
       .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
       .slice(0, maxLimit);
@@ -615,58 +896,82 @@ async function analyzeLatestLeads(base44, organizationId, limit = 10) {
           organization_id: organizationId
         });
         
+        // (Identical analysis logic as above – abbreviated here for clarity)
         const context = buildLeadContext(company, contactLogs, tasks);
-        const buyingSignals = detectBuyingSignals(context).sort((a, b) => b.weight - a.weight);
-        const riskSignals = detectRiskSignals(context).sort((a, b) => b.weight - a.weight);
+        const fitSignals = detectFitSignals(context);
+        const contactabilitySignals = detectContactabilitySignals(context);
+        const engagementSignals = detectEngagementSignals(context);
+        const timingSignals = detectTimingSignals(context);
+        const riskSignals = detectRiskSignals(context);
         const missingData = detectMissingData(context);
         
-        const score = calculateTemperatureScore(context, buyingSignals, riskSignals, missingData);
-        const temperature = classifyTemperature(score, context, buyingSignals, riskSignals);
-        const reason = buildTemperatureReason(context, temperature, buyingSignals, riskSignals, score);
-        const nextBestAction = buildNextBestAction(context, buyingSignals, riskSignals);
-        const firstContactSummary = buildFirstContactSummary(contactLogs);
-        const lastContactSummary = buildLastContactSummary(contactLogs);
-        const confidence = Math.min(0.95, 0.5 + (buyingSignals.length + Math.abs(riskSignals.length)) * 0.1);
+        const fitScore = calculateFitScore(context, fitSignals);
+        const contactabilityScore = calculateContactabilityScore(context);
+        const engagementScore = calculateEngagementScore(context);
+        const timingScore = calculateTimingScore(context);
+        const urgencyScore = calculateUrgencyScore(context);
+        const confidenceScore = calculateConfidenceScore(context, riskSignals);
+        const vertrieboScore = Math.round((fitScore * 0.3 + contactabilityScore * 0.25 + engagementScore * 0.25 + timingScore * 0.2) / 100 * 100);
+        
+        const temperature = classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, context);
+        const summary = buildSummary(temperature, context, fitScore, contactabilityScore, urgencyScore, missingData);
+        const reason = buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals);
+        const nextBestAction = buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData);
+        const outreachAngle = buildOutreachAngle(context, temperature, fitSignals, engagementSignals);
+        const suggestedOpening = buildSuggestedOpening(context, outreachAngle);
+        const qualificationQuestions = buildQualificationQuestions(context, missingData);
+        const objectionsToExpect = buildObjectionsToExpect(context);
+        const recommendedStatus = buildRecommendedStatus(temperature, urgencyScore, context);
         
         const result = {
           temperature,
-          score: Math.round(score),
+          vertriebo_score: vertrieboScore,
+          urgency_score: Math.round(urgencyScore),
+          fit_score: Math.round(fitScore),
+          contactability_score: Math.round(contactabilityScore),
+          timing_score: Math.round(timingScore),
+          confidence_score: Math.round(confidenceScore),
+          summary,
           reason,
-          nextBestAction,
-          firstContactSummary,
-          lastContactSummary,
-          confidence,
-          signals: {
-            buying: buyingSignals.map(s => ({ label: s.label, evidence: s.evidence, weight: s.weight })),
-            risks: riskSignals.map(r => ({ label: r.label, evidence: r.evidence, weight: r.weight })),
-            missing: missingData,
-          },
-          engine_version: "vertriebo-engine-v1-signal-based",
+          next_best_action: nextBestAction,
+          engine_version: "vertriebo-engine-phase1"
         };
         
-        // Auf Company speichern
+        // Persistence
         const now = new Date().toISOString();
         await base44.entities.Company.update(company.id, {
           lead_temperature: temperature.toLowerCase(),
-          lead_temperature_score: score,
+          lead_temperature_score: vertrieboScore,
+          engine_score: vertrieboScore,
+          engine_confidence: confidenceScore,
+          engine_urgency_score: Math.round(urgencyScore),
+          engine_fit_score: Math.round(fitScore),
+          engine_contactability_score: Math.round(contactabilityScore),
+          engine_timing_score: Math.round(timingScore),
           lead_temperature_reason: reason,
-          next_best_action: nextBestAction,
-          first_contact_summary: firstContactSummary,
-          last_contact_summary: lastContactSummary,
-          buying_signals: JSON.stringify(result.signals.buying),
-          risk_signals: JSON.stringify(result.signals.risks),
-          missing_data: JSON.stringify(missingData),
-          last_engine_analyzed_at: now,
-          last_ai_analyzed_at: now,
+          engine_summary: summary,
+          engine_reason: reason,
+          engine_signals_json: JSON.stringify({
+            version: "phase1",
+            fit_signals: fitSignals,
+            contactability_signals: contactabilitySignals,
+            engagement_signals: engagementSignals,
+            timing_signals: timingSignals,
+            risk_signals: riskSignals,
+            missing_data: missingData
+          }),
+          engine_next_action_json: JSON.stringify(nextBestAction),
+          engine_outreach_angle: outreachAngle,
+          engine_suggested_opening: suggestedOpening,
+          engine_qualification_questions_json: JSON.stringify(qualificationQuestions),
+          engine_objections_json: JSON.stringify(objectionsToExpect),
+          engine_recommended_status: recommendedStatus,
+          engine_last_analyzed_at: now,
           engine_version: result.engine_version,
-          engine_confidence: confidence,
-          is_hot: temperature === "Hot"
+          is_hot: temperature === "hot"
         });
         
-        results.push({
-          company_id: company.id,
-          result
-        });
+        results.push({ company_id: company.id, result });
         analyzedCount++;
       } catch (err) {
         console.warn(`[analyzeLeadEngine] Skipping company ${company.id}:`, err.message);
@@ -680,6 +985,10 @@ async function analyzeLatestLeads(base44, organizationId, limit = 10) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// DENO SERVE
+// ═══════════════════════════════════════════════════════════════════════════════
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -690,39 +999,34 @@ Deno.serve(async (req) => {
     }
     
     const body = await req.json();
-    const { mode = "single", company_id, limit = 10, organization_id, requested_organization_id } = body;
+    const { mode = "single", company_id, limit = 10, organization_id } = body;
     
-    // Determine which organization to use: requested_organization_id or organization_id
-    const requestedOrgId = requested_organization_id || organization_id;
-    
-    // Multi-Org Access Check
+    // Resolve Organization
     let organizationId = null;
-    if (requestedOrgId) {
-      // Explicit organization requested – validate access
+    if (organization_id) {
+      // Validate Access
       const isAdmin = user.role === 'admin';
       if (!isAdmin) {
-        // Check if user owns this org or is active member
         const ownerOrgs = await base44.asServiceRole.entities.Organization.filter({
-          id: requestedOrgId,
+          id: organization_id,
           owner_email: user.email
         });
         const isOwner = ownerOrgs && ownerOrgs.length > 0;
         
         if (!isOwner) {
           const members = await base44.asServiceRole.entities.OrganizationMember.filter({
-            organization_id: requestedOrgId,
+            organization_id: organization_id,
             user_email: user.email,
             status: 'active'
           });
           if (!members || members.length === 0) {
-            console.warn(`[analyzeLeadEngine] Access denied: user ${user.email} not member of org ${requestedOrgId}`);
             return Response.json({ error: 'Zugriff verweigert' }, { status: 403 });
           }
         }
       }
-      organizationId = requestedOrgId;
+      organizationId = organization_id;
     } else {
-      // Fallback: determine from user's memberships (single-org flow)
+      // Auto-detect from user
       const memberOrgs = await base44.entities.OrganizationMember.filter({
         user_email: user.email,
         status: "active"
