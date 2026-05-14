@@ -172,6 +172,69 @@
       "type": "string",
       "format": "date-time",
       "title": "KI-Empfehlung generiert am"
+    },
+    "lead_temperature": {
+      "type": "string",
+      "title": "Lead Temperatur",
+      "enum": [
+        "hot",
+        "warm",
+        "cold",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "lead_temperature_score": {
+      "type": "number",
+      "title": "Vertriebo Score (0-100)",
+      "default": 0
+    },
+    "lead_temperature_reason": {
+      "type": "string",
+      "title": "Temperatur-Begr\u00fcndung"
+    },
+    "next_best_action": {
+      "type": "string",
+      "title": "N\u00e4chster bester Schritt"
+    },
+    "first_contact_summary": {
+      "type": "string",
+      "title": "Erstkontakt-Zusammenfassung"
+    },
+    "last_contact_summary": {
+      "type": "string",
+      "title": "Letzter Kontakt-Zusammenfassung"
+    },
+    "buying_signals": {
+      "type": "string",
+      "title": "Kaufsignale (JSON)"
+    },
+    "risk_signals": {
+      "type": "string",
+      "title": "Risikosignale (JSON)"
+    },
+    "missing_data": {
+      "type": "string",
+      "title": "Fehlende Daten (JSON)"
+    },
+    "last_ai_analyzed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Zuletzt KI-analysiert"
+    },
+    "last_engine_analyzed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Zuletzt Engine-analysiert"
+    },
+    "engine_version": {
+      "type": "string",
+      "title": "Engine-Version"
+    },
+    "engine_confidence": {
+      "type": "number",
+      "title": "Engine Konfidenz (0-1)",
+      "default": 0
     }
   },
   "required": [

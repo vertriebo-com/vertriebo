@@ -21,7 +21,7 @@
 import { Zap, Flame, Thermometer } from "lucide-react";
 import { analyzeLeadTemperature } from "@/utils/analyzeLeadTemperature";
 
-export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMap = {} }) {
+export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMap = {}, onAnalyzeLatest }) {
   if (!companies || companies.length === 0) {
     return (
       <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
@@ -34,11 +34,21 @@ export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMa
     );
   }
 
-  // Analysiere alle Leads
+  // Nutze gespeicherte Engine-Ergebnisse, Fallback zu Frontend-Berechnung
   const analyses = companies.map(company => {
+    const hasPersisted = company.lead_temperature && company.lead_temperature !== "unknown";
+    
+    if (hasPersisted) {
+      return {
+        temperature: (company.lead_temperature || "Cold").charAt(0).toUpperCase() + (company.lead_temperature || "Cold").slice(1),
+        score: company.lead_temperature_score || 0,
+      };
+    }
+    
     const logs = contactLogsMap[company.id] || [];
     const tasks = tasksMap[company.id] || [];
-    return analyzeLeadTemperature(company, logs, tasks);
+    const result = analyzeLeadTemperature(company, logs, tasks);
+    return { temperature: result.temperature, score: result.score };
   });
 
   const hot = analyses.filter(a => a.temperature === "Hot").length;
@@ -118,6 +128,17 @@ export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMa
               </div>
             ))}
           </div>
+        </div>
+      )}
+      
+      {onAnalyzeLatest && (
+        <div className="border-t border-[#E2E8F0] pt-3 mt-3">
+          <button
+            onClick={onAnalyzeLatest}
+            className="text-xs font-semibold text-blue-600 hover:text-blue-700 underline"
+          >
+            Neueste Leads analysieren
+          </button>
         </div>
       )}
     </div>

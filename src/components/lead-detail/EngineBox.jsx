@@ -32,10 +32,26 @@ import { Button } from "@/components/ui/button";
 import { analyzeLeadTemperature } from "@/utils/analyzeLeadTemperature";
 import { toast } from "sonner";
 
-export default function EngineBox({ company, contactLogs = [], tasks = [], orgId, onAddTask }) {
+export default function EngineBox({ company, contactLogs = [], tasks = [], orgId, onAddTask, onReanalyze }) {
   const [analyzing, setAnalyzing] = useState(false);
   
-  const analysis = analyzeLeadTemperature(company, contactLogs, tasks);
+  // Gespeicherte Engine-Ergebnisse bevorzugen, sonst Frontend-Fallback
+  const hasPersisted = company.lead_temperature && company.lead_temperature !== "unknown";
+  
+  const analysis = hasPersisted ? {
+    temperature: (company.lead_temperature || "Cold").charAt(0).toUpperCase() + (company.lead_temperature || "Cold").slice(1),
+    score: company.lead_temperature_score || 0,
+    confidence: company.engine_confidence || 0.5,
+    reason: company.lead_temperature_reason || "",
+    nextBestAction: company.next_best_action || "",
+    firstContactSummary: company.first_contact_summary || "",
+    lastContactSummary: company.last_contact_summary || null,
+    signals: {
+      buying: company.buying_signals ? JSON.parse(company.buying_signals) : [],
+      risks: company.risk_signals ? JSON.parse(company.risk_signals) : [],
+      missing: company.missing_data ? JSON.parse(company.missing_data) : [],
+    }
+  } : analyzeLeadTemperature(company, contactLogs, tasks);
   
   const tempColor = {
     Hot: "from-red-500 to-orange-500",
@@ -168,7 +184,24 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
         >
           <Clock className="w-3.5 h-3.5" /> Aufgabe
         </Button>
+        {onReanalyze && (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onReanalyze}
+            disabled={analyzing}
+            className="flex-1 gap-1.5 bg-white border-[#E2E8F0] text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${analyzing ? 'animate-spin' : ''}`} /> {analyzing ? "Analysiere..." : "Neu analysieren"}
+          </Button>
+        )}
       </div>
+      
+      {hasPersisted && (
+        <div className="mt-3 text-[10px] text-slate-500 text-center">
+          Zuletzt analysiert: {company.last_engine_analyzed_at ? new Date(company.last_engine_analyzed_at).toLocaleString('de-DE') : "—"}
+        </div>
+      )}
     </div>
   );
 }
