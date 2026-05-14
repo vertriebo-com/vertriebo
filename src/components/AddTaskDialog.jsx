@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import {
   Dialog,
@@ -16,7 +16,7 @@ import { toast } from "sonner";
 const TYPES = ["Rückruf", "Termin", "Angebot erstellen", "Nachfassen", "Sonstiges"];
 const PRIORITIES = ["Hoch", "Mittel", "Niedrig"];
 
-export default function AddTaskDialog({ open, onClose, companyId, companyName, onCreated }) {
+export default function AddTaskDialog({ open, onClose, companyId, companyName, onCreated, initialData }) {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     titel: "",
@@ -25,6 +25,23 @@ export default function AddTaskDialog({ open, onClose, companyId, companyName, o
     prioritaet: "Mittel",
     faellig_am: "",
   });
+
+  // Prefill from initialData (e.g. nextBestAction from EngineBox)
+  useEffect(() => {
+    if (open && initialData) {
+      setForm(prev => ({
+        ...prev,
+        titel: initialData.titel || prev.titel,
+        beschreibung: initialData.beschreibung || prev.beschreibung,
+        typ: initialData.typ || prev.typ,
+        prioritaet: initialData.prioritaet || prev.prioritaet,
+        faellig_am: initialData.faellig_am || prev.faellig_am,
+      }));
+    }
+    if (!open) {
+      setForm({ titel: "", beschreibung: "", typ: "Rückruf", prioritaet: "Mittel", faellig_am: "" });
+    }
+  }, [open, initialData]);
 
   const handleSubmit = async () => {
     if (!form.titel.trim()) { toast.error("Bitte Titel eingeben"); return; }

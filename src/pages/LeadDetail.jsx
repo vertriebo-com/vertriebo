@@ -31,6 +31,7 @@ export default function LeadDetail() {
   const [loading, setLoading] = useState(true);
   const [showAddLog, setShowAddLog] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [taskDraft, setTaskDraft] = useState(null);
   const [enriching, setEnriching] = useState(false);
   const enrichingRef = useRef(false);
   const [notizen, setNotizen] = useState("");
@@ -206,6 +207,7 @@ export default function LeadDetail() {
           loadData();
         } else {
           toast.info("Keine zusätzlichen Daten gefunden.");
+          loadData(); // Reload even if no new fields – engine_analysis_json may need invalidation
         }
       }
     } catch (e) {
@@ -517,10 +519,17 @@ export default function LeadDetail() {
               tasks={tasks}
               orgId={orgId}
               onAddTask={(nextBestAction) => {
-                // Wenn nextBestAction übergeben wurde, prefill it (später in AddTaskDialog)
+                const TYPE_MAP = { call: "Rückruf", research: "Nachfassen", enrich: "Nachfassen", task: "Rückruf" };
+                setTaskDraft({
+                  titel: nextBestAction?.title || "",
+                  beschreibung: nextBestAction?.reason || "",
+                  typ: TYPE_MAP[nextBestAction?.type] || "Rückruf",
+                  prioritaet: "Hoch",
+                  faellig_am: "",
+                });
                 setShowAddTask(true);
               }}
-              onReanalyze={() => loadData()}
+              onReanalyze={async () => { await loadData(); }}
             />
           </div>
 
@@ -621,7 +630,7 @@ export default function LeadDetail() {
 
 
       <AddContactLogDialog open={showAddLog} onClose={() => setShowAddLog(false)} companyId={id} companyName={company.name} onCreated={loadData} />
-      <AddTaskDialog open={showAddTask} onClose={() => setShowAddTask(false)} companyId={id} companyName={company.name} onCreated={loadData} />
+      <AddTaskDialog open={showAddTask} onClose={() => { setShowAddTask(false); setTaskDraft(null); }} companyId={id} companyName={company.name} onCreated={loadData} initialData={taskDraft} />
 
       {/* Blacklist Confirm */}
       <Dialog open={showBlacklistConfirm} onOpenChange={setShowBlacklistConfirm}>

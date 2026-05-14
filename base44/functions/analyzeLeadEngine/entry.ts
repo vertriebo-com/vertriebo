@@ -529,16 +529,25 @@ function buildReason(temperature, context, fitScore, contactabilityScore, engage
     reasons.push("Noch kein Erstkontakt");
   }
 
-  // Missing-Gründe
+  // Missing-Gründe (human-readable labels)
+  const MISSING_LABELS = {
+    contact_person: "Ansprechpartner",
+    email: "E-Mail-Adresse",
+    phone: "Telefonnummer",
+    website: "Website",
+    target_customer_confirmation: "bestätigter Zielgruppen-Match",
+    concrete_need: "konkreter Bedarf"
+  };
   if (missingData.length > 0) {
-    reasons.push(`Fehlt: ${missingData.map(m => m.field).join(", ")}`);
+    const labels = missingData.map(m => MISSING_LABELS[m.field || m] || (m.field || m)).join(", ");
+    reasons.push(`Es fehlen noch: ${labels}`);
   }
 
-  // Risk-Gründe
+  // Risk-Gründe (human-readable)
   if (riskSignals.length > 0) {
     const highRisks = riskSignals.filter(r => r.severity === "high");
     if (highRisks.length > 0) {
-      reasons.push(`Risiken: ${highRisks.map(r => r.signal).join(", ")}`);
+      reasons.push(highRisks.map(r => r.reason).join(". "));
     }
   }
 
@@ -726,6 +735,14 @@ async function analyzeLeadSingle(base44, organizationId, companyId) {
     
     const company = companies[0];
     
+    console.log("[analyzeLeadEngine] company data completeness", {
+      company_id: companyId,
+      hasPhone: Boolean(company.telefon),
+      hasEmail: Boolean(company.email),
+      hasWebsite: Boolean(company.website),
+      hasContactPerson: Boolean(company.ansprechpartner)
+    });
+
     // ContactLogs nur mit organization_id + company_id
     const contactLogs = await base44.entities.ContactLog.filter({
       company_id: companyId,

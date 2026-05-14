@@ -161,13 +161,14 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
   const handleReanalyze = async () => {
     setAnalyzing(true);
     try {
-      const result = await base44.functions.invoke("analyzeLeadEngine", {
+      await base44.functions.invoke("analyzeLeadEngine", {
         mode: "single",
         company_id: company.id,
         organization_id: orgId
       });
+      // Reload company from backend so engine_analysis_json is fresh
+      if (onReanalyze) await onReanalyze();
       toast.success("Lead neu analysiert");
-      if (onReanalyze) onReanalyze(result);
     } catch (error) {
       toast.error("Analyse fehlgeschlagen: " + error.message);
     } finally {
@@ -267,9 +268,19 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
             <AlertCircle className="w-4 h-4" /> Fehlende Daten
           </p>
           <div className="space-y-1">
-            {analysis.missingData.map((item, i) => (
-              <p key={i} className="text-xs text-slate-700 font-medium">• {item.field || item}</p>
-            ))}
+            {analysis.missingData.map((item, i) => {
+              const MISSING_LABELS = {
+                contact_person: "Ansprechpartner fehlt",
+                email: "E-Mail-Adresse fehlt",
+                phone: "Telefonnummer fehlt",
+                website: "Website fehlt",
+                target_customer_confirmation: "Zielgruppen-Match noch nicht bestätigt",
+                concrete_need: "Konkreter Bedarf noch nicht dokumentiert"
+              };
+              const raw = item.field || item;
+              const label = MISSING_LABELS[raw] || raw;
+              return <p key={i} className="text-xs text-slate-700 font-medium">• {label}</p>;
+            })}
           </div>
         </div>
       )}
