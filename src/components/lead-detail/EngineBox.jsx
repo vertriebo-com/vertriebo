@@ -18,8 +18,9 @@
  */
 
 import { useState } from "react";
-import { Zap, AlertCircle, CheckCircle2, Clock, RefreshCw, Target, MessageCircle, HelpCircle, AlertTriangle } from "lucide-react";
+import { Zap, AlertCircle, CheckCircle2, Clock, RefreshCw, Target, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
@@ -120,8 +121,16 @@ function cleanPlaceholderText(text) {
     .replace(/\$\{.*?\}/g, '[...]');
 }
 
+const DUE_LABELS = {
+  today: "Heute",
+  tomorrow: "Morgen",
+  this_week: "Diese Woche",
+  next_week: "Nächste Woche",
+};
+
 export default function EngineBox({ company, contactLogs = [], tasks = [], orgId, onAddTask, onReanalyze }) {
   const [analyzing, setAnalyzing] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
   
   // Parse persisted engine_analysis_json or fallback to legacy fields
   const engineAnalysisJson = safeParseJSON(company?.engine_analysis_json);
@@ -247,143 +256,74 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
             <p className="text-sm font-semibold text-blue-900 leading-relaxed">{analysis.summary}</p>
           </div>
         )}
+
+        {/* Nächster bester Schritt – kompakt */}
+        {analysis.nextBestAction && Object.keys(analysis.nextBestAction).length > 0 && (
+          <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-600 mb-1">Nächster Schritt</p>
+            <p className="text-sm font-semibold text-slate-900">{analysis.nextBestAction.title}</p>
+            {analysis.nextBestAction.reason && <p className="text-xs text-slate-700 mt-1">{analysis.nextBestAction.reason}</p>}
+            {analysis.nextBestAction.due && <p className="text-[10px] text-slate-600 mt-1 font-semibold">Fällig: {DUE_LABELS[analysis.nextBestAction.due] || analysis.nextBestAction.due}</p>}
+          </div>
+        )}
       </div>
 
-      {/* ═══ WARUM? ═══ */}
-      {analysis.reason && (
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-3">Warum diese Bewertung?</p>
-          <p className="text-sm text-slate-900 leading-relaxed">{analysis.reason}</p>
-        </div>
-      )}
-
-      {/* ═══ TOP-SIGNALE ═══ */}
-      {analysis.topSignals.length > 0 && (
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 mb-3 flex items-center gap-1">
-            <CheckCircle2 className="w-4 h-4" /> Top-Signale
-          </p>
-          <div className="space-y-2">
-            {analysis.topSignals.map((signal, i) => (
-              <div key={i} className="flex gap-2 text-xs">
-                <span className="text-emerald-600 font-bold">✓</span>
-                <div>
-                  <p className="font-semibold text-slate-900">{labelSignal(signal.signal)}</p>
-                  {signal.reason && <p className="text-slate-600 text-[11px]">{signal.reason}</p>}
-                </div>
+      {/* ═══ SIGNALE/RISIKEN/FEHLENDE DATEN ALS CHIPS ═══ */}
+      {(analysis.topSignals.length > 0 || analysis.riskSignals.length > 0 || analysis.missingData.length > 0) && (
+        <div className="space-y-2">
+          {/* Top-Signale als Chips */}
+          {analysis.topSignals.length > 0 && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 mb-2">Signale</p>
+              <div className="flex flex-wrap gap-1.5">
+                {analysis.topSignals.map((signal, i) => (
+                  <Badge key={i} variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-normal">
+                    ✓ {labelSignal(signal.signal)}
+                  </Badge>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {/* ═══ RISIKEN ═══ */}
-      {analysis.riskSignals.length > 0 && (
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-red-700 mb-3 flex items-center gap-1">
-            <AlertTriangle className="w-4 h-4" /> Risiken
-          </p>
-          <div className="space-y-2">
-            {analysis.riskSignals.map((risk, i) => (
-              <div key={i} className="flex gap-2 text-xs">
-                <span className="text-red-600 font-bold">⚠</span>
-                <div>
-                  <p className="font-semibold text-slate-900">{labelRisk(risk.signal)}</p>
-                  {risk.reason && <p className="text-slate-600 text-[11px]">{risk.reason}</p>}
-                </div>
+          {/* Risiken als Chips */}
+          {analysis.riskSignals.length > 0 && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-red-700 mb-2">Risiken</p>
+              <div className="flex flex-wrap gap-1.5">
+                {analysis.riskSignals.map((risk, i) => (
+                  <Badge key={i} variant="secondary" className="bg-red-50 text-red-700 border-red-200 font-normal">
+                    ⚠ {labelRisk(risk.signal)}
+                  </Badge>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {/* ═══ FEHLENDE DATEN ═══ */}
-      {analysis.missingData.length > 0 && (
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-3 flex items-center gap-1">
-            <AlertCircle className="w-4 h-4" /> Fehlende Daten
-          </p>
-          <div className="space-y-1">
-            {analysis.missingData.map((item, i) => {
-              const MISSING_LABELS = {
-                contact_person: "Ansprechpartner fehlt",
-                email: "E-Mail-Adresse fehlt",
-                phone: "Telefonnummer fehlt",
-                website: "Website fehlt",
-                target_customer_confirmation: "Zielgruppen-Match noch nicht bestätigt",
-                concrete_need: "Konkreter Bedarf noch nicht dokumentiert"
-              };
-              const raw = item.field || item;
-              const label = MISSING_LABELS[raw] || raw;
-              return <p key={i} className="text-xs text-slate-700 font-medium">• {label}</p>;
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ═══ NÄCHSTER BESTER SCHRITT ═══ */}
-      {analysis.nextBestAction && Object.keys(analysis.nextBestAction).length > 0 && (
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm border-l-4 border-l-primary">
-          <p className="text-xs font-bold uppercase tracking-wide text-primary mb-2 flex items-center gap-1">
-            <Target className="w-4 h-4" /> Nächster bester Schritt
-          </p>
-          <p className="text-sm font-semibold text-slate-900 mb-2">{analysis.nextBestAction.title || analysis.nextBestAction.type}</p>
-          {analysis.nextBestAction.reason && <p className="text-xs text-slate-700 mb-2">{analysis.nextBestAction.reason}</p>}
-          {analysis.nextBestAction.due && <p className="text-xs font-semibold text-primary">Fällig: {analysis.nextBestAction.due}</p>}
-        </div>
-      )}
-
-      {/* ═══ GESPRÄCHSANSATZ ═══ */}
-      {analysis.outreachAngle && (
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-3 flex items-center gap-1">
-            <MessageCircle className="w-4 h-4" /> Gesprächsansatz
-          </p>
-          <p className="text-sm text-slate-900 leading-relaxed italic">{analysis.outreachAngle}</p>
-        </div>
-      )}
-
-      {/* ═══ ERÖFFNUNGSSATZ ═══ */}
-      {analysis.suggestedOpening && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-2">Eröffnungssatz</p>
-          <p className="text-sm text-slate-900 leading-relaxed font-medium border-l-4 border-l-slate-400 pl-3">
-            "{analysis.suggestedOpening}"
-          </p>
-        </div>
-      )}
-
-      {/* ═══ QUALIFIZIERUNGSFRAGEN ═══ */}
-      {analysis.qualificationQuestions.length > 0 && (
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-3 flex items-center gap-1">
-            <HelpCircle className="w-4 h-4" /> Qualifizierungsfragen
-          </p>
-          <ul className="space-y-2">
-            {analysis.qualificationQuestions.map((q, i) => (
-              <li key={i} className="text-xs text-slate-900 font-medium flex gap-2">
-                <span className="text-slate-400 flex-shrink-0">•</span>
-                <span>{q}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* ═══ EINWÄNDE ═══ */}
-      {analysis.objectionsToExpect.length > 0 && (
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-3 flex items-center gap-1">
-            <AlertCircle className="w-4 h-4" /> Einwände (zu erwarten)
-          </p>
-          <ul className="space-y-2">
-            {analysis.objectionsToExpect.map((obj, i) => (
-              <li key={i} className="text-xs text-slate-900 flex gap-2">
-                <span className="text-slate-400 flex-shrink-0">◦</span>
-                <span className="font-medium">"{obj}"</span>
-              </li>
-            ))}
-          </ul>
+          {/* Fehlende Daten als Chips */}
+          {analysis.missingData.length > 0 && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-2">Fehlt</p>
+              <div className="flex flex-wrap gap-1.5">
+                {analysis.missingData.map((item, i) => {
+                  const MISSING_LABELS = {
+                    contact_person: "Ansprechpartner",
+                    email: "E-Mail-Adresse",
+                    phone: "Telefonnummer",
+                    website: "Website",
+                    target_customer_confirmation: "Zielgruppen-Match",
+                    concrete_need: "konkreter Bedarf"
+                  };
+                  const raw = item.field || item;
+                  const label = MISSING_LABELS[raw] || raw;
+                  return (
+                    <Badge key={i} variant="outline" className="font-normal">
+                      {label}
+                    </Badge>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -397,6 +337,16 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
         >
           <Clock className="w-4 h-4" /> Aufgabe erstellen
         </Button>
+        {(analysis.outreachAngle || analysis.suggestedOpening || analysis.qualificationQuestions.length > 0 || analysis.objectionsToExpect.length > 0) && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex-1 gap-1.5 bg-white border-[#E2E8F0] text-slate-700 hover:bg-slate-50"
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} /> Leitfaden
+          </Button>
+        )}
         <Button 
           variant="default" 
           size="sm" 
@@ -404,9 +354,70 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
           disabled={analyzing}
           className="flex-1 gap-1.5"
         >
-          <RefreshCw className={`w-4 h-4 ${analyzing ? 'animate-spin' : ''}`} /> {analyzing ? "Analysiere..." : "Neu analysieren"}
+          <RefreshCw className={`w-4 h-4 ${analyzing ? 'animate-spin' : ''}`} /> {analyzing ? "Läuft..." : "Neu analysieren"}
         </Button>
       </div>
+
+      {/* ═══ DETAILS/LEITFADEN (ACCORDION) ═══ */}
+      {showDetails && (
+        <div className="border-t border-[#E2E8F0] pt-3 mt-3 space-y-3 max-h-[500px] overflow-y-auto pr-1">
+          {/* Warum diese Bewertung */}
+          {analysis.reason && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Warum diese Bewertung?</p>
+              <p className="text-xs text-slate-900 leading-relaxed">{analysis.reason}</p>
+            </div>
+          )}
+
+          {/* Gesprächsansatz */}
+          {analysis.outreachAngle && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Gesprächsansatz</p>
+              <p className="text-xs text-slate-900 leading-relaxed italic">{analysis.outreachAngle}</p>
+            </div>
+          )}
+
+          {/* Eröffnungssatz */}
+          {analysis.suggestedOpening && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Eröffnungssatz</p>
+              <p className="text-xs text-slate-900 leading-relaxed font-medium border-l-2 border-slate-400 pl-2">
+                "{analysis.suggestedOpening}"
+              </p>
+            </div>
+          )}
+
+          {/* Qualifizierungsfragen */}
+          {analysis.qualificationQuestions.length > 0 && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Fragen</p>
+              <ul className="space-y-1">
+                {analysis.qualificationQuestions.map((q, i) => (
+                  <li key={i} className="text-[11px] text-slate-900 font-medium flex gap-1.5">
+                    <span className="text-slate-400 flex-shrink-0">•</span>
+                    <span>{q}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Einwände */}
+          {analysis.objectionsToExpect.length > 0 && (
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-1.5">Einwände</p>
+              <ul className="space-y-1">
+                {analysis.objectionsToExpect.map((obj, i) => (
+                  <li key={i} className="text-[11px] text-slate-900 flex gap-1.5">
+                    <span className="text-slate-400 flex-shrink-0">◦</span>
+                    <span>"{obj}"</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ═══ METADATA ═══ */}
       {hasPersisted && (
