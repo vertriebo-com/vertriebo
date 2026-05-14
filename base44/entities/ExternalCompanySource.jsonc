@@ -1,0 +1,167 @@
+{
+  "name": "ExternalCompanySource",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "source": {
+      "type": "string",
+      "title": "Quelle",
+      "enum": [
+        "openregister"
+      ],
+      "default": "openregister"
+    },
+    "source_id": {
+      "type": "string",
+      "title": "Quell-ID"
+    },
+    "raw_data": {
+      "type": "string",
+      "title": "Rohdaten (JSON)"
+    },
+    "company_name": {
+      "type": "string",
+      "title": "Firmenname"
+    },
+    "legal_form": {
+      "type": "string",
+      "title": "Rechtsform"
+    },
+    "city": {
+      "type": "string",
+      "title": "Stadt"
+    },
+    "address": {
+      "type": "string",
+      "title": "Adresse"
+    },
+    "register_number": {
+      "type": "string",
+      "title": "Registernummer"
+    },
+    "register_court": {
+      "type": "string",
+      "title": "Registergericht"
+    },
+    "registration_date": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Registrierungsdatum"
+    },
+    "search_center_city": {
+      "type": "string",
+      "title": "Suchzentrum Stadt"
+    },
+    "search_center_lat": {
+      "type": "number",
+      "title": "Suchzentrum Latitude"
+    },
+    "search_center_lng": {
+      "type": "number",
+      "title": "Suchzentrum Longitude"
+    },
+    "radius_km": {
+      "type": "number",
+      "title": "Radius (km)"
+    },
+    "lat": {
+      "type": "number",
+      "title": "Latitude"
+    },
+    "lng": {
+      "type": "number",
+      "title": "Longitude"
+    },
+    "distance_km": {
+      "type": "number",
+      "title": "Distanz (km)"
+    },
+    "geo_confidence": {
+      "type": "string",
+      "title": "Geo-Konfidenz",
+      "enum": [
+        "exact",
+        "city",
+        "approximate",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "radius_status": {
+      "type": "string",
+      "title": "Radius-Status",
+      "enum": [
+        "inside_radius",
+        "outside_radius",
+        "unknown"
+      ],
+      "default": "unknown"
+    },
+    "enrichment_status": {
+      "type": "string",
+      "title": "Anreicherungs-Status",
+      "enum": [
+        "pending",
+        "enriched",
+        "failed",
+        "skipped"
+      ],
+      "default": "pending"
+    },
+    "match_status": {
+      "type": "string",
+      "title": "Match-Status",
+      "enum": [
+        "imported",
+        "duplicate",
+        "outside_radius",
+        "unknown_geo",
+        "ready_for_review",
+        "promoted_to_company",
+        "rejected"
+      ],
+      "default": "imported"
+    },
+    "duplicate_company_id": {
+      "type": "string",
+      "title": "Duplikat Firma ID"
+    },
+    "google_place_id": {
+      "type": "string",
+      "title": "Google Place ID"
+    },
+    "freshness_score": {
+      "type": "number",
+      "title": "Freshness Score",
+      "default": 0
+    },
+    "official_company_score": {
+      "type": "number",
+      "title": "Offizieller Firmen Score",
+      "default": 0
+    },
+    "local_match_score": {
+      "type": "number",
+      "title": "Lokaler Match Score",
+      "default": 0
+    },
+    "enrichment_confidence": {
+      "type": "number",
+      "title": "Anreicherungs-Konfidenz",
+      "default": 0
+    },
+    "source_confidence": {
+      "type": "number",
+      "title": "Quell-Konfidenz",
+      "default": 0
+    }
+  },
+  "required": [
+    "organization_id",
+    "source",
+    "company_name"
+  ]
+}
