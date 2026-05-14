@@ -224,7 +224,7 @@ export default function Leads() {
             </div>
             <div className="text-left">
               <div className="text-sm font-bold leading-tight">Firmen recherchieren</div>
-              <div className="text-[11px] text-blue-200 font-medium leading-tight">KI-gestützte Lead-Suche</div>
+              <div className="text-[11px] text-blue-200 font-medium leading-tight">Vertriebo Lead-Recherche</div>
             </div>
           </button>
         )}

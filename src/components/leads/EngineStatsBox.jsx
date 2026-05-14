@@ -88,7 +88,7 @@ function EngineStatsBox({ companies, onAnalyzeLatest, analyzingLatest = false, l
           <Zap className="w-4 h-4 text-purple-600" />
           <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Vertriebo Engine Übersicht</h3>
         </div>
-        <p className="text-xs text-slate-600 mb-3">KI-Analyse Ihrer {companies.length} Leads</p>
+        <p className="text-xs text-slate-600 mb-3">Engine-Status Ihrer {companies.length} Leads</p>
 
         {/* Temperatur-Stats */}
         <div className="grid grid-cols-4 gap-2">

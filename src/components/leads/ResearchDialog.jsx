@@ -284,7 +284,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           <div>
             <h2 className="text-lg font-bold text-slate-900">Neue Firmenkontakte recherchieren</h2>
             <p className="text-xs text-slate-600 mt-0.5 font-medium">
-              Vertriebo nutzt Ihre Zielgruppe und Suchgebiet, um passende Firmenkontakte zu finden.
+             Vertriebo durchsucht automatisch Google Maps und findet passende Firmenkontakte in Ihrem Suchgebiet.
             </p>
           </div>
         </div>
