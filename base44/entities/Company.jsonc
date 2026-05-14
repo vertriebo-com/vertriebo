@@ -222,10 +222,9 @@
       "format": "date-time",
       "title": "Zuletzt KI-analysiert"
     },
-    "last_engine_analyzed_at": {
+    "engine_analysis_json": {
       "type": "string",
-      "format": "date-time",
-      "title": "Zuletzt Engine-analysiert"
+      "title": "Engine Analyse JSON (Phase 1)"
     },
     "engine_version": {
       "type": "string",
@@ -233,8 +232,13 @@
     },
     "engine_confidence": {
       "type": "number",
-      "title": "Engine Konfidenz (0-1)",
+      "title": "Engine Konfidenz (0-100)",
       "default": 0
+    },
+    "engine_last_analyzed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Zuletzt Engine-analysiert"
     }
   },
   "required": [
