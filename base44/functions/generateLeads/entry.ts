@@ -986,12 +986,24 @@ Deno.serve(async (req) => {
     const queryBudget = searchPlan.queryBudget || getQueryBudget(trialStage, remainingPreviewLeads);
     
     // Für verified_trial: dynamisches Plan-Limit, nicht hardcoded
+    // Plan-Limits ZUERST laden – muss VOR jeder Nutzung stehen
+    let resolvedPlanLimits = { max_leads_per_month: 300 };
+    if (org.plan_id) {
+      const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
+      if (plans[0]) {
+        resolvedPlanLimits = { max_leads_per_month: plans[0].max_leads_per_month ?? 300 };
+      }
+    } else if (trialStage === 'paid') {
+      console.warn(`[generateLeads] trial_stage=paid aber plan_id leer. Nutze Fallback-Limit.`);
+      resolvedPlanLimits = { max_leads_per_month: 300 };
+    }
+
     let maxLeadsToSave = target_count;
     if (trialStage === 'free_preview') {
       maxLeadsToSave = remainingPreviewLeads;
     } else if (trialStage === 'verified_trial') {
-      // verified_trial nutzt das echte Plan-Limit, nicht 75
-      const planLimit = planLimits.max_leads_per_month ?? 300;
+      // verified_trial nutzt das echte Plan-Limit
+      const planLimit = resolvedPlanLimits.max_leads_per_month ?? 300;
       const totalSavedSoFar = currentUsage.leads_created || 0;
       const remainingBudget = Math.max(0, planLimit - totalSavedSoFar);
       // Pro Recherche maximal 25, aber respektiere verfügbares Monatsbudget
@@ -999,20 +1011,9 @@ Deno.serve(async (req) => {
     }
     const effectiveTarget = Math.min(maxLeadsToSave, target_count);
 
-    let planLimits = { max_leads_per_month: 300 };
-    if (org.plan_id) {
-      const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
-      if (plans[0]) {
-        planLimits = { max_leads_per_month: plans[0].max_leads_per_month ?? 300 };
-      }
-    } else if (trialStage === 'paid') {
-      console.warn(`[generateLeads] trial_stage=paid aber plan_id leer. Nutze Fallback-Limit.`);
-      planLimits = { max_leads_per_month: 300 };
-    }
-
     // verified_trial nutzt das echte Plan-Limit
     if (trialStage === 'verified_trial') {
-      const planLimit = planLimits.max_leads_per_month ?? 300;
+      const planLimit = resolvedPlanLimits.max_leads_per_month ?? 300;
       const contactsSavedThisMonth = currentUsage.leads_created || 0;
       
       if (planLimit !== -1 && contactsSavedThisMonth >= planLimit) {
@@ -1027,7 +1028,7 @@ Deno.serve(async (req) => {
     }
 
     if (trialStage === 'paid') {
-      const maxContacts = planLimits.max_leads_per_month ?? 300;
+      const maxContacts = resolvedPlanLimits.max_leads_per_month ?? 300;
       const contactsSavedThisMonth = currentUsage.leads_created || 0;
       
       if (maxContacts !== -1 && contactsSavedThisMonth >= maxContacts) {
