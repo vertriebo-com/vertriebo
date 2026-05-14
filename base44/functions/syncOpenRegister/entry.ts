@@ -82,41 +82,74 @@ Deno.serve(async (req) => {
       : ["GmbH", "UG", "GmbH & Co. KG"];
     const resolvedSinceDate = since_date || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    // 6. Echten API-Call prüfen – SICHERHEIT: Simulation NUR mit dry_run
-    const isEndpointImplemented = false; // TODO: Auf true setzen wenn Endpoint ready
+    // 6. Echten OpenRegister API-Call
+    const OPENREGISTER_BASE_URL = "https://api.openregister.de";
     
     // apiResults initialisieren
     let apiResults = [];
 
-    // Wenn Endpoint nicht implementiert ist: NUR dry_run erlaubt
-    if (!isEndpointImplemented) {
-      if (!dry_run) {
-        return Response.json({
-          error: "OpenRegister endpoint not implemented yet – simulation requires dry_run=true",
-          reason: "real_endpoint_required",
-          hint: "Use dry_run=true for testing simulation, or implement the real endpoint."
-        }, { status: 501 });
-      }
-      
-      // dry_run=true: Simulation nur für Preview, nichts speichern
-      console.log(`[syncOpenRegister] DRY_RUN mode for city=${resolvedCity}, radius=${resolvedRadius}km`);
-      apiResults = [
+    console.log(`[syncOpenRegister] LIVE mode for city=${resolvedCity}, radius=${resolvedRadius}km`);
+    
+    // OpenRegister API Request bauen
+    const openRegisterRequest = {
+      query: {
+        value: resolvedCity
+      },
+      filters: [
         {
-          id: `reg-sim-1`,
-          name: "Beispiel Firma GmbH",
-          legalForm: "GmbH",
-          address: "Musterstraße 123, 10115 Berlin",
-          city: "Berlin",
-          registerNumber: "HRB 12345 B",
-          registerCourt: "Amtsgericht Berlin (Charlottenburg)",
-          registrationDate: new Date().toISOString()
+          field: "city",
+          value: resolvedCity
+        },
+        {
+          field: "legal_form",
+          values: resolvedLegalForms.map(lf => lf.toLowerCase())
+        },
+        {
+          field: "incorporated_at",
+          min: resolvedSinceDate
         }
-      ];
-    } else {
-      // TODO: Echten API-Call implementieren wenn API-Dokumentation vorliegt
-      console.log(`[syncOpenRegister] LIVE mode for city=${resolvedCity}`);
-      apiResults = [];
+      ],
+      pagination: {
+        per_page: resolvedLimit
+      }
+    };
+
+    // API-Call an OpenRegister
+    const response = await fetch(`${OPENREGISTER_BASE_URL}/v1/search/company`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENREGISTER_API_KEY}`
+      },
+      body: JSON.stringify(openRegisterRequest)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+      console.error("[syncOpenRegister] OpenRegister API error:", errorData);
+      return Response.json({
+        error: `OpenRegister API error: ${errorData.error || response.statusText}`,
+        status: response.status
+      }, { status: response.status });
     }
+
+    const searchData = await response.json();
+    console.log(`[syncOpenRegister] OpenRegister response: ${searchData.results?.length || 0} companies found`);
+
+    // Response in unser Format mappen
+    apiResults = (searchData.results || []).map(item => ({
+      id: item.company_id,
+      name: item.name,
+      legalForm: item.legal_form,
+      address: item.address,
+      city: item.city,
+      zip: item.zip,
+      registerNumber: item.register_number,
+      registerCourt: item.register_court,
+      registrationDate: item.incorporated_at,
+      active: item.active,
+      registerType: item.register_type
+    }));
 
     const limitedResults = apiResults.slice(0, resolvedLimit);
     
@@ -214,7 +247,7 @@ Deno.serve(async (req) => {
     return Response.json({
       success: true,
       dry_run: Boolean(dry_run),
-      simulated: !isEndpointImplemented,
+      simulated: false,
       organization_id,
       city: resolvedCity,
       radius_km: resolvedRadius,
@@ -224,9 +257,7 @@ Deno.serve(async (req) => {
       outside_radius_count: outsideRadiusCount,
       unknown_geo_count: unknownGeoCount,
       preview,
-      message: !isEndpointImplemented
-        ? "Dry-run simulation only – real OpenRegister endpoint not implemented yet. No data saved."
-        : "Fresh lead source sync completed."
+      message: "Fresh lead source sync completed."
     });
 
   } catch (error) {
