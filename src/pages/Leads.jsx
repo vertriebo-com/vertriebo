@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import { useQuery } from "@tanstack/react-query";
@@ -126,6 +126,25 @@ export default function Leads() {
     URL.revokeObjectURL(url);
   };
 
+  const handleAnalyzeLatest = async () => {
+    if (!orgId) return;
+    try {
+      setResearching(true);
+      const result = await base44.functions.invoke("analyzeLeadEngine", {
+        organization_id: orgId,
+        mode: "latest",
+        limit: 10
+      });
+      if (result?.data?.success) {
+        refetch();
+      }
+    } catch (error) {
+      console.error("Engine analysis error:", error);
+    } finally {
+      setResearching(false);
+    }
+  };
+
 
 
   if (loading || filterLoading) {
@@ -163,7 +182,7 @@ export default function Leads() {
       </div>
 
       {/* Vertriebo Engine Stats */}
-      <EngineStatsBox companies={filtered} />
+      <EngineStatsBox companies={filtered} onAnalyzeLatest={isAdmin ? handleAnalyzeLatest : null} />
 
       {/* LearnedIntelligence Widget */}
       <LearnedIntelligencePanel organizationId={orgId} />
@@ -276,10 +295,10 @@ export default function Leads() {
                  </Button>
                </a>
              )}
-           </div>
-          ) : (
-            <Button variant="outline" onClick={() => { setStatusFilter(null); setFocusFilter(null); setSearch(""); }} className="gap-2 border border-[#E2E8F0]">Filter zurücksetzen</Button>
-          )}
+            </div>
+           ) : (
+             <Button variant="outline" onClick={() => { setStatusFilter(null); setFocusFilter(null); setSearch(""); }} className="gap-2 border border-[#E2E8F0]">Filter zurücksetzen</Button>
+           )}
         </div>
       ) : (
         <div className="space-y-3">

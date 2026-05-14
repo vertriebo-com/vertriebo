@@ -32,24 +32,37 @@ import { Button } from "@/components/ui/button";
 import { analyzeLeadTemperature } from "@/utils/analyzeLeadTemperature";
 import { toast } from "sonner";
 
+// Safe JSON parse helper
+function safeParseArray(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string') return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function EngineBox({ company, contactLogs = [], tasks = [], orgId, onAddTask, onReanalyze }) {
   const [analyzing, setAnalyzing] = useState(false);
   
   // Gespeicherte Engine-Ergebnisse bevorzugen, sonst Frontend-Fallback
-  const hasPersisted = company.lead_temperature && company.lead_temperature !== "unknown";
+  const hasPersisted = company?.lead_temperature && company.lead_temperature !== "unknown";
   
   const analysis = hasPersisted ? {
-    temperature: (company.lead_temperature || "Cold").charAt(0).toUpperCase() + (company.lead_temperature || "Cold").slice(1),
-    score: company.lead_temperature_score || 0,
-    confidence: company.engine_confidence || 0.5,
-    reason: company.lead_temperature_reason || "",
-    nextBestAction: company.next_best_action || "",
-    firstContactSummary: company.first_contact_summary || "",
-    lastContactSummary: company.last_contact_summary || null,
+    temperature: (company?.lead_temperature || "Cold").charAt(0).toUpperCase() + (company?.lead_temperature || "Cold").slice(1),
+    score: company?.lead_temperature_score || 0,
+    confidence: company?.engine_confidence || 0.5,
+    reason: company?.lead_temperature_reason || "",
+    nextBestAction: company?.next_best_action || "",
+    firstContactSummary: company?.first_contact_summary || "",
+    lastContactSummary: company?.last_contact_summary || null,
     signals: {
-      buying: company.buying_signals ? JSON.parse(company.buying_signals) : [],
-      risks: company.risk_signals ? JSON.parse(company.risk_signals) : [],
-      missing: company.missing_data ? JSON.parse(company.missing_data) : [],
+      buying: safeParseArray(company?.buying_signals),
+      risks: safeParseArray(company?.risk_signals),
+      missing: safeParseArray(company?.missing_data),
     }
   } : analyzeLeadTemperature(company, contactLogs, tasks);
   

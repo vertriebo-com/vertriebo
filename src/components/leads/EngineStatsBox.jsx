@@ -21,6 +21,14 @@
 import { Zap, Flame, Thermometer } from "lucide-react";
 import { analyzeLeadTemperature } from "@/utils/analyzeLeadTemperature";
 
+// Safe temperature getter
+function getSafeTemperature(company) {
+  const temp = company?.lead_temperature;
+  if (!temp || temp === "unknown" || typeof temp !== 'string') return "Cold";
+  const normalized = temp.charAt(0).toUpperCase() + temp.slice(1).toLowerCase();
+  return ["Hot", "Warm", "Cold"].includes(normalized) ? normalized : "Cold";
+}
+
 export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMap = {}, onAnalyzeLatest }) {
   if (!companies || companies.length === 0) {
     return (
@@ -36,19 +44,23 @@ export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMa
 
   // Nutze gespeicherte Engine-Ergebnisse, Fallback zu Frontend-Berechnung
   const analyses = companies.map(company => {
-    const hasPersisted = company.lead_temperature && company.lead_temperature !== "unknown";
+    const hasPersisted = company?.lead_temperature && company.lead_temperature !== "unknown";
     
     if (hasPersisted) {
       return {
-        temperature: (company.lead_temperature || "Cold").charAt(0).toUpperCase() + (company.lead_temperature || "Cold").slice(1),
-        score: company.lead_temperature_score || 0,
+        temperature: getSafeTemperature(company),
+        score: company?.lead_temperature_score || 0,
       };
     }
     
-    const logs = contactLogsMap[company.id] || [];
-    const tasks = tasksMap[company.id] || [];
-    const result = analyzeLeadTemperature(company, logs, tasks);
-    return { temperature: result.temperature, score: result.score };
+    try {
+      const logs = contactLogsMap[company?.id] || [];
+      const tasks = tasksMap[company?.id] || [];
+      const result = analyzeLeadTemperature(company, logs, tasks);
+      return { temperature: result?.temperature || "Cold", score: result?.score || 0 };
+    } catch {
+      return { temperature: "Cold", score: 0 };
+    }
   });
 
   const hot = analyses.filter(a => a.temperature === "Hot").length;
@@ -102,37 +114,44 @@ export default function EngineStatsBox({ companies, contactLogsMap = {}, tasksMa
             <p className="text-xs font-bold uppercase tracking-wide text-slate-700">Top 3 nach Score</p>
           </div>
           <div className="divide-y divide-[#E2E8F0]">
-            {topLeads.map((company) => (
-              <div key={company.id} className="px-5 py-3 hover:bg-slate-50 transition-colors">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{company.name}</p>
-                    <p className="text-xs text-slate-600 truncate">{company.branche}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-bold"
-                      style={{
-                        borderColor: company.analysis.temperature === "Hot" ? "#fca5a5" :
-                                    company.analysis.temperature === "Warm" ? "#fcd34d" : "#d1d5db",
-                        backgroundColor: company.analysis.temperature === "Hot" ? "#fef2f2" :
-                                        company.analysis.temperature === "Warm" ? "#fffbeb" : "#f9fafb",
-                        color: company.analysis.temperature === "Hot" ? "#991b1b" :
-                              company.analysis.temperature === "Warm" ? "#92400e" : "#374151"
-                      }}>
-                      {company.analysis.temperature}
-                    </div>
-                    <p className="text-xs font-bold text-slate-900 mt-1">{company.analysis.score}</p>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-600 mt-1.5 leading-snug">{company.analysis.reason.substring(0, 60)}...</p>
-              </div>
-            ))}
+           {topLeads.map((company) => {
+             const tempColor = company.analysis?.temperature === "Hot" ? "#fca5a5" :
+                              company.analysis?.temperature === "Warm" ? "#fcd34d" : "#d1d5db";
+             const tempBg = company.analysis?.temperature === "Hot" ? "#fef2f2" :
+                           company.analysis?.temperature === "Warm" ? "#fffbeb" : "#f9fafb";
+             const tempText = company.analysis?.temperature === "Hot" ? "#991b1b" :
+                             company.analysis?.temperature === "Warm" ? "#92400e" : "#374151";
+             const reasonText = company.analysis?.reason || "Analyse ausstehend";
+
+             return (
+               <div key={company.id} className="px-5 py-3 hover:bg-slate-50 transition-colors">
+                 <div className="flex items-start justify-between gap-2">
+                   <div className="flex-1 min-w-0">
+                     <p className="text-sm font-semibold text-slate-900 truncate">{company.name}</p>
+                     <p className="text-xs text-slate-600 truncate">{company.branche}</p>
+                   </div>
+                   <div className="text-right flex-shrink-0">
+                     <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-bold"
+                       style={{
+                         borderColor: tempColor,
+                         backgroundColor: tempBg,
+                         color: tempText
+                       }}>
+                       {company.analysis?.temperature || "Cold"}
+                     </div>
+                     <p className="text-xs font-bold text-slate-900 mt-1">{company.analysis?.score || 0}</p>
+                   </div>
+                 </div>
+                 <p className="text-xs text-slate-600 mt-1.5 leading-snug">{reasonText.substring(0, 60)}...</p>
+               </div>
+             );
+           })}
           </div>
         </div>
       )}
       
       {onAnalyzeLatest && (
-        <div className="border-t border-[#E2E8F0] pt-3 mt-3">
+        <div className="border-t border-[#E2E8F0] px-5 py-3">
           <button
             onClick={onAnalyzeLatest}
             className="text-xs font-semibold text-blue-600 hover:text-blue-700 underline"
