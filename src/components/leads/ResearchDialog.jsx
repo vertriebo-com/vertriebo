@@ -25,7 +25,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [settings, setSettings] = useState({});
   const [targetCount, setTargetCount] = useState(25);
   const [usageInfo, setUsageInfo] = useState(null);
-  const [planLimits, setPlanLimits] = useState(DEFAULT_PLAN_LIMITS);
+  const [currentPlanLimits, setCurrentPlanLimits] = useState(DEFAULT_PLAN_LIMITS);
   const [currentPlan, setCurrentPlan] = useState(null);
   const [slowWarning, setSlowWarning] = useState(false);
   const [researchRun, setResearchRun] = useState(null);
@@ -87,7 +87,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
         ]);
         if (plans[0]) {
           setCurrentPlan(plans[0]);
-          setPlanLimits({
+          setCurrentPlanLimits({
             max_leads_per_month: plans[0].max_leads_per_month ?? 300,
           });
         }
@@ -535,9 +535,9 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                          <div className="flex justify-between text-blue-800">
                            <span>Gespeicherte Kontakte:</span>
                            <span className="font-semibold">
-                             {usageInfo.leads_created} / {(planLimits?.max_leads_per_month ?? 300) === -1 ? "∞" : planLimits?.max_leads_per_month ?? 300}
-                             {(planLimits?.max_leads_per_month ?? 300) !== -1 && (
-                               <span className="ml-1 text-blue-600">· {Math.max(0, (planLimits?.max_leads_per_month ?? 300) - usageInfo.leads_created)} verfügbar</span>
+                             {usageInfo.leads_created} / {(currentPlanLimits?.max_leads_per_month ?? 300) === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300}
+                             {(currentPlanLimits?.max_leads_per_month ?? 300) !== -1 && (
+                               <span className="ml-1 text-blue-600">· {Math.max(0, (currentPlanLimits?.max_leads_per_month ?? 300) - usageInfo.leads_created)} verfügbar</span>
                              )}
                            </span>
                          </div>
@@ -632,9 +632,9 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                 <div className="flex justify-between text-amber-800">
                   <span>Firmenkontakte:</span>
                   <span className="font-semibold">
-                    {usageInfo?.leads_created ?? 0} / {planLimits?.max_leads_per_month === -1 ? "∞" : planLimits?.max_leads_per_month ?? 300}
-                    {planLimits?.max_leads_per_month !== -1 && (
-                      <span className="ml-1 text-amber-600">· {Math.max(0, (planLimits?.max_leads_per_month ?? 300) - (usageInfo?.leads_created ?? 0))} verfügbar</span>
+                    {usageInfo?.leads_created ?? 0} / {currentPlanLimits?.max_leads_per_month === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300}
+                    {currentPlanLimits?.max_leads_per_month !== -1 && (
+                      <span className="ml-1 text-amber-600">· {Math.max(0, (currentPlanLimits?.max_leads_per_month ?? 300) - (usageInfo?.leads_created ?? 0))} verfügbar</span>
                     )}
                   </span>
                 </div>
@@ -647,9 +647,9 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                 <div className="flex justify-between text-blue-800">
                   <span>Firmenkontakte:</span>
                   <span className="font-semibold">
-                    {usageInfo?.leads_created ?? 0} / {planLimits?.max_leads_per_month === -1 ? "∞" : planLimits?.max_leads_per_month ?? 300}
-                    {planLimits?.max_leads_per_month !== -1 && (
-                      <span className="ml-1 text-blue-600">· {Math.max(0, (planLimits?.max_leads_per_month ?? 300) - (usageInfo?.leads_created ?? 0))} verfügbar</span>
+                    {usageInfo?.leads_created ?? 0} / {currentPlanLimits?.max_leads_per_month === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300}
+                    {currentPlanLimits?.max_leads_per_month !== -1 && (
+                      <span className="ml-1 text-blue-600">· {Math.max(0, (currentPlanLimits?.max_leads_per_month ?? 300) - (usageInfo?.leads_created ?? 0))} verfügbar</span>
                     )}
                   </span>
                 </div>
@@ -669,19 +669,19 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
               </div>
             )}
 
-            {trialStage === 'verified_trial' && (planLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (planLimits?.max_leads_per_month ?? 300) && (
+            {trialStage === 'verified_trial' && (currentPlanLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (currentPlanLimits?.max_leads_per_month ?? 300) && (
               <div className="rounded-xl p-3 border bg-red-50 border-red-200">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
                   <div className="text-xs space-y-1">
                     <p className="font-semibold text-red-900">Testzugang-Kontingent erreicht</p>
-                    <p className="text-red-800">Sie haben {planLimits?.max_leads_per_month ?? 300} Firmenkontakte in diesem Abrechnungszeitraum genutzt.</p>
+                    <p className="text-red-800">Sie haben {currentPlanLimits?.max_leads_per_month ?? 300} Firmenkontakte in diesem Abrechnungszeitraum genutzt.</p>
                   </div>
                 </div>
               </div>
             )}
 
-            {trialStage === 'paid' && (planLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (planLimits?.max_leads_per_month ?? 300) && (
+            {trialStage === 'paid' && (currentPlanLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (currentPlanLimits?.max_leads_per_month ?? 300) && (
               <div className="rounded-xl p-3 border bg-red-50 border-red-200">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-red-600" />
@@ -710,14 +710,14 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                 >
                   Testzugang aktivieren
                 </Button>
-              ) : trialStage === 'verified_trial' && (planLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (planLimits?.max_leads_per_month ?? 300) ? (
+              ) : trialStage === 'verified_trial' && (currentPlanLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (currentPlanLimits?.max_leads_per_month ?? 300) ? (
                 <Button
                   onClick={() => window.location.href = "/settings?tab=billing"}
                   className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   Zum Billing
                 </Button>
-              ) : trialStage === 'paid' && (planLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (planLimits?.max_leads_per_month ?? 300) ? (
+              ) : trialStage === 'paid' && (currentPlanLimits?.max_leads_per_month ?? 300) !== -1 && (usageInfo?.leads_created ?? 0) >= (currentPlanLimits?.max_leads_per_month ?? 300) ? (
                 <Button
                   onClick={() => window.location.href = "/settings?tab=billing"}
                   className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
