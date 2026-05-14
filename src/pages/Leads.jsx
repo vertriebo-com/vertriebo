@@ -6,6 +6,7 @@ import { Search, Plus, Filter, X, MoreVertical, Download, TrendingUp, Building2,
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 import AddCompanyDialog from "../components/AddCompanyDialog";
 import FocusCards from "../components/leads/FocusCards";
 import PipelineBar from "../components/leads/PipelineBar";
@@ -31,6 +32,7 @@ export default function Leads() {
   const [showResearch, setShowResearch] = useState(false);
   const [researching, setResearching] = useState(false);
   const [newRunFilter, setNewRunFilter] = useState(null);
+  const [lastEngineResult, setLastEngineResult] = useState(null);
 
   // Parse new_run query parameter
   useEffect(() => {
@@ -130,16 +132,28 @@ export default function Leads() {
     if (!orgId || researching) return;
     try {
       setResearching(true);
+      toast.info("Vertriebo Engine analysiert die neuesten Leads…");
+
       const result = await base44.functions.invoke("analyzeLeadEngine", {
         organization_id: orgId,
         mode: "latest",
         limit: 10
       });
+
       if (result?.data?.success) {
-        refetch();
+        const analyzed = result.data.analyzed_count || result.data.analyzed || 0;
+        toast.success(`${analyzed} Leads analysiert. Hot/Warm/Cold wurde aktualisiert.`);
+        setLastEngineResult({
+          analyzed,
+          at: new Date().toISOString()
+        });
+        await refetch();
+      } else {
+        toast.error(result?.data?.error || "Die Vertriebo Engine konnte nicht gestartet werden.");
       }
     } catch (error) {
-      console.error("Engine analysis error:", error);
+      console.error("[Leads] Engine analysis error:", error);
+      toast.error(error?.message || "Analyse fehlgeschlagen. Bitte erneut versuchen.");
     } finally {
       setResearching(false);
     }
@@ -182,7 +196,7 @@ export default function Leads() {
       </div>
 
       {/* Vertriebo Engine Stats */}
-      <EngineStatsBox companies={filtered} onAnalyzeLatest={isAdmin ? handleAnalyzeLatest : null} analyzingLatest={researching} />
+      <EngineStatsBox companies={filtered} onAnalyzeLatest={isAdmin ? handleAnalyzeLatest : null} analyzingLatest={researching} lastEngineResult={lastEngineResult} />
 
       {/* LearnedIntelligence Widget */}
       <LearnedIntelligencePanel organizationId={orgId} />
