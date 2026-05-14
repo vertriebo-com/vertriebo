@@ -493,16 +493,18 @@ function buildTemperatureReason(context, temperature, buyingSignals, riskSignals
     return "Lead wurde als Verloren markiert. Nur wieder kontaktieren bei Bedarf- oder Ansprechpartner-Wechsel.";
   }
   if (!context.hasAnyContact) {
-    return `Noch kein Kontakt dokumentiert. Erstkontakt herstellen über ${context.hasPhone ? "Telefon" : "E-Mail"} und Bedarf klären.`;
+    const via = context.hasPhone ? "Telefon" : context.hasEmail ? "E-Mail" : "verfügbarer Kontaktweg";
+    return `Noch kein Kontakt dokumentiert. Erstkontakt herstellen via ${via} und Bedarf sowie Ansprechpartner klären.`;
   }
   if (context.hasOnlyFailedContact) {
-    return `${context.contactResultCounts.notReached}x nicht erreicht. Neu bewerten oder mit anderem Kontaktweg versuchen.`;
+    return `${context.contactResultCounts.notReached}x nicht erreicht. Mit anderem Kontaktweg erneut versuchen oder Lead zurückstellen.`;
   }
   if (riskSignals.length > 3) {
-    return `Mehrere Risiken vorhanden (${riskSignals.map(r => r.label).slice(0, 2).join(", ")}). Neu bewerten oder deprioritisieren.`;
+    const topRisks = riskSignals.slice(0, 2).map(r => r.label).join(", ");
+    return `Mehrere Risiken (${topRisks}). Datenlage verbessern oder Lead neu bewerten.`;
   }
 
-  return `Geringe Signale (${score} Punkte). Neu priorisieren oder archivieren.`;
+  return `Aktuell fehlen belastbare Kaufsignale. Erst Datenlage verbessern oder Lead zurückstellen, bis Bedarf oder Ansprechpartner klarer sind.`;
 }
 
 function buildNextBestAction(context, buyingSignals, riskSignals) {
