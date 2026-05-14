@@ -282,9 +282,9 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             <TrendingUp className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Neue Firmenkontakte recherchieren</h2>
+            <h2 className="text-lg font-bold text-slate-900">Passende Firmenkontakte finden</h2>
             <p className="text-xs text-slate-600 mt-0.5 font-medium">
-             Vertriebo durchsucht automatisch Google Maps und findet passende Firmenkontakte in Ihrem Suchgebiet.
+             Vertriebo findet passende Firmenkontakte in Ihrem Suchgebiet und zeigt Ihnen die relevantesten Leads zuerst.
             </p>
           </div>
         </div>
@@ -628,30 +628,36 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
             {trialStage === 'verified_trial' && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs space-y-2">
-                <div className="font-semibold text-amber-900 mb-1">Testzugang aktiv</div>
-                <div className="flex justify-between text-amber-800">
-                  <span>Firmenkontakte:</span>
-                  <span className="font-semibold">
-                    {usageInfo?.leads_created ?? 0} / {currentPlanLimits?.max_leads_per_month === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300}
-                    {currentPlanLimits?.max_leads_per_month !== -1 && (
-                      <span className="ml-1 text-amber-600">· {Math.max(0, (currentPlanLimits?.max_leads_per_month ?? 300) - (usageInfo?.leads_created ?? 0))} verfügbar</span>
-                    )}
-                  </span>
+                <div className="font-semibold text-amber-900 mb-1">Starter-Testphase aktiv</div>
+                <div className="text-amber-800 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Genutzt:</span>
+                    <span className="font-semibold">{usageInfo?.leads_created ?? 0} von {currentPlanLimits?.max_leads_per_month === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300} Firmenkontakten</span>
+                  </div>
+                  {currentPlanLimits?.max_leads_per_month !== -1 && (
+                    <div className="flex justify-between text-amber-700">
+                      <span>Verfügbar:</span>
+                      <span className="font-semibold">{Math.max(0, (currentPlanLimits?.max_leads_per_month ?? 300) - (usageInfo?.leads_created ?? 0))} Firmenkontakte</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
             {trialStage === 'paid' && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-2">
-                <div className="font-semibold text-blue-900 mb-1">Monatliches Kontingent</div>
-                <div className="flex justify-between text-blue-800">
-                  <span>Firmenkontakte:</span>
-                  <span className="font-semibold">
-                    {usageInfo?.leads_created ?? 0} / {currentPlanLimits?.max_leads_per_month === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300}
-                    {currentPlanLimits?.max_leads_per_month !== -1 && (
-                      <span className="ml-1 text-blue-600">· {Math.max(0, (currentPlanLimits?.max_leads_per_month ?? 300) - (usageInfo?.leads_created ?? 0))} verfügbar</span>
-                    )}
-                  </span>
+                <div className="font-semibold text-blue-900 mb-1">Starter aktiv</div>
+                <div className="text-blue-800 space-y-1">
+                  <div className="flex justify-between">
+                    <span>Genutzt:</span>
+                    <span className="font-semibold">{usageInfo?.leads_created ?? 0} von {currentPlanLimits?.max_leads_per_month === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300} Firmenkontakten</span>
+                  </div>
+                  {currentPlanLimits?.max_leads_per_month !== -1 && (
+                    <div className="flex justify-between text-blue-700">
+                      <span>Verfügbar:</span>
+                      <span className="font-semibold">{Math.max(0, (currentPlanLimits?.max_leads_per_month ?? 300) - (usageInfo?.leads_created ?? 0))} Firmenkontakte</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -733,7 +739,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   disabled={targetCustomers.length === 0}
                   className="flex-1 gap-2"
                 >
-                  <TrendingUp className="w-4 h-4" />Recherche starten
+                  <TrendingUp className="w-4 h-4" />Firmenkontakte finden
                 </Button>
               )}
             </div>

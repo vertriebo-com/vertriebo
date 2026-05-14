@@ -86,16 +86,16 @@ function EngineStatsBox({ companies, onAnalyzeLatest, analyzingLatest = false, l
       <div className="p-5 border-b border-[#E2E8F0]">
         <div className="flex items-center gap-2 mb-4">
           <Zap className="w-4 h-4 text-purple-600" />
-          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Vertriebo Engine Übersicht</h3>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Vertriebo Engine Status</h3>
         </div>
-        <p className="text-xs text-slate-600 mb-3">Engine-Status Ihrer {companies.length} Leads</p>
+        <p className="text-xs text-slate-600 mb-3">Priorisierung von {companies.length} Kontakten</p>
 
         {/* Temperatur-Stats */}
         <div className="grid grid-cols-4 gap-2">
           {/* Hot */}
           <div className="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-lg p-2.5 text-center">
             <p className="text-xl font-black text-red-600">{hot}</p>
-            <p className="text-[9px] font-bold uppercase text-red-700 mt-0.5">Hot</p>
+            <p className="text-[9px] font-bold uppercase text-red-700 mt-0.5">Heiß</p>
             <p className="text-[8px] text-red-600 mt-0.5">🔥</p>
           </div>
 
@@ -109,7 +109,7 @@ function EngineStatsBox({ companies, onAnalyzeLatest, analyzingLatest = false, l
           {/* Cold */}
           <div className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-300 rounded-lg p-2.5 text-center">
             <p className="text-xl font-black text-slate-600">{cold}</p>
-            <p className="text-[9px] font-bold uppercase text-slate-700 mt-0.5">Cold</p>
+            <p className="text-[9px] font-bold uppercase text-slate-700 mt-0.5">Kalt</p>
             <p className="text-[8px] text-slate-600 mt-0.5">❄️</p>
           </div>
 
@@ -127,7 +127,9 @@ function EngineStatsBox({ companies, onAnalyzeLatest, analyzingLatest = false, l
         {topLeads.length > 0 ? (
           <>
             <div className="px-5 py-3 bg-slate-50 border-b border-[#E2E8F0]">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-700">Top 3 analysierte Leads</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-700">
+                {hot + warm > 0 ? "Analysierte Leads mit höchster Priorität" : "Analysierte Leads mit höchster Priorität"}
+              </p>
             </div>
             <div className="divide-y divide-[#E2E8F0]">
              {topLeads.map((company) => {
@@ -165,8 +167,8 @@ function EngineStatsBox({ companies, onAnalyzeLatest, analyzingLatest = false, l
           </>
         ) : (
           <div className="px-5 py-6 text-center">
-            <p className="text-sm text-slate-600 font-medium mb-3">Noch keine Engine-Analysen vorhanden</p>
-            <p className="text-xs text-slate-500">Klicken Sie auf „Neueste Leads analysieren", um die Vertriebo Engine zu starten.</p>
+            <p className="text-sm text-slate-600 font-medium mb-2">Noch keine priorisierten Leads gefunden</p>
+            <p className="text-xs text-slate-500 leading-relaxed">Analysieren Sie weitere Leads oder ergänzen Sie Kontaktinformationen, damit Vertriebo bessere Empfehlungen geben kann.</p>
           </div>
         )}
       </div>
