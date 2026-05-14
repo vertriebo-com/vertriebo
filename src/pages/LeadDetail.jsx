@@ -516,7 +516,11 @@ export default function LeadDetail() {
               contactLogs={contactLogs}
               tasks={tasks}
               orgId={orgId}
-              onAddTask={() => setShowAddTask(true)}
+              onAddTask={(nextBestAction) => {
+                // Wenn nextBestAction übergeben wurde, prefill it (später in AddTaskDialog)
+                setShowAddTask(true);
+              }}
+              onReanalyze={() => loadData()}
             />
           </div>
 

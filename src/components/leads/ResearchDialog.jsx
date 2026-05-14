@@ -530,16 +530,25 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
                   {/* Credits aus DB (nach Refresh) – nur anzeigen wenn Credits verbraucht wurden */}
                   {usageInfo && result.data.chargedLeadGeneration && (
-                       <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
-                         <div className="font-semibold text-blue-900 mb-1">Verbrauch diesen Monat (aktualisiert)</div>
-                         <div className="flex justify-between text-blue-800">
-                           <span>Gespeicherte Kontakte:</span>
-                           <span className="font-semibold">
-                             {usageInfo.leads_created} / {(currentPlanLimits?.max_leads_per_month ?? 300) === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300}
-                             {(currentPlanLimits?.max_leads_per_month ?? 300) !== -1 && (
-                               <span className="ml-1 text-blue-600">· {Math.max(0, (currentPlanLimits?.max_leads_per_month ?? 300) - usageInfo.leads_created)} verfügbar</span>
-                             )}
-                           </span>
+                       <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs space-y-2">
+                         <div className="font-semibold text-green-900 mb-1">✓ Recherche abgeschlossen</div>
+                         <div className="space-y-1.5 text-green-800">
+                           <div className="flex justify-between">
+                             <span>In diesem Lauf gefunden:</span>
+                             <span className="font-semibold">{result.data.count || 0} neue Kontakte</span>
+                           </div>
+                           <div className="flex justify-between border-t border-green-200 pt-1.5">
+                             <span>Gespeicherte Kontakte <em className="text-[11px] font-normal">(Monat)</em>:</span>
+                             <span className="font-semibold">
+                               {usageInfo.leads_created} / {(currentPlanLimits?.max_leads_per_month ?? 300) === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300}
+                             </span>
+                           </div>
+                           {(currentPlanLimits?.max_leads_per_month ?? 300) !== -1 && (
+                             <div className="flex justify-between text-green-700 text-[11px]">
+                               <span>Noch verfügbar:</span>
+                               <span className="font-bold">{Math.max(0, (currentPlanLimits?.max_leads_per_month ?? 300) - usageInfo.leads_created)} Kontakte</span>
+                             </div>
+                           )}
                          </div>
                        </div>
                      )}
