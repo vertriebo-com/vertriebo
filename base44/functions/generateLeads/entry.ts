@@ -1000,7 +1000,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    const queryBudget = searchPlan.queryBudget || getQueryBudget(trialStage, remainingPreviewLeads, isFastMode);
+    // Fast-Mode überschreibt immer das Budget – egal was searchPlan zurückgegeben hat
+    const baseQueryBudget = searchPlan.queryBudget || getQueryBudget(trialStage, remainingPreviewLeads, isFastMode);
+    const queryBudget = isFastMode
+      ? { ...baseQueryBudget, maxSearchQueries: 4, maxPlaceDetails: 20, maxLeadsToSave: 10, blocked: false }
+      : baseQueryBudget;
     
     // ── P2: Plan-Limits laden + Monatslimit prüfen ───────────────────────────
     let monthlyContactLimit = 300;
@@ -1066,8 +1070,12 @@ Deno.serve(async (req) => {
       learnedPriorityCategories,
       learnedWinningSignals,
     });
-    searchPlan.searchQueries = fullSearchPlan.searchQueries;
-    searchPlan.searchPoints = fullSearchPlan.searchPoints;
+    searchPlan.searchQueries = isFastMode
+      ? (fullSearchPlan.searchQueries || []).slice(0, 4)
+      : fullSearchPlan.searchQueries;
+    searchPlan.searchPoints = isFastMode
+      ? [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center' }]
+      : fullSearchPlan.searchPoints;
 
     const lockResult = await acquireLock(base44, organization_id, access.user.email);
     if (!lockResult.acquired) {
@@ -1080,7 +1088,8 @@ Deno.serve(async (req) => {
     if (searchQueryList.length === 0 && targetCustomerTypes.length > 0) {
       console.warn(`[generateLeads] Fallback auf targetCustomerTypes für Queries`);
       const seen = new Set();
-      for (const tc of targetCustomerTypes.slice(0, queryBudget.maxSearchQueries || 10)) {
+      const maxFallbackQueries = isFastMode ? 4 : (queryBudget.maxSearchQueries || 10);
+      for (const tc of targetCustomerTypes.slice(0, maxFallbackQueries)) {
         const q = `${tc} ${city}`;
         if (!seen.has(q)) { seen.add(q); searchQueryList.push({ query: q, city, category: tc, variant: tc }); }
       }
