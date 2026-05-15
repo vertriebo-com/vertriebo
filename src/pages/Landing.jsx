@@ -138,95 +138,87 @@ export default function Landing() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-purple-50/50 to-white">
+    <div className="min-h-screen bg-white">
       {/* Navbar */}
-      <header className="sticky top-0 z-50 w-full bg-white/80 backdrop-blur-xl border-b border-slate-200">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-8">
-          <a href="/" className="flex items-center gap-2 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">V</span>
-            </div>
-            <span className="font-bold text-lg text-slate-900">Vertriebo</span>
+      <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/95 backdrop-blur-xl shadow-sm">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-2.5 lg:px-8">
+          <a href="/" className="flex items-center shrink-0 group">
+            <img src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/6bf8a2d63_ChatGPTImage11Mai202615_23_00.png"
+            alt="Vertriebo"
+            className="h-20 md:h-24 lg:h-28 w-auto object-contain transition-transform group-hover:scale-105" />
           </a>
 
-          <div className="hidden md:flex items-center gap-8">
-            <a href="#pricing" className="text-sm font-medium text-slate-600 hover:text-slate-900">Pricing</a>
-            <a href="#features" className="text-sm font-medium text-slate-600 hover:text-slate-900">Features</a>
-            <a href="#contact" className="text-sm font-medium text-slate-600 hover:text-slate-900">Contact</a>
-          </div>
-
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-2 md:gap-4">
             <button
               onClick={handleLogin}
-              className="px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-semibold text-slate-700 hover:text-slate-900 transition-colors">
-              Sign In
+              className="px-4 md:px-5 py-2.5 rounded-lg text-xs md:text-sm font-semibold text-slate-700 border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 transition-all duration-200">
+              Login
             </button>
             <button
               onClick={handleRegister}
-              className="px-4 md:px-5 py-2 rounded-lg text-xs md:text-sm font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:shadow-lg hover:shadow-purple-600/30 transition-all duration-200">
-              Get Started Free
+              className="px-4 md:px-6 py-2.5 rounded-lg text-xs md:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 shadow-md shadow-blue-600/30 transition-all duration-200 flex items-center gap-1.5">
+              <span>🚀</span> 14 Tage testen
             </button>
           </div>
         </div>
       </header>
 
-      {/* HERO SECTION – Modern AI-Agent Style */}
-      <div className="relative overflow-hidden">
-        {/* Floating Elements Background */}
-        <div className="absolute top-20 left-10 w-32 h-32 bg-purple-200 rounded-full opacity-20 blur-3xl" />
-        <div className="absolute bottom-40 right-10 w-40 h-40 bg-blue-200 rounded-full opacity-20 blur-3xl" />
-        <div className="absolute top-1/3 right-1/4 w-24 h-24 bg-purple-100 rounded-full opacity-15 blur-3xl" />
-
-        <div className="max-w-7xl mx-auto px-6 py-20 md:py-28 lg:px-8 relative z-10">
-          {/* Floating Element Labels */}
-          <div className="absolute top-24 left-8 md:left-16 bg-purple-100 text-purple-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-purple-500" />
-            Lead Generator
-          </div>
-          <div className="absolute bottom-32 right-8 md:right-16 bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
-            AI Scoring
-          </div>
-          <div className="absolute top-1/2 right-12 bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm hidden lg:flex">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            Smart CRM
-          </div>
-
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Linke Seite: Headline */}
-            <div>
-              <div className="inline-flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-full mb-6 bg-purple-100 border border-purple-200 text-purple-700">
-                <Zap className="w-3.5 h-3.5" /> Powerful Lead Intelligence
+      {/* A) Hero mit starkem Nutzenversprechen */}
+       <div className="relative overflow-hidden bg-white border-b border-slate-200">
+         <div className="max-w-7xl mx-auto px-6 py-16 md:py-24 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            {/* Linke Seite: Headline + CTA */}
+            <div className="text-left">
+              <div className="inline-flex items-center gap-2 text-xs font-bold px-3 py-1.5 rounded-full mb-5 bg-blue-600 text-white">
+                <Zap className="w-3.5 h-3.5 fill-white" /> Für lokale Dienstleister
               </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 bg-clip-text text-transparent leading-tight">
-                Find Hot Leads. Prioritize Smart. Win More.
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight mb-6 text-slate-900 leading-tight">
+                Neue Firmenkunden finden. Leads priorisieren.<br />Vertrieb einfacher steuern.
               </h1>
-              <p className="text-lg mb-6 text-slate-600 leading-relaxed">
-                Vertriebo combines fresh company data with AI scoring to find your ideal clients and tell your team exactly who to call next.
+              <p className="text-lg mb-3 text-slate-600 leading-relaxed font-medium">
+                Vertriebo findet passende B2B-Kontakte, priorisiert heiße Leads und zeigt Ihrem Team, wen es als Nächstes kontaktieren sollte.
+              </p>
+              <p className="text-sm mb-8 text-slate-500 font-medium">
+                Für B2B-Dienstleister in ganz Deutschland – z. B. Gebäudereinigung, IT-Service, Handwerk, Logistik, Pflege, Catering und viele weitere Branchen.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3 mb-8">
-                <button
+                 <button
                   onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}
-                  className="px-6 py-3 rounded-lg text-base font-bold text-white bg-gradient-to-r from-purple-600 to-blue-600 hover:shadow-lg hover:shadow-purple-600/30 transition-all duration-200">
-                  Get Started Free
-                </button>
-                <button
-                  className="px-6 py-3 rounded-lg text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
-                  <span>▶</span> Watch Demo
-                </button>
-              </div>
+                  className="px-7 py-3.5 rounded-xl text-base font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-xl shadow-blue-600/25">
 
+                   14 Tage kostenlos testen
+                 </button>
+                 <a
+                  href="#how-it-works"
+                  className="px-7 py-3.5 rounded-xl text-base font-bold text-slate-700 border-2 border-slate-300 bg-white hover:bg-slate-50 transition-all flex items-center justify-center gap-2">
+
+                   So funktioniert Vertriebo
+                 </a>
+               </div>
+
+               <div className="text-sm text-slate-700 bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8">
+                 <p className="font-semibold text-blue-900 mb-3">Kostenlos starten:</p>
+                 <div className="space-y-2">
+                   <p>→ 10 Firmenkontakte ohne Kreditkarte testen</p>
+                   <p>→ 14 Tage vollen Zugang mit Zahlungsart aktivieren</p>
+                   <p>→ Danach monatlich kündbar</p>
+                 </div>
+               </div>
+              
               {/* Trust Badges */}
-              <div className="flex flex-wrap gap-4 text-xs font-semibold text-slate-600">
+              <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-slate-600">
                 <div className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-600" /> Free Trial
+                  <Check className="w-4 h-4 text-emerald-600" /> 14 Tage kostenlos testen
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-600" /> No Credit Card
+                  <Check className="w-4 h-4 text-emerald-600" /> Monatlich kündbar
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Check className="w-4 h-4 text-emerald-600" /> Cancel Anytime
+                  <Check className="w-4 h-4 text-emerald-600" /> DSGVO-orientiert
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Check className="w-4 h-4 text-emerald-600" /> Für deutsche B2B-Dienstleister
                 </div>
               </div>
             </div>
