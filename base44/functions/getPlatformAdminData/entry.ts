@@ -67,8 +67,9 @@ Deno.serve(async (req) => {
         suspended_at: org.platform_status === 'suspended' ? org.suspended_at : null,
         suspended_by: org.platform_status === 'suspended' ? org.suspended_by : null,
         // Aggregated metrics
-        leads_count: 0,
-        research_runs_count: 0,
+        leads_count: 0,          // gesamt gespeicherte Leads (alle ResearchRuns)
+        monthly_leads_created: 0, // neue Leads diesen Monat (UsageLog)
+        research_runs_count: 0,  // Recherche-Läufe diesen Monat
         ai_actions_used: 0,
         manual_emails_logged: 0,
         last_lead_generation_at: null,
@@ -82,14 +83,22 @@ Deno.serve(async (req) => {
       // Get usage from current month
       const usage = usageLogs.find(u => u.organization_id === org.id);
       if (usage) {
-        org.leads_count = usage.leads_created || 0;
+        // monthly_leads_created = neue Leads diesen Monat (aus UsageLog)
+        org.monthly_leads_created = usage.leads_created || 0;
+        // leads_count bleibt 0 hier – wird unten durch ResearchRun-Summe aller Zeiten ersetzt
         org.ai_actions_used = usage.ai_actions_used || 0;
         org.manual_emails_logged = usage.manual_emails_logged || 0;
         org.estimated_external_cost_cent = usage.estimated_external_cost_cent || 0;
       }
 
       const orgResearchRuns = (researchRuns || []).filter(r => r.organization_id === org.id);
-      org.research_runs_count = orgResearchRuns.length;
+      // research_runs_count = nur Läufe diesen Monat
+      const periodMonthStr = getPeriodMonth();
+      const monthStart = new Date(periodMonthStr + '-01T00:00:00Z');
+      const orgRunsThisMonth = orgResearchRuns.filter(r => new Date(r.created_date) >= monthStart);
+      org.research_runs_count = orgRunsThisMonth.length;
+      // leads_count = Summe aller gespeicherten Leads (über alle ResearchRuns)
+      org.leads_count = orgResearchRuns.reduce((sum, r) => sum + (r.leads_saved || 0), 0);
       org.last_lead_generation_at = orgResearchRuns.length > 0 
         ? orgResearchRuns.sort((a, b) => new Date(b.created_date) - new Date(a.created_date))[0].created_date 
         : null;

@@ -431,17 +431,18 @@ function getQueryBudget(trialStage, remainingLeadBudget) {
     return { blocked: false, maxLeadsToSave: Math.min(remainingLeadBudget, 10), maxSearchQueries: 8, maxPlaceDetails: 20, stopWhenEnoughLeadsFound: true };
   }
   if (trialStage === 'verified_trial') {
-    return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 35, maxPlaceDetails: 90, stopWhenEnoughLeadsFound: true };
+    return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 20, maxPlaceDetails: 60, stopWhenEnoughLeadsFound: true };
   }
-  return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 60, maxPlaceDetails: 120, stopWhenEnoughLeadsFound: true };
+  // paid: konservativ halten damit kein Timeout entsteht
+  return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 30, maxPlaceDetails: 80, stopWhenEnoughLeadsFound: true };
 }
 
 function getCityLimit(trialStage, radiusKm) {
   if (trialStage === 'free_preview') return 1;
   if (radiusKm <= 10) return 1;
-  if (radiusKm <= 25) return 3;
-  if (radiusKm <= 60) return 5;
-  return 7;
+  if (radiusKm <= 25) return 2;
+  if (radiusKm <= 60) return 3;
+  return 4;
 }
 
 function buildSearchPlan({ industry, targetCustomerTypes = [], excludedCustomerTypes = [], location, radiusKm = 25, trialStage = 'free_preview', remainingLeadBudget = 3, additionalCities = [], searchPoints = [], learnedPriorityCategories = [], learnedWinningSignals = [] }) {
@@ -630,7 +631,8 @@ function generateSearchGrid(centerLat, centerLng, radiusKm, trialStage) {
   if (trialStage === 'free_preview') return points;
 
   const stepKm = 15;
-  const rings = radiusKm <= 20 ? 1 : radiusKm <= 35 ? 2 : 3;
+  // Reduzierte Rings um Laufzeit stabil zu halten
+  const rings = radiusKm <= 20 ? 1 : radiusKm <= 40 ? 1 : 2;
 
   for (let ring = 1; ring <= rings; ring++) {
     const ringRadiusKm = ring * stepKm;

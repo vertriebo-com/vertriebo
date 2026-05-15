@@ -202,13 +202,17 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       }
     } catch (e) {
        console.error("[ResearchDialog] generateLeads error:", e);
-       const errorMsg = e?.response?.data?.error || e?.message || "Recherche fehlgeschlagen. Bitte erneut versuchen.";
+       const rawMsg = e?.response?.data?.error || e?.message || "";
        // Friendly error messages
-       if (errorMsg && (errorMsg.includes('trial') || errorMsg.includes('preview'))) {
+       if (rawMsg && (rawMsg.includes('trial') || rawMsg.includes('preview'))) {
          setShowTrialInfoDialog(true);
          setError("Vorschau-Limit erreicht");
+       } else if (rawMsg.includes('503') || rawMsg.includes('timeout') || rawMsg.includes('Gateway')) {
+         setError("Die Recherche hat zu lange gedauert. Bitte starten Sie den Lauf erneut oder reduzieren Sie das Suchgebiet.");
+       } else if (rawMsg.includes('503')) {
+         setError("Die Recherche hat zu lange gedauert. Bitte erneut versuchen.");
        } else {
-         setError(errorMsg || "Recherche fehlgeschlagen. Bitte erneut versuchen.");
+         setError("Recherche fehlgeschlagen. Bitte erneut versuchen.");
        }
     } finally {
       clearTimeout(slowTimerRef.current);

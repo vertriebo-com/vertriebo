@@ -638,24 +638,28 @@ export default function PlatformAdmin() {
                   </div>
                 </div>
 
-                {/* Nutzung (aktueller Monat) */}
+                {/* Nutzung */}
                 <div>
-                  <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">Nutzung (aktueller Monat)</h3>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  <h3 className="text-xs font-bold uppercase text-slate-600 mb-3">Nutzung</h3>
+                  <div className="grid grid-cols-2 gap-3 mb-3">
+                    <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+                      <p className="text-xs text-slate-500 font-medium">Gespeicherte Leads gesamt</p>
+                      <p className="text-lg font-bold text-slate-900">{selectedOrg.leads_count ?? 0}</p>
+                    </div>
                     <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                      <p className="text-xs text-slate-500 font-medium">Leads</p>
-                      <p className="text-lg font-bold text-blue-700">{selectedOrg.leads_count}</p>
+                      <p className="text-xs text-slate-500 font-medium">Neue Leads diesen Monat</p>
+                      <p className="text-lg font-bold text-blue-700">{selectedOrg.monthly_leads_created ?? 0}</p>
                     </div>
                     <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-                      <p className="text-xs text-slate-500 font-medium">Recherche-Läufe</p>
-                      <p className="text-lg font-bold text-purple-700">{selectedOrg.research_runs_count}</p>
+                      <p className="text-xs text-slate-500 font-medium">Recherche-Läufe diesen Monat</p>
+                      <p className="text-lg font-bold text-purple-700">{selectedOrg.research_runs_count ?? 0}</p>
                     </div>
                     <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
-                      <p className="text-xs text-slate-500 font-medium">KI-Aktionen</p>
-                      <p className="text-lg font-bold text-amber-700">{selectedOrg.ai_actions_used}</p>
+                      <p className="text-xs text-slate-500 font-medium">KI-Aktionen diesen Monat</p>
+                      <p className="text-lg font-bold text-amber-700">{selectedOrg.ai_actions_used ?? 0}</p>
                     </div>
                   </div>
-                  </div>
+                </div>
 
                 {/* System-Details */}
                 <div>
@@ -708,12 +712,12 @@ export default function PlatformAdmin() {
                     </div>
 
                     {/* API-Kosten diesen Monat */}
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-500">API-Kosten (Monat)</span>
-                      <span className="font-semibold text-slate-900">
-                        ${((selectedOrg.estimated_external_cost_cent || 0) / 100).toFixed(2)}
-                      </span>
-                    </div>
+                     <div className="flex justify-between text-xs">
+                       <span className="text-slate-500">API-Kosten (Monat)</span>
+                       <span className="font-semibold text-slate-900">
+                         ${Number.isFinite(Number(selectedOrg.estimated_external_cost_cent)) ? (Number(selectedOrg.estimated_external_cost_cent) / 100).toFixed(2) : "0.00"}
+                       </span>
+                     </div>
 
                     {/* OrgLearnedSignals */}
                     <div className="flex justify-between text-xs">

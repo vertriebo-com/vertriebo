@@ -214,7 +214,10 @@ export default function Leads() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Leads</h1>
           <p className="text-sm font-medium text-slate-700 mt-1">
-            {filtered.length} von {companies.length} Firmen · {filtered.filter(c => c.status === "Rückruf").length} Rückrufe offen
+            {filtered.length < companies.length
+              ? `${filtered.length} von ${companies.length} Firmenkontakten angezeigt`
+              : `${companies.length} Firmenkontakte`}
+            {filtered.filter(c => c.status === "Rückruf").length > 0 && ` · ${filtered.filter(c => c.status === "Rückruf").length} Rückrufe offen`}
           </p>
         </div>
         {isAdmin && (
