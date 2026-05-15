@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
 
     // ── Load Data via Service Role ────────────────────────────────────────
     const periodMonth = getPeriodMonth();
-    const [orgs, plans, usageLogs, researchRuns, supportNotes, auditLogs, platformConfigs, orgSettings, learnedSignals] = await Promise.all([
+    const [orgs, plans, usageLogs, researchRuns, supportNotes, auditLogs, platformConfigs, orgSettings, learnedSignals, allCompanies] = await Promise.all([
       base44.asServiceRole.entities.Organization.list(),
       base44.asServiceRole.entities.Plan.list(),
       base44.asServiceRole.entities.UsageLog.filter({ period_month: periodMonth }),
@@ -22,6 +22,7 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.PlatformConfig.list(),
       base44.asServiceRole.entities.OrganizationSettings.filter({}),
       base44.asServiceRole.entities.OrgLearnedSignals.filter({}),
+      base44.asServiceRole.entities.Company.list('-created_date', 5000),
     ]);
 
     // ── Build Safe Response ───────────────────────────────────────────────
@@ -93,12 +94,11 @@ Deno.serve(async (req) => {
 
       const orgResearchRuns = (researchRuns || []).filter(r => r.organization_id === org.id);
       // research_runs_count = nur Läufe diesen Monat
-      const periodMonthStr = getPeriodMonth();
-      const monthStart = new Date(periodMonthStr + '-01T00:00:00Z');
+      const monthStart = new Date(periodMonth + '-01T00:00:00Z');
       const orgRunsThisMonth = orgResearchRuns.filter(r => new Date(r.created_date) >= monthStart);
       org.research_runs_count = orgRunsThisMonth.length;
-      // leads_count = Summe aller gespeicherten Leads (über alle ResearchRuns)
-      org.leads_count = orgResearchRuns.reduce((sum, r) => sum + (r.leads_saved || 0), 0);
+      // leads_count = tatsächlicher Company-Bestand (inkl. manuell, importiert)
+      org.leads_count = (allCompanies || []).filter(c => c.organization_id === org.id).length;
       org.last_lead_generation_at = orgResearchRuns.length > 0 
         ? orgResearchRuns.sort((a, b) => new Date(b.created_date) - new Date(a.created_date))[0].created_date 
         : null;
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
       active_subscriptions: organizations.filter(o => ['active', 'trialing'].includes(o.billing_status)).length,
       past_due: organizations.filter(o => o.billing_status === 'past_due').length,
       unpaid: organizations.filter(o => ['unpaid', 'canceled', 'incomplete_expired'].includes(o.billing_status)).length,
-      research_runs_this_month: (researchRuns || []).length,
+      research_runs_this_month: (researchRuns || []).filter(r => new Date(r.created_date) >= new Date(periodMonth + '-01T00:00:00Z')).length,
       leads_created_this_month: (usageLogs || []).reduce((sum, log) => sum + (log.leads_created || 0), 0),
       ai_actions_this_month: (usageLogs || []).reduce((sum, log) => sum + (log.ai_actions_used || 0), 0),
       manual_emails_this_month: (usageLogs || []).reduce((sum, log) => sum + (log.manual_emails_logged || 0), 0),
