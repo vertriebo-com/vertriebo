@@ -173,11 +173,11 @@ Deno.serve(async (req) => {
       }, { status: 409 });
     }
 
-    // Trial wird aktiviert: 14 Tage kostenloses Testen mit Zahlungsmethode
-    // Das schützt vor Missbrauch, da Zahlungsmethode erforderlich ist
-    const trialDays = 14;
+    // Trial nur für Starter – Professional und Gold starten direkt ohne Testphase
+    const isStarterPlan = planName.includes('starter') || planSlug.includes('starter');
+    const trialDays = isStarterPlan ? 14 : 0;
 
-    console.info(`[createCheckoutSession] org=${organization_id} verified_trial enabled: ${trialDays} days with payment method required`);
+    console.info(`[createCheckoutSession] org=${organization_id} plan=${plan.name} trial=${trialDays}d (starter-only policy)`);
 
     // ── 6. Stripe Customer: bestehende ID nutzen oder neu anlegen ───────────
     let stripeCustomerId = org.stripe_customer_id || null;
@@ -244,7 +244,9 @@ Deno.serve(async (req) => {
 
     if (trialDays > 0) {
       sessionParams.subscription_data.trial_period_days = trialDays;
-      console.info(`[createCheckoutSession] Trial aktiviert: ${trialDays} Tage für org ${organization_id}`);
+      console.info(`[createCheckoutSession] Trial aktiviert: ${trialDays} Tage (Starter) für org ${organization_id}`);
+    } else {
+      console.info(`[createCheckoutSession] Kein Trial für Plan "${plan.name}" – direkter Start`);
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams);
@@ -254,6 +256,7 @@ Deno.serve(async (req) => {
       url: session.url,
       session_id: session.id,
       trial_days: trialDays,
+      has_trial: trialDays > 0,
       plan_name: plan.name,
     });
 

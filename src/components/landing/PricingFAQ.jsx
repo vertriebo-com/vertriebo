@@ -27,6 +27,10 @@ const FAQS = [
     answer: "Der Agency-Plan ist für Agenturen und größere Teams mit Bedarf für mehrere Kundenorganisationen und hohem Kontaktvolumen. Dieser Plan ist kein Self-Service-Produkt – wir arbeiten mit Ihnen zusammen, um eine maßgeschneiderte Lösung zu schaffen. Kontaktieren Sie uns für ein Gespräch und ein individuelles Angebot.",
   },
   {
+    question: "Gibt es eine Testphase?",
+    answer: "Ja – beim Starter-Plan erhalten Sie 14 Tage kostenlos zum Testen (Zahlungsmethode erforderlich, kein Abzug während des Testzeitraums). Professional und Gold starten direkt ohne Testphase. Alle Pläne sind monatlich kündbar.",
+  },
+  {
     question: "Kann ich monatlich kündigen?",
     answer: "Ja, alle Self-Service-Pläne (Starter, Professional, Gold) sind monatlich kündbar. Keine langfristigen Verträge, keine versteckten Kosten. Sie können jederzeit über Ihr Konto kündigen. Der Agency-Plan wird individuell vereinbart.",
   },

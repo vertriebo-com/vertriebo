@@ -244,11 +244,11 @@ export default function BillingSettings({ org: orgProp, user }) {
               <Sparkles className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Verifizierten Testzugang aktivieren</h3>
+              <h3 className="text-base font-bold text-slate-900">Plan auswählen & loslegen</h3>
               <p className="text-xs font-medium text-slate-600 mt-1">
-                Wählen Sie einen Plan und starten Sie den 14-tägigen verifizierten Testzugang.
+                Wählen Sie Ihren Plan. Beim Starter-Plan erhalten Sie 14 Tage kostenlos zum Testen.
                 <br />
-                <span className="text-slate-500">Für den verifizierten Testzugang wird eine Zahlungsmethode hinterlegt. Die Abrechnung erfolgt nach Ablauf der 14-tägigen Testphase.</span>
+                <span className="text-slate-500">Professional und Gold starten direkt. Alle Pläne sind monatlich kündbar.</span>
               </p>
             </div>
           </div>
@@ -281,7 +281,7 @@ export default function BillingSettings({ org: orgProp, user }) {
                   {checkoutLoading === p.id
                     ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     : <ArrowRight className="w-3.5 h-3.5" />}
-                  14 Tage testen
+                  {(p.name || '').toLowerCase().includes('starter') ? '14 Tage kostenlos testen' : `${p.name} buchen`}
                 </Button>
               </div>
             ))}

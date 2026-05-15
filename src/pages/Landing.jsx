@@ -24,7 +24,7 @@ const PLANS = [
   "2 Nutzer",
   "CRM & Pipeline",
   "Basis-Reports"],
-  cta: "Starter testen"
+  cta: "14 Tage kostenlos testen"
 },
 {
   name: "Professional",
@@ -40,7 +40,7 @@ const PLANS = [
   "KI-Priorisierung für heiße Leads",
   "Eigene E-Mail-Vorlagen",
   "Erweiterte Reports"],
-  cta: "Professional testen"
+  cta: "Professional buchen"
 },
 {
   name: "Gold",
@@ -55,7 +55,7 @@ const PLANS = [
   "10 Nutzer",
   "Erweiterte Automationen / Professional-Features",
   "Priority Support"],
-  cta: "Gold testen"
+  cta: "Gold buchen"
 },
 {
   name: "Agency",
@@ -533,9 +533,9 @@ export default function Landing() {
 
       {/* G) Preise */}
       <div id="pricing" className="max-w-6xl mx-auto px-6 py-20">
-        <h2 className="text-3xl font-bold text-center mb-4 text-slate-900">Einfache, transparente Preise</h2>
+        <h2 className="text-3xl font-bold text-center mb-4 text-slate-900">Wählen Sie den passenden Vertriebo-Plan</h2>
         <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
-          14 Tage kostenlos testen. Monatlich kündbar. Keine versteckten Kosten.
+          Starter können Sie 14 Tage kostenlos testen. Alle Pläne monatlich kündbar. Keine versteckten Kosten.
         </p>
         
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5 mb-12">

@@ -34,7 +34,7 @@ export default function TrialStatusBanner({
     return {
       icon: <Clock className="w-5 h-5" />,
       title: `${planName}-Testphase aktiv`,
-      description: `Sie testen den ${planName}-Tarif. Die Testphase läuft 14 Tage.`,
+      description: `Ihr ${planName}-Tarif ist aktiv. Die Testphase (Starter: 14 Tage) läuft noch.`,
       stats: planLimit === -1 
         ? 'Unbegrenzte Firmenkontakte pro Abrechnungszeitraum'
         : `${usedContacts} von ${planLimit} Firmenkontakten genutzt · ${available} verfügbar`,
