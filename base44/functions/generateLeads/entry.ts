@@ -423,18 +423,22 @@ function normalizeIndustryId(value) {
   return match || str;
 }
 
-function getQueryBudget(trialStage, remainingLeadBudget) {
+function getQueryBudget(trialStage, remainingLeadBudget, fastMode = false) {
   if (trialStage === 'free_preview') {
     if (!remainingLeadBudget || remainingLeadBudget <= 0) {
       return { blocked: true, reason: 'preview_limit_reached', maxLeadsToSave: 0, maxSearchQueries: 0, maxPlaceDetails: 0, stopWhenEnoughLeadsFound: true };
     }
-    return { blocked: false, maxLeadsToSave: Math.min(remainingLeadBudget, 10), maxSearchQueries: 8, maxPlaceDetails: 20, stopWhenEnoughLeadsFound: true };
+    return { blocked: false, maxLeadsToSave: Math.min(remainingLeadBudget, 10), maxSearchQueries: 5, maxPlaceDetails: 15, stopWhenEnoughLeadsFound: true };
+  }
+  if (fastMode) {
+    // Mobile/fast mode: sehr konservatives Budget
+    return { blocked: false, maxLeadsToSave: 10, maxSearchQueries: 4, maxPlaceDetails: 20, stopWhenEnoughLeadsFound: true };
   }
   if (trialStage === 'verified_trial') {
     return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 20, maxPlaceDetails: 60, stopWhenEnoughLeadsFound: true };
   }
   // paid: konservativ halten damit kein Timeout entsteht
-  return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 30, maxPlaceDetails: 80, stopWhenEnoughLeadsFound: true };
+  return { blocked: false, maxLeadsToSave: null, maxSearchQueries: 25, maxPlaceDetails: 70, stopWhenEnoughLeadsFound: true };
 }
 
 function getCityLimit(trialStage, radiusKm) {
@@ -866,9 +870,15 @@ Deno.serve(async (req) => {
     const { organization_id } = body;
     _orgId = organization_id;
 
+    // ── Internes Time-Budget ─────────────────────────────────────────────────
+    const startedAt = Date.now();
+    const isFastMode = body.mode === 'fast';
+    const MAX_RUNTIME_MS = isFastMode ? 20000 : 40000;
+    const shouldStopForTimeout = () => Date.now() - startedAt > MAX_RUNTIME_MS;
+
     // ── P2: Per-Run-Limit serverseitig erzwingen ─────────────────────────────
-    const PER_RESEARCH_RUN_LIMIT = 25;
-    const requestedTargetCount = Math.max(1, Number(body.target_count || 25));
+    const PER_RESEARCH_RUN_LIMIT = isFastMode ? 10 : 25;
+    const requestedTargetCount = Math.max(1, Number(body.target_count || (isFastMode ? 10 : 25)));
     const wasClampedByRunLimit = requestedTargetCount > PER_RESEARCH_RUN_LIMIT;
 
     if (!organization_id) return Response.json({ error: 'organization_id fehlt', success: false }, { status: 400 });
@@ -990,7 +1000,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const queryBudget = searchPlan.queryBudget || getQueryBudget(trialStage, remainingPreviewLeads);
+    const queryBudget = searchPlan.queryBudget || getQueryBudget(trialStage, remainingPreviewLeads, isFastMode);
     
     // ── P2: Plan-Limits laden + Monatslimit prüfen ───────────────────────────
     let monthlyContactLimit = 300;
@@ -1049,10 +1059,10 @@ Deno.serve(async (req) => {
       excludedCustomerTypes,
       location: city,
       radiusKm,
-      trialStage,
+      trialStage: isFastMode ? 'free_preview' : trialStage, // fast mode = preview-level grid
       remainingLeadBudget: remainingPreviewLeads,
-      additionalCities: manualAdditionalCities,
-      searchPoints,
+      additionalCities: isFastMode ? [] : manualAdditionalCities,
+      searchPoints: isFastMode ? [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center' }] : searchPoints,
       learnedPriorityCategories,
       learnedWinningSignals,
     });
@@ -1108,7 +1118,13 @@ Deno.serve(async (req) => {
           break outer;
         }
 
-        const maxPages = trialStage === 'free_preview' ? 1 : 2;
+        if (shouldStopForTimeout()) {
+          stopped_early = true; stop_reason = 'time_budget_reached';
+          console.warn(`[generateLeads v2] STOP: Time budget (${MAX_RUNTIME_MS}ms) reached after ${createdIds.length} leads`);
+          break outer;
+        }
+
+        const maxPages = (trialStage === 'free_preview' || isFastMode) ? 1 : 2;
         const places = await searchPlacesWithPagination(query, pointCoords, pointRadiusMeters, apiCounters, maxPages);
         raw_hits += places.length;
         console.info(`[generateLeads v2] Point=${point.label} Query="${query}" → ${places.length} Treffer`);
@@ -1211,6 +1227,8 @@ Deno.serve(async (req) => {
     if (!stopped_early && createdIds.length >= effectiveTarget) { stopped_early = true; stop_reason = 'enough_leads_found'; }
     if (!stopped_early) { stop_reason = 'query_budget_exhausted'; }
 
+    const isPartialTimeout = stop_reason === 'time_budget_reached' && createdIds.length > 0;
+
     const newLeadsSaved = createdIds.length;
     const chargedLeadGeneration = newLeadsSaved > 0;
 
@@ -1283,6 +1301,7 @@ Deno.serve(async (req) => {
       runType,
       research_run_id,
       chargedLeadGeneration,
+      partial_timeout: isPartialTimeout,
       // ── P2: Saubere Run-vs-Monat-Trennung ────────────────────────────────
       current_run: {
         requested_count: requestedTargetCount,

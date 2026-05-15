@@ -141,18 +141,25 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
     setError(null);
     setSlowWarning(false);
 
-    // Slow-warning nach 20s
-    slowTimerRef.current = setTimeout(() => setSlowWarning(true), 20000);
+    // Slow-warning nach 12s (mobil) / 20s (desktop)
+    const slowWarningDelay = (window.innerWidth < 768) ? 12000 : 20000;
+    slowTimerRef.current = setTimeout(() => setSlowWarning(true), slowWarningDelay);
 
-    console.log("[ResearchDialog] START research", { orgId, target_count: targetCount });
+    const isMobile = window.innerWidth < 768;
+    const effectiveTargetCount = isMobile ? 10 : targetCount;
+    const mode = isMobile ? 'fast' : 'standard';
+    const timeoutMs = isMobile ? 25000 : 50000;
+
+    console.log("[ResearchDialog] START research", { orgId, target_count: effectiveTargetCount, mode, isMobile });
 
     try {
       const res = await withTimeout(
         base44.functions.invoke("generateLeads", {
           organization_id: orgId,
-          target_count: targetCount,
+          target_count: effectiveTargetCount,
+          mode,
         }),
-        45000
+        timeoutMs
       );
 
       console.log("[ResearchDialog] RESULT", res.data);
@@ -168,6 +175,10 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       } else if (res.data?.error === 'organization_suspended') {
         setError("Diese Organisation ist vorübergehend gesperrt. Bitte kontaktieren Sie den Support.");
       } else if (res.data?.success) {
+        // Partial timeout: bereits gespeicherte Leads trotzdem als Erfolg zeigen
+        if (res.data.partial_timeout) {
+          toast.info(`Recherche teilweise abgeschlossen: ${res.data.count} Kontakte gefunden. Für weitere starten Sie bitte einen neuen Lauf.`);
+        }
         // Ergebnis SOFORT setzen – nichts darf das blockieren
         setResult({ success: true, data: res.data });
         console.log("[ResearchDialog] SET RESULT DONE");
@@ -203,14 +214,15 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
     } catch (e) {
        console.error("[ResearchDialog] generateLeads error:", e);
        const rawMsg = e?.response?.data?.error || e?.message || "";
+       console.error("[ResearchDialog] Error details:", rawMsg);
        // Friendly error messages
        if (rawMsg && (rawMsg.includes('trial') || rawMsg.includes('preview'))) {
          setShowTrialInfoDialog(true);
          setError("Vorschau-Limit erreicht");
-       } else if (rawMsg.includes('503') || rawMsg.includes('timeout') || rawMsg.includes('Gateway')) {
-         setError("Die Recherche hat zu lange gedauert. Bitte starten Sie den Lauf erneut oder reduzieren Sie das Suchgebiet.");
-       } else if (rawMsg.includes('503')) {
-         setError("Die Recherche hat zu lange gedauert. Bitte erneut versuchen.");
+       } else if (rawMsg.includes('bereits eine Recherche') || rawMsg.includes('parallelLock') || rawMsg.includes('lock')) {
+         setError("Es läuft bereits eine Recherche. Bitte warten Sie kurz und versuchen Sie es erneut.");
+       } else if (rawMsg.includes('503') || rawMsg.includes('Gateway') || rawMsg.includes('zu lange') || rawMsg.includes('timeout') || rawMsg.toLowerCase().includes('timed out')) {
+         setError("Die Recherche hat zu lange gedauert. Bitte starten Sie einen kleineren Suchlauf erneut.");
        } else {
          setError("Recherche fehlgeschlagen. Bitte erneut versuchen.");
        }
