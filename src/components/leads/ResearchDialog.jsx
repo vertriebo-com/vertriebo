@@ -528,30 +528,52 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                   )}
                   </div>)}
 
-                  {/* Credits aus DB (nach Refresh) – nur anzeigen wenn Credits verbraucht wurden */}
-                  {usageInfo && result.data.chargedLeadGeneration && (
-                       <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs space-y-2">
-                         <div className="font-semibold text-green-900 mb-1">✓ Recherche abgeschlossen</div>
-                         <div className="space-y-1.5 text-green-800">
-                           <div className="flex justify-between">
-                             <span>In diesem Lauf gefunden:</span>
-                             <span className="font-semibold">{result.data.count || 0} neue Kontakte</span>
-                           </div>
-                           <div className="flex justify-between border-t border-green-200 pt-1.5">
-                             <span>Gespeicherte Kontakte <em className="text-[11px] font-normal">(Monat)</em>:</span>
-                             <span className="font-semibold">
-                               {usageInfo.leads_created} / {(currentPlanLimits?.max_leads_per_month ?? 300) === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300}
-                             </span>
-                           </div>
-                           {(currentPlanLimits?.max_leads_per_month ?? 300) !== -1 && (
-                             <div className="flex justify-between text-green-700 text-[11px]">
-                               <span>Noch verfügbar:</span>
-                               <span className="font-bold">{Math.max(0, (currentPlanLimits?.max_leads_per_month ?? 300) - usageInfo.leads_created)} Kontakte</span>
-                             </div>
-                           )}
-                         </div>
-                       </div>
-                     )}
+                  {/* P2: Run vs. Monat sauber getrennt anzeigen */}
+                  {result.data.chargedLeadGeneration && (
+                    <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs space-y-2">
+                      <div className="font-semibold text-green-900 mb-1">✓ Recherche abgeschlossen</div>
+                      <div className="space-y-1.5 text-green-800">
+                        {/* Dieser Lauf */}
+                        <div className="flex justify-between font-semibold">
+                          <span>In diesem Lauf:</span>
+                          <span>{result.data.current_run?.created_count ?? result.data.count ?? 0} neue Kontakte</span>
+                        </div>
+                        <div className="flex justify-between text-green-700 text-[11px]">
+                          <span>Pro Recherchelauf: maximal</span>
+                          <span className="font-semibold">{result.data.current_run?.per_run_limit ?? 25} Kontakte</span>
+                        </div>
+                        {result.data.current_run?.was_clamped && (
+                          <div className="text-amber-700 text-[11px] font-medium">
+                            ℹ️ Angefragt: {result.data.current_run.requested_count} – automatisch auf {result.data.current_run.effective_target_count} begrenzt
+                          </div>
+                        )}
+                        {/* Monatliches Kontingent */}
+                        {result.data.monthly_usage && (
+                          <>
+                            <div className="flex justify-between border-t border-green-200 pt-1.5">
+                              <span>Diesen Monat genutzt:</span>
+                              <span className="font-semibold">
+                                {result.data.monthly_usage.monthly_used_after} / {result.data.monthly_usage.monthly_limit === -1 ? "∞" : result.data.monthly_usage.monthly_limit} Firmenkontakte
+                              </span>
+                            </div>
+                            {result.data.monthly_usage.monthly_limit !== -1 && (
+                              <div className="flex justify-between text-green-700 text-[11px]">
+                                <span>Noch verfügbar:</span>
+                                <span className="font-bold">{Math.max(0, result.data.monthly_usage.remaining_after)} Kontakte</span>
+                              </div>
+                            )}
+                          </>
+                        )}
+                        {/* Fallback wenn monthly_usage fehlt (ältere Response) */}
+                        {!result.data.monthly_usage && usageInfo && (
+                          <div className="flex justify-between border-t border-green-200 pt-1.5">
+                            <span>Diesen Monat gesamt:</span>
+                            <span className="font-semibold">{usageInfo.leads_created} / {(currentPlanLimits?.max_leads_per_month ?? 300) === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
               </>
             ) : (
               <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-red-50 border-red-200">

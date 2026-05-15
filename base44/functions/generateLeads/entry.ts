@@ -861,8 +861,13 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     _base44 = base44;
     const body = await req.json();
-    const { organization_id, target_count = 25 } = body;
+    const { organization_id } = body;
     _orgId = organization_id;
+
+    // ── P2: Per-Run-Limit serverseitig erzwingen ─────────────────────────────
+    const PER_RESEARCH_RUN_LIMIT = 25;
+    const requestedTargetCount = Math.max(1, Number(body.target_count || 25));
+    const wasClampedByRunLimit = requestedTargetCount > PER_RESEARCH_RUN_LIMIT;
 
     if (!organization_id) return Response.json({ error: 'organization_id fehlt', success: false }, { status: 400 });
 
@@ -985,62 +990,45 @@ Deno.serve(async (req) => {
 
     const queryBudget = searchPlan.queryBudget || getQueryBudget(trialStage, remainingPreviewLeads);
     
-    // Für verified_trial: dynamisches Plan-Limit, nicht hardcoded
-    // Plan-Limits ZUERST laden – muss VOR jeder Nutzung stehen
-    let resolvedPlanLimits = { max_leads_per_month: 300 };
+    // ── P2: Plan-Limits laden + Monatslimit prüfen ───────────────────────────
+    let monthlyContactLimit = 300;
     if (org.plan_id) {
       const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
-      if (plans[0]) {
-        resolvedPlanLimits = { max_leads_per_month: plans[0].max_leads_per_month ?? 300 };
-      }
+      if (plans[0]) monthlyContactLimit = plans[0].max_leads_per_month ?? 300;
     } else if (trialStage === 'paid') {
       console.warn(`[generateLeads] trial_stage=paid aber plan_id leer. Nutze Fallback-Limit.`);
-      resolvedPlanLimits = { max_leads_per_month: 300 };
     }
 
-    let maxLeadsToSave = target_count;
+    const monthlyContactsUsed = currentUsage.leads_created || 0;
+    const remainingMonthlyContacts = monthlyContactLimit === -1 ? 9999 : Math.max(0, monthlyContactLimit - monthlyContactsUsed);
+
+    // Monatslimit erschöpft?
+    if (monthlyContactLimit !== -1 && monthlyContactsUsed >= monthlyContactLimit) {
+      const isTrialMsg = trialStage === 'verified_trial';
+      return Response.json({
+        success: false,
+        error: isTrialMsg ? 'trial_monthly_contact_limit_reached' : 'monthly_contact_limit_reached',
+        message: isTrialMsg
+          ? `Ihr Testzugang-Kontingent von ${monthlyContactLimit} Firmenkontakten wurde erreicht.`
+          : `Ihr monatliches Kontakt-Limit von ${monthlyContactLimit} wurde erreicht.`,
+        monthly_usage: { monthly_limit: monthlyContactLimit, monthly_used: monthlyContactsUsed, remaining: 0 },
+        cta_url: '/settings?tab=billing'
+      }, { status: 429 });
+    }
+
+    // ── P2: effectiveTargetCount = min(requested, per-run-limit, remaining-monthly) ──
+    let effectiveTargetCount;
     if (trialStage === 'free_preview') {
-      maxLeadsToSave = remainingPreviewLeads;
-    } else if (trialStage === 'verified_trial') {
-      // verified_trial nutzt das echte Plan-Limit
-      const planLimit = resolvedPlanLimits.max_leads_per_month ?? 300;
-      const totalSavedSoFar = currentUsage.leads_created || 0;
-      const remainingBudget = Math.max(0, planLimit - totalSavedSoFar);
-      // Pro Recherche maximal 25, aber respektiere verfügbares Monatsbudget
-      maxLeadsToSave = Math.min(target_count, remainingBudget, 25);
+      effectiveTargetCount = remainingPreviewLeads;
+    } else {
+      effectiveTargetCount = Math.min(requestedTargetCount, PER_RESEARCH_RUN_LIMIT, remainingMonthlyContacts);
     }
-    const effectiveTarget = Math.min(maxLeadsToSave, target_count);
+    const wasClampedByMonthly = effectiveTargetCount < Math.min(requestedTargetCount, PER_RESEARCH_RUN_LIMIT);
+    const wasClamped = wasClampedByRunLimit || wasClampedByMonthly;
 
-    // verified_trial nutzt das echte Plan-Limit
-    if (trialStage === 'verified_trial') {
-      const planLimit = resolvedPlanLimits.max_leads_per_month ?? 300;
-      const contactsSavedThisMonth = currentUsage.leads_created || 0;
-      
-      if (planLimit !== -1 && contactsSavedThisMonth >= planLimit) {
-        return Response.json({
-          success: false,
-          error: 'trial_monthly_contact_limit_reached',
-          message: `Ihr Testzugang-Kontingent von ${planLimit} Firmenkontakten wurde erreicht. Ihr Kontingent erneuert sich mit dem nächsten Abrechnungszeitraum.`,
-          cta: 'Zum Billing',
-          cta_url: '/settings?tab=billing'
-        }, { status: 403 });
-      }
-    }
-
-    if (trialStage === 'paid') {
-      const maxContacts = resolvedPlanLimits.max_leads_per_month ?? 300;
-      const contactsSavedThisMonth = currentUsage.leads_created || 0;
-      
-      if (maxContacts !== -1 && contactsSavedThisMonth >= maxContacts) {
-        return Response.json({
-          success: false,
-          error: 'monthly_contact_limit_reached',
-          message: `Ihr monatliches Kontakt-Limit von ${maxContacts} wurde erreicht.`,
-          cta: 'Upgraden Sie Ihren Plan für mehr Kontakte.',
-          cta_url: '/settings?tab=billing'
-        }, { status: 429 });
-      }
-    }
+    // Legacy alias für bestehende Logik unten
+    const target_count = requestedTargetCount;
+    const effectiveTarget = effectiveTargetCount;
 
     const cityQuery = city + ' Deutschland';
     const refRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(cityQuery)}&key=${GOOGLE_PLACES_API_KEY}&language=de`);
@@ -1290,12 +1278,28 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: true,
-      requestedTarget: target_count,
-      effectiveTarget,
-      count: newLeadsSaved,
-      chargedLeadGeneration,
       runType,
       research_run_id,
+      chargedLeadGeneration,
+      // ── P2: Saubere Run-vs-Monat-Trennung ────────────────────────────────
+      current_run: {
+        requested_count: requestedTargetCount,
+        effective_target_count: effectiveTargetCount,
+        created_count: newLeadsSaved,
+        skipped_duplicates: skipped_duplicate,
+        per_run_limit: PER_RESEARCH_RUN_LIMIT,
+        was_clamped: wasClamped,
+      },
+      monthly_usage: trialStage !== 'free_preview' ? {
+        monthly_limit: monthlyContactLimit,
+        monthly_used_before: monthlyContactsUsed,
+        monthly_used_after: monthlyContactsUsed + newLeadsSaved,
+        remaining_after: monthlyContactLimit === -1 ? -1 : Math.max(0, monthlyContactLimit - (monthlyContactsUsed + newLeadsSaved)),
+      } : null,
+      // Legacy-Felder für bestehenden Frontend-Code
+      count: newLeadsSaved,
+      requestedTarget: requestedTargetCount,
+      effectiveTarget: effectiveTargetCount,
       ...(trialStage === 'free_preview' ? {
         freePreviewReport: {
           saved: newLeadsSaved,
@@ -1303,7 +1307,6 @@ Deno.serve(async (req) => {
           usedBefore: org.trial_leads_granted || 0,
           usedAfter: (org.trial_leads_granted || 0) + newLeadsSaved,
           remaining: Math.max(0, 10 - ((org.trial_leads_granted || 0) + newLeadsSaved)),
-          message: `Kostenlose Vorschau: ${newLeadsSaved} von ${remainingPreviewLeads} verfügbaren Vorschaukontakten gespeichert.`,
         }
       } : {}),
       summary: {
