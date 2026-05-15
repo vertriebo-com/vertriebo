@@ -652,8 +652,9 @@ Deno.serve(async (req) => {
       }
       const company = companies[0];
 
-      // P0 sales_rep Scope: darf nur eigene (assigned_to) Leads analysieren
-      if (isSalesRep && company.assigned_to && company.assigned_to !== userEmail) {
+      // P0 sales_rep Scope: darf nur exakt zugewiesene Leads analysieren
+      // Auch unzugewiesene Leads (assigned_to leer) sind für sales_rep gesperrt
+      if (isSalesRep && company.assigned_to !== userEmail) {
         console.warn(`[analyzeLeadEngine] sales_rep "${userEmail}" tried to analyze lead assigned to "${company.assigned_to}"`);
         return Response.json({ error: 'Kein Zugriff: Dieser Lead ist einem anderen Vertriebler zugewiesen.' }, { status: 403 });
       }
@@ -673,7 +674,20 @@ Deno.serve(async (req) => {
 
     // ── MODE: latest ───────────────────────────────────────────────────────────
     if (mode === "latest") {
-      const maxLimit = Math.min(limit, 25);
+      // P0: verbleibende Scorings im Plan berücksichtigen
+      let remainingScorings = 25;
+      if (!isPlatformAdmin && org.plan_id) {
+        const plansForLimit = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
+        const planForLimit = plansForLimit[0] || null;
+        if (planForLimit && planForLimit.max_ai_scorings_per_month !== -1) {
+          const usageNow = await getCurrentAiUsage(base44, organizationId);
+          remainingScorings = Math.max(0, planForLimit.max_ai_scorings_per_month - usageNow);
+          if (remainingScorings === 0) {
+            return Response.json({ error: 'KI-Analyse Limit für diesen Monat erreicht.', reason: 'plan_limit_exceeded' }, { status: 429 });
+          }
+        }
+      }
+      const maxLimit = Math.min(limit, 25, remainingScorings);
 
       // P0 sales_rep Scope: nur eigene Leads bei latest
       const companyFilter = { organization_id: organizationId };
