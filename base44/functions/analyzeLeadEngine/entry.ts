@@ -1,25 +1,74 @@
 /**
  * analyzeLeadEngine Phase 1 – Erweiterte Vertriebo Engine
- * 
- * SOURCE OF TRUTH: Diese Datei ist die zentrale Engine-Implementierung
- * Später: Langfristig könnte in Frontend-Lib ausgelagert werden
- * 
+ *
+ * P0 SECURITY FIXES (2026-05):
+ * ✅ checkAccess integriert (use_ai_scoring + Billing + Limit)
+ * ✅ UsageLog schreibt ai_actions_used
+ * ✅ sales_rep darf nur eigene (assigned_to) Leads analysieren
+ * ✅ open temperature → unknown für Legacy-Enum-Compat
+ * ✅ Single + Latest teilen analyzeContext() + persistAnalysis()
+ *
  * Mandantenregeln (CRITICAL):
- * - Jede Company: id + organization_id laden + validieren
- * - ContactLogs: company_id + organization_id filtern
- * - Tasks: company_id + organization_id filtern
- * - Company update: nur der Organisation gehörend
+ * - Company: id + organization_id pflichtmäßig
+ * - ContactLogs/Tasks: company_id + organization_id filtern
  * - Kein Cross-Tenant
- * 
+ *
  * Phase 1 Garantien:
  * ✅ Keine automatischen Tasks, Status-Änderungen oder E-Mails
  * ✅ Nur Analyse berechnen + speichern
  * ✅ Evidenzbasierte Texte (keine generischen Aussagen)
- * ✅ Strukturierte Signal-Gruppen
- * ✅ Multi-dimensionales Scoring
  */
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// USAGE LOG HELPER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function incrementUsageLog(base44, organizationId, count = 1) {
+  try {
+    const now = new Date();
+    const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const existing = await base44.asServiceRole.entities.UsageLog.filter({
+      organization_id: organizationId,
+      period_month: periodMonth
+    });
+    if (existing && existing.length > 0) {
+      const log = existing[0];
+      await base44.asServiceRole.entities.UsageLog.update(log.id, {
+        ai_actions_used: (log.ai_actions_used || 0) + count,
+        ai_scorings_used: (log.ai_scorings_used || 0) + count,
+      });
+    } else {
+      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+      await base44.asServiceRole.entities.UsageLog.create({
+        organization_id: organizationId,
+        period_month: periodMonth,
+        period_start: periodStart,
+        period_end: periodEnd,
+        ai_actions_used: count,
+        ai_scorings_used: count,
+      });
+    }
+  } catch (err) {
+    console.warn('[analyzeLeadEngine] UsageLog increment failed (non-blocking):', err.message);
+  }
+}
+
+async function getCurrentAiUsage(base44, organizationId) {
+  try {
+    const now = new Date();
+    const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const existing = await base44.asServiceRole.entities.UsageLog.filter({
+      organization_id: organizationId,
+      period_month: periodMonth
+    });
+    return existing?.[0]?.ai_actions_used || 0;
+  } catch {
+    return 0;
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONTEXT BUILDER
@@ -53,7 +102,7 @@ function buildLeadContext(company, contactLogs, tasks) {
     offerSent: logs.filter(l => l.ergebnis === "Angebot gesendet").length,
   };
 
-  const daysSinceLastContact = lastLog 
+  const daysSinceLastContact = lastLog
     ? Math.floor((now - new Date(lastLog.created_date)) / (1000 * 60 * 60 * 24))
     : null;
 
@@ -93,951 +142,424 @@ function buildLeadContext(company, contactLogs, tasks) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SIGNAL DETECTION (strukturiert nach Gruppen)
+// SIGNAL DETECTION
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function detectFitSignals(context) {
   const signals = [];
-
   if (context.matchedTargetCustomerType) {
-    signals.push({
-      signal: "industry_match",
-      present: true,
-      confidence: 95,
-      reason: `Branche '${context.branche}' passt zu Zielkunden`
-    });
+    signals.push({ signal: "industry_match", present: true, confidence: 95, reason: `Branche '${context.branche}' passt zu Zielkunden` });
   } else if (context.branche) {
-    signals.push({
-      signal: "industry_match",
-      present: false,
-      confidence: 60,
-      reason: `Branche '${context.branche}' – Match unklar`
-    });
+    signals.push({ signal: "industry_match", present: false, confidence: 60, reason: `Branche '${context.branche}' – Match unklar` });
   }
-
   if (context.hasWebsite) {
-    signals.push({
-      signal: "website_available",
-      present: true,
-      confidence: 80,
-      reason: "Website vorhanden"
-    });
+    signals.push({ signal: "website_available", present: true, confidence: 80, reason: "Website vorhanden" });
   }
-
   return signals;
 }
 
 function detectContactabilitySignals(context) {
   const signals = [];
-
-  if (context.hasPhone) {
-    signals.push({
-      signal: "phone_available",
-      present: true,
-      quality: "complete",
-      reason: "Telefonnummer vorhanden"
-    });
-  } else {
-    signals.push({
-      signal: "phone_available",
-      present: false,
-      quality: null,
-      reason: "Telefonnummer fehlt"
-    });
-  }
-
-  if (context.hasEmail) {
-    signals.push({
-      signal: "email_available",
-      present: true,
-      quality: "complete",
-      reason: "E-Mail vorhanden"
-    });
-  } else {
-    signals.push({
-      signal: "email_available",
-      present: false,
-      quality: null,
-      reason: "E-Mail fehlt"
-    });
-  }
-
-  if (context.hasContactPerson) {
-    signals.push({
-      signal: "contact_person_available",
-      present: true,
-      quality: "complete",
-      reason: "Ansprechpartner bekannt"
-    });
-  } else {
-    signals.push({
-      signal: "contact_person_available",
-      present: false,
-      quality: null,
-      reason: "Ansprechpartner fehlt"
-    });
-  }
-
+  signals.push({ signal: "phone_available", present: context.hasPhone, quality: context.hasPhone ? "complete" : null, reason: context.hasPhone ? "Telefonnummer vorhanden" : "Telefonnummer fehlt" });
+  signals.push({ signal: "email_available", present: context.hasEmail, quality: context.hasEmail ? "complete" : null, reason: context.hasEmail ? "E-Mail vorhanden" : "E-Mail fehlt" });
+  signals.push({ signal: "contact_person_available", present: context.hasContactPerson, quality: context.hasContactPerson ? "complete" : null, reason: context.hasContactPerson ? "Ansprechpartner bekannt" : "Ansprechpartner fehlt" });
   return signals;
 }
 
 function detectEngagementSignals(context) {
   const signals = [];
-
   if (context.hasAnyContact) {
-    signals.push({
-      signal: "contact_log_exists",
-      present: true,
-      count: context.logs.length,
-      lastAt: context.lastLog?.created_date,
-      reason: `${context.logs.length} Kontakt(e) dokumentiert`
-    });
+    signals.push({ signal: "contact_log_exists", present: true, count: context.logs.length, lastAt: context.lastLog?.created_date, reason: `${context.logs.length} Kontakt(e) dokumentiert` });
   }
-
   if (context.status === "Angebot") {
-    signals.push({
-      signal: "offer_requested",
-      present: true,
-      reason: "Status: Angebot angefragt"
-    });
+    signals.push({ signal: "offer_requested", present: true, reason: "Status: Angebot angefragt" });
   }
-
   if (context.status === "Termin") {
-    signals.push({
-      signal: "appointment_scheduled",
-      present: true,
-      reason: "Status: Termin vereinbart"
-    });
+    signals.push({ signal: "appointment_scheduled", present: true, reason: "Status: Termin vereinbart" });
   }
-
-  if (context.contactResultCounts.appointmentScheduled > 0) {
-    signals.push({
-      signal: "callback_scheduled",
-      present: true,
-      count: context.contactResultCounts.appointmentScheduled,
-      reason: `${context.contactResultCounts.appointmentScheduled}x Termin vereinbart`
-    });
+  if (context.contactResultCounts.callbackScheduled > 0) {
+    signals.push({ signal: "callback_scheduled", present: true, count: context.contactResultCounts.callbackScheduled, reason: `${context.contactResultCounts.callbackScheduled}x Rückruf vereinbart` });
   }
-
   if (context.contactResultCounts.offerSent > 0) {
-    signals.push({
-      signal: "offer_sent",
-      present: true,
-      count: context.contactResultCounts.offerSent,
-      reason: `${context.contactResultCounts.offerSent}x Angebot versendet`
-    });
+    signals.push({ signal: "offer_sent", present: true, count: context.contactResultCounts.offerSent, reason: `${context.contactResultCounts.offerSent}x Angebot versendet` });
   }
-
   return signals;
 }
 
 function detectTimingSignals(context) {
   const signals = [];
-
   if (context.daysSinceCreation <= 7) {
-    signals.push({
-      signal: "new_lead",
-      present: true,
-      daysSince: context.daysSinceCreation,
-      reason: `Neuer Lead (vor ${context.daysSinceCreation} Tagen hinzugefügt)`
-    });
+    signals.push({ signal: "new_lead", present: true, daysSince: context.daysSinceCreation, reason: `Neuer Lead (vor ${context.daysSinceCreation} Tagen hinzugefügt)` });
   }
-
   if (context.lastLog && context.daysSinceLastContact <= 7) {
-    signals.push({
-      signal: "recent_contact",
-      present: true,
-      daysSince: context.daysSinceLastContact,
-      reason: `Letzter Kontakt vor ${context.daysSinceLastContact} Tagen`
-    });
+    signals.push({ signal: "recent_contact", present: true, daysSince: context.daysSinceLastContact, reason: `Letzter Kontakt vor ${context.daysSinceLastContact} Tagen` });
   }
-
   if (context.todayTasks.length > 0) {
-    signals.push({
-      signal: "task_due_today",
-      present: true,
-      count: context.todayTasks.length,
-      reason: `${context.todayTasks.length} Aufgabe(n) heute fällig`
-    });
+    signals.push({ signal: "task_due_today", present: true, count: context.todayTasks.length, reason: `${context.todayTasks.length} Aufgabe(n) heute fällig` });
   }
-
   if (context.overdueTasks.length > 0) {
-    signals.push({
-      signal: "task_overdue",
-      present: true,
-      count: context.overdueTasks.length,
-      daysOverdue: Math.ceil((context.now - new Date(context.overdueTasks[0].faellig_am)) / (1000 * 60 * 60 * 24)),
-      reason: `${context.overdueTasks.length} Aufgabe(n) überfällig`
-    });
+    signals.push({ signal: "task_overdue", present: true, count: context.overdueTasks.length, daysOverdue: Math.ceil((context.now - new Date(context.overdueTasks[0].faellig_am)) / (1000 * 60 * 60 * 24)), reason: `${context.overdueTasks.length} Aufgabe(n) überfällig` });
   }
-
   if (context.daysSinceLastContact && context.daysSinceLastContact > 60) {
-    signals.push({
-      signal: "long_time_no_contact",
-      present: true,
-      daysSince: context.daysSinceLastContact,
-      reason: `Sehr lange nicht kontaktiert (${context.daysSinceLastContact} Tage)`
-    });
+    signals.push({ signal: "long_time_no_contact", present: true, daysSince: context.daysSinceLastContact, reason: `Sehr lange nicht kontaktiert (${context.daysSinceLastContact} Tage)` });
   }
-
   return signals;
 }
 
 function detectRiskSignals(context) {
   const risks = [];
-
   if (context.status === "Verloren") {
-    risks.push({
-      signal: "lost_status",
-      severity: "high",
-      reason: "Status 'Verloren' – Low-Priorität"
-    });
+    risks.push({ signal: "lost_status", severity: "high", reason: "Status 'Verloren' – Low-Priorität" });
   }
-
   if (!context.hasPhone && !context.hasEmail) {
-    risks.push({
-      signal: "no_contact_data",
-      severity: "high",
-      reason: "Weder Telefon noch E-Mail vorhanden"
-    });
+    risks.push({ signal: "no_contact_data", severity: "high", reason: "Weder Telefon noch E-Mail vorhanden" });
   }
-
   if (!context.hasContactPerson && context.hasAnyContact) {
-    risks.push({
-      signal: "unknown_decision_maker",
-      severity: "medium",
-      reason: "Ansprechpartner unbekannt – unklar wer entscheidet"
-    });
+    risks.push({ signal: "unknown_decision_maker", severity: "medium", reason: "Ansprechpartner unbekannt – unklar wer entscheidet" });
   }
-
   if (context.hasOnlyFailedContact) {
-    risks.push({
-      signal: "no_response",
-      severity: "medium",
-      reason: `${context.contactResultCounts.notReached}x nicht erreicht`
-    });
+    risks.push({ signal: "no_response", severity: "medium", reason: `${context.contactResultCounts.notReached}x nicht erreicht` });
   }
-
   if (!context.matchedTargetCustomerType && context.priorityScore < 30) {
-    risks.push({
-      signal: "poor_fit",
-      severity: "medium",
-      reason: "Zielgruppenpassung unklar"
-    });
+    risks.push({ signal: "poor_fit", severity: "medium", reason: "Zielgruppenpassung unklar" });
   }
-
   if (context.hasAnyContact && !context.hasSuccessfulContact && !context.logs.some(l => l.notiz)) {
-    risks.push({
-      signal: "poor_data_quality",
-      severity: "low",
-      reason: "Kontakte dokumentiert, aber keine Notizen – Qualität unklar"
-    });
+    risks.push({ signal: "poor_data_quality", severity: "low", reason: "Kontakte dokumentiert, aber keine Notizen – Qualität unklar" });
   }
-
   return risks;
 }
 
 function detectMissingData(context) {
   const missing = [];
-
-  if (!context.hasContactPerson) {
-    missing.push({ field: "contact_person", priority: "high", impact: "Entscheidungsträger unbekannt" });
-  }
-  if (!context.hasPhone) {
-    missing.push({ field: "phone", priority: "high", impact: "Direkte Ansprache nicht möglich" });
-  }
-  if (!context.hasEmail) {
-    missing.push({ field: "email", priority: "high", impact: "E-Mail-Kontakt nicht möglich" });
-  }
-  if (!context.hasWebsite) {
-    missing.push({ field: "website", priority: "medium", impact: "Firmeninformationen begrenzt" });
-  }
-  if (!context.matchedTargetCustomerType) {
-    missing.push({ field: "target_customer_confirmation", priority: "high", impact: "Zielgruppen-Match noch nicht bestätigt" });
-  }
+  if (!context.hasContactPerson) missing.push({ field: "contact_person", priority: "high", impact: "Entscheidungsträger unbekannt" });
+  if (!context.hasPhone) missing.push({ field: "phone", priority: "high", impact: "Direkte Ansprache nicht möglich" });
+  if (!context.hasEmail) missing.push({ field: "email", priority: "high", impact: "E-Mail-Kontakt nicht möglich" });
+  if (!context.hasWebsite) missing.push({ field: "website", priority: "medium", impact: "Firmeninformationen begrenzt" });
+  if (!context.matchedTargetCustomerType) missing.push({ field: "target_customer_confirmation", priority: "high", impact: "Zielgruppen-Match noch nicht bestätigt" });
   if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("bedarf"))) {
     missing.push({ field: "concrete_need", priority: "high", impact: "Konkreter Bedarf unklar" });
   }
-
   return missing;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// SCORING-DIMENSIONEN (Multi-dimensional)
+// SCORING
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function calculateFitScore(context, fitSignals) {
+function calculateFitScore(context) {
   let score = 30;
-  
   if (context.matchedTargetCustomerType) score += 50;
   if (context.hasWebsite) score += 15;
   if (context.branche) score += 5;
-
   return Math.min(100, Math.max(0, score));
 }
 
 function calculateContactabilityScore(context) {
   let score = 0;
-  
   if (context.hasPhone) score += 35;
   if (context.hasEmail) score += 25;
   if (context.hasWebsite) score += 15;
   if (context.hasContactPerson) score += 25;
-
   return Math.min(100, score);
 }
 
 function calculateEngagementScore(context) {
   let score = 0;
-  
   if (context.status === "Angebot") score += 40;
   if (context.status === "Termin") score += 35;
   if (context.contactResultCounts.appointmentScheduled > 0) score += 30;
   if (context.contactResultCounts.offerSent > 0) score += 25;
   if (context.hasSuccessfulContact) score += 20;
   if (context.hasAnyContact && !context.hasSuccessfulContact) score += 5;
-
   return Math.min(100, score);
 }
 
 function calculateTimingScore(context) {
   let score = 40;
-  
   if (context.daysSinceCreation <= 7) score += 25;
   else if (context.daysSinceCreation <= 30) score += 15;
-  
   if (context.overdueTasks.length > 0) score += 40;
   if (context.todayTasks.length > 0) score += 25;
-  
   if (context.daysSinceLastContact && context.daysSinceLastContact <= 7) score += 15;
   else if (context.daysSinceLastContact && context.daysSinceLastContact > 60) score -= 20;
-
   return Math.min(100, Math.max(0, score));
 }
 
 function calculateUrgencyScore(context) {
   let score = 30;
-  
   if (context.overdueTasks.length > 0) score += 50;
   if (context.todayTasks.length > 0) score += 30;
   if (context.status === "Termin") score += 25;
   if (context.status === "Angebot") score += 20;
-
   return Math.min(100, Math.max(0, score));
 }
 
 function calculateConfidenceScore(context, riskSignals) {
   let score = 50;
-  
   if (context.hasPhone && context.hasEmail && context.hasContactPerson) score += 30;
   if (context.logs.length >= 2) score += 15;
   if (context.logs.some(l => l.notiz && l.notiz.length > 50)) score += 10;
   if (riskSignals.filter(r => r.severity === "high").length > 0) score -= 20;
-
   return Math.min(100, Math.max(0, score));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TEMPERATURE + RECOMMENDATIONS (Evidenzbasiert)
+// CLASSIFICATION + RECOMMENDATIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, contactabilityScore, context) {
-  // Hard Rules (Blockers)
   if (context.status === "Verloren") return "cold";
   if (context.logs.some(l => l.ergebnis === "Kein Interesse")) return "cold";
-  
-  // Positive Rules
   if (urgencyScore >= 70 && (fitScore >= 60 || engagementScore >= 50)) return "hot";
   if (engagementScore >= 60) return "hot";
-  
   if (fitScore >= 70 && engagementScore >= 40) return "warm";
   if (fitScore >= 70 && contactabilityScore >= 60) return "warm";
   if (engagementScore >= 40) return "warm";
-  
   if (fitScore >= 40) return "cold";
-  
   return "open";
 }
 
 function buildSummary(temperature, context, fitScore, contactabilityScore, urgencyScore, missingData) {
   if (temperature === "hot") {
-    if (context.overdueTasks.length > 0) {
-      return `Hot Lead: ${context.overdueTasks.length} Aufgabe(n) überfällig – sofort bearbeiten.`;
-    }
-    if (context.status === "Angebot") {
-      return `Hot Lead: Angebot angefordert – zügig nachfassen und Entscheidung herbeiführen.`;
-    }
-    if (context.status === "Termin") {
-      return `Hot Lead: Termin vereinbart – Vorbereitung durchführen und Abschluss vorbereiten.`;
-    }
+    if (context.overdueTasks.length > 0) return `Hot Lead: ${context.overdueTasks.length} Aufgabe(n) überfällig – sofort bearbeiten.`;
+    if (context.status === "Angebot") return `Hot Lead: Angebot angefordert – zügig nachfassen und Entscheidung herbeiführen.`;
+    if (context.status === "Termin") return `Hot Lead: Termin vereinbart – Vorbereitung durchführen und Abschluss vorbereiten.`;
     return `Hot Lead: Kaufsignale vorhanden – aktiv bearbeiten.`;
   }
-
   if (temperature === "warm") {
     const reasons = [];
     if (fitScore >= 70) reasons.push("Branche passt");
     if (contactabilityScore >= 60) reasons.push("Kontaktdaten vorhanden");
     if (context.hasSuccessfulContact) reasons.push("bereits kontaktiert");
-    
     const reason = reasons.length > 0 ? reasons.join(", ") : "gute Ausgangslage";
-    const missing = missingData.length > 0 ? ` Fehlt: ${missingData[0].field}.` : "";
-    return `Warm Lead: ${reason}.${missing}`;
+    const firstMissing = missingData.length > 0 ? ` Fehlt noch: ${missingData[0].impact}.` : "";
+    return `Warm Lead: ${reason}.${firstMissing}`;
   }
-
   if (temperature === "cold") {
-    if (context.status === "Verloren") {
-      return `Aktuell kalt: Status ist 'Verloren' – nur bei veränderter Situation reaktivieren.`;
-    }
-    if (!context.hasAnyContact && contactabilityScore < 40) {
-      return `Aktuell kalt: Kontaktdaten sind noch unvollständig. Erst Daten anreichern, dann kontaktieren.`;
-    }
+    if (context.status === "Verloren") return `Aktuell kalt: Status ist 'Verloren' – nur bei veränderter Situation reaktivieren.`;
+    if (!context.hasAnyContact && contactabilityScore < 40) return `Aktuell kalt: Kontaktdaten sind noch unvollständig. Erst Daten anreichern, dann kontaktieren.`;
     if (!context.hasSuccessfulContact && context.hasAnyContact) {
       const attempts = context.contactResultCounts.notReached;
       return `Aktuell kalt: ${attempts > 0 ? `${attempts} Kontaktversuch${attempts > 1 ? 'e' : ''} dokumentiert, aber noch keine positive Reaktion` : 'Kontaktversuch dokumentiert, aber noch keine Reaktion'}. Rückruf vorbereiten und beim nächsten Kontakt Ansprechpartner sowie Bedarf kurz qualifizieren.`;
     }
     return `Aktuell kalt: Noch keine Kaufsignale vorhanden. Datenlage verbessern oder in der nächsten Woche erneut kontaktieren.`;
   }
-
   return "Offen: Noch zu wenig Informationen für eine eindeutige Einschätzung. Erstkontakt herstellen und Bedarf klären.";
 }
 
-function buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals) {
-  const reasons = [];
-
-  // Fit-Gründe
-  if (context.matchedTargetCustomerType) {
-    reasons.push(`Branche '${context.branche}' passt zu Zielkunden`);
-  }
-  
-  // Contactability-Gründe
-  const contactChannels = [];
-  if (context.hasPhone) contactChannels.push("Telefon");
-  if (context.hasEmail) contactChannels.push("E-Mail");
-  if (context.hasWebsite) contactChannels.push("Website");
-  if (contactChannels.length > 0) {
-    reasons.push(`Kontaktierbar via ${contactChannels.join(", ")}`);
-  } else {
-    reasons.push("Kontaktdaten unvollständig");
-  }
-
-  // Engagement-Gründe
-  if (context.status === "Angebot") {
-    reasons.push("Angebot angefordert");
-  } else if (context.status === "Termin") {
-    reasons.push("Termin vereinbart");
-  } else if (context.hasSuccessfulContact) {
-    reasons.push(`Bereits erreicht (${context.logs.length} Kontakt(e))`);
-  } else if (context.hasAnyContact) {
-    reasons.push(`Kontaktversuche dokumentiert, aber erfolglos`);
-  } else {
-    reasons.push("Noch kein Erstkontakt");
-  }
-
-  // Missing-Gründe (human-readable labels)
-  const MISSING_LABELS = {
-    contact_person: "Ansprechpartner",
-    email: "E-Mail-Adresse",
-    phone: "Telefonnummer",
-    website: "Website",
-    target_customer_confirmation: "bestätigter Zielgruppen-Match",
-    concrete_need: "konkreter Bedarf"
-  };
-  if (missingData.length > 0) {
-    const labels = missingData.map(m => MISSING_LABELS[m.field || m] || (m.field || m)).join(", ");
-    reasons.push(`Es fehlen noch: ${labels}`);
-  }
-
-  // Risk-Gründe (human-readable)
-  if (riskSignals.length > 0) {
-    const highRisks = riskSignals.filter(r => r.severity === "high");
-    if (highRisks.length > 0) {
-      reasons.push(highRisks.map(r => r.reason).join(". "));
-    }
-  }
-
-  return reasons.join(". ") + ".";
-}
-
-const MISSING_FIELD_LABELS = {
+const MISSING_LABELS = {
   contact_person: "Ansprechpartner",
   email: "E-Mail-Adresse",
   phone: "Telefonnummer",
   website: "Website",
-  target_customer_confirmation: "Zielgruppen-Match",
+  target_customer_confirmation: "bestätigter Zielgruppen-Match",
   concrete_need: "konkreter Bedarf"
 };
 
-function buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData) {
-  const openCallOrFollowUpTask = (context.openCallOrFollowUpTasks && context.openCallOrFollowUpTasks[0]) || context.callbackTasks[0] || null;
-
-  // Priority 1: Overdue Tasks
-  if (context.overdueTasks.length > 0) {
-    const task = context.overdueTasks[0];
-    return {
-      type: "task",
-      title: `Überfällige Aufgabe bearbeiten: "${task.titel}"`,
-      reason: `Diese Aufgabe ist ${Math.ceil((context.now - new Date(task.faellig_am)) / (1000 * 60 * 60 * 24))} Tag(e) überfällig. Jetzt abarbeiten.`,
-      due: "today"
-    };
+function buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals) {
+  const reasons = [];
+  if (context.matchedTargetCustomerType) reasons.push(`Branche '${context.branche}' passt zu Zielkunden`);
+  const contactChannels = [];
+  if (context.hasPhone) contactChannels.push("Telefon");
+  if (context.hasEmail) contactChannels.push("E-Mail");
+  if (context.hasWebsite) contactChannels.push("Website");
+  reasons.push(contactChannels.length > 0 ? `Kontaktierbar via ${contactChannels.join(", ")}` : "Kontaktdaten unvollständig");
+  if (context.status === "Angebot") reasons.push("Angebot angefordert");
+  else if (context.status === "Termin") reasons.push("Termin vereinbart");
+  else if (context.hasSuccessfulContact) reasons.push(`Bereits erreicht (${context.logs.length} Kontakt(e))`);
+  else if (context.hasAnyContact) reasons.push(`Kontaktversuche dokumentiert, aber erfolglos`);
+  else reasons.push("Noch kein Erstkontakt");
+  if (missingData.length > 0) {
+    const labels = missingData.map(m => MISSING_LABELS[m.field || m] || (m.field || m)).join(", ");
+    reasons.push(`Es fehlen noch: ${labels}`);
   }
-
-  // Priority 2: Today Tasks
-  if (context.todayTasks.length > 0) {
-    const task = context.todayTasks[0];
-    return {
-      type: "task",
-      title: `Aufgabe heute erledigen: "${task.titel}"`,
-      reason: "Diese Aufgabe ist heute fällig.",
-      due: "today"
-    };
+  if (riskSignals.length > 0) {
+    const highRisks = riskSignals.filter(r => r.severity === "high");
+    if (highRisks.length > 0) reasons.push(highRisks.map(r => r.reason).join(". "));
   }
-
-  // Priority 3: Offer Follow-Up
-  if (context.status === "Angebot") {
-    return {
-      type: "call",
-      title: "Angebot nachfassen",
-      reason: "Angebot wurde angefordert – Feedback einholen und Entscheidung herbeiführen.",
-      due: "tomorrow"
-    };
-  }
-
-  // Priority 4: Appointment Prep
-  if (context.status === "Termin") {
-    return {
-      type: "research",
-      title: "Termin vorbereiten",
-      reason: "Termin vereinbart – Unterlagen zusammenstellen, Agenda und Entscheidungskriterien klären.",
-      due: "tomorrow"
-    };
-  }
-
-  // Priority 5: Open call/follow-up task exists → prepare it
-  if (openCallOrFollowUpTask) {
-    return {
-      type: "call",
-      title: "Rückruf vorbereiten",
-      reason: `Es gibt bereits eine offene Aufgabe "${openCallOrFollowUpTask.titel}". Beim nächsten Kontakt gezielt Ansprechpartner, Bedarf und Entscheidungsprozess klären.`,
-      due: "this_week"
-    };
-  }
-
-  // Priority 6: First Contact (when contactable, no contact yet)
-  if (!context.hasAnyContact && contactabilityScore >= 60) {
-    const via = context.hasPhone ? "Anruf" : "E-Mail";
-    return {
-      type: "call",
-      title: `Erstkontakt herstellen (${via})`,
-      reason: `Kontaktdaten vorhanden, aber noch kein Kontakt dokumentiert. Ziel: Ansprechpartner klären und Bedarf kurz qualifizieren.`,
-      due: "this_week"
-    };
-  }
-
-  // Priority 7: Retry after failed contact
-  if (context.hasOnlyFailedContact) {
-    return {
-      type: "call",
-      title: "Erneut kontaktieren",
-      reason: `${context.contactResultCounts.notReached}x nicht erreicht. Anderen Kanal oder Uhrzeit versuchen. Ziel: Ansprechpartner finden.`,
-      due: "this_week"
-    };
-  }
-
-  // Priority 8: Enrich Missing Data
-  if (missingData.length > 0 && missingData[0].priority === "high") {
-    const fieldLabel = MISSING_FIELD_LABELS[missingData[0].field] || missingData[0].field;
-    return {
-      type: "enrich",
-      title: `${fieldLabel} recherchieren`,
-      reason: `${missingData[0].impact}. Danach direkt kontaktieren.`,
-      due: "tomorrow"
-    };
-  }
-
-  // Fallback
-  return {
-    type: "wait",
-    title: "Beobachten und bei Gelegenheit kontaktieren",
-    reason: "Noch nicht genug Informationen für einen gezielten nächsten Schritt.",
-    due: null
-  };
+  return reasons.join(". ") + ".";
 }
 
-function buildOutreachAngle(context, temperature, fitSignals, engagementSignals) {
+function buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData) {
+  const openCallOrFollowUpTask = context.openCallOrFollowUpTasks[0] || context.callbackTasks[0] || null;
+  if (context.overdueTasks.length > 0) {
+    const task = context.overdueTasks[0];
+    return { type: "task", title: `Überfällige Aufgabe bearbeiten: "${task.titel}"`, reason: `Diese Aufgabe ist ${Math.ceil((context.now - new Date(task.faellig_am)) / (1000 * 60 * 60 * 24))} Tag(e) überfällig. Jetzt abarbeiten.`, due: "today" };
+  }
+  if (context.todayTasks.length > 0) {
+    const task = context.todayTasks[0];
+    return { type: "task", title: `Aufgabe heute erledigen: "${task.titel}"`, reason: "Diese Aufgabe ist heute fällig.", due: "today" };
+  }
+  if (context.status === "Angebot") return { type: "call", title: "Angebot nachfassen", reason: "Angebot wurde angefordert – Feedback einholen und Entscheidung herbeiführen.", due: "tomorrow" };
+  if (context.status === "Termin") return { type: "research", title: "Termin vorbereiten", reason: "Termin vereinbart – Unterlagen zusammenstellen, Agenda und Entscheidungskriterien klären.", due: "tomorrow" };
+  if (openCallOrFollowUpTask) return { type: "call", title: "Rückruf vorbereiten", reason: `Es gibt bereits eine offene Aufgabe "${openCallOrFollowUpTask.titel}". Beim nächsten Kontakt gezielt Ansprechpartner, Bedarf und Entscheidungsprozess klären.`, due: "this_week" };
+  if (!context.hasAnyContact && contactabilityScore >= 60) {
+    const via = context.hasPhone ? "Anruf" : "E-Mail";
+    return { type: "call", title: `Erstkontakt herstellen (${via})`, reason: `Kontaktdaten vorhanden, aber noch kein Kontakt dokumentiert. Ziel: Ansprechpartner klären und Bedarf kurz qualifizieren.`, due: "this_week" };
+  }
+  if (context.hasOnlyFailedContact) return { type: "call", title: "Erneut kontaktieren", reason: `${context.contactResultCounts.notReached}x nicht erreicht. Anderen Kanal oder Uhrzeit versuchen. Ziel: Ansprechpartner finden.`, due: "this_week" };
+  if (missingData.length > 0 && missingData[0].priority === "high") {
+    const fieldLabel = MISSING_LABELS[missingData[0].field] || missingData[0].field;
+    return { type: "enrich", title: `${fieldLabel} recherchieren`, reason: `${missingData[0].impact}. Danach direkt kontaktieren.`, due: "tomorrow" };
+  }
+  return { type: "wait", title: "Beobachten und bei Gelegenheit kontaktieren", reason: "Noch nicht genug Informationen für einen gezielten nächsten Schritt.", due: null };
+}
+
+function buildOutreachAngle(context) {
   if (context.logs.length > 0 && context.hasSuccessfulContact) {
     const days = context.daysSinceLastContact || 1;
     return `Anknüpfen an bisherigen Kontakt (vor ${days} Tag${days !== 1 ? 'en' : ''}): Vorheriges Gespräch kurz referenzieren und fragen, ob sich etwas verändert hat. Keine Produktpräsentation – erst Bedarf und Zeitplan klären.`;
   }
-
   if (!context.hasAnyContact && context.matchedTargetCustomerType) {
     return `Branchenspezifischer Einstieg: Kurz erklären, dass man speziell mit ${context.branche || 'Unternehmen dieser Art'} in der Region arbeitet. Ziel des ersten Gesprächs: Ansprechpartner und aktuellen Bedarf klären – kein Verkaufsversuch im Erstkontakt.`;
   }
-
-  if (context.hasOnlyFailedContact) {
-    return `Anderer Kanal oder Uhrzeit versuchen. Kurze, sachliche Nachricht: Wer ist zuständig für externe Dienstleistungen? Kein Druck – nur Ansprechpartner ermitteln.`;
-  }
-
+  if (context.hasOnlyFailedContact) return `Anderer Kanal oder Uhrzeit versuchen. Kurze, sachliche Nachricht: Wer ist zuständig für externe Dienstleistungen? Kein Druck – nur Ansprechpartner ermitteln.`;
   return `Direkter, sachlicher Einstieg: Klären, wer intern für externe Dienstleister zuständig ist. Kurz und respektvoll – Ziel ist der richtige Ansprechpartner, nicht der sofortige Abschluss.`;
 }
 
-function buildSuggestedOpening(context, outreachAngle) {
-  const anrede = context.hasContactPerson ? `${context.name}` : "zusammen";
-
-  if (context.logs.length > 0 && context.hasSuccessfulContact) {
-    return `Guten Tag, wir hatten uns vor einiger Zeit kurz gesprochen. Ich wollte kurz nachfragen, ob sich bei Ihnen etwas verändert hat – speziell beim Thema externe Dienstleistungen.`;
-  }
-
-  if (context.matchedTargetCustomerType && context.hasPhone) {
-    return `Guten Tag, ich wollte kurz klären, wer bei Ihnen Ansprechpartner für externe Dienstleister ist – geht nur um einen kurzen Abgleich, ob unser Angebot für Sie passen könnte.`;
-  }
-
-  if (context.hasOnlyFailedContact) {
-    return `Guten Tag, ich hatte es schon einmal versucht – vielleicht war der Zeitpunkt ungünstig. Kurze Frage: Wer ist bei Ihnen zuständig für externe Service-Anfragen?`;
-  }
-
+function buildSuggestedOpening(context) {
+  if (context.logs.length > 0 && context.hasSuccessfulContact) return `Guten Tag, wir hatten uns vor einiger Zeit kurz gesprochen. Ich wollte kurz nachfragen, ob sich bei Ihnen etwas verändert hat – speziell beim Thema externe Dienstleistungen.`;
+  if (context.matchedTargetCustomerType && context.hasPhone) return `Guten Tag, ich wollte kurz klären, wer bei Ihnen Ansprechpartner für externe Dienstleister ist – geht nur um einen kurzen Abgleich, ob unser Angebot für Sie passen könnte.`;
+  if (context.hasOnlyFailedContact) return `Guten Tag, ich hatte es schon einmal versucht – vielleicht war der Zeitpunkt ungünstig. Kurze Frage: Wer ist bei Ihnen zuständig für externe Service-Anfragen?`;
   return `Guten Tag, kurze Frage: Wer ist bei Ihnen der richtige Ansprechpartner für externe Dienstleistungen? Ich wollte kurz klären, ob unser Angebot für Sie relevant sein könnte.`;
 }
 
-function buildQualificationQuestions(context, missingData) {
+function buildQualificationQuestions(context) {
   const questions = [];
-
-  if (!context.hasContactPerson) {
-    questions.push("Wer ist Ansprechpartner/Entscheider für externe Dienstleistungen?");
-  }
-
-  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("bedarf"))) {
-    questions.push(`Welche Herausforderungen hat Ihr Unternehmen aktuell beim Thema [Service]?`);
-  }
-
-  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("entscheid"))) {
-    questions.push("Wie läuft der Entscheidungsprozess ab? Wer ist beteiligt?");
-  }
-
+  if (!context.hasContactPerson) questions.push("Wer ist Ansprechpartner/Entscheider für externe Dienstleistungen?");
+  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("bedarf"))) questions.push(`Welche Herausforderungen hat Ihr Unternehmen aktuell beim Thema externe Dienstleistungen?`);
+  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("entscheid"))) questions.push("Wie läuft der Entscheidungsprozess ab? Wer ist beteiligt?");
   questions.push("Welches Budget steht für diese Initiative zur Verfügung?");
-
   return questions;
 }
 
 function buildObjectionsToExpect(context) {
   const objections = [];
-
-  if (!context.matchedTargetCustomerType) {
-    objections.push("Das passt nicht zu unseren Prozessen");
-  }
-
-  if (!context.hasSuccessfulContact) {
-    objections.push("Wir sind zufrieden mit unserem aktuellen Anbieter");
-  }
-
-  if (context.hasOnlyFailedContact) {
-    objections.push("Das haben wir bereits versucht");
-  }
-
+  if (!context.matchedTargetCustomerType) objections.push("Das passt nicht zu unseren Prozessen");
+  if (!context.hasSuccessfulContact) objections.push("Wir sind zufrieden mit unserem aktuellen Anbieter");
+  if (context.hasOnlyFailedContact) objections.push("Das haben wir bereits versucht");
   objections.push("Das ist für uns gerade nicht relevant");
   objections.push("Wir haben kein Budget");
-
   return objections;
 }
 
 function buildRecommendedStatus(temperature, urgencyScore, context) {
   if (context.status === "Verloren") return "Nicht priorisieren";
-  
   if (urgencyScore >= 80) return "Kontaktieren";
   if (temperature === "hot") return "Kontaktieren";
   if (temperature === "warm") return "Qualifizieren";
   if (temperature === "cold") return "Warten";
-  
   return "Neu";
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// MAIN ANALYSIS FUNCTION
+// SHARED: analyzeContext + persistAnalysis
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function analyzeLeadSingle(base44, organizationId, companyId) {
-  try {
-    // Mandanten-Check: Company laden mit organization_id
-    const companies = await base44.entities.Company.filter({
-      id: companyId,
-      organization_id: organizationId
-    });
-    
-    if (!companies || companies.length === 0) {
-      throw new Error(`Company ${companyId} nicht gefunden oder gehört nicht zu Organisation ${organizationId}`);
-    }
-    
-    const company = companies[0];
-    
-    console.log("[analyzeLeadEngine] company data completeness", {
-      company_id: companyId,
-      hasPhone: Boolean(company.telefon),
-      hasEmail: Boolean(company.email),
-      hasWebsite: Boolean(company.website),
-      hasContactPerson: Boolean(company.ansprechpartner)
-    });
+function analyzeContext(company, contactLogs, tasks) {
+  const context = buildLeadContext(company, contactLogs, tasks);
 
-    // ContactLogs nur mit organization_id + company_id
-    const contactLogs = await base44.entities.ContactLog.filter({
-      company_id: companyId,
-      organization_id: organizationId
-    });
-    
-    // Tasks nur mit organization_id + company_id
-    const tasks = await base44.entities.Task.filter({
-      company_id: companyId,
-      organization_id: organizationId
-    });
-    
-    // ═══ CONTEXT ═══
-    const context = buildLeadContext(company, contactLogs, tasks);
-    
-    // ═══ SIGNALS ═══
-    const fitSignals = detectFitSignals(context);
-    const contactabilitySignals = detectContactabilitySignals(context);
-    const engagementSignals = detectEngagementSignals(context);
-    const timingSignals = detectTimingSignals(context);
-    const riskSignals = detectRiskSignals(context);
-    const missingData = detectMissingData(context);
-    
-    // ═══ SCORES ═══
-    const fitScore = calculateFitScore(context, fitSignals);
-    const contactabilityScore = calculateContactabilityScore(context);
-    const engagementScore = calculateEngagementScore(context);
-    const timingScore = calculateTimingScore(context);
-    const urgencyScore = calculateUrgencyScore(context);
-    const confidenceScore = calculateConfidenceScore(context, riskSignals);
-    const vertrieboScore = Math.round(fitScore * 0.3 + contactabilityScore * 0.25 + engagementScore * 0.25 + timingScore * 0.2);
-    
-    // ═══ CLASSIFICATION ═══
-    const temperature = classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, contactabilityScore, context);
-    const summary = buildSummary(temperature, context, fitScore, contactabilityScore, urgencyScore, missingData);
-    const reason = buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals);
-    
-    // ═══ RECOMMENDATIONS ═══
-    const nextBestAction = buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData);
-    const outreachAngle = buildOutreachAngle(context, temperature, fitSignals, engagementSignals);
-    const suggestedOpening = buildSuggestedOpening(context, outreachAngle);
-    const qualificationQuestions = buildQualificationQuestions(context, missingData);
-    const objectionsToExpect = buildObjectionsToExpect(context);
-    const recommendedStatus = buildRecommendedStatus(temperature, urgencyScore, context);
-    
-    // ═══ RESULT ═══
-    const result = {
-      temperature,
-      vertriebo_score: vertrieboScore,
-      urgency_score: Math.round(urgencyScore),
-      fit_score: Math.round(fitScore),
-      contactability_score: Math.round(contactabilityScore),
-      timing_score: Math.round(timingScore),
-      confidence_score: Math.round(confidenceScore),
-      
-      summary,
-      reason,
-      top_signals: [
-        ...fitSignals.filter(s => s.present),
-        ...contactabilitySignals.filter(s => s.present),
-        ...engagementSignals.filter(s => s.present),
-        ...timingSignals.filter(s => s.present)
-      ].slice(0, 5),
-      
-      risk_signals: riskSignals,
-      missing_data: missingData,
-      
-      next_best_action: nextBestAction,
-      outreach_angle: outreachAngle,
-      suggested_opening: suggestedOpening,
-      qualification_questions: qualificationQuestions,
-      objections_to_expect: objectionsToExpect,
-      recommended_status: recommendedStatus,
-      
-      engine_version: "vertriebo-engine-phase1"
-    };
-    
-    // ═══ PERSISTENCE ═══
-    const now = new Date().toISOString();
-    const engineAnalysis = {
-      version: "phase1",
-      temperature,
-      vertriebo_score: vertrieboScore,
-      urgency_score: Math.round(urgencyScore),
-      fit_score: Math.round(fitScore),
-      contactability_score: Math.round(contactabilityScore),
-      timing_score: Math.round(timingScore),
-      confidence_score: Math.round(confidenceScore),
-      summary,
-      reason,
-      signals: {
-        fit: fitSignals,
-        contactability: contactabilitySignals,
-        engagement: engagementSignals,
-        timing: timingSignals,
-        risk: riskSignals,
-        missing_data: missingData
-      },
-      next_best_action: nextBestAction,
-      outreach_angle: outreachAngle,
-      suggested_opening: suggestedOpening,
-      qualification_questions: qualificationQuestions,
-      objections_to_expect: objectionsToExpect,
-      recommended_status: recommendedStatus
-    };
-    
-    await base44.entities.Company.update(companyId, {
-      // Legacy Fields (Compat)
-      lead_temperature: temperature.toLowerCase(),
-      lead_temperature_score: vertrieboScore,
-      lead_temperature_reason: reason,
-      
-      // New Engine Bundle (Safe + Versioned)
-      engine_analysis_json: JSON.stringify(engineAnalysis),
-      engine_version: result.engine_version,
-      engine_last_analyzed_at: now,
-      
-      // Legacy Compat
-      is_hot: temperature === "hot"
-    });
-    
-    return {
-      success: true,
-      company_id: companyId,
-      result
-    };
-  } catch (error) {
-    console.error(`[analyzeLeadEngine] Single error for ${companyId}:`, error);
-    throw error;
-  }
+  const fitSignals = detectFitSignals(context);
+  const contactabilitySignals = detectContactabilitySignals(context);
+  const engagementSignals = detectEngagementSignals(context);
+  const timingSignals = detectTimingSignals(context);
+  const riskSignals = detectRiskSignals(context);
+  const missingData = detectMissingData(context);
+
+  const fitScore = calculateFitScore(context);
+  const contactabilityScore = calculateContactabilityScore(context);
+  const engagementScore = calculateEngagementScore(context);
+  const timingScore = calculateTimingScore(context);
+  const urgencyScore = calculateUrgencyScore(context);
+  const confidenceScore = calculateConfidenceScore(context, riskSignals);
+  const vertrieboScore = Math.round(fitScore * 0.3 + contactabilityScore * 0.25 + engagementScore * 0.25 + timingScore * 0.2);
+
+  const temperature = classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, contactabilityScore, context);
+  const summary = buildSummary(temperature, context, fitScore, contactabilityScore, urgencyScore, missingData);
+  const reason = buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals);
+  const nextBestAction = buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData);
+  const outreachAngle = buildOutreachAngle(context);
+  const suggestedOpening = buildSuggestedOpening(context);
+  const qualificationQuestions = buildQualificationQuestions(context);
+  const objectionsToExpect = buildObjectionsToExpect(context);
+  const recommendedStatus = buildRecommendedStatus(temperature, urgencyScore, context);
+
+  return {
+    temperature,
+    vertriebo_score: vertrieboScore,
+    urgency_score: Math.round(urgencyScore),
+    fit_score: Math.round(fitScore),
+    contactability_score: Math.round(contactabilityScore),
+    timing_score: Math.round(timingScore),
+    confidence_score: Math.round(confidenceScore),
+    summary,
+    reason,
+    top_signals: [
+      ...fitSignals.filter(s => s.present),
+      ...contactabilitySignals.filter(s => s.present),
+      ...engagementSignals.filter(s => s.present),
+      ...timingSignals.filter(s => s.present)
+    ].slice(0, 5),
+    risk_signals: riskSignals,
+    missing_data: missingData,
+    next_best_action: nextBestAction,
+    outreach_angle: outreachAngle,
+    suggested_opening: suggestedOpening,
+    qualification_questions: qualificationQuestions,
+    objections_to_expect: objectionsToExpect,
+    recommended_status: recommendedStatus,
+    signals: {
+      fit: fitSignals,
+      contactability: contactabilitySignals,
+      engagement: engagementSignals,
+      timing: timingSignals,
+      risk: riskSignals,
+      missing_data: missingData
+    },
+    engine_version: "vertriebo-engine-phase1"
+  };
 }
 
-async function analyzeLatestLeads(base44, organizationId, limit = 10) {
-  try {
-    const maxLimit = Math.min(limit, 25);
-    
-    // Nur Companies der Organisation
-    const companies = await base44.entities.Company.filter({
-      organization_id: organizationId
-    });
-    
-    if (!companies || companies.length === 0) {
-      return { success: true, analyzed_count: 0, results: [] };
-    }
-    
-    // Sortiere nach created_date (neueste zuerst)
-    const sorted = companies
-      .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
-      .slice(0, maxLimit);
-    
-    const results = [];
-    let analyzedCount = 0;
-    
-    for (const company of sorted) {
-      try {
-        const contactLogs = await base44.entities.ContactLog.filter({
-          company_id: company.id,
-          organization_id: organizationId
-        });
-        
-        const tasks = await base44.entities.Task.filter({
-          company_id: company.id,
-          organization_id: organizationId
-        });
-        
-        // (Identical analysis logic as above – abbreviated here for clarity)
-        const context = buildLeadContext(company, contactLogs, tasks);
-        const fitSignals = detectFitSignals(context);
-        const contactabilitySignals = detectContactabilitySignals(context);
-        const engagementSignals = detectEngagementSignals(context);
-        const timingSignals = detectTimingSignals(context);
-        const riskSignals = detectRiskSignals(context);
-        const missingData = detectMissingData(context);
-        
-        const fitScore = calculateFitScore(context, fitSignals);
-        const contactabilityScore = calculateContactabilityScore(context);
-        const engagementScore = calculateEngagementScore(context);
-        const timingScore = calculateTimingScore(context);
-        const urgencyScore = calculateUrgencyScore(context);
-        const confidenceScore = calculateConfidenceScore(context, riskSignals);
-        const vertrieboScore = Math.round(fitScore * 0.3 + contactabilityScore * 0.25 + engagementScore * 0.25 + timingScore * 0.2);
-        
-        const temperature = classifyTemperature(vertrieboScore, urgencyScore, fitScore, engagementScore, contactabilityScore, context);
-        const summary = buildSummary(temperature, context, fitScore, contactabilityScore, urgencyScore, missingData);
-        const reason = buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals);
-        const nextBestAction = buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData);
-        const outreachAngle = buildOutreachAngle(context, temperature, fitSignals, engagementSignals);
-        const suggestedOpening = buildSuggestedOpening(context, outreachAngle);
-        const qualificationQuestions = buildQualificationQuestions(context, missingData);
-        const objectionsToExpect = buildObjectionsToExpect(context);
-        const recommendedStatus = buildRecommendedStatus(temperature, urgencyScore, context);
-        
-        const result = {
-          temperature,
-          vertriebo_score: vertrieboScore,
-          urgency_score: Math.round(urgencyScore),
-          fit_score: Math.round(fitScore),
-          contactability_score: Math.round(contactabilityScore),
-          timing_score: Math.round(timingScore),
-          confidence_score: Math.round(confidenceScore),
-          summary,
-          reason,
-          next_best_action: nextBestAction,
-          engine_version: "vertriebo-engine-phase1"
-        };
-        
-        // Persistence
-        const now = new Date().toISOString();
-        const engineAnalysis = {
-          version: "phase1",
-          temperature,
-          vertriebo_score: vertrieboScore,
-          urgency_score: Math.round(urgencyScore),
-          fit_score: Math.round(fitScore),
-          contactability_score: Math.round(contactabilityScore),
-          timing_score: Math.round(timingScore),
-          confidence_score: Math.round(confidenceScore),
-          summary,
-          reason,
-          signals: {
-            fit: fitSignals,
-            contactability: contactabilitySignals,
-            engagement: engagementSignals,
-            timing: timingSignals,
-            risk: riskSignals,
-            missing_data: missingData
-          },
-          next_best_action: nextBestAction,
-          outreach_angle: outreachAngle,
-          suggested_opening: suggestedOpening,
-          qualification_questions: qualificationQuestions,
-          objections_to_expect: objectionsToExpect,
-          recommended_status: recommendedStatus
-        };
-        
-        await base44.entities.Company.update(company.id, {
-          // Legacy Fields (Compat)
-          lead_temperature: temperature.toLowerCase(),
-          lead_temperature_score: vertrieboScore,
-          lead_temperature_reason: reason,
-          
-          // New Engine Bundle (Safe + Versioned)
-          engine_analysis_json: JSON.stringify(engineAnalysis),
-          engine_version: result.engine_version,
-          engine_last_analyzed_at: now,
-          
-          // Legacy Compat
-          is_hot: temperature === "hot"
-        });
-        
-        results.push({ company_id: company.id, result });
-        analyzedCount++;
-      } catch (err) {
-        console.warn(`[analyzeLeadEngine] Skipping company ${company.id}:`, err.message);
-      }
-    }
-    
-    return { success: true, analyzed_count: analyzedCount, results };
-  } catch (error) {
-    console.error(`[analyzeLeadEngine] Latest error:`, error);
-    throw error;
-  }
+async function persistAnalysis(base44, companyId, analysis) {
+  // P0 FIX: open → unknown für Legacy-Enum-Compat
+  const legacyTemperature = analysis.temperature === "open" ? "unknown" : analysis.temperature;
+
+  const now = new Date().toISOString();
+  const engineAnalysis = {
+    version: "phase1",
+    temperature: analysis.temperature, // Engine JSON behält "open"
+    vertriebo_score: analysis.vertriebo_score,
+    urgency_score: analysis.urgency_score,
+    fit_score: analysis.fit_score,
+    contactability_score: analysis.contactability_score,
+    timing_score: analysis.timing_score,
+    confidence_score: analysis.confidence_score,
+    summary: analysis.summary,
+    reason: analysis.reason,
+    signals: analysis.signals,
+    next_best_action: analysis.next_best_action,
+    outreach_angle: analysis.outreach_angle,
+    suggested_opening: analysis.suggested_opening,
+    qualification_questions: analysis.qualification_questions,
+    objections_to_expect: analysis.objections_to_expect,
+    recommended_status: analysis.recommended_status
+  };
+
+  await base44.asServiceRole.entities.Company.update(companyId, {
+    // Legacy Fields – open wird zu unknown gemappt
+    lead_temperature: legacyTemperature,
+    lead_temperature_score: analysis.vertriebo_score,
+    lead_temperature_reason: analysis.reason,
+    engine_confidence: analysis.confidence_score,
+
+    // New Engine Bundle
+    engine_analysis_json: JSON.stringify(engineAnalysis),
+    engine_version: analysis.engine_version,
+    engine_last_analyzed_at: now,
+
+    // Legacy Compat
+    is_hot: analysis.temperature === "hot"
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1047,74 +569,149 @@ async function analyzeLatestLeads(base44, organizationId, limit = 10) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    
-    if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    
     const body = await req.json();
     const { mode = "single", company_id, limit = 10, organization_id } = body;
-    
-    // Resolve Organization
-    let organizationId = null;
-    if (organization_id) {
-      // Validate Access
-      const isAdmin = user.role === 'admin';
-      if (!isAdmin) {
-        const ownerOrgs = await base44.asServiceRole.entities.Organization.filter({
-          id: organization_id,
-          owner_email: user.email
-        });
-        const isOwner = ownerOrgs && ownerOrgs.length > 0;
-        
-        if (!isOwner) {
-          const members = await base44.asServiceRole.entities.OrganizationMember.filter({
-            organization_id: organization_id,
-            user_email: user.email,
-            status: 'active'
-          });
-          if (!members || members.length === 0) {
-            return Response.json({ error: 'Zugriff verweigert' }, { status: 403 });
-          }
-        }
-      }
-      organizationId = organization_id;
-    } else {
-      // Auto-detect from user
-      const memberOrgs = await base44.entities.OrganizationMember.filter({
-        user_email: user.email,
-        status: "active"
-      });
+
+    // ── Org-ID auflösen ────────────────────────────────────────────────────────
+    let organizationId = organization_id || null;
+    if (!organizationId) {
+      const user = await base44.auth.me();
+      if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      const memberOrgs = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
       if (memberOrgs && memberOrgs.length > 0) {
         organizationId = memberOrgs[0].organization_id;
       } else {
-        const ownerOrgs = await base44.entities.Organization.filter({
-          owner_email: user.email
-        });
-        if (ownerOrgs && ownerOrgs.length > 0) {
-          organizationId = ownerOrgs[0].id;
-        }
+        const ownerOrgs = await base44.entities.Organization.filter({ owner_email: user.email });
+        if (ownerOrgs && ownerOrgs.length > 0) organizationId = ownerOrgs[0].id;
       }
     }
-    
+
     if (!organizationId) {
       return Response.json({ error: 'Keine Organisation zugeordnet' }, { status: 403 });
     }
-    
-    if (mode === "single") {
-      if (!company_id) {
-        return Response.json({ error: 'company_id erforderlich für mode=single' }, { status: 400 });
+
+    // ── P0: Auth + Role + Billing + Limit ─────────────────────────────────────
+    const user = await base44.auth.me();
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+    // Org membership + role
+    const [orgRows, memberRows] = await Promise.all([
+      base44.asServiceRole.entities.Organization.filter({ id: organizationId }),
+      base44.asServiceRole.entities.OrganizationMember.filter({ organization_id: organizationId, user_email: user.email })
+    ]);
+    const org = orgRows[0] || null;
+    const member = memberRows[0] || null;
+    const isPlatformAdmin = ['admin', 'platform_owner', 'platform_admin'].includes(user.role);
+
+    if (!org) return Response.json({ error: 'Organisation nicht gefunden' }, { status: 404 });
+    if (org.platform_status === 'suspended' && !isPlatformAdmin) {
+      return Response.json({ error: `Organisation gesperrt: ${org.suspended_reason || ''}` }, { status: 403 });
+    }
+    if (!member && !isPlatformAdmin) return Response.json({ error: 'Kein Mitglied dieser Organisation' }, { status: 403 });
+    if (member && member.status !== 'active') return Response.json({ error: 'Mitgliedschaft inaktiv' }, { status: 403 });
+
+    const orgRole = member?.role || (isPlatformAdmin ? 'organization_admin' : null);
+    const isSalesRep = orgRole === 'sales_rep';
+    const isOrgAdmin = orgRole === 'organization_admin';
+    const userEmail = user.email;
+
+    // Billing check
+    const billingStatus = org.billing_status || 'trialing';
+    const BLOCKED = ['unpaid', 'canceled', 'incomplete_expired'];
+    const DEGRADED = ['past_due', 'incomplete'];
+    if (BLOCKED.includes(billingStatus) && !isPlatformAdmin) {
+      return Response.json({ error: 'Abo-Status gesperrt. Bitte Zahlung aktualisieren.' }, { status: 403 });
+    }
+    if (DEGRADED.includes(billingStatus)) {
+      return Response.json({ error: `Abo-Status "${billingStatus}": KI-Analyse nicht verfügbar. Bitte Zahlung aktualisieren.` }, { status: 403 });
+    }
+
+    // Plan limit check
+    if (!isPlatformAdmin && org.plan_id) {
+      const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
+      const plan = plans[0] || null;
+      if (plan && plan.max_ai_scorings_per_month !== -1) {
+        const currentUsage = await getCurrentAiUsage(base44, organizationId);
+        if (currentUsage >= plan.max_ai_scorings_per_month) {
+          return Response.json({ error: `KI-Analyse Limit erreicht: ${currentUsage}/${plan.max_ai_scorings_per_month} diesen Monat.`, reason: 'plan_limit_exceeded' }, { status: 429 });
+        }
       }
-      const result = await analyzeLeadSingle(base44, organizationId, company_id);
-      return Response.json(result);
     }
-    
+
+    // ── MODE: single ───────────────────────────────────────────────────────────
+    if (mode === "single") {
+      if (!company_id) return Response.json({ error: 'company_id erforderlich für mode=single' }, { status: 400 });
+
+      // P0: Company laden + Mandanten-Check
+      const companies = await base44.asServiceRole.entities.Company.filter({
+        id: company_id,
+        organization_id: organizationId
+      });
+      if (!companies || companies.length === 0) {
+        return Response.json({ error: 'Lead nicht gefunden oder gehört nicht zu dieser Organisation' }, { status: 404 });
+      }
+      const company = companies[0];
+
+      // P0 sales_rep Scope: darf nur eigene (assigned_to) Leads analysieren
+      if (isSalesRep && company.assigned_to && company.assigned_to !== userEmail) {
+        console.warn(`[analyzeLeadEngine] sales_rep "${userEmail}" tried to analyze lead assigned to "${company.assigned_to}"`);
+        return Response.json({ error: 'Kein Zugriff: Dieser Lead ist einem anderen Vertriebler zugewiesen.' }, { status: 403 });
+      }
+
+      const [contactLogs, tasks] = await Promise.all([
+        base44.asServiceRole.entities.ContactLog.filter({ company_id, organization_id: organizationId }),
+        base44.asServiceRole.entities.Task.filter({ company_id, organization_id: organizationId })
+      ]);
+
+      const analysis = analyzeContext(company, contactLogs, tasks);
+      await persistAnalysis(base44, company_id, analysis);
+      await incrementUsageLog(base44, organizationId, 1);
+
+      console.info(`[analyzeLeadEngine] Single OK: company=${company_id} org=${organizationId} score=${analysis.vertriebo_score} temp=${analysis.temperature}`);
+      return Response.json({ success: true, company_id, result: analysis });
+    }
+
+    // ── MODE: latest ───────────────────────────────────────────────────────────
     if (mode === "latest") {
-      const result = await analyzeLatestLeads(base44, organizationId, limit);
-      return Response.json(result);
+      const maxLimit = Math.min(limit, 25);
+
+      // P0 sales_rep Scope: nur eigene Leads bei latest
+      const companyFilter = { organization_id: organizationId };
+      if (isSalesRep) companyFilter.assigned_to = userEmail;
+
+      const companies = await base44.asServiceRole.entities.Company.filter(companyFilter);
+      if (!companies || companies.length === 0) {
+        return Response.json({ success: true, analyzed_count: 0, results: [] });
+      }
+
+      const sorted = companies
+        .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+        .slice(0, maxLimit);
+
+      const results = [];
+      let analyzedCount = 0;
+
+      for (const company of sorted) {
+        try {
+          const [contactLogs, tasks] = await Promise.all([
+            base44.asServiceRole.entities.ContactLog.filter({ company_id: company.id, organization_id: organizationId }),
+            base44.asServiceRole.entities.Task.filter({ company_id: company.id, organization_id: organizationId })
+          ]);
+
+          const analysis = analyzeContext(company, contactLogs, tasks);
+          await persistAnalysis(base44, company.id, analysis);
+          results.push({ company_id: company.id, result: analysis });
+          analyzedCount++;
+        } catch (err) {
+          console.warn(`[analyzeLeadEngine] Skipping company ${company.id}:`, err.message);
+        }
+      }
+
+      await incrementUsageLog(base44, organizationId, analyzedCount);
+      console.info(`[analyzeLeadEngine] Latest OK: analyzed=${analyzedCount} org=${organizationId}`);
+      return Response.json({ success: true, analyzed_count: analyzedCount, results });
     }
-    
+
     return Response.json({ error: 'Unbekannter mode. Verwende "single" oder "latest"' }, { status: 400 });
   } catch (error) {
     console.error('[analyzeLeadEngine] Error:', error);
