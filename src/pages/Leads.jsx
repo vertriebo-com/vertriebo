@@ -36,6 +36,8 @@ export default function Leads() {
   const [newRunFilter, setNewRunFilter] = useState(null);
   const [lastEngineResult, setLastEngineResult] = useState(null);
   const [showAllLeads, setShowAllLeads] = useState(false);
+  const [leadLimit, setLeadLimit] = useState(100);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [learnedIntelligenceLoaded, setLearnedIntelligenceLoaded] = useState(false);
 
   // ═ Effects
@@ -47,11 +49,11 @@ export default function Leads() {
 
   const orgId = org?.id || null;
   const { data: companies = [], isLoading: loading, refetch } = useQuery({
-    queryKey: ["companies", orgId],
+    queryKey: ["companies", orgId, leadLimit],
     queryFn: () => {
       console.time("[Leads] Company query");
       const result = orgId
-        ? base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 100)
+        ? base44.entities.Company.filter({ organization_id: orgId }, "-created_date", leadLimit)
         : Promise.resolve([]);
       console.timeEnd("[Leads] Company query");
       return result;
@@ -216,8 +218,16 @@ export default function Leads() {
           <p className="text-sm font-medium text-slate-700 mt-1">
             {filtered.length < companies.length
               ? `${filtered.length} von ${companies.length} geladenen Kontakten angezeigt`
-              : `${companies.length} zuletzt geladene Firmenkontakte`}
+              : `${companies.length} Kontakte geladen`}
             {filtered.filter(c => c.status === "Rückruf").length > 0 && ` · ${filtered.filter(c => c.status === "Rückruf").length} Rückrufe offen`}
+            {companies.length >= leadLimit && (
+              <button
+                onClick={async () => { setLoadingMore(true); setLeadLimit(l => l + 100); setLoadingMore(false); }}
+                className="ml-3 text-blue-600 hover:text-blue-700 underline font-semibold"
+              >
+                Weitere laden
+              </button>
+            )}
           </p>
         </div>
         {isAdmin && (
@@ -368,18 +378,29 @@ export default function Leads() {
             <LeadRow key={company.id} company={company} isAdmin={isAdmin} onLogged={loadData} outcome={outcomeByCompany[company.id] || null} />
           ))}
 
-          {/* Mehr-Laden Button */}
+          {/* Seitenweise anzeigen (innerhalb geladener Kontakte) */}
           {!showAllLeads && filtered.length > 50 && (
             <div className="flex justify-center pt-4">
               <button
-                onClick={() => {
-                  console.log("[Leads] Load more clicked, showing all", filtered.length);
-                  setShowAllLeads(true);
-                }}
+                onClick={() => setShowAllLeads(true)}
                 className="px-4 py-2 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-300 rounded-lg hover:bg-blue-50"
               >
-                {filtered.length - 50} weitere Leads laden
+                {filtered.length - 50} weitere angezeigte Kontakte einblenden
               </button>
+            </div>
+          )}
+
+          {/* Weitere Kontakte vom Server nachladen */}
+          {companies.length >= leadLimit && (
+            <div className="flex flex-col items-center pt-6 gap-2">
+              <button
+                onClick={() => { setLeadLimit(l => l + 100); setShowAllLeads(false); }}
+                disabled={loadingMore}
+                className="px-5 py-2.5 text-sm font-semibold text-blue-600 hover:text-blue-700 border border-blue-300 rounded-xl hover:bg-blue-50 disabled:opacity-50"
+              >
+                {loadingMore ? "Wird geladen…" : "Weitere 100 Kontakte laden"}
+              </button>
+              <p className="text-xs text-slate-500">Aktuell {companies.length} Kontakte geladen</p>
             </div>
           )}
         </div>
