@@ -88,7 +88,8 @@ function EngineStatsBox({ companies, onAnalyzeLatest, analyzingLatest = false, l
           <Zap className="w-4 h-4 text-purple-600" />
           <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Vertriebo Engine Status</h3>
         </div>
-        <p className="text-xs text-slate-600 mb-3">Priorisierung von {companies.length} Kontakten</p>
+        <p className="text-xs text-slate-600 mb-3">Status der {companies.length} aktuell geladenen Kontakte</p>
+        <p className="text-[10px] text-slate-500 mb-3 leading-relaxed">Die Übersicht basiert auf den aktuell geladenen Leads. Weitere Kontakte werden beim Nachladen berücksichtigt.</p>
 
         {/* Temperatur-Stats */}
         <div className="grid grid-cols-4 gap-2">
@@ -116,7 +117,7 @@ function EngineStatsBox({ companies, onAnalyzeLatest, analyzingLatest = false, l
           {/* Unanalysiert */}
           <div className="bg-gradient-to-br from-gray-100 to-gray-50 border-2 border-gray-300 rounded-lg p-2.5 text-center">
             <p className="text-xl font-black text-gray-600">{unanalyzed}</p>
-            <p className="text-[9px] font-bold uppercase text-gray-700 mt-0.5">Offen</p>
+            <p className="text-[9px] font-bold uppercase text-gray-700 mt-0.5">Nicht analysiert</p>
             <p className="text-[8px] text-gray-600 mt-0.5">⏳</p>
           </div>
         </div>

@@ -215,8 +215,8 @@ export default function Leads() {
           <h1 className="text-3xl font-bold text-slate-900">Leads</h1>
           <p className="text-sm font-medium text-slate-700 mt-1">
             {filtered.length < companies.length
-              ? `${filtered.length} von ${companies.length} Firmenkontakten angezeigt`
-              : `${companies.length} Firmenkontakte`}
+              ? `${filtered.length} von ${companies.length} geladenen Kontakten angezeigt`
+              : `${companies.length} zuletzt geladene Firmenkontakte`}
             {filtered.filter(c => c.status === "Rückruf").length > 0 && ` · ${filtered.filter(c => c.status === "Rückruf").length} Rückrufe offen`}
           </p>
         </div>
