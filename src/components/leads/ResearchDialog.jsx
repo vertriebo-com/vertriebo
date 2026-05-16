@@ -154,8 +154,9 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
     try {
       const res = await withTimeout(
-        base44.functions.invoke("runUnifiedResearch", {
+        base44.functions.invoke("generateLeads", {
           organization_id: orgId,
+          target_count: effectiveTargetCount,
           mode,
         }),
         timeoutMs
@@ -166,16 +167,24 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       // Fehler-Mapping
       if (res.data?.parallelLockActive) {
         setError(res.data.error || "Es läuft bereits eine Recherche. Bitte warten Sie kurz.");
-      } else if (res.data?.error === 'monthly_contact_limit_reached') {
+      } else if (res.data?.error === 'trial_preview_limit_reached') {
+        setShowTrialInfoDialog(true);
+        setError("Vorschau-Limit erreicht");
+      } else if (res.data?.error === 'monthly_contact_limit_reached' || res.data?.error === 'trial_monthly_contact_limit_reached') {
         setError("Monatliches Limit erreicht. Bitte upgraden Sie Ihren Tarif.");
       } else if (res.data?.error === 'abuse_blocked') {
         setError("Ihr Zugang wurde zur Sicherheitsprüfung eingeschränkt. Bitte kontaktieren Sie den Support.");
       } else if (res.data?.error === 'organization_suspended') {
         setError("Diese Organisation ist vorübergehend gesperrt. Bitte kontaktieren Sie den Support.");
       } else if (res.data?.success) {
-        // Einfaches Ergebnis: created_contacts_count + monthly_usage
-        setResult({ success: true, data: res.data });
-        console.log("[ResearchDialog] SET RESULT DONE - created:", res.data.created_contacts_count);
+        // generateLeads gibt `count` zurück → normalisieren auf created_contacts_count
+        const normalizedData = {
+          ...res.data,
+          created_contacts_count: res.data.count ?? res.data.created_contacts_count ?? 0,
+          monthly_usage: res.data.monthly_usage || null,
+        };
+        setResult({ success: true, data: normalizedData });
+        console.log("[ResearchDialog] SET RESULT DONE - count:", normalizedData.created_contacts_count);
 
         onSuccess?.();
 

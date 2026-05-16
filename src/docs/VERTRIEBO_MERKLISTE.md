@@ -94,6 +94,30 @@ _Zuletzt aktualisiert: 2026-05-16_
 
 ---
 
+## KRITISCHE ARCHITEKTUR-REGEL: Keine verschachtelten Function-Calls
+
+> **Eingeführt: 2026-05-16 nach Timeout-Bug**
+
+`runUnifiedResearch` hat per `base44.functions.invoke("generateLeads", ...)` eine Funktion in einer Funktion aufgerufen. Das hat einen **Timeout im Kundenflow** verursacht, weil:
+- `generateLeads` selbst schon schwer mit Google Places ist (bis zu 40s)
+- Der zusätzliche Wrapper-Aufruf erhöht Gesamtlaufzeit über Frontend-Timeout
+- Verschachtelte Functions sind unzuverlässig in Deno-Umgebung
+
+**Regel:** Orchestratoren dürfen NICHT andere schwere Backend-Functions aufrufen.
+
+**Erlaubte Alternativen für Orchestration:**
+- Gemeinsame Utility-Helpers direkt inline
+- Polling-basierte Queue-Architektur (Frontend fragt Status ab)
+- generateLeads selbst orchestrierbar machen (mit `mode`-Parameter)
+
+**Aktueller MVP-Zustand (stabil):**
+- `ResearchDialog` → ruft direkt `generateLeads` auf (kein Wrapper)
+- `runUnifiedResearch` existiert, wird aber NICHT im Kundenflow verwendet
+- `runUnifiedResearch` ist für zukünftige v2 reserviert (dann mit korrekter Architektur)
+- UsageLog wird nur von `generateLeads` geschrieben (kein `skip_usage_log` im direkten Aufruf)
+
+---
+
 ## Bekannte Risiken & Backlog
 
 ### ⚠️ Register-Integration noch nicht gebaut
