@@ -975,15 +975,35 @@ Deno.serve(async (req) => {
     ) || 25;
     const radiusMeters = Math.min(radiusKm * 1000, 50000);
 
-    // Zusätzliche Zielorte: target_locations (canonical, gespeichert von CompanySettings)
-    // UND additional_cities (legacy) werden zusammengeführt
-    const rawAdditionalCities = [
+    // Zusätzliche Zielorte: target_locations_json (strukturiert, mit place_id/lat/lng) hat Vorrang
+    // Fallback auf target_locations (Legacy-Kommaliste) und additional_cities
+    let additionalCityObjects = []; // [{ city, place_id, lat, lng }]
+    if (settings.target_locations_json) {
+      try {
+        const parsed = JSON.parse(settings.target_locations_json);
+        if (Array.isArray(parsed)) additionalCityObjects = parsed.filter(o => o && o.city);
+      } catch {}
+    }
+
+    const rawLegacyCities = [
       ...(settings.target_locations || '').split(','),
       ...(settings.additional_cities || '').split(','),
       ...(settings.targetLocations || '').split(','),
     ].map(s => s.trim()).filter(Boolean);
-    // Deduplizieren und Hauptstadt ausschließen
-    const additionalCities = [...new Set(rawAdditionalCities)].filter(c => c.toLowerCase() !== city.toLowerCase());
+
+    // Merge: strukturierte Objekte bevorzugen, Legacy-Strings als Fallback ergänzen
+    const structuredCityNames = new Set(additionalCityObjects.map(o => o.city.toLowerCase()));
+    for (const c of rawLegacyCities) {
+      if (!structuredCityNames.has(c.toLowerCase())) {
+        additionalCityObjects.push({ city: c, place_id: null, lat: null, lng: null });
+        structuredCityNames.add(c.toLowerCase());
+      }
+    }
+
+    // Hauptstadt aus Liste entfernen, deduplizieren
+    const additionalCities = additionalCityObjects
+      .filter(o => o.city.toLowerCase() !== city.toLowerCase())
+      .map(o => o.city); // buildSearchPlan erwartet String-Array
 
     console.info(`[generateLeads] resolveResearchSettings: city="${city}" radius=${radiusKm}km additionalCities=[${additionalCities.join(', ')}] industry="${industry}" targetTypes=${targetCustomerTypes.length}`);
 
@@ -1065,13 +1085,27 @@ Deno.serve(async (req) => {
     const target_count = requestedTargetCount;
     const effectiveTarget = effectiveTargetCount;
 
-    const cityQuery = city + ' Deutschland';
-    const refRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(cityQuery)}&key=${GOOGLE_PLACES_API_KEY}&language=de`);
-    const refData = await refRes.json();
-    let cityCoords = refData.results?.[0]?.geometry?.location ? { lat: refData.results[0].geometry.location.lat, lng: refData.results[0].geometry.location.lng } : null;
-    if (!cityCoords) return Response.json({ error: `Stadt "${city}" nicht gefunden.`, success: false }, { status: 400 });
-    const savedLat = parseFloat(settings.lead_lat || '0'), savedLng = parseFloat(settings.lead_lng || '0');
-    if (savedLat && savedLng && /^\d{5}$/.test(city)) cityCoords = { lat: savedLat, lng: savedLng };
+    // ── Koordinaten: strukturierte place_id-Koordinaten bevorzugen ──────────
+    // Priorität: service_area_lat/lng (aus Autocomplete gespeichert) > Google Places Geocoding
+    let cityCoords = null;
+    const savedLat = parseFloat(settings.service_area_lat || settings.lead_lat || '0');
+    const savedLng = parseFloat(settings.service_area_lng || settings.lead_lng || '0');
+
+    if (savedLat && savedLng && Math.abs(savedLat) > 0.001 && Math.abs(savedLng) > 0.001) {
+      cityCoords = { lat: savedLat, lng: savedLng };
+      console.info(`[generateLeads] Koordinaten aus Settings: lat=${savedLat} lng=${savedLng} (place_id=${settings.service_area_place_id || 'n/a'})`);
+    } else {
+      // Fallback: Google Places Text Search Geocoding
+      console.info(`[generateLeads] Geocoding Fallback für "${city}"…`);
+      const cityQuery = city + ' Deutschland';
+      const refRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(cityQuery)}&key=${GOOGLE_PLACES_API_KEY}&language=de`);
+      const refData = await refRes.json();
+      cityCoords = refData.results?.[0]?.geometry?.location
+        ? { lat: refData.results[0].geometry.location.lat, lng: refData.results[0].geometry.location.lng }
+        : null;
+      if (!cityCoords) return Response.json({ error: `Stadt "${city}" nicht gefunden. Bitte in den Einstellungen eine Stadt aus der Vorschlagsliste auswählen.`, success: false }, { status: 400 });
+      console.info(`[generateLeads] Geocoding Fallback Ergebnis: lat=${cityCoords.lat} lng=${cityCoords.lng}`);
+    }
 
     const searchPoints = generateSearchGrid(cityCoords.lat, cityCoords.lng, radiusKm, trialStage);
     console.info(`[generateLeads] Grid: ${searchPoints.length} Punkte für ${radiusKm}km (${trialStage})`);

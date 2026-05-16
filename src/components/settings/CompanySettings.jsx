@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import IndustryChangeConfirmDialog from "./IndustryChangeConfirmDialog";
 import { INDUSTRY_PRESETS, getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
+import CityAutocomplete from "./CityAutocomplete";
 
 // ─── Zielkunden → Google Places Suchbegriffe Mapping ─────────────────────────
 export const ZIELKUNDEN_SEARCH_MAPPING = {
@@ -79,9 +80,11 @@ export default function CompanySettings({ org: orgProp }) {
   const [adresse, setAdresse] = useState("");
   const [plz, setPlz] = useState("");
   const [radius, setRadius] = useState("25");
-  const [plzCity, setPlzCity] = useState("");
+  // Hauptstandort als strukturiertes Objekt { city, label, place_id, lat, lng }
+  const [mainCity, setMainCity] = useState(null);
+  // Zielorte als Array von strukturierten Objekten { city, label, place_id, lat, lng }
   const [targetLocations, setTargetLocations] = useState([]);
-  const [targetLocationsInput, setTargetLocationsInput] = useState("");
+  const [targetLocationPending, setTargetLocationPending] = useState(null); // ausgewählter, noch nicht hinzugefügter Ort
   const [zielkunden, setZielkunden] = useState([]);
   const [customZielkunde, setCustomZielkunde] = useState("");
   const [dienstleistungen, setDienstleistungen] = useState([]);
@@ -150,9 +153,38 @@ export default function CompanySettings({ org: orgProp }) {
     setPlz(currentOrg?.service_area_plz || map.service_area_plz || map.lead_plz || "");
     // Radius: Organization-Entity hat Vorrang
     setRadius(currentOrg?.service_area_radius_km ? String(currentOrg.service_area_radius_km) : map.service_area_radius_km || map.lead_radius_km || "25");
-    // Ort: beide Keys prüfen
-    setPlzCity(currentOrg?.service_area_city || map.service_area_city || map.lead_plz_city || "");
-    setTargetLocations(map.target_locations ? map.target_locations.split(",").map(s => s.trim()).filter(Boolean) : []);
+
+    // Hauptstandort: strukturiertes Objekt aus gespeicherten Werten rekonstruieren
+    const savedCity = currentOrg?.service_area_city || map.service_area_city || map.lead_plz_city || "";
+    const savedPlaceId = map.service_area_place_id || null;
+    const savedLat = parseFloat(map.service_area_lat || "0") || null;
+    const savedLng = parseFloat(map.service_area_lng || "0") || null;
+    if (savedCity) {
+      setMainCity({
+        city: savedCity,
+        label: savedCity,
+        place_id: savedPlaceId,
+        lat: savedLat,
+        lng: savedLng,
+      });
+    }
+
+    // Zielorte: versuche strukturiertes JSON, sonst Legacy-Kommaliste
+    const rawTargetLocations = map.target_locations_json || map.target_locations || "";
+    if (rawTargetLocations) {
+      try {
+        const parsed = JSON.parse(rawTargetLocations);
+        if (Array.isArray(parsed)) {
+          setTargetLocations(parsed);
+        } else {
+          throw new Error("not array");
+        }
+      } catch {
+        // Legacy: kommagetrennte Stadtname-Strings → in einfache Objekte konvertieren
+        const legacyCities = rawTargetLocations.split(",").map(s => s.trim()).filter(Boolean);
+        setTargetLocations(legacyCities.map(c => ({ city: c, label: c, place_id: null, lat: null, lng: null })));
+      }
+    }
     // Zielkunden: Onboarding nutzt "target_customer_types", Settings nutzt "zielkunden" → beide prüfen
     const zielkundenRaw = map.zielkunden || map.target_customer_types || "";
     setZielkunden(zielkundenRaw ? zielkundenRaw.split(", ").filter(Boolean) : []);
@@ -212,11 +244,16 @@ export default function CompanySettings({ org: orgProp }) {
     const normalizedWebsite = normalizeUrl(website);
     const zielkundenKeywords = zielkunden.flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z]).join(", ");
 
+    const cityName = mainCity?.city || "";
+    const cityLat = mainCity?.lat || null;
+    const cityLng = mainCity?.lng || null;
+    const cityPlaceId = mainCity?.place_id || null;
+
     await base44.entities.Organization.update(currentOrgId, {
       name: firmenname.trim(),
       industry,
       service_area_plz: plz,
-      service_area_city: plzCity,
+      service_area_city: cityName,
       service_area_radius_km: parseFloat(radius) || 25,
     });
 
@@ -237,14 +274,19 @@ export default function CompanySettings({ org: orgProp }) {
       email_adresse:                   adresse,
       company_address:                 adresse,
       address:                         adresse,
-      // Suchgebiet: alle Keys synchron halten
+      // Suchgebiet: alle Keys synchron halten (inkl. strukturierte place_id/lat/lng)
       lead_plz:                        plz,
       service_area_plz:                plz,
       lead_radius_km:                  radius,
       service_area_radius_km:          radius,
-      lead_plz_city:                   plzCity,
-      service_area_city:               plzCity,
-      target_locations:                targetLocations.join(", "),
+      lead_plz_city:                   cityName,
+      service_area_city:               cityName,
+      service_area_place_id:           cityPlaceId || "",
+      service_area_lat:                cityLat ? String(cityLat) : "",
+      service_area_lng:                cityLng ? String(cityLng) : "",
+      // Zielorte: strukturiertes JSON (canonical) + Legacy-Kommaliste
+      target_locations_json:           JSON.stringify(targetLocations),
+      target_locations:                targetLocations.map(l => l.city || l).join(", "),
       // Zielkunden & Dienstleistungen: ALLE Keys synchron speichern (Canonical + Legacy)
       zielkunden:                      zielkunden.join(", "),
       target_customer_types:           zielkunden.join(", "),
@@ -413,13 +455,14 @@ export default function CompanySettings({ org: orgProp }) {
           </div>
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
-          <div>
-            <Label className="text-xs font-bold mb-1.5 block text-slate-800">PLZ *</Label>
-            <Input value={plz} onChange={e => setPlz(e.target.value)} placeholder="56564" maxLength={5} />
-          </div>
-          <div>
-            <Label className="text-xs font-bold mb-1.5 block text-slate-800">Ort</Label>
-            <Input value={plzCity} onChange={e => setPlzCity(e.target.value)} placeholder="Neuwied" />
+          <div className="sm:col-span-2">
+            <Label className="text-xs font-bold mb-1.5 block text-slate-800">Hauptstandort / Suchgebiet *</Label>
+            <CityAutocomplete
+              value={mainCity}
+              onChange={setMainCity}
+              placeholder="Stadt eingeben, z.B. Neuwied…"
+            />
+            <p className="text-[11px] text-slate-500 mt-1">Tipp: Stadt eingeben und aus der Liste auswählen – dann werden Koordinaten automatisch gespeichert.</p>
           </div>
           <div>
             <Label className="text-xs font-bold mb-1.5 block text-slate-800">
@@ -449,39 +492,44 @@ export default function CompanySettings({ org: orgProp }) {
         {/* Zielstädte */}
         <div className="mt-4 pt-4 border-t border-slate-200">
           <Label className="text-xs font-bold mb-1 block text-slate-800">Zusätzliche Zielorte <span className="font-normal text-slate-500">(optional)</span></Label>
-          <p className="text-[11px] text-slate-500 mb-2">Städte/Regionen, die zusätzlich zum Umkreis durchsucht werden. Werden direkt als Suchgebiet genutzt.</p>
-          <div className="flex gap-2 mb-2">
-            <Input
-              value={targetLocationsInput}
-              onChange={e => setTargetLocationsInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === "Enter" && targetLocationsInput.trim()) {
-                  const v = targetLocationsInput.trim();
-                  if (!targetLocations.includes(v)) setTargetLocations(prev => [...prev, v]);
-                  setTargetLocationsInput("");
-                }
+          <p className="text-[11px] text-slate-500 mb-2">Städte, die zusätzlich zum Umkreis durchsucht werden. Bitte aus der Liste auswählen für genaue Koordinaten.</p>
+          <div className="flex gap-2 mb-2 items-end">
+            <div className="flex-1">
+              <CityAutocomplete
+                value={targetLocationPending}
+                onChange={setTargetLocationPending}
+                placeholder="Weitere Stadt eingeben…"
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 h-11"
+              disabled={!targetLocationPending}
+              onClick={() => {
+                if (!targetLocationPending) return;
+                const isDup = targetLocations.some(l => (l.place_id && l.place_id === targetLocationPending.place_id) || l.city === targetLocationPending.city);
+                if (!isDup) setTargetLocations(prev => [...prev, targetLocationPending]);
+                setTargetLocationPending(null);
               }}
-              placeholder="z.B. Köln, Neuwied, Berlin..."
-              className="text-sm h-9"
-            />
-            <Button variant="outline" size="sm" className="shrink-0 h-9" onClick={() => {
-              const v = targetLocationsInput.trim();
-              if (v && !targetLocations.includes(v)) setTargetLocations(prev => [...prev, v]);
-              setTargetLocationsInput("");
-            }}>+ Hinzufügen</Button>
+            >
+              + Hinzufügen
+            </Button>
           </div>
           {targetLocations.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {targetLocations.map(loc => (
-                <span key={loc} className="text-xs px-3 py-1.5 rounded-full border-2 border-blue-500 bg-blue-50 text-blue-700 font-semibold flex items-center gap-1">
-                  📍 {loc}
-                  <button type="button" onClick={() => setTargetLocations(prev => prev.filter(l => l !== loc))} className="ml-0.5 hover:text-destructive">×</button>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {targetLocations.map((loc, i) => (
+                <span key={loc.place_id || loc.city || i} className="text-xs px-3 py-1.5 rounded-full border-2 border-blue-500 bg-blue-50 text-blue-700 font-semibold flex items-center gap-1">
+                  <MapPin className="w-3 h-3" />
+                  {loc.city || loc}
+                  {loc.place_id && <span className="text-[9px] text-blue-400 font-normal ml-0.5">✓</span>}
+                  <button type="button" onClick={() => setTargetLocations(prev => prev.filter((_, j) => j !== i))} className="ml-0.5 hover:text-destructive">×</button>
                 </span>
               ))}
             </div>
           )}
           {targetLocations.length === 0 && (
-            <p className="text-[11px] text-slate-400 italic">Ohne Zielorte sucht Vertriebo automatisch nahe Orte im Umkreis.</p>
+            <p className="text-[11px] text-slate-400 italic mt-1">Ohne Zielorte sucht Vertriebo automatisch im Umkreis.</p>
           )}
         </div>
       </div>
