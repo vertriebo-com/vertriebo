@@ -118,6 +118,37 @@ _Zuletzt aktualisiert: 2026-05-16_
 
 ---
 
+---
+
+## KRITISCHE ARCHITEKTUR-REGEL: Canonical Research Settings Resolver
+
+> **Eingeführt: 2026-05-16 nach Settings-Key-Mismatch-Audit**
+
+### Problem (behoben)
+`CompanySettings` speicherte zusätzliche Zielorte unter `target_locations`.
+`generateLeads` las nur `additional_cities`. → Zielorte wurden ignoriert.
+
+### Lösung: Canonical Resolver in `generateLeads`
+Alle Settings-Keys werden zentral aufgelöst, Priorität: `org.*` > canonical > legacy:
+
+| Feld | Canonical Key | Legacy Keys |
+|------|---------------|-------------|
+| Hauptstadt | `org.service_area_city` | `settings.service_area_city`, `lead_plz_city`, `lead_plz` |
+| Radius | `org.service_area_radius_km` | `settings.service_area_radius_km`, `lead_radius_km` |
+| Zusätzliche Orte | `settings.target_locations` | `settings.additional_cities`, `settings.targetLocations` |
+| Zielkunden | `settings.target_customer_types` | `settings.zielkunden` |
+| Ausschlüsse | `settings.excluded_customer_types` | `settings.zielkunden_ausschluss` |
+| Branche | `settings.industry_name` | `settings.own_industry`, `settings.industry`, `org.industry` |
+
+### Regeln
+- **Keine Stadt-Sonderfälle.** Kein Hardcode für Neuwied, Koblenz oder andere Städte.
+- **Jede UI-Einstellung muss per Resolver ankommen.** Neuer Settings-Key → Resolver updaten.
+- **`target_locations` ist der Canonical Key** für zusätzliche Zielorte (gespeichert von CompanySettings).
+- **Fast Mode ignoriert `target_locations` nicht.** Max. 2 zusätzliche Städte werden übergeben.
+- **Bei 0 Ergebnissen** wird intern `zero_result_cause` gesetzt und in `lastReport` + `ResearchRun.summary` gespeichert. Mögliche Werte: `no_search_queries`, `google_returned_zero_results`, `all_duplicates`, `all_outside_radius`, `time_budget_reached_before_save`, `place_details_limit_reached`, `scoring_too_strict_or_bad_fit`, `unknown`.
+
+---
+
 ## Bekannte Risiken & Backlog
 
 ### ⚠️ Register-Integration noch nicht gebaut

@@ -957,16 +957,35 @@ Deno.serve(async (req) => {
       }
     }
 
-    const industry = settings.industry_name || settings.own_industry || settings.industry || '';
-    const targetCustomerTypes = (settings.target_customer_types || settings.zielkunden || '').split(', ').filter(x => x.trim());
-    const excludedCustomerTypes = (settings.excluded_customer_types || settings.zielkunden_ausschluss || '').split(', ').filter(x => x.trim());
-    const city = settings.service_area_city || settings.lead_plz_city || settings.lead_plz || '';
-    if (!city) return Response.json({ error: 'Kein Suchgebiet definiert.', success: false }, { status: 400 });
-    const radiusKm = parseFloat(settings.lead_radius_km || settings.service_area_radius_km || '25') || 25;
+    // ── Canonical Research Settings Resolver ────────────────────────────────
+    // Liest alle Legacy- und Canonical-Keys zusammen. Kein Stadt-Sonderfall.
+    // Reihenfolge: org-Felder > canonical settings-keys > legacy settings-keys
+    const industry = settings.industry_name || settings.own_industry || settings.industry || org.industry || '';
+    const targetCustomerTypes = (settings.target_customer_types || settings.zielkunden || '').split(/,|, /).map(x => x.trim()).filter(Boolean);
+    const excludedCustomerTypes = (settings.excluded_customer_types || settings.zielkunden_ausschluss || '').split(/,|, /).map(x => x.trim()).filter(Boolean);
+
+    // Haupt-Suchstadt: org-Felder haben Vorrang (direkt auf Organization gespeichert)
+    const city = org.service_area_city || settings.service_area_city || settings.lead_plz_city || settings.lead_plz || '';
+    if (!city) return Response.json({ error: 'Kein Suchgebiet definiert. Bitte in den Einstellungen eine Stadt angeben.', success: false }, { status: 400 });
+
+    // Radius: org-Felder haben Vorrang
+    const radiusKm = parseFloat(
+      (org.service_area_radius_km && org.service_area_radius_km > 0 ? org.service_area_radius_km : null) ||
+      settings.service_area_radius_km || settings.lead_radius_km || '25'
+    ) || 25;
     const radiusMeters = Math.min(radiusKm * 1000, 50000);
 
-    const manualAdditionalCities = (settings.additional_cities || '').split(',').map(s => s.trim()).filter(Boolean);
-    let additionalCities = manualAdditionalCities.length > 0 ? manualAdditionalCities : [];
+    // Zusätzliche Zielorte: target_locations (canonical, gespeichert von CompanySettings)
+    // UND additional_cities (legacy) werden zusammengeführt
+    const rawAdditionalCities = [
+      ...(settings.target_locations || '').split(','),
+      ...(settings.additional_cities || '').split(','),
+      ...(settings.targetLocations || '').split(','),
+    ].map(s => s.trim()).filter(Boolean);
+    // Deduplizieren und Hauptstadt ausschließen
+    const additionalCities = [...new Set(rawAdditionalCities)].filter(c => c.toLowerCase() !== city.toLowerCase());
+
+    console.info(`[generateLeads] resolveResearchSettings: city="${city}" radius=${radiusKm}km additionalCities=[${additionalCities.join(', ')}] industry="${industry}" targetTypes=${targetCustomerTypes.length}`);
 
     const searchPlan = buildSearchPlan({
       industry,
@@ -1057,15 +1076,19 @@ Deno.serve(async (req) => {
     const searchPoints = generateSearchGrid(cityCoords.lat, cityCoords.lng, radiusKm, trialStage);
     console.info(`[generateLeads] Grid: ${searchPoints.length} Punkte für ${radiusKm}km (${trialStage})`);
 
+    // Fast Mode: additionalCities als Suchstädte übergeben (nicht als Grid-Punkte)
+    // damit target_locations auch im Fast Mode berücksichtigt werden
+    const fastModeAdditionalCities = additionalCities.slice(0, 2); // max 2 im Fast Mode
+
     const fullSearchPlan = buildSearchPlan({
       industry,
       targetCustomerTypes,
       excludedCustomerTypes,
       location: city,
       radiusKm,
-      trialStage: isFastMode ? 'free_preview' : trialStage, // fast mode = preview-level grid
+      trialStage: isFastMode ? 'free_preview' : trialStage,
       remainingLeadBudget: remainingPreviewLeads,
-      additionalCities: isFastMode ? [] : manualAdditionalCities,
+      additionalCities: isFastMode ? fastModeAdditionalCities : additionalCities,
       searchPoints: isFastMode ? [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center' }] : searchPoints,
       learnedPriorityCategories,
       learnedWinningSignals,
@@ -1076,6 +1099,9 @@ Deno.serve(async (req) => {
     searchPlan.searchPoints = isFastMode
       ? [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center' }]
       : fullSearchPlan.searchPoints;
+
+    // Suchstädte für Diagnose
+    const searchCitiesUsed = [city, ...additionalCities].slice(0, isFastMode ? 3 : 10);
 
     const lockResult = await acquireLock(base44, organization_id, access.user.email);
     if (!lockResult.acquired) {
@@ -1250,18 +1276,44 @@ Deno.serve(async (req) => {
 
     const estimatedCostCent = skuCostCent('places_text_search_pro', apiCounters.textSearch) + skuCostCent('place_details_essentials', apiCounters.placeDetailsEssentials);
 
+    // ── 0-Ergebnis-Diagnose ──────────────────────────────────────────────────
+    let zero_result_cause = null;
+    if (newLeadsSaved === 0) {
+      if (searchQueryList.length === 0) zero_result_cause = 'no_search_queries';
+      else if (raw_hits === 0) zero_result_cause = 'google_returned_zero_results';
+      else if (skipped_duplicate > 0 && skipped_no_match === 0 && skipped_outside_radius === 0) zero_result_cause = 'all_duplicates';
+      else if (skipped_outside_radius > skipped_no_match) zero_result_cause = 'all_outside_radius';
+      else if (stop_reason === 'time_budget_reached') zero_result_cause = 'time_budget_reached_before_save';
+      else if (stop_reason === 'place_details_limit') zero_result_cause = 'place_details_limit_reached';
+      else if (skipped_no_match > 0) zero_result_cause = 'scoring_too_strict_or_bad_fit';
+      else zero_result_cause = 'unknown';
+      console.warn(`[generateLeads v2] ZERO RESULTS - cause=${zero_result_cause} raw=${raw_hits} dup=${skipped_duplicate} noMatch=${skipped_no_match} outRadius=${skipped_outside_radius} stop=${stop_reason}`);
+    }
+
     const lastReport = {
       search_engine_version: SEARCH_ENGINE_VERSION,
       requestedTarget: target_count, effectiveTarget, saved: newLeadsSaved,
       duplicates: skipped_duplicate, noMatch: skipped_no_match,
       outsideRadius: skipped_outside_radius, rawHits: raw_hits,
       noMatchExamples, outsideRadiusExamples, savedExamples, maxSavedDistanceKm,
-      radiusKm, searchCenterCity: city, runType, chargedLeadGeneration,
+      // ── Vollständige Suchkonfiguration ──
+      main_search_city: city,
+      radius_km: radiusKm,
+      additional_cities_resolved: additionalCities,
+      search_cities_used: searchCitiesUsed,
+      grid_points_count: (searchPlan.searchPoints || []).length,
+      // ── Diagnose ──
+      runType, chargedLeadGeneration,
       stopped_early, stop_reason,
+      zero_result_cause,
       search_queries_used: searchQueryList.map(q => q.query),
       used_search_categories: searchPlan.debug?.usedSearchableCategories || [],
       ignored_ideal_profiles: searchPlan.debug?.ignoredIdealProfiles || [],
       query_budget: queryBudget,
+      industry_resolved: industry,
+      industry_id: normalizeIndustryId(industry),
+      taxonomy_used: !!searchPlan.industryProfile,
+      is_fast_mode: isFastMode,
       timestamp: new Date().toISOString(),
     };
 
@@ -1357,8 +1409,15 @@ Deno.serve(async (req) => {
         query_budget: queryBudget,
         stopped_early,
         stop_reason,
+        zero_result_cause,
         industryId: normalizeIndustryId(industry),
         taxonomyUsed: !!industryProfile,
+        // Suchkonfiguration für Diagnose
+        main_search_city: city,
+        additional_cities_resolved: additionalCities,
+        search_cities_used: searchCitiesUsed,
+        grid_points_count: (searchPlan.searchPoints || []).length,
+        is_fast_mode: isFastMode,
       },
       googleRequests: { textSearch: apiCounters.textSearch, placeDetailsEssentials: apiCounters.placeDetailsEssentials },
       usage: { lead_generations_used: chargedLeadGeneration ? 1 : 0, leads_created: newLeadsSaved, estimated_external_cost_cent: estimatedCostCent },
