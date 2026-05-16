@@ -867,7 +867,7 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     _base44 = base44;
     const body = await req.json();
-    const { organization_id } = body;
+    const { organization_id, skip_usage_log = false } = body;
     _orgId = organization_id;
 
     // ── Internes Time-Budget ─────────────────────────────────────────────────
@@ -1265,17 +1265,21 @@ Deno.serve(async (req) => {
       timestamp: new Date().toISOString(),
     };
 
-    await upsertUsageLog(base44, organization_id, {
-      lead_generations_used: chargedLeadGeneration ? 1 : 0,
-      leads_created: newLeadsSaved,
-      textSearch: apiCounters.textSearch,
-      placeDetails: apiCounters.placeDetailsEssentials,
-      estimatedCostCent,
-      skuBreakdown: {
-        places_text_search_pro: { requests: apiCounters.textSearch, estimated_cost_cent: skuCostCent('places_text_search_pro', apiCounters.textSearch) },
-        place_details_essentials: { requests: apiCounters.placeDetailsEssentials, estimated_cost_cent: skuCostCent('place_details_essentials', apiCounters.placeDetailsEssentials) },
-      }
-    }, lastReport);
+    // WICHTIG: Nur UsageLog schreiben wenn NOT called from runUnifiedResearch
+    // Falls skip_usage_log=true, muss der Orchestrator (runUnifiedResearch) die Zählung machen
+    if (!skip_usage_log) {
+      await upsertUsageLog(base44, organization_id, {
+        lead_generations_used: chargedLeadGeneration ? 1 : 0,
+        leads_created: newLeadsSaved,
+        textSearch: apiCounters.textSearch,
+        placeDetails: apiCounters.placeDetailsEssentials,
+        estimatedCostCent,
+        skuBreakdown: {
+          places_text_search_pro: { requests: apiCounters.textSearch, estimated_cost_cent: skuCostCent('places_text_search_pro', apiCounters.textSearch) },
+          place_details_essentials: { requests: apiCounters.placeDetailsEssentials, estimated_cost_cent: skuCostCent('place_details_essentials', apiCounters.placeDetailsEssentials) },
+        }
+      }, lastReport);
+    }
 
     let research_run_id = null;
     try {

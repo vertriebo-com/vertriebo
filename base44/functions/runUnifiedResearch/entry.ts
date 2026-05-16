@@ -140,6 +140,8 @@ Deno.serve(async (req) => {
     }
 
     // ── CALL generateLeads (Google Research) ───────────────────────────────
+    // WICHTIG: skip_usage_log=true damit generateLeads das UsageLog nicht selbst schreibt
+    // runUnifiedResearch ist der EINZIGE Punkt der UsageLog aktualisiert
     let googleResult;
     try {
       const isMobile = body.mode === 'fast' || false;
@@ -149,6 +151,7 @@ Deno.serve(async (req) => {
         organization_id,
         target_count: effectiveTargetCount,
         mode: isMobile ? 'fast' : 'standard',
+        skip_usage_log: true, // <-- KRITISCH: Keine doppelte Zählung!
       });
 
       if (!googleRes?.data?.success) {
@@ -196,28 +199,20 @@ Deno.serve(async (req) => {
     const chargedLeadGeneration = googleResult.chargedLeadGeneration || false;
 
     // ── USAGE LOG: NUR für echte Company-Erstellungen ──────────────────────
-    // Unsichere Kandidaten (ExternalCompanySource mit match_status !== ready_for_review)
-    // zählen NICHT gegen Monatslimit
-    if (chargedLeadGeneration && createdCount > 0) {
+    // generateLeads hat skip_usage_log=true, also schreiben WIR hier
+    // Auch Google API Counters aus dem generateLeads-Ergebnis mitnehmen
+    if (chargedLeadGeneration) {
       try {
         const now = new Date().toISOString();
-        const start = new Date(
-          Date.UTC(
-            new Date().getUTCFullYear(),
-            new Date().getUTCMonth(),
-            1
-          )
-        ).toISOString();
-        const end = new Date(
-          Date.UTC(
-            new Date().getUTCFullYear(),
-            new Date().getUTCMonth() + 1,
-            0,
-            23,
-            59,
-            59
-          )
-        ).toISOString();
+        const start = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
+        const end = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() + 1, 0, 23, 59, 59)).toISOString();
+
+        // Google API-Counters aus generateLeads-Ergebnis holen
+        const googleRequests = googleResult.googleRequests || {};
+        const textSearchRequests = googleRequests.textSearch || 0;
+        const placeDetailsRequests = googleRequests.placeDetailsEssentials || 0;
+        const estimatedCostCent = googleResult.usage?.estimated_external_cost_cent || 0;
+        const lastReport = JSON.stringify(googleResult.summary || {});
 
         const existing = await base44.asServiceRole.entities.UsageLog.filter({
           organization_id,
@@ -225,12 +220,17 @@ Deno.serve(async (req) => {
         });
 
         if (existing?.[0]) {
-          await base44.asServiceRole.entities.UsageLog.update(existing[0].id, {
-            lead_generations_used:
-              (existing[0].lead_generations_used || 0) +
-              (chargedLeadGeneration ? 1 : 0),
-            leads_created: (existing[0].leads_created || 0) + createdCount,
+          const log = existing[0];
+          await base44.asServiceRole.entities.UsageLog.update(log.id, {
+            lead_generations_used: (log.lead_generations_used || 0) + 1,
+            leads_created: (log.leads_created || 0) + createdCount,
+            google_places_text_search_requests: (log.google_places_text_search_requests || 0) + textSearchRequests,
+            google_place_details_essentials_requests: (log.google_place_details_essentials_requests || 0) + placeDetailsRequests,
+            google_places_requests: (log.google_places_requests || 0) + textSearchRequests,
+            place_details_requests: (log.place_details_requests || 0) + placeDetailsRequests,
+            estimated_external_cost_cent: (log.estimated_external_cost_cent || 0) + estimatedCostCent,
             last_lead_generation_at: now,
+            last_lead_generation_report: lastReport,
           });
         } else {
           await base44.asServiceRole.entities.UsageLog.create({
@@ -238,17 +238,21 @@ Deno.serve(async (req) => {
             period_month: periodMonth,
             period_start: start,
             period_end: end,
-            lead_generations_used: chargedLeadGeneration ? 1 : 0,
+            lead_generations_used: 1,
             leads_created: createdCount,
+            google_places_text_search_requests: textSearchRequests,
+            google_place_details_essentials_requests: placeDetailsRequests,
+            google_places_requests: textSearchRequests,
+            place_details_requests: placeDetailsRequests,
+            estimated_external_cost_cent: estimatedCostCent,
             last_lead_generation_at: now,
+            last_lead_generation_report: lastReport,
           });
         }
-        console.log(
-          `[runUnifiedResearch] UsageLog updated: +${createdCount} contacts`
-        );
+        console.log(`[runUnifiedResearch] UsageLog updated: +${createdCount} contacts, textSearch=${textSearchRequests}, placeDetails=${placeDetailsRequests}`);
       } catch (e) {
         console.error('[runUnifiedResearch] UsageLog update error:', e?.message);
-        // Non-critical: don't fail the response
+        // Non-critical: Nicht fehlschlagen wegen UsageLog
       }
     }
 
