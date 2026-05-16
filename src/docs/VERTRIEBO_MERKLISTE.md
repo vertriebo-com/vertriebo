@@ -4,7 +4,100 @@ _Zuletzt aktualisiert: 2026-05-16_
 
 ---
 
-## Ein-Klick-Firmenrecherche – Phase F (neu MVP)
+## ██████████████████████████████████████████████████████████
+## P0 DAUERREGEL: Zentrale Bausteine statt Einzel-Fixes
+## ██████████████████████████████████████████████████████████
+
+> **Gilt ab sofort für ALLE Änderungen an Vertriebo.**
+> Diese Regel hat die höchste Priorität. Sie ist keine Empfehlung, sondern Pflicht.
+
+### Grundsatz
+
+**VERBOTEN:**
+- Eine einzelne Seite fixen, ohne die anderen zu prüfen
+- Einen Key nur an einer Stelle ändern
+- Ein Problem lokal lösen, ohne auf Duplikate zu prüfen
+- Eine Logik zweimal implementieren (Onboarding ≠ Settings ≠ ResearchDialog)
+
+**PFLICHT:**
+- Zentralen Baustein / zentrale Resolver-Logik bauen
+- Diesen Baustein überall verwenden
+- Backend-Resolver absichern (Priorität: canonical > legacy)
+- Legacy-Daten weiter unterstützen
+- Diese Merkliste aktualisieren
+
+---
+
+### Pflicht-Check vor JEDER Änderung
+
+Vor jeder Umsetzung folgende Fragen beantworten:
+
+1. Gibt es dafür schon eine bestehende Logik? → Zuerst wiederverwenden.
+2. Gibt es mehrere Stellen, die dasselbe machen? → Zusammenführen.
+3. Muss daraus ein wiederverwendbarer Baustein werden?
+4. Betrifft es **Onboarding**? → `pages/Onboarding` + `components/onboarding/*`
+5. Betrifft es **Einstellungen**? → `pages/SettingsPage` + `components/settings/*`
+6. Betrifft es **ResearchDialog**? → `components/leads/ResearchDialog`
+7. Betrifft es **Leadseite / LeadDetail**? → `pages/Leads` + `pages/LeadDetail`
+8. Betrifft es **Dashboard / Usage**? → `pages/Dashboard` + `UsageLog` Entity
+9. Betrifft es **Billing / Limits**? → `components/settings/BillingSettings` + Plan-Entity
+10. Betrifft es **Backend-Resolver oder Entity-Schema**? → `generateLeads` Resolver updaten
+11. Muss **diese Merkliste** aktualisiert werden? → Immer wenn neue Regel/Baustein entsteht.
+
+---
+
+### Gilt für diese Bereiche (vollständige Liste)
+
+| Bereich | Zentraler Baustein / Resolver |
+|---------|-------------------------------|
+| Ortsauswahl / Suchgebiet | `components/LocationAutocomplete.jsx` |
+| Zielkunden / Branche / Ausschlüsse | `components/settings/CompanySettings` + Resolver in `generateLeads` |
+| Lead-Recherche Settings | `resolveResearchSettings()` in `generateLeads` |
+| Google / Places API | `functions/geocodeCity` (Backend-Proxy) |
+| Zusätzliche Zielorte | `target_locations_json` (canonical) + Legacy-Kompaliste |
+| Billing / Plan-Limits | `Plan`-Entity + `UsageLog` |
+| Rollen / Zugriff | `OrganizationMember.role` + `OnboardingGuard` |
+| E-Mail-Templates | `functions/initOrgEmailTemplates` |
+| Engine / Temperatur-Analyse | `functions/analyzeLeadTemperature` |
+
+---
+
+### Konkrete Beispiele für korrekte Umsetzung
+
+#### Ortsauswahl (umgesetzt 2026-05-16)
+```
+LocationAutocomplete (components/LocationAutocomplete.jsx)
+  └── Onboarding (CompanyStep)
+  └── Settings (CompanySettings via CityAutocomplete-Alias)
+  └── ResearchDialog (bei fehlendem Ort)
+  └── zukünftige Admin-/Support-Tools
+```
+Strukturierte Daten:
+- `service_area_city`, `service_area_place_id`, `service_area_lat`, `service_area_lng`
+- `target_locations_json`: `[{ city, label, place_id, lat, lng, country }]`
+- Legacy weiter unterstützt: `lead_plz_city`, `target_locations`, `additional_cities`
+
+#### Zielkunden / Branche (Regel)
+```
+TargetingStep (Onboarding) und CompanySettings (Einstellungen)
+  → speichern DIESELBEN Keys: target_customer_types, excluded_customer_types, services
+  → nutzen DIESELBEN Presets: industryTargetPresets.js
+  → generateLeads liest canonical Keys mit Legacy-Fallback
+```
+
+#### Lead-Recherche Settings (Resolver)
+```
+generateLeads → resolveResearchSettings(settings, org)
+  → Branche: industry_name > own_industry > org.industry
+  → Zielkunden: target_customer_types > zielkunden
+  → Suchgebiet: service_area_lat/lng (canonical) > Google-Geocoding (Fallback)
+  → Zusätzliche Orte: target_locations_json > target_locations > additional_cities
+  → Radius: org.service_area_radius_km > service_area_radius_km > lead_radius_km
+```
+
+---
+
+## Ein-Klick-Firmenrecherche – Phase F (MVP)
 
 ### Kernkonzept
 - **Kundenseite:** Ein Button "Firmen recherchieren" → Automatisch neue Firmenkontakte
@@ -15,82 +108,38 @@ _Zuletzt aktualisiert: 2026-05-16_
 
 ### Functions
 
-**runUnifiedResearch** (neuer Orchestrator)
-- **Eingabe:** organization_id, mode (standard/fast)
-- **Intern:**
-  1. Ruft `generateLeads` auf → Google Places Recherche
-  2. (Optional) Prüft Register-Signale im Hintergrund
-  3. Nutzt nur sichere Matches aus generateLeads
-  4. Auto-Übernahme als `Company`: match_status=ready_for_review + enrichment_status=enriched + enrichment_confidence>=70
-- **Output:** { success, created_contacts_count, monthly_usage, user_message }
-- **UsageLog:** Nur echte Company-Erstellungen zählen gegen Monatslimit
-- **Keine Auto-Engine:** analyzeLeadTemperature wird NICHT automatisch aufgerufen
-- **Status:** ✅ MVP Production
-
-**generateLeads** (unverändert, interne Nutzung)
-- Wird von `runUnifiedResearch` aufgerufen (nicht direkt vom Frontend)
-- Gibt weiterhin detaillierte debug-Infos zurück
+**generateLeads** (Haupt-Recherche-Funktion, direkt vom ResearchDialog aufgerufen)
+- Canonical Settings Resolver: bevorzugt strukturierte Ortsdaten (place_id/lat/lng)
 - Erstellt Companies direkt (Google-Matches)
+- Schreibt UsageLog, ResearchRun, zählt gegen Monatslimit
+- Status: ✅ MVP Production
+
+**runUnifiedResearch** (Orchestrator, reserviert für v2)
+- Existiert, wird aber NICHT im aktiven Kundenflow verwendet
+- Keine verschachtelten Function-Calls (→ Timeout-Regel beachten)
 
 **syncOpenRegister** (optional, Hintergrund)
-- Wird von `runUnifiedResearch` optional im Hintergrund aufgerufen
-- Beeinflusst NICHT den Kundendialog
+- Wird nicht im Kundenflow aktiviert
 - Kandidaten mit enrichment_confidence < 70 werden NICHT auto-promoted
 
-### Frontend-Changes
-
-**ResearchDialog**
-- Ruft jetzt `runUnifiedResearch` statt `generateLeads` auf
+### Frontend-Flow
+- `ResearchDialog` → ruft direkt `generateLeads` auf
 - Zeigt nur Kundenergebnis: "X Kontakte erstellt" + Monatslimit
 - Keine technischen Zwischenschritte sichtbar
-- Einfache Fehler-Messages: Limit erreicht, Fehler, fertig
-
-**Leadseite**
-- Nur noch "Firmen recherchieren"-Button (für Admins)
-- "Import-Kandidaten"-Einstieg ist aus normalem Kundendialog entfernt
-- Interne Seite /import-kandidaten existiert noch, aber kein direkter Kunden-Link
 
 ---
 
 ## Wichtige Architektur-Entscheidungen
 
 ### Kandidaten vs. Auto-Companies
-- Unsichere Kandidaten (enrichment_confidence < 70) → ExternalCompanySource, werden NICHT auto-promoted
+- Unsichere Kandidaten (enrichment_confidence < 70) → ExternalCompanySource, nicht auto-promoted
 - Sichere Matches (confidence >= 70) → direkt als Company erstellt
-- Monatslimit: zählt NUR echte Company-Erstellungen, NICHT interne Kandidaten
-
-### Keine Auto-Automatiken für Kunden
-- Kein automatischer Engine-Analyse
-- Kein SuccessScreen mit technischen Details
-- Keine Anzeige von interne Register-Matches
-- Kunde sieht nur: "Recherche fertig" + finale Kontaktzahl
-
-### Register-Integration (optional)
-- Register-Signale laufen im Hintergrund
-- Beeinflussen nur die interne Validierung
-- Werden NICHT an Kunde kommuniziert
-- Zukünftig: können für weitere Validierungs-Layer genutzt werden
+- Monatslimit: zählt NUR echte Company-Erstellungen
 
 ### Rollenmodell
 - Platform Admin → darf alles
-- Organization Owner → darf "Firmen recherchieren" aufrufen
-- Organization Admin → darf "Firmen recherchieren" aufrufen
+- Organization Owner/Admin → darf "Firmen recherchieren" aufrufen
 - Sales Rep → darf NUR bereits erstellte Leads sehen
-
----
-
-## Akzeptanz-Checkliste Phase F
-
-- [x] Leadseite: nur "Firmen recherchieren"-Button für Admins
-- [x] ResearchDialog: vereinfacht, zeigt nur Kundenergebnis
-- [x] runUnifiedResearch: orchestriert Google + Register + Auto-Übernahme
-- [x] Sichere Matches (confidence >= 70): automatisch als Company erstellt
-- [x] Unsichere Kandidaten: NICHT sichtbar für Kunden
-- [x] UsageLog: nur echte Company-Erstellungen zählen gegen Monatslimit
-- [x] Kundendialog: einfache Message "X Kontakte erstellt"
-- [x] Keine automatische Engine-Analyse
-- [x] Lead Detail: funktioniert für automatisch erstellte Leads
-- [x] Leadseite: refresht nach Recherche
 
 ---
 
@@ -98,25 +147,18 @@ _Zuletzt aktualisiert: 2026-05-16_
 
 > **Eingeführt: 2026-05-16 nach Timeout-Bug**
 
-`runUnifiedResearch` hat per `base44.functions.invoke("generateLeads", ...)` eine Funktion in einer Funktion aufgerufen. Das hat einen **Timeout im Kundenflow** verursacht, weil:
-- `generateLeads` selbst schon schwer mit Google Places ist (bis zu 40s)
-- Der zusätzliche Wrapper-Aufruf erhöht Gesamtlaufzeit über Frontend-Timeout
-- Verschachtelte Functions sind unzuverlässig in Deno-Umgebung
+`runUnifiedResearch` hat per `base44.functions.invoke("generateLeads", ...)` eine Funktion in einer Funktion aufgerufen → **Timeout im Kundenflow**.
 
 **Regel:** Orchestratoren dürfen NICHT andere schwere Backend-Functions aufrufen.
 
-**Erlaubte Alternativen für Orchestration:**
+**Erlaubte Alternativen:**
 - Gemeinsame Utility-Helpers direkt inline
-- Polling-basierte Queue-Architektur (Frontend fragt Status ab)
-- generateLeads selbst orchestrierbar machen (mit `mode`-Parameter)
+- Polling-basierte Queue-Architektur
+- `generateLeads` selbst orchestrierbar machen (mit `mode`-Parameter)
 
-**Aktueller MVP-Zustand (stabil):**
+**Aktueller MVP-Zustand:**
 - `ResearchDialog` → ruft direkt `generateLeads` auf (kein Wrapper)
-- `runUnifiedResearch` existiert, wird aber NICHT im Kundenflow verwendet
-- `runUnifiedResearch` ist für zukünftige v2 reserviert (dann mit korrekter Architektur)
-- UsageLog wird nur von `generateLeads` geschrieben (kein `skip_usage_log` im direkten Aufruf)
-
----
+- `runUnifiedResearch` → für zukünftige v2 reserviert
 
 ---
 
@@ -125,54 +167,53 @@ _Zuletzt aktualisiert: 2026-05-16_
 > **Eingeführt: 2026-05-16 nach Settings-Key-Mismatch-Audit**
 
 ### Problem (behoben)
-`CompanySettings` speicherte zusätzliche Zielorte unter `target_locations`.
+`CompanySettings` speicherte Zielorte unter `target_locations`.
 `generateLeads` las nur `additional_cities`. → Zielorte wurden ignoriert.
 
 ### Lösung: Canonical Resolver in `generateLeads`
-Alle Settings-Keys werden zentral aufgelöst, Priorität: `org.*` > canonical > legacy:
+
+Priorität: `org.*` > canonical Settings > legacy Settings > Geocoding-Fallback
 
 | Feld | Canonical Key | Legacy Keys |
 |------|---------------|-------------|
-| Hauptstadt | `org.service_area_city` | `settings.service_area_city`, `lead_plz_city`, `lead_plz` |
+| Hauptstadt | `org.service_area_city` | `settings.service_area_city`, `lead_plz_city` |
+| Koordinaten | `settings.service_area_lat/lng` | Google-Geocoding als Fallback |
+| Place ID | `settings.service_area_place_id` | — |
 | Radius | `org.service_area_radius_km` | `settings.service_area_radius_km`, `lead_radius_km` |
-| Zusätzliche Orte | `settings.target_locations` | `settings.additional_cities`, `settings.targetLocations` |
+| Zusätzliche Orte (strukturiert) | `settings.target_locations_json` | `settings.target_locations`, `additional_cities` |
 | Zielkunden | `settings.target_customer_types` | `settings.zielkunden` |
 | Ausschlüsse | `settings.excluded_customer_types` | `settings.zielkunden_ausschluss` |
-| Branche | `settings.industry_name` | `settings.own_industry`, `settings.industry`, `org.industry` |
+| Branche | `settings.industry_name` | `settings.own_industry`, `org.industry` |
 
 ### Regeln
 - **Keine Stadt-Sonderfälle.** Kein Hardcode für Neuwied, Koblenz oder andere Städte.
-- **Jede UI-Einstellung muss per Resolver ankommen.** Neuer Settings-Key → Resolver updaten.
-- **`target_locations` ist der Canonical Key** für zusätzliche Zielorte (gespeichert von CompanySettings).
-- **Fast Mode ignoriert `target_locations` nicht.** Max. 2 zusätzliche Städte werden übergeben.
-- **Bei 0 Ergebnissen** wird intern `zero_result_cause` gesetzt und in `lastReport` + `ResearchRun.summary` gespeichert. Mögliche Werte: `no_search_queries`, `google_returned_zero_results`, `all_duplicates`, `all_outside_radius`, `time_budget_reached_before_save`, `place_details_limit_reached`, `scoring_too_strict_or_bad_fit`, `unknown`.
+- **Jede neue UI-Einstellung → Resolver updaten.**
+- **`target_locations_json`** ist canonical für Zielorte mit Koordinaten.
+- **`target_locations`** ist canonical (Legacy) als Kommaliste.
+- **Bei 0 Ergebnissen** → intern `zero_result_cause` setzen: `no_search_queries`, `google_returned_zero_results`, `all_duplicates`, `all_outside_radius`, `time_budget_reached_before_save`, `place_details_limit_reached`, `scoring_too_strict_or_bad_fit`, `unknown`.
 
 ---
 
 ## Bekannte Risiken & Backlog
 
-### ⚠️ Register-Integration noch nicht gebaut
+### ⚠️ Register-Integration noch nicht aktiviert
 - `runUnifiedResearch` hat Placeholder für Register-Prüfung
-- Wird derzeit nicht aktiviert (nur Google ist aktiv)
-- Zukünftig: Optional Enable/Disable für Register-Hintergrund-Checks
+- Derzeit nur Google aktiv
+- Zukünftig: Optional Enable/Disable
 
 ### ⚠️ Import-Kandidaten-Seite separiert
-- `/import-kandidaten` existiert noch für interne Use-Cases
-- Ist aber aus normalem Kundendialog entfernt
-- Zukünftig: Optional für Power-User aktivierbar
+- `/import-kandidaten` existiert für interne Use-Cases
+- Kein direkter Kunden-Link
 
 ### ⚠️ Keine Batch-Operationen
-- Einzelne Recherche-Läufe, keine parallelen Batches
-- Lock-Mechanismus verhindert overlapping runs
-- Zukünftig: Erweitern für mehrere gleichzeitige Org-Recherchen
+- Einzelne Recherche-Läufe, Lock-Mechanismus verhindert overlapping runs
 
 ---
 
-## Noch nicht gebaut (Backlog)
+## Backlog
 
 - [ ] Register-Integration aktivieren (syncOpenRegister im Hintergrund)
-- [ ] Detaillierte Error-Messages pro Register-Signal
 - [ ] Admin-Dashboard: Überblick über Research-Runs + Auto-Matches
-- [ ] A/B-Tests: mit/ohne Register-Signale
 - [ ] Performance-Optimierung: parallele Grid-Punkte bei Google
 - [ ] Fallback zu Register-Daten wenn Google-Hit < 50% Confidence
+- [ ] ResearchDialog: LocationAutocomplete wenn Ort fehlt oder überschrieben werden soll
