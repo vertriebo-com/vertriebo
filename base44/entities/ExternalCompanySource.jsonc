@@ -38,6 +38,10 @@
       "type": "string",
       "title": "Adresse"
     },
+    "postal_code": {
+      "type": "string",
+      "title": "Postleitzahl"
+    },
     "register_number": {
       "type": "string",
       "title": "Registernummer"
@@ -160,6 +164,19 @@
       "type": "number",
       "title": "Quell-Konfidenz",
       "default": 0
+    },
+    "promoted_company_id": {
+      "type": "string",
+      "title": "Erstellte Company ID"
+    },
+    "promoted_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Promoted am"
+    },
+    "promoted_by": {
+      "type": "string",
+      "title": "Promoted von (E-Mail)"
     }
   },
   "required": [
