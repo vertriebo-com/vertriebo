@@ -31,8 +31,8 @@ export default function Onboarding() {
   // Step 1: Company
   const [firmenname, setFirmenname] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState(null);
-  const [plz, setPlz] = useState("");
-  const [city, setCity] = useState("");
+  // Strukturiertes Ortsobjekt: { city, label, place_id, lat, lng }
+  const [location, setLocation] = useState(null);
   const [radius, setRadius] = useState(25);
 
   // Step 2: Targeting
@@ -69,6 +69,12 @@ export default function Onboarding() {
   const handleCompanyNext = async (data) => {
     setSaving(true);
     try {
+      const loc = data.location || {};
+      const cityName = loc.city || "";
+      const cityLat = loc.lat || null;
+      const cityLng = loc.lng || null;
+      const cityPlaceId = loc.place_id || null;
+
       let currentOrg = org;
       if (!currentOrg) {
         currentOrg = await base44.entities.Organization.create({
@@ -79,8 +85,7 @@ export default function Onboarding() {
           trial_stage: "free_preview",
           onboarding_done: false,
           industry: data.selectedIndustry.name,
-          service_area_plz: data.plz.trim(),
-          service_area_city: data.city.trim(),
+          service_area_city: cityName,
           service_area_radius_km: data.radius,
         });
         await base44.entities.OrganizationMember.create({
@@ -95,43 +100,39 @@ export default function Onboarding() {
         await base44.entities.Organization.update(currentOrg.id, {
           name: data.firmenname.trim(),
           industry: data.selectedIndustry.name,
-          service_area_plz: data.plz.trim(),
-          service_area_city: data.city.trim(),
+          service_area_city: cityName,
           service_area_radius_km: data.radius,
         });
       }
 
-      // Save settings (both Organization fields and Settings for backwards compatibility)
-      const settings = [
-        { key: "own_industry", value: data.selectedIndustry.name },
-        { key: "lead_plz", value: data.plz.trim() },
-        { key: "lead_plz_city", value: data.city.trim() },
-        { key: "lead_radius_km", value: String(data.radius) },
-        { key: "service_area_plz", value: data.plz.trim() },
-        { key: "service_area_city", value: data.city.trim() },
+      // Settings: strukturierte Ortsdaten + Legacy-Keys für Rückwärtskompatibilität
+      const settingsToSave = [
+        { key: "own_industry",           value: data.selectedIndustry.name },
+        { key: "lead_plz_city",          value: cityName },
+        { key: "lead_radius_km",         value: String(data.radius) },
+        { key: "service_area_city",      value: cityName },
         { key: "service_area_radius_km", value: String(data.radius) },
+        { key: "service_area_place_id",  value: cityPlaceId || "" },
+        { key: "service_area_lat",       value: cityLat ? String(cityLat) : "" },
+        { key: "service_area_lng",       value: cityLng ? String(cityLng) : "" },
       ];
 
-      for (const s of settings) {
+      await Promise.all(settingsToSave.map(async (s) => {
         const existing = await base44.entities.OrganizationSettings.filter({ 
-          organization_id: currentOrg.id, 
-          key: s.key 
+          organization_id: currentOrg.id, key: s.key 
         });
         if (existing?.[0]) {
           await base44.entities.OrganizationSettings.update(existing[0].id, { value: s.value });
-        } else {
+        } else if (s.value) {
           await base44.entities.OrganizationSettings.create({ 
-            organization_id: currentOrg.id, 
-            key: s.key, 
-            value: s.value 
+            organization_id: currentOrg.id, key: s.key, value: s.value 
           });
         }
-      }
+      }));
 
       setFirmenname(data.firmenname);
       setSelectedIndustry(data.selectedIndustry);
-      setPlz(data.plz);
-      setCity(data.city);
+      setLocation(data.location);
       setRadius(data.radius);
       setCurrentStep(1);
     } catch (e) {
@@ -249,7 +250,7 @@ export default function Onboarding() {
           <CompanyStep
             onNext={handleCompanyNext}
             loading={saving}
-            initialData={{ firmenname, selectedIndustry, plz, city, radius }}
+            initialData={{ firmenname, selectedIndustry, location, radius }}
           />
         )}
 

@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { INDUSTRIES } from "@/utils/onboardingConfig";
+import LocationAutocomplete from "@/components/LocationAutocomplete";
 
 export default function CompanyStep({ onNext, loading, initialData }) {
   const [firmenname, setFirmenname] = useState(initialData?.firmenname || "");
   const [selectedIndustry, setSelectedIndustry] = useState(initialData?.selectedIndustry || null);
-  const [plz, setPlz] = useState(initialData?.plz || "");
-  const [city, setCity] = useState(initialData?.city || "");
+  // Strukturiertes Ortsobjekt: { city, label, place_id, lat, lng }
+  const [location, setLocation] = useState(initialData?.location || null);
   const [radius, setRadius] = useState(initialData?.radius || 25);
 
   const handleNext = () => {
@@ -21,11 +22,11 @@ export default function CompanyStep({ onNext, loading, initialData }) {
       alert("Bitte wählen Sie Ihre Branche aus.");
       return;
     }
-    if (!plz.trim() || !city.trim()) {
-      alert("Bitte geben Sie PLZ und Ort ein.");
+    if (!location?.city) {
+      alert("Bitte geben Sie Ihren Standort ein und wählen Sie ihn aus der Liste aus.");
       return;
     }
-    onNext({ firmenname, selectedIndustry, plz, city, radius });
+    onNext({ firmenname, selectedIndustry, location, radius });
   };
 
   return (
@@ -72,26 +73,14 @@ export default function CompanyStep({ onNext, loading, initialData }) {
       {/* Standort */}
       <div>
         <Label className="text-xs font-semibold text-slate-900 mb-3 block">Ihr Einzugsgebiet *</Label>
-        <div className="grid sm:grid-cols-2 gap-3 mb-4">
-          <div>
-            <Label className="text-xs mb-1 block font-medium text-slate-700">PLZ</Label>
-            <Input
-              value={plz}
-              onChange={e => setPlz(e.target.value)}
-              placeholder="56566"
-              maxLength={5}
-              className="bg-white text-slate-900 border-slate-300"
-            />
-          </div>
-          <div>
-            <Label className="text-xs mb-1 block font-medium text-slate-700">Ort</Label>
-            <Input
-              value={city}
-              onChange={e => setCity(e.target.value)}
-              placeholder="Neuwied"
-              className="bg-white text-slate-900 border-slate-300"
-            />
-          </div>
+        <div className="mb-3">
+          <Label className="text-xs mb-1 block font-medium text-slate-700">Hauptstandort</Label>
+          <LocationAutocomplete
+            value={location}
+            onChange={setLocation}
+            placeholder="Stadt eingeben, z.B. Neuwied…"
+          />
+          <p className="text-[11px] text-slate-500 mt-1">Stadt aus der Liste auswählen – Koordinaten werden automatisch gespeichert.</p>
         </div>
 
         {/* Radius Slider */}
@@ -116,9 +105,9 @@ export default function CompanyStep({ onNext, loading, initialData }) {
         </div>
       </div>
 
-      <Button 
-        onClick={handleNext} 
-        disabled={loading || !firmenname.trim() || !selectedIndustry || !plz.trim() || !city.trim()} 
+      <Button
+        onClick={handleNext}
+        disabled={loading || !firmenname.trim() || !selectedIndustry || !location?.city}
         className="w-full gap-2"
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
