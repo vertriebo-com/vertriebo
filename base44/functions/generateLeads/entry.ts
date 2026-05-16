@@ -1000,12 +1000,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Hauptstadt aus Liste entfernen, deduplizieren
-    const additionalCities = additionalCityObjects
-      .filter(o => o.city.toLowerCase() !== city.toLowerCase())
-      .map(o => o.city); // buildSearchPlan erwartet String-Array
-
-    console.info(`[generateLeads] resolveResearchSettings: city="${city}" radius=${radiusKm}km additionalCities=[${additionalCities.join(', ')}] industry="${industry}" targetTypes=${targetCustomerTypes.length}`);
+    // additionalCities wird weiter unten nach Grid-Aufteilung gesetzt.
+    // Hauptstadt aus Liste bereits entfernt in der Merge-Logik oben.
+    console.info(`[generateLeads] resolveResearchSettings: city="${city}" radius=${radiusKm}km additionalCityObjects=${additionalCityObjects.length} industry="${industry}" targetTypes=${targetCustomerTypes.length}`);
 
     const searchPlan = buildSearchPlan({
       industry,
@@ -1107,12 +1104,44 @@ Deno.serve(async (req) => {
       console.info(`[generateLeads] Geocoding Fallback Ergebnis: lat=${cityCoords.lat} lng=${cityCoords.lng}`);
     }
 
-    const searchPoints = generateSearchGrid(cityCoords.lat, cityCoords.lng, radiusKm, trialStage);
-    console.info(`[generateLeads] Grid: ${searchPoints.length} Punkte für ${radiusKm}km (${trialStage})`);
+    // ── SearchPoints: Haupt-Grid + eigene Grids für jeden Zusatzort mit Koordinaten ──
+    // Jeder Ort mit lat/lng bekommt eigene SearchPoints, sodass wirklich um jeden Ort gesucht wird.
+    const mainGridPoints = generateSearchGrid(cityCoords.lat, cityCoords.lng, radiusKm, trialStage);
 
-    // Fast Mode: additionalCities als Suchstädte übergeben (nicht als Grid-Punkte)
-    // damit target_locations auch im Fast Mode berücksichtigt werden
-    const fastModeAdditionalCities = additionalCities.slice(0, 2); // max 2 im Fast Mode
+    // Zusatzorte mit Koordinaten auflösen (max 4 im Normal-Mode, 2 im Fast Mode)
+    const maxAdditionalLocations = isFastMode ? 2 : 4;
+    const additionalCityObjectsWithCoords = additionalCityObjects
+      .filter(o => o.city.toLowerCase() !== city.toLowerCase() && o.lat && o.lng)
+      .slice(0, maxAdditionalLocations);
+    const additionalCityObjectsWithoutCoords = additionalCityObjects
+      .filter(o => o.city.toLowerCase() !== city.toLowerCase() && (!o.lat || !o.lng))
+      .slice(0, maxAdditionalLocations);
+
+    // Grid-Punkte für jeden Zusatzort mit Koordinaten erzeugen
+    // Im Fast Mode: nur Center-Punkt, kein vollständiges Grid
+    const additionalSearchPoints = [];
+    for (const loc of additionalCityObjectsWithCoords) {
+      if (isFastMode) {
+        additionalSearchPoints.push({ lat: loc.lat, lng: loc.lng, label: `extra_${loc.city}`, centerLat: loc.lat, centerLng: loc.lng, centerCity: loc.city });
+      } else {
+        const locGrid = generateSearchGrid(loc.lat, loc.lng, radiusKm, trialStage);
+        for (const p of locGrid) {
+          additionalSearchPoints.push({ ...p, label: `extra_${loc.city}_${p.label}`, centerLat: loc.lat, centerLng: loc.lng, centerCity: loc.city });
+        }
+      }
+    }
+
+    // Legacy-Städte ohne Koordinaten: nur als Strings für buildSearchPlan weitergeben
+    const additionalCities = additionalCityObjectsWithoutCoords.map(o => o.city);
+
+    const allSearchPoints = isFastMode
+      ? [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center', centerLat: cityCoords.lat, centerLng: cityCoords.lng, centerCity: city }]
+      : [
+          ...mainGridPoints.map(p => ({ ...p, centerLat: cityCoords.lat, centerLng: cityCoords.lng, centerCity: city })),
+          ...additionalSearchPoints,
+        ];
+
+    console.info(`[generateLeads] Grid: ${mainGridPoints.length} Hauptpunkte + ${additionalSearchPoints.length} Zusatzort-Punkte = ${allSearchPoints.length} gesamt (${trialStage})`);
 
     const fullSearchPlan = buildSearchPlan({
       industry,
@@ -1122,20 +1151,24 @@ Deno.serve(async (req) => {
       radiusKm,
       trialStage: isFastMode ? 'free_preview' : trialStage,
       remainingLeadBudget: remainingPreviewLeads,
-      additionalCities: isFastMode ? fastModeAdditionalCities : additionalCities,
-      searchPoints: isFastMode ? [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center' }] : searchPoints,
+      additionalCities,
+      searchPoints: allSearchPoints,
       learnedPriorityCategories,
       learnedWinningSignals,
     });
     searchPlan.searchQueries = isFastMode
       ? (fullSearchPlan.searchQueries || []).slice(0, 4)
       : fullSearchPlan.searchQueries;
-    searchPlan.searchPoints = isFastMode
-      ? [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center' }]
-      : fullSearchPlan.searchPoints;
+    searchPlan.searchPoints = allSearchPoints;
+
+    // Alle Suchzentren (Haupt + Zusatz mit Koordinaten) für Distanzprüfung
+    const allSearchCenters = [
+      { lat: cityCoords.lat, lng: cityCoords.lng, city },
+      ...additionalCityObjectsWithCoords.map(o => ({ lat: o.lat, lng: o.lng, city: o.city })),
+    ];
 
     // Suchstädte für Diagnose
-    const searchCitiesUsed = [city, ...additionalCities].slice(0, isFastMode ? 3 : 10);
+    const searchCitiesUsed = allSearchCenters.map(c => c.city).slice(0, isFastMode ? 3 : 10);
 
     const lockResult = await acquireLock(base44, organization_id, access.user.email);
     if (!lockResult.acquired) {
@@ -1174,11 +1207,13 @@ Deno.serve(async (req) => {
     let stopped_early = false, stop_reason = null;
     const maxPlaceDetails = queryBudget.maxPlaceDetails || 80;
 
-    const gridPoints = searchPlan.searchPoints || [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center' }];
+    const gridPoints = searchPlan.searchPoints || [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center', centerLat: cityCoords.lat, centerLng: cityCoords.lng }];
     const pointRadiusMeters = Math.min(15000, (radiusMeters / Math.max(gridPoints.length, 1)) * 1.5);
 
     outer: for (const point of gridPoints) {
       const pointCoords = { lat: point.lat, lng: point.lng };
+      // Das Suchzentrum dieses Grid-Punktes für Distanzprüfung + Company-Create
+      const pointCenter = { lat: point.centerLat ?? cityCoords.lat, lng: point.centerLng ?? cityCoords.lng, city: point.centerCity || city };
       
       for (const { query, category, variant } of searchQueryList) {
         if (createdIds.length >= effectiveTarget) {
@@ -1214,11 +1249,20 @@ Deno.serve(async (req) => {
         const placeLat = place.geometry?.location?.lat, placeLng = place.geometry?.location?.lng;
         let distanceKm = null;
         if (placeLat && placeLng) {
-          distanceKm = haversineKm(cityCoords.lat, cityCoords.lng, placeLat, placeLng);
+          // Distanz zum Suchzentrum dieses Grid-Punktes prüfen
+          distanceKm = haversineKm(pointCenter.lat, pointCenter.lng, placeLat, placeLng);
           if (distanceKm > radiusKm * 1.05) {
-            skipped_outside_radius++;
-            if (outsideRadiusExamples.length < 5) outsideRadiusExamples.push({ name: place.name, distance_km: Math.round(distanceKm * 10) / 10 });
-            continue;
+            // Zusätzlich gegen alle anderen Suchzentren prüfen – Treffer gültig wenn nahe an irgendeinem
+            const nearAnyCenter = allSearchCenters.some(
+              sc => haversineKm(sc.lat, sc.lng, placeLat, placeLng) <= radiusKm * 1.05
+            );
+            if (!nearAnyCenter) {
+              skipped_outside_radius++;
+              if (outsideRadiusExamples.length < 5) outsideRadiusExamples.push({ name: place.name, distance_km: Math.round(distanceKm * 10) / 10 });
+              continue;
+            }
+            // Wenn nahe an einem anderen Zentrum: nehme die kleinste Distanz
+            distanceKm = Math.min(...allSearchCenters.map(sc => haversineKm(sc.lat, sc.lng, placeLat, placeLng)));
           }
         }
 
@@ -1277,9 +1321,9 @@ Deno.serve(async (req) => {
           excluded_reason: scoring.bad_fit_reason,
           source_query: variant || query,
           distance_km: roundedDist,
-          search_center_city: city,
-          search_center_lat: cityCoords.lat,
-          search_center_lng: cityCoords.lng,
+          search_center_city: pointCenter.city || city,
+          search_center_lat: pointCenter.lat,
+          search_center_lng: pointCenter.lng,
           search_radius_km: radiusKm,
         });
 
@@ -1333,7 +1377,7 @@ Deno.serve(async (req) => {
       // ── Vollständige Suchkonfiguration ──
       main_search_city: city,
       radius_km: radiusKm,
-      additional_cities_resolved: additionalCities,
+      additional_cities_resolved: allSearchCenters.slice(1).map(c => c.city),
       search_cities_used: searchCitiesUsed,
       grid_points_count: (searchPlan.searchPoints || []).length,
       // ── Diagnose ──
@@ -1448,7 +1492,7 @@ Deno.serve(async (req) => {
         taxonomyUsed: !!industryProfile,
         // Suchkonfiguration für Diagnose
         main_search_city: city,
-        additional_cities_resolved: additionalCities,
+        additional_cities_resolved: allSearchCenters.slice(1).map(c => c.city),
         search_cities_used: searchCitiesUsed,
         grid_points_count: (searchPlan.searchPoints || []).length,
         is_fast_mode: isFastMode,
