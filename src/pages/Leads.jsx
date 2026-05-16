@@ -411,7 +411,7 @@ export default function Leads() {
         open={showResearch}
         orgId={orgId}
         onClose={() => setShowResearch(false)}
-        onSuccess={() => { refetch(); setShowResearch(false); }}
+        onSuccess={() => { refetch(); setNewRunFilter(null); setStatusFilter(null); setFocusFilter(null); }}
       />
     </div>
   );

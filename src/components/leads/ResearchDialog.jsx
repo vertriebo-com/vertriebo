@@ -162,45 +162,54 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
         timeoutMs
       );
 
-      console.log("[ResearchDialog] RESULT", res.data);
+      // Robustes Parsing: funktioniert für generateLeads UND runUnifiedResearch
+      const d = res.data || {};
+      const createdCount = d.created_contacts_count ?? d.count ?? d.current_run?.created_count ?? 0;
+      const monthlyUsage = d.monthly_usage ?? null;
 
-      // Fehler-Mapping
-      if (res.data?.parallelLockActive) {
-        setError(res.data.error || "Es läuft bereits eine Recherche. Bitte warten Sie kurz.");
-      } else if (res.data?.error === 'trial_preview_limit_reached') {
-        setShowTrialInfoDialog(true);
-        setError("Vorschau-Limit erreicht");
-      } else if (res.data?.error === 'monthly_contact_limit_reached' || res.data?.error === 'trial_monthly_contact_limit_reached') {
-        setError("Monatliches Limit erreicht. Bitte upgraden Sie Ihren Tarif.");
-      } else if (res.data?.error === 'abuse_blocked') {
-        setError("Ihr Zugang wurde zur Sicherheitsprüfung eingeschränkt. Bitte kontaktieren Sie den Support.");
-      } else if (res.data?.error === 'organization_suspended') {
-        setError("Diese Organisation ist vorübergehend gesperrt. Bitte kontaktieren Sie den Support.");
-      } else if (res.data?.success) {
-        // generateLeads gibt `count` zurück → normalisieren auf created_contacts_count
-        const normalizedData = {
-          ...res.data,
-          created_contacts_count: res.data.count ?? res.data.created_contacts_count ?? 0,
-          monthly_usage: res.data.monthly_usage || null,
-        };
-        setResult({ success: true, data: normalizedData });
-        console.log("[ResearchDialog] SET RESULT DONE - count:", normalizedData.created_contacts_count);
+      console.log("[ResearchDialog] RESULT", {
+        function: "generateLeads",
+        success: d.success,
+        createdCount,
+        runType: d.runType,
+        research_run_id: d.research_run_id,
+        monthly_usage: monthlyUsage,
+        error: d.error,
+        parallelLockActive: d.parallelLockActive,
+      });
 
-        onSuccess?.();
+       // Fehler-Mapping
+       if (d.parallelLockActive) {
+         setError(d.error || "Es läuft bereits eine Recherche. Bitte warten Sie kurz.");
+       } else if (d.error === 'trial_preview_limit_reached') {
+         setShowTrialInfoDialog(true);
+         setError("Vorschau-Limit erreicht");
+       } else if (d.error === 'monthly_contact_limit_reached' || d.error === 'trial_monthly_contact_limit_reached') {
+         setError("Monatliches Limit erreicht. Bitte upgraden Sie Ihren Tarif.");
+       } else if (d.error === 'abuse_blocked') {
+         setError("Ihr Zugang wurde zur Sicherheitsprüfung eingeschränkt. Bitte kontaktieren Sie den Support.");
+       } else if (d.error === 'organization_suspended') {
+         setError("Diese Organisation ist vorübergehend gesperrt. Bitte kontaktieren Sie den Support.");
+       } else if (d.success) {
+         setResult({ success: true, data: { ...d, created_contacts_count: createdCount, monthly_usage: monthlyUsage } });
+         console.log("[ResearchDialog] SET RESULT - Dialog bleibt offen mit Ergebnis");
 
-        // UsageLog async im Hintergrund
-        setTimeout(() => refreshUsageSafe(), 0);
+         // Nur refetch auslösen — Dialog bleibt offen bis Nutzer "Schließen" klickt
+         onSuccess?.();
 
-        // Org neu laden
-        setTimeout(async () => {
-          try {
-            const orgs = await base44.entities.Organization.filter({ id: orgId });
-            if (orgs[0]) setOrg(orgs[0]);
-          } catch {}
-        }, 500);
-      } else {
-        setError(res.data?.error || "Recherche fehlgeschlagen.");
-      }
+         // UsageLog async im Hintergrund
+         setTimeout(() => refreshUsageSafe(), 0);
+
+         // Org neu laden (trial_leads_granted aktuell halten)
+         setTimeout(async () => {
+           try {
+             const orgs = await base44.entities.Organization.filter({ id: orgId });
+             if (orgs[0]) setOrg(orgs[0]);
+           } catch {}
+         }, 500);
+       } else {
+         setError(d.error || "Recherche fehlgeschlagen.");
+       }
     } catch (e) {
        console.error("[ResearchDialog] generateLeads error:", e);
        const rawMsg = e?.response?.data?.error || e?.message || "";
@@ -396,10 +405,23 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             )}
 
             <div className="flex gap-2">
-              <Button onClick={onClose} className="flex-1">Schließen</Button>
-              <Button variant="outline" onClick={() => { setResult(null); setError(null); }} className="flex-1 gap-2">
-                <RefreshCw className="w-4 h-4" /> Erneut recherchieren
-              </Button>
+              {result?.data?.created_contacts_count > 0 ? (
+                <>
+                  <Button variant="outline" onClick={() => { setResult(null); setError(null); }} className="flex-1 gap-2">
+                    <RefreshCw className="w-4 h-4" /> Erneut
+                  </Button>
+                  <Button onClick={onClose} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                    Leads anzeigen
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={onClose} className="flex-1">Schließen</Button>
+                  <Button onClick={() => { setResult(null); setError(null); }} className="flex-1 gap-2">
+                    <RefreshCw className="w-4 h-4" /> Erneut versuchen
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )}
