@@ -192,12 +192,17 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      importedCount++;
       toSave.push(item);
       if (preview.length < 10) preview.push({ company_name: item.company_name, city: item.city, match_status: item.match_status, radius_status: item.radius_status, enrichment_status: item.enrichment_status });
     }
 
+    // wouldImportCount = was dedupe-clean ist (für dry_run)
+    const wouldImportCount = toSave.length;
+
     // ── Speichern (nur bei dry_run=false) ───────────────────────────────────
+    let savedCount = 0;
+    let saveErrorCount = 0;
+
     if (!dry_run && toSave.length > 0) {
       console.log(`[syncOpenRegister] Saving ${toSave.length} ExternalCompanySource entries`);
       for (const item of toSave) {
@@ -222,13 +227,13 @@ Deno.serve(async (req) => {
             source_confidence: item.source_confidence,
             raw_data: item.raw_data,
           });
+          savedCount++;
         } catch (saveErr) {
           console.error(`[syncOpenRegister] Save error for "${item.company_name}":`, saveErr.message);
-          importedCount--;
-          skippedCount++;
+          saveErrorCount++;
         }
       }
-      console.log(`[syncOpenRegister] DONE: saved=${importedCount} dup=${duplicateCount} missing=${missingDataCount}`);
+      console.log(`[syncOpenRegister] DONE: saved=${savedCount} errors=${saveErrorCount} dup=${duplicateCount} missing=${missingDataCount}`);
     }
 
     // ── Response ─────────────────────────────────────────────────────────────
@@ -240,7 +245,7 @@ Deno.serve(async (req) => {
         city: resolvedCity,
         radius_km: resolvedRadius,
         limit: effectiveLimit,
-        would_import_count: importedCount,
+        would_import_count: wouldImportCount,
         duplicate_count: duplicateCount,
         missing_data_count: missingDataCount,
         skipped_count: skippedCount,
@@ -259,7 +264,9 @@ Deno.serve(async (req) => {
       limit: effectiveLimit,
       summary: {
         fetched_count: rawItems.length,
-        imported_count: importedCount,
+        would_import_count: wouldImportCount,
+        saved_count: savedCount,
+        save_error_count: saveErrorCount,
         duplicate_count: duplicateCount,
         missing_data_count: missingDataCount,
         skipped_count: skippedCount,
