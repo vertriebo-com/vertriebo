@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Database, ArrowLeft } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, RefreshCw, Database, ArrowLeft, Download } from "lucide-react";
 import { Link } from "react-router-dom";
 import ExternalSourceCard from "../components/external-sources/ExternalSourceCard";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
@@ -29,6 +30,10 @@ export default function ExternalSourcesPage() {
   const { user, org, loading: filterLoading } = useLeadsFilter();
   const [activeTab, setActiveTab] = useState("all");
   const [matchingLoading, setMatchingLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importCity, setImportCity] = useState("");
+  const [importRadius, setImportRadius] = useState(25);
+  const [importLimit, setImportLimit] = useState(20);
 
   const orgId = org?.id || null;
   const isAdmin = user?.role === "admin" || user?.org_role === "organization_admin" || (org && org.owner_email === user?.email);
@@ -41,6 +46,15 @@ export default function ExternalSourcesPage() {
     enabled: !!orgId,
     staleTime: 30_000,
   });
+
+  // Pre-fill city from org settings
+  useEffect(() => {
+    if (org) {
+      const city = org.service_area_city || org.city || "";
+      setImportCity(city);
+      if (org.service_area_radius_km) setImportRadius(org.service_area_radius_km);
+    }
+  }, [org]);
 
   // Redirect sales rep away
   useEffect(() => {
@@ -70,6 +84,34 @@ export default function ExternalSourcesPage() {
       toast.error(e?.message || "Google-Abgleich fehlgeschlagen.");
     } finally {
       setMatchingLoading(false);
+    }
+  };
+
+  const handleOpenRegisterImport = async () => {
+    if (!orgId || importLoading) return;
+    const city = importCity.trim();
+    if (!city) { toast.error("Bitte Stadt eingeben."); return; }
+    setImportLoading(true);
+    try {
+      const res = await base44.functions.invoke("syncOpenRegister", {
+        organization_id: orgId,
+        city,
+        radius_km: Number(importRadius),
+        limit: Number(importLimit),
+        dry_run: false,
+      });
+      const data = res.data;
+      if (data?.success !== false) {
+        const saved = data?.saved ?? data?.inserted ?? data?.count ?? 0;
+        toast.success(`${saved} Import-Kandidaten wurden geladen.`);
+        refetch();
+      } else {
+        toast.error(data?.error || "Import fehlgeschlagen.");
+      }
+    } catch (e) {
+      toast.error(e?.message || "Import fehlgeschlagen.");
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -110,6 +152,11 @@ export default function ExternalSourcesPage() {
           <p className="text-sm text-slate-600 font-medium max-w-lg">
             Import-Kandidaten sind gefundene Firmen aus externen Quellen. Prüfen Sie die Übereinstimmung, bevor Sie sie als Lead übernehmen.
           </p>
+          {org && (
+            <p className="text-xs text-slate-400 mt-1 font-mono">
+              Org: {org.name} · ID: {org.id}
+            </p>
+          )}
         </div>
         <div className="flex gap-2 shrink-0">
           <Button
@@ -178,12 +225,50 @@ export default function ExternalSourcesPage() {
 
       {/* Empty State */}
       {sources.length === 0 ? (
-        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-16 text-center">
-          <Database className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-          <h3 className="text-lg font-bold text-slate-900 mb-2">Keine Import-Kandidaten</h3>
-          <p className="text-sm text-slate-600 mb-4">
-            Starten Sie zuerst den OpenRegister-Import, um Kandidaten zu laden.
-          </p>
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-8 max-w-lg mx-auto">
+          <div className="text-center mb-6">
+            <Database className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+            <h3 className="text-lg font-bold text-slate-900 mb-1">Keine Import-Kandidaten</h3>
+            <p className="text-sm text-slate-500">Importieren Sie Firmen aus dem OpenRegister, um Kandidaten zu laden.</p>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">Stadt *</label>
+              <Input
+                placeholder="z.B. Berlin"
+                value={importCity}
+                onChange={e => setImportCity(e.target.value)}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Radius (km)</label>
+                <Input
+                  type="number"
+                  min={5} max={100}
+                  value={importRadius}
+                  onChange={e => setImportRadius(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">Limit</label>
+                <Input
+                  type="number"
+                  min={5} max={100}
+                  value={importLimit}
+                  onChange={e => setImportLimit(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button
+              onClick={handleOpenRegisterImport}
+              disabled={importLoading || !importCity.trim()}
+              className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {importLoading ? "Importiert…" : "OpenRegister-Kandidaten importieren"}
+            </Button>
+          </div>
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-10 text-center">
