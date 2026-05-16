@@ -13,6 +13,7 @@ import PipelineBar from "../components/leads/PipelineBar";
 import LeadRow from "../components/leads/LeadRow";
 import EngineStatsBox from "../components/leads/EngineStatsBox";
 import ResearchDialog from "../components/leads/ResearchDialog";
+import ActiveResearchBanner from "../components/leads/ActiveResearchBanner";
 import LearnedIntelligencePanel from "../components/settings/LearnedIntelligencePanel";
 import moment from "moment";
 
@@ -245,6 +246,9 @@ export default function Leads() {
           </button>
         )}
       </div>
+
+      {/* Aktiver ResearchRun Banner */}
+      <ActiveResearchBanner orgId={orgId} onNewLeads={() => refetch()} />
 
       {/* Vertriebo Engine Stats */}
       <EngineStatsBox companies={filtered} onAnalyzeLatest={isAdmin ? handleAnalyzeLatest : null} analyzingLatest={researching} lastEngineResult={lastEngineResult} />

@@ -6,6 +6,18 @@
       "type": "string",
       "title": "Organisation ID"
     },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "queued",
+        "running",
+        "partial",
+        "completed",
+        "failed"
+      ],
+      "default": "queued"
+    },
     "run_type": {
       "type": "string",
       "title": "Lauftyp",
@@ -46,6 +58,33 @@
       "title": "Gepr\u00fcfte Firmenprofile (Roh)",
       "default": 0
     },
+    "progress_percent": {
+      "type": "number",
+      "title": "Fortschritt (%)",
+      "default": 0
+    },
+    "current_step": {
+      "type": "string",
+      "title": "Aktueller Schritt"
+    },
+    "batch_index": {
+      "type": "number",
+      "title": "Aktueller Batch-Index",
+      "default": 0
+    },
+    "total_batches": {
+      "type": "number",
+      "title": "Gesamtanzahl Batches",
+      "default": 0
+    },
+    "seen_place_ids": {
+      "type": "string",
+      "title": "Bereits gesehene Place-IDs (JSON)"
+    },
+    "search_plan_json": {
+      "type": "string",
+      "title": "Suchplan (JSON)"
+    },
     "search_center_city": {
       "type": "string",
       "title": "Suchzentrum Stadt"
@@ -62,13 +101,23 @@
       "type": "string",
       "title": "Ausschl\u00fcsse (komma-getrennt)"
     },
-    "top_leads": {
+    "error_message": {
       "type": "string",
-      "title": "Top-Leads (JSON)"
+      "title": "Fehlermeldung"
     },
     "summary": {
       "type": "string",
       "title": "Zusammenfassung (JSON)"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Gestartet am"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Abgeschlossen am"
     },
     "created_by": {
       "type": "string",
@@ -76,8 +125,12 @@
     },
     "charged_lead_generation": {
       "type": "boolean",
-      "title": "Lead-Generation verbrauchte Credit",
+      "title": "Credit verbraucht",
       "default": false
+    },
+    "top_leads": {
+      "type": "string",
+      "title": "Top-Leads (JSON)"
     }
   },
   "required": [
