@@ -210,15 +210,16 @@ Deno.serve(async (req) => {
 
       if (places.length === 0) {
         noResultCount++;
+        // Kein Google-Treffer → wirklich failed
         const update = {
           enrichment_status: 'failed',
-          match_status: 'outside_radius', // kein Treffer = kein Match
+          match_status: 'imported', // zurück auf Ausgangsstatus, kein Match möglich
         };
         if (!dry_run) {
           await base44.asServiceRole.entities.ExternalCompanySource.update(entry.id, update);
           savedCount++;
         }
-        results.push({ id: entry.id, company_name: entry.company_name, enrichment_status: 'failed', match_confidence: 0, google_place_id: null });
+        results.push({ id: entry.id, company_name: entry.company_name, enrichment_status: 'failed', match_status: 'imported', match_confidence: 0, google_place_id: null });
         continue;
       }
 
@@ -243,15 +244,24 @@ Deno.serve(async (req) => {
         radiusStatus = distanceKm <= radiusKm * 1.05 ? 'inside_radius' : 'outside_radius';
       }
 
-      // Enrichment-Status nach Confidence
-      const enrichmentStatus = bestConfidence >= min_confidence ? 'enriched' : 'failed';
-      const matchStatus = bestConfidence >= min_confidence
-        ? (radiusStatus === 'outside_radius' ? 'outside_radius' : 'ready_for_review')
-        : 'outside_radius';
+      // Enrichment-Status nach Confidence + Radius
+      //
+      // Logik:
+      //   confidence >= min_confidence + inside_radius  → enriched / ready_for_review
+      //   confidence >= min_confidence + outside_radius → enriched / outside_radius
+      //   confidence < min_confidence  (aber Treffer da) → needs_review / needs_review
+      //   kein Google-Treffer                           → failed / imported  (oben)
+      let enrichmentStatus;
+      let matchStatus;
 
-      if (bestConfidence >= min_confidence && radiusStatus !== 'outside_radius') {
+      if (bestConfidence >= min_confidence) {
+        enrichmentStatus = 'enriched';
+        matchStatus = radiusStatus === 'outside_radius' ? 'outside_radius' : 'ready_for_review';
         matchedCount++;
       } else {
+        // Treffer vorhanden, aber Confidence zu niedrig → nicht wegwerfen
+        enrichmentStatus = 'needs_review';
+        matchStatus = 'needs_review';
         needsReviewCount++;
       }
 

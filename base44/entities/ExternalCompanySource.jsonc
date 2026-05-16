@@ -96,6 +96,7 @@
       "enum": [
         "inside_radius",
         "outside_radius",
+        "unknown_geo",
         "unknown"
       ],
       "default": "unknown"
@@ -106,6 +107,7 @@
       "enum": [
         "pending",
         "enriched",
+        "needs_review",
         "failed",
         "skipped"
       ],
@@ -119,6 +121,7 @@
         "duplicate",
         "outside_radius",
         "unknown_geo",
+        "needs_review",
         "ready_for_review",
         "promoted_to_company",
         "rejected"
