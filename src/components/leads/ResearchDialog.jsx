@@ -154,9 +154,8 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
     try {
       const res = await withTimeout(
-        base44.functions.invoke("generateLeads", {
+        base44.functions.invoke("runUnifiedResearch", {
           organization_id: orgId,
-          target_count: effectiveTargetCount,
           mode,
         }),
         timeoutMs
@@ -164,41 +163,26 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
 
       console.log("[ResearchDialog] RESULT", res.data);
 
-      // Fehler-Mapping für freundliche Meldungen
+      // Fehler-Mapping
       if (res.data?.parallelLockActive) {
         setError(res.data.error || "Es läuft bereits eine Recherche. Bitte warten Sie kurz.");
-      } else if (res.data?.error === 'trial_preview_limit_reached') {
-        setError("Vorschau-Limit erreicht");
-        setShowTrialInfoDialog(true);
+      } else if (res.data?.error === 'monthly_contact_limit_reached') {
+        setError("Monatliches Limit erreicht. Bitte upgraden Sie Ihren Tarif.");
       } else if (res.data?.error === 'abuse_blocked') {
         setError("Ihr Zugang wurde zur Sicherheitsprüfung eingeschränkt. Bitte kontaktieren Sie den Support.");
       } else if (res.data?.error === 'organization_suspended') {
         setError("Diese Organisation ist vorübergehend gesperrt. Bitte kontaktieren Sie den Support.");
       } else if (res.data?.success) {
-        // Partial timeout: bereits gespeicherte Leads trotzdem als Erfolg zeigen
-        if (res.data.partial_timeout) {
-          toast.info(`Recherche teilweise abgeschlossen: ${res.data.count} Kontakte gefunden. Für weitere starten Sie bitte einen neuen Lauf.`);
-        }
-        // Ergebnis SOFORT setzen – nichts darf das blockieren
+        // Einfaches Ergebnis: created_contacts_count + monthly_usage
         setResult({ success: true, data: res.data });
-        console.log("[ResearchDialog] SET RESULT DONE");
-
-        // ResearchRun speichern + Success-Screen anzeigen (wenn neue Leads)
-        if (res.data.research_run_id) {
-          console.log("[ResearchDialog] Setting research_run_id:", res.data.research_run_id);
-          setResearchRun(res.data.research_run_id);
-          // Success-Screen zeigen, wenn neue Leads oder bestimmte Fälle
-          if (res.data.count > 0 || res.data.runType === "duplicate_only" || res.data.runType === "no_match" || res.data.runType === "zero_result") {
-            setShowSuccessScreen(true);
-          }
-        }
+        console.log("[ResearchDialog] SET RESULT DONE - created:", res.data.created_contacts_count);
 
         onSuccess?.();
 
-        // UsageLog async im Hintergrund – darf den Report nie blockieren
+        // UsageLog async im Hintergrund
         setTimeout(() => refreshUsageSafe(), 0);
 
-        // Org neu laden damit trial_leads_granted aktuell ist
+        // Org neu laden
         setTimeout(async () => {
           try {
             const orgs = await base44.entities.Organization.filter({ id: orgId });
@@ -207,9 +191,6 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
         }, 500);
       } else {
         setError(res.data?.error || "Recherche fehlgeschlagen.");
-        if (res.data?.limitReached) {
-          setError((res.data?.error || "Recherche fehlgeschlagen.") + " (Plan-Limit erreicht)");
-        }
       }
     } catch (e) {
        console.error("[ResearchDialog] generateLeads error:", e);
@@ -357,13 +338,13 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             {result.success ? (
               <>
                 {/* Simple Result Box */}
-                {result.data.count > 0 ? (
+                {result.data.created_contacts_count > 0 ? (
                   <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-green-50 border-green-200">
                     <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-green-600" />
                     <div>
                       <div className="text-sm font-semibold text-green-900">Recherche abgeschlossen</div>
                       <div className="text-xs text-green-800 mt-1 font-medium">
-                        {result.data.count} neue Firmenkontakte wurden erstellt. Sie finden sie jetzt in Ihrer Leadliste.
+                        {result.data.created_contacts_count} neue Firmenkontakte wurden erstellt. Sie finden sie jetzt in Ihrer Leadliste.
                       </div>
                     </div>
                   </div>

@@ -4,118 +4,120 @@ _Zuletzt aktualisiert: 2026-05-16_
 
 ---
 
-## OpenRegister Pipeline – Phase A–D (abgeschlossen)
+## Ein-Klick-Firmenrecherche – Phase F (neu MVP)
 
-### Phase A – syncOpenRegister
-- **Function:** `syncOpenRegister`
-- **Ziel:** OpenRegister API → ExternalCompanySource (kein Company-Eintrag)
-- **Status:** ✅ Produktiv
+### Kernkonzept
+- **Kundenseite:** Ein Button "Firmen recherchieren" → Automatisch neue Firmenkontakte
+- **Intern:** Orchestrator `runUnifiedResearch` nutzt Google + (optional) Register-Signale
+- **Output:** Nur sichere Matches → automatisch als `Company` erstellt
+- **Kunde sieht:** "X neue Firmenkontakte wurden erstellt. Sie finden die Kontakte in Ihrer Leadliste."
+- **Kunde sieht NICHT:** Technische Details, Zwischenschritte, Inbound-Kandidaten
 
-### Phase B – ExternalCompanySource Entity
-- Enthält: company_name, legal_form, city, address, postal_code, register_number, source_id, raw_data
-- Pflichtfelder: organization_id, source, company_name
-- **Status:** ✅ Produktiv
+### Functions
 
-### Phase C – matchExternalSourceWithGooglePlaces
-- **Function:** `matchExternalSourceWithGooglePlaces`
-- **Ziel:** Google Places Text Search → Confidence-Score, Geo, Radius, Phone, Website
-- Confidence >= 50 + inside_radius → `enriched` / `ready_for_review`
-- Confidence >= 50 + outside_radius → `enriched` / `outside_radius`
-- Low Confidence → `needs_review` / `needs_review`
-- No result / API error → `failed`
-- Google Match (phone, website, address, place_id) wird in `raw_data._google_match` gespeichert
-- **Status:** ✅ Produktiv
+**runUnifiedResearch** (neuer Orchestrator)
+- **Eingabe:** organization_id, mode (standard/fast)
+- **Intern:**
+  1. Ruft `generateLeads` auf → Google Places Recherche
+  2. (Optional) Prüft Register-Signale im Hintergrund
+  3. Nutzt nur sichere Matches aus generateLeads
+  4. Auto-Übernahme als `Company`: match_status=ready_for_review + enrichment_status=enriched + enrichment_confidence>=70
+- **Output:** { success, created_contacts_count, monthly_usage, user_message }
+- **UsageLog:** Nur echte Company-Erstellungen zählen gegen Monatslimit
+- **Keine Auto-Engine:** analyzeLeadTemperature wird NICHT automatisch aufgerufen
+- **Status:** ✅ MVP Production
 
-### Phase D – promoteExternalSourceToCompany
-- **Function:** `promoteExternalSourceToCompany`
-- **Request:** `{ organization_id, external_source_id, force_promote, assign_to, initial_status }`
-- **Status-Gate:**
-  - `ready_for_review` → Standard-Promotion erlaubt
-  - `needs_review` → nur mit `force_promote: true` (Admin/Owner)
-  - `outside_radius` → NICHT promotebar (MVP: manuelles Override nicht unterstützt)
-  - `failed`, `duplicate`, `promoted_to_company`, `rejected` → NIEMALS promotebar
-- **Sales Rep:** darf NICHT promoten
-- **Dedupe:** Name+Ort, Website, Telefon gegen Company
-- **Blacklist-Check:** Name, Telefon, Website-Domain
-- **Monatslimit:** zählt als Firmenkontakt → UsageLog.leads_created += 1
-- **Kein Engine-Auto:** keine automatische analyzeLeadEngine nach Promotion
-- **ExternalCompanySource nach Erfolg:** match_status=promoted_to_company, promoted_company_id, promoted_at, promoted_by
-- **Status:** ✅ Produktiv
+**generateLeads** (unverändert, interne Nutzung)
+- Wird von `runUnifiedResearch` aufgerufen (nicht direkt vom Frontend)
+- Gibt weiterhin detaillierte debug-Infos zurück
+- Erstellt Companies direkt (Google-Matches)
 
-### Phase E – Import-Kandidaten UI (neu)
-- **Route:** `/import-kandidaten`
-- **Seite:** `pages/ExternalSourcesPage.jsx`
-- **Komponente:** `components/external-sources/ExternalSourceCard.jsx`
-- **Zugang:** Nur Admin/Owner (Sales Rep wird auf /leads umgeleitet)
-- **Einstieg:** Leadseite → "Import-Kandidaten"-Button (oben rechts, neben "Firmen recherchieren")
-- **Tabs:** Alle / Bereit / Prüfung / Ausstehend / Übernommen / Außer Radius / Abgelehnt / Fehlgeschlagen
-- **Aktionen:**
-  - "Nächste 10 mit Google abgleichen" → `matchExternalSourceWithGooglePlaces`
-  - "Als Lead übernehmen" (ready_for_review) → `promoteExternalSourceToCompany`
-  - "Trotz niedriger Sicherheit übernehmen" (needs_review, mit Warnung) → `force_promote: true`
-  - "Ablehnen" → `ExternalCompanySource.update({ match_status: 'rejected' })`
-- **Nach Promotion:** Link zur neuen Company/LeadDetail sichtbar
-- **Status:** ✅ Produktiv
+**syncOpenRegister** (optional, Hintergrund)
+- Wird von `runUnifiedResearch` optional im Hintergrund aufgerufen
+- Beeinflusst NICHT den Kundendialog
+- Kandidaten mit enrichment_confidence < 70 werden NICHT auto-promoted
+
+### Frontend-Changes
+
+**ResearchDialog**
+- Ruft jetzt `runUnifiedResearch` statt `generateLeads` auf
+- Zeigt nur Kundenergebnis: "X Kontakte erstellt" + Monatslimit
+- Keine technischen Zwischenschritte sichtbar
+- Einfache Fehler-Messages: Limit erreicht, Fehler, fertig
+
+**Leadseite**
+- Nur noch "Firmen recherchieren"-Button (für Admins)
+- "Import-Kandidaten"-Einstieg ist aus normalem Kundendialog entfernt
+- Interne Seite /import-kandidaten existiert noch, aber kein direkter Kunden-Link
 
 ---
 
 ## Wichtige Architektur-Entscheidungen
 
-### Kandidaten vs. Leads
-- `ExternalCompanySource` = Kandidat, KEIN Lead
-- Erst nach Promotion über `promoteExternalSourceToCompany` wird ein Company/Lead erstellt
-- Dashboard-Zahlen zählen nur Companies, KEINE ExternalCompanySources
-- UsageLog.leads_created wird nur bei erfolgreicher Promotion erhöht
+### Kandidaten vs. Auto-Companies
+- Unsichere Kandidaten (enrichment_confidence < 70) → ExternalCompanySource, werden NICHT auto-promoted
+- Sichere Matches (confidence >= 70) → direkt als Company erstellt
+- Monatslimit: zählt NUR echte Company-Erstellungen, NICHT interne Kandidaten
 
-### Keine Automatiken
-- Kein automatischer Google-Abgleich im Hintergrund
-- Keine automatische Massenpromotion
-- Kein Auto-Engine nach Promotion
-- Alle Schritte sind manuell/kontrolliert
+### Keine Auto-Automatiken für Kunden
+- Kein automatischer Engine-Analyse
+- Kein SuccessScreen mit technischen Details
+- Keine Anzeige von interne Register-Matches
+- Kunde sieht nur: "Recherche fertig" + finale Kontaktzahl
 
-### Google Match Daten
-- `raw_data._google_match` enthält: phone, website, address, place_id
-- Diese Felder werden bei Promotion auf Company gemappt
-- Datenverlust-Risiko: Falls raw_data leer → leere Felder in Company (kein Fehler, nur fehlende Daten)
+### Register-Integration (optional)
+- Register-Signale laufen im Hintergrund
+- Beeinflussen nur die interne Validierung
+- Werden NICHT an Kunde kommuniziert
+- Zukünftig: können für weitere Validierungs-Layer genutzt werden
 
 ### Rollenmodell
 - Platform Admin → darf alles
-- Organization Owner → darf promoten, force_promote, ablehnen
-- Organization Admin → darf promoten, force_promote, ablehnen
-- Sales Rep → darf NICHT promoten (403 forbidden)
+- Organization Owner → darf "Firmen recherchieren" aufrufen
+- Organization Admin → darf "Firmen recherchieren" aufrufen
+- Sales Rep → darf NUR bereits erstellte Leads sehen
 
 ---
 
-## Bekannte Risiken & Offene Punkte
+## Akzeptanz-Checkliste Phase F
 
-### ⚠️ outside_radius-Promotion nicht unterstützt
-- Einträge mit `match_status=outside_radius` können nicht promoted werden
-- Begründung: MVP, kein manuelles Override gebaut
-- Zukünftig: Sonderoption mit expliziter Bestätigung
+- [x] Leadseite: nur "Firmen recherchieren"-Button für Admins
+- [x] ResearchDialog: vereinfacht, zeigt nur Kundenergebnis
+- [x] runUnifiedResearch: orchestriert Google + Register + Auto-Übernahme
+- [x] Sichere Matches (confidence >= 70): automatisch als Company erstellt
+- [x] Unsichere Kandidaten: NICHT sichtbar für Kunden
+- [x] UsageLog: nur echte Company-Erstellungen zählen gegen Monatslimit
+- [x] Kundendialog: einfache Message "X Kontakte erstellt"
+- [x] Keine automatische Engine-Analyse
+- [x] Lead Detail: funktioniert für automatisch erstellte Leads
+- [x] Leadseite: refresht nach Recherche
 
-### ⚠️ Bulk-Abgleich immer 10 Einträge
-- `matchExternalSourceWithGooglePlaces` matched immer batch=10 pending Einträge
-- Keine Einzelkandidaten-Abgleich möglich (MVP)
-- Zukünftig: "Diesen Kandidaten neu abgleichen"-Button
+---
 
-### ⚠️ Rejection ohne Grund
-- Ablehnen speichert kein rejection_reason (MVP)
-- Entity hat rejected_at/rejected_by noch nicht (muss noch ergänzt werden)
-- Zukünftig: Ablehnungsgrund-Dialog
+## Bekannte Risiken & Backlog
 
-### ℹ️ google_place_id nicht in Company-Entity
-- Company hat kein google_place_id-Feld
-- Wird derzeit nicht gespeichert (kein Datenverlust für CRM-Funktionalität)
-- Zukünftig: Company-Entity um google_place_id ergänzen für bessere Dedupe
+### ⚠️ Register-Integration noch nicht gebaut
+- `runUnifiedResearch` hat Placeholder für Register-Prüfung
+- Wird derzeit nicht aktiviert (nur Google ist aktiv)
+- Zukünftig: Optional Enable/Disable für Register-Hintergrund-Checks
+
+### ⚠️ Import-Kandidaten-Seite separiert
+- `/import-kandidaten` existiert noch für interne Use-Cases
+- Ist aber aus normalem Kundendialog entfernt
+- Zukünftig: Optional für Power-User aktivierbar
+
+### ⚠️ Keine Batch-Operationen
+- Einzelne Recherche-Läufe, keine parallelen Batches
+- Lock-Mechanismus verhindert overlapping runs
+- Zukünftig: Erweitern für mehrere gleichzeitige Org-Recherchen
 
 ---
 
 ## Noch nicht gebaut (Backlog)
 
-- [ ] Bulk-Promote für mehrere ready_for_review gleichzeitig
-- [ ] Einzelnen Kandidaten neu mit Google abgleichen
-- [ ] Ablehnungsgrund-Dialog
-- [ ] outside_radius manuell override
-- [ ] OpenRegister-Suche direkt aus der UI starten (syncOpenRegister-Trigger)
-- [ ] Company-Entity: google_place_id-Feld ergänzen
-- [ ] ExternalCompanySource: rejected_at, rejected_by, rejection_reason-Felder ergänzen
+- [ ] Register-Integration aktivieren (syncOpenRegister im Hintergrund)
+- [ ] Detaillierte Error-Messages pro Register-Signal
+- [ ] Admin-Dashboard: Überblick über Research-Runs + Auto-Matches
+- [ ] A/B-Tests: mit/ohne Register-Signale
+- [ ] Performance-Optimierung: parallele Grid-Punkte bei Google
+- [ ] Fallback zu Register-Daten wenn Google-Hit < 50% Confidence
