@@ -18,6 +18,7 @@ import Statistics from './pages/Statistics';
 import BlacklistPage from './pages/BlacklistPage';
 import SettingsPage from './pages/SettingsPage';
 import CalendarView from './pages/CalendarView';
+import ExternalSourcesPage from './pages/ExternalSourcesPage';
 import Landing from './pages/Landing';
 import Onboarding from './pages/Onboarding';
 import Impressum from './pages/Impressum';
@@ -195,6 +196,7 @@ const AuthenticatedApp = () => {
           <Route path="/blacklist" element={<AnimatedRoutes><BlacklistPage /></AnimatedRoutes>} />
           <Route path="/settings" element={<AnimatedRoutes><SettingsPage /></AnimatedRoutes>} />
           <Route path="/calendar" element={<AnimatedRoutes><CalendarView /></AnimatedRoutes>} />
+          <Route path="/import-kandidaten" element={<AnimatedRoutes><ExternalSourcesPage /></AnimatedRoutes>} />
           <Route path="/duplicates" element={<Navigate to="/dashboard" replace />} />
           <Route path="/onboarding" element={<Onboarding />} />
           <Route path="*" element={<PageNotFound />} />
