@@ -351,245 +351,52 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           </div>
         )}
 
-        {/* Result */}
+        {/* Result – Simple Customer View */}
         {!loading && !researching && !error && result && (
           <div className="space-y-4 py-2">
             {result.success ? (
               <>
-                {/* ── Haupt-Statusbox je runType ── */}
-                {result.data.runType === "duplicate_only" ? (
-                  <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-blue-50 border-blue-200">
-                    <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-blue-500" />
+                {/* Simple Result Box */}
+                {result.data.count > 0 ? (
+                  <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-green-50 border-green-200">
+                    <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-green-600" />
                     <div>
-                      <div className="text-sm font-semibold text-blue-900">Keine neuen Firmenkontakte gefunden</div>
-                      <div className="text-xs text-blue-800 mt-1 font-medium">
-                        Alle {result.data.summary?.duplicates} gefundenen Treffer sind bereits in Ihrer Leadliste vorhanden.
-                      </div>
-                      <div className="text-xs text-blue-700 mt-1.5 bg-blue-100 rounded-lg px-2 py-1 inline-block font-semibold">
-                        ✓ Kein Recherche-Credit verbraucht
-                      </div>
-                    </div>
-                  </div>
-                ) : result.data.runType === "no_match" || result.data.runType === "zero_result" ? (
-                  <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-amber-50 border-amber-200">
-                    <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" />
-                    <div>
-                      <div className="text-sm font-semibold text-amber-900">
-                        {result.data.runType === "zero_result"
-                          ? "Keine Treffer in Google gefunden"
-                          : "Keine passenden Firmenkontakte gefunden"}
-                      </div>
-                      <div className="text-xs text-amber-800 mt-1 font-medium">
-                        {result.data.runType === "zero_result"
-                          ? "Google hat für Ihr Suchgebiet keine Ergebnisse zurückgegeben. Bitte Radius oder Zielkunden überprüfen."
-                          : `${result.data.summary?.raw_hits} Treffer gefunden, aber keiner passte zur Zielgruppe oder war bereits vorhanden.`}
-                      </div>
-                      <div className="text-xs text-amber-700 mt-1.5 bg-amber-100 rounded-lg px-2 py-1 inline-block font-semibold">
-                        ✓ Kein Recherche-Credit verbraucht
+                      <div className="text-sm font-semibold text-green-900">Recherche abgeschlossen</div>
+                      <div className="text-xs text-green-800 mt-1 font-medium">
+                        {result.data.count} neue Firmenkontakte wurden erstellt. Sie finden sie jetzt in Ihrer Leadliste.
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <div className={`flex items-start gap-3 p-4 rounded-xl border-2 ${
-                    result.data.count >= 10 ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
-                  }`}>
-                    <CheckCircle2 className={`w-5 h-5 shrink-0 mt-0.5 ${result.data.count >= 10 ? "text-green-600" : "text-amber-600"}`} />
+                  <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-amber-50 border-amber-200">
+                    <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5 text-amber-500" />
                     <div>
-                      <div className={`text-sm font-semibold ${result.data.count >= 10 ? "text-green-900" : "text-amber-900"}`}>
-                        {trialStage === 'free_preview'
-                          ? `Kostenlose Vorschau abgeschlossen – ${result.data.count} von 10 Vorschaukontakten gespeichert`
-                          : `${result.data.count} Firmenkontakte gespeichert`}
+                      <div className="text-sm font-semibold text-amber-900">Keine neuen Firmenkontakte gefunden</div>
+                      <div className="text-xs text-amber-800 mt-1 font-medium">
+                        Bitte erweitern Sie den Suchradius oder passen Sie Ihre Zielkunden an.
                       </div>
-                      {trialStage === 'free_preview' && (
-                        <div className="text-xs mt-1.5 space-y-1">
-                          <p className="text-slate-600">Die Recherche wurde auf die kostenlose Vorschau begrenzt.</p>
-                          <button
-                            onClick={() => { window.location.href = "/settings?tab=billing"; }}
-                            className="text-blue-600 font-semibold underline hover:text-blue-700"
-                          >
-                            Verifizierten Testzugang aktivieren →
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
 
-                {/* Radius-Transparenz */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
-                  <div className="font-bold text-blue-900 mb-1">Suchgebiet & Radius</div>
-                  <div className="flex justify-between text-blue-900 font-medium">
-                    <span>Angefragter Radius:</span>
-                    <span className="font-semibold">{result.data.summary?.radiusKm ?? "–"} km um {result.data.summary?.searchCenterCity ?? "–"}</span>
-                  </div>
-                  {(result.data.summary?.targetLocations?.length > 0) && (
+                {/* Monthly Usage */}
+                {result.data.monthly_usage && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs space-y-1.5">
+                    <div className="font-bold text-blue-900 mb-1">Monatliche Nutzung</div>
                     <div className="flex justify-between text-blue-800">
-                      <span>Manuelle Zielorte:</span>
-                      <span className="font-semibold">{result.data.summary?.targetLocations?.join(", ")}</span>
+                      <span>Diesen Monat genutzt:</span>
+                      <span className="font-semibold">
+                        {result.data.monthly_usage.monthly_used_after} / {result.data.monthly_usage.monthly_limit === -1 ? "unbegrenzt" : result.data.monthly_usage.monthly_limit} Firmenkontakte
+                      </span>
                     </div>
-                  )}
-                  {(result.data.summary?.nearbyCitiesDynamic?.length > 0) && (
-                    <div className="flex justify-between text-blue-800">
-                      <span>Automatisch erkannte Orte:</span>
-                      <span className="font-semibold">{result.data.summary?.nearbyCitiesDynamic?.join(", ")}</span>
-                    </div>
-                  )}
-                  <div className="text-blue-800">
-                    <span>Alle Suchstädte: </span>
-                    <span className="font-semibold">{(result.data.summary?.searchCities ?? []).join(", ")}</span>
+                    {result.data.monthly_usage.monthly_limit !== -1 && (
+                      <div className="flex justify-between text-blue-700">
+                        <span>Noch verfügbar:</span>
+                        <span className="font-semibold">{Math.max(0, result.data.monthly_usage.remaining_after)} Kontakte</span>
+                      </div>
+                    )}
                   </div>
-                  {(result.data.summary?.searchCities?.length ?? 0) > 1 && (
-                    <p className="text-[10px] text-blue-700 italic">
-                      Gespeichert werden nur Kontakte innerhalb von {result.data.summary?.radiusKm} km.
-                    </p>
-                  )}
-                  {result.data.summary?.maxSavedDistanceKm > 0 && (
-                    <div className="flex justify-between text-blue-800 pt-1 border-t border-blue-200">
-                      <span>Max. Entfernung gespeicherter Lead:</span>
-                      <span className="font-semibold">{result.data.summary.maxSavedDistanceKm} km</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Statistik – nur für paid/trial sichtbar, nicht für Free Preview */}
-                {trialStage !== 'free_preview' && (<div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-2">
-                  <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-200 text-center">
-                    <div>
-                      <span className="text-slate-700 block text-[10px] font-bold uppercase">Angefragt</span>
-                      <span className="text-lg font-bold text-slate-700">{result.data.requestedTarget}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-700 block text-[10px] font-bold uppercase">Roh-Treffer</span>
-                      <span className="text-lg font-bold text-slate-700">{result.data.summary?.raw_hits ?? "–"}</span>
-                    </div>
-                    <div>
-                      <span className="text-slate-700 block text-[10px] font-bold uppercase">Gespeichert</span>
-                      <span className="text-lg font-bold text-green-600">{result.data.summary?.saved ?? result.data.count}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-1 text-slate-700">
-                    <div className="flex justify-between font-medium">
-                      <span>Dubletten (übersprungen):</span>
-                      <span className="font-bold text-slate-900">{result.data.summary?.duplicates ?? 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Außerhalb Radius verworfen:</span>
-                      <span className="font-semibold text-slate-900">{result.data.summary?.outsideRadius ?? 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Nicht passend (Zielgruppe):</span>
-                      <span className="font-semibold text-slate-900">{result.data.summary?.noMatch ?? 0}</span>
-                    </div>
-                  </div>
-                  {result.data.summary?.outsideRadiusExamples?.length > 0 && (
-                    <div className="pt-2 border-t border-slate-200">
-                      <span className="text-[10px] font-bold text-orange-600 uppercase block mb-1">
-                        Radius-Verwürfe ({result.data.summary.outsideRadiusExamples.length})
-                      </span>
-                      <div className="space-y-0.5">
-                        {result.data.summary.outsideRadiusExamples.map((ex, i) => (
-                          <div key={i} className="text-[10px]">
-                            <span className="font-semibold text-slate-700">{ex.name}</span>
-                            <span className="ml-1 text-orange-600">– {ex.distance_km} km (außerhalb {result.data.summary.radiusKm} km)</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {result.data.summary?.savedExamples?.length > 0 && (
-                    <div className="pt-2 border-t border-slate-200">
-                      <span className="text-[10px] font-bold text-green-700 uppercase block mb-1">
-                        Gespeicherte Beispiele
-                      </span>
-                      <div className="space-y-0.5">
-                        {result.data.summary.savedExamples.map((ex, i) => (
-                          <div key={i} className="text-[10px]">
-                            <span className="font-semibold text-slate-700">{ex.name}</span>
-                            <span className="ml-1 text-slate-500">{ex.city}{ex.distance_km !== null ? ` · ${ex.distance_km} km` : ""}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {result.data.summary?.ambiguous > 0 && (
-                    <div className="pt-2 border-t border-slate-200">
-                      <span className="text-[10px] font-bold text-amber-600 uppercase block mb-1">
-                        Unklare Verwaltungstreffer – nicht gespeichert ({result.data.summary.ambiguous})
-                      </span>
-                      <p className="text-[10px] text-amber-700 mb-1">Firmenname enthält „Verwaltung", aber kein Immobilien-/WEG-/Mietkontext erkennbar.</p>
-                      <div className="space-y-0.5">
-                        {(result.data.summary?.ambiguousExamples || []).map((ex, i) => (
-                          <div key={i} className="text-[10px]">
-                            <span className="font-semibold text-slate-700">{ex.name}</span>
-                            <span className="ml-1 text-amber-600">– {ex.reason}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {result.data.summary?.noMatchExamples?.length > 0 && (
-                    <div className="pt-2 border-t border-slate-200">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">
-                        Zielgruppe-Verwürfe ({result.data.summary.noMatchExamples.length})
-                      </span>
-                      <div className="text-slate-500 space-y-0.5">
-                        {result.data.summary.noMatchExamples.map((ex, i) => (
-                          <div key={i} className="text-[10px]">
-                            <span className="font-semibold text-slate-700">{ex.name}</span>
-                            <span className="ml-1 text-slate-400">– {ex.reason}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  </div>)}
-
-                  {/* P2: Run vs. Monat sauber getrennt anzeigen */}
-                  {result.data.chargedLeadGeneration && (
-                    <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-xs space-y-2">
-                      <div className="font-semibold text-green-900 mb-1">✓ Recherche abgeschlossen</div>
-                      <div className="space-y-1.5 text-green-800">
-                        {/* Dieser Lauf */}
-                        <div className="flex justify-between font-semibold">
-                          <span>In diesem Lauf:</span>
-                          <span>{result.data.current_run?.created_count ?? result.data.count ?? 0} neue Kontakte</span>
-                        </div>
-                        <div className="flex justify-between text-green-700 text-[11px]">
-                          <span>Pro Recherchelauf: maximal</span>
-                          <span className="font-semibold">{result.data.current_run?.per_run_limit ?? 25} Kontakte</span>
-                        </div>
-                        {result.data.current_run?.was_clamped && (
-                          <div className="text-amber-700 text-[11px] font-medium">
-                            ℹ️ Angefragt: {result.data.current_run.requested_count} – automatisch auf {result.data.current_run.effective_target_count} begrenzt
-                          </div>
-                        )}
-                        {/* Monatliches Kontingent */}
-                        {result.data.monthly_usage && (
-                          <>
-                            <div className="flex justify-between border-t border-green-200 pt-1.5">
-                              <span>Diesen Monat genutzt:</span>
-                              <span className="font-semibold">
-                                {result.data.monthly_usage.monthly_used_after} / {result.data.monthly_usage.monthly_limit === -1 ? "∞" : result.data.monthly_usage.monthly_limit} Firmenkontakte
-                              </span>
-                            </div>
-                            {result.data.monthly_usage.monthly_limit !== -1 && (
-                              <div className="flex justify-between text-green-700 text-[11px]">
-                                <span>Noch verfügbar:</span>
-                                <span className="font-bold">{Math.max(0, result.data.monthly_usage.remaining_after)} Kontakte</span>
-                              </div>
-                            )}
-                          </>
-                        )}
-                        {/* Fallback wenn monthly_usage fehlt (ältere Response) */}
-                        {!result.data.monthly_usage && usageInfo && (
-                          <div className="flex justify-between border-t border-green-200 pt-1.5">
-                            <span>Diesen Monat gesamt:</span>
-                            <span className="font-semibold">{usageInfo.leads_created} / {(currentPlanLimits?.max_leads_per_month ?? 300) === -1 ? "∞" : currentPlanLimits?.max_leads_per_month ?? 300}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                )}
               </>
             ) : (
               <div className="flex items-start gap-3 p-4 rounded-xl border-2 bg-red-50 border-red-200">
@@ -601,7 +408,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
             <div className="flex gap-2">
               <Button onClick={onClose} className="flex-1">Schließen</Button>
               <Button variant="outline" onClick={() => { setResult(null); setError(null); }} className="flex-1 gap-2">
-                <RefreshCw className="w-4 h-4" /> Neue Recherche
+                <RefreshCw className="w-4 h-4" /> Erneut recherchieren
               </Button>
             </div>
           </div>

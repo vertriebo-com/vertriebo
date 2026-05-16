@@ -2,8 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Plus, Filter, X, MoreVertical, Download, TrendingUp, Building2, Upload, Sparkles, Database } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Search, Plus, Filter, X, MoreVertical, Download, TrendingUp, Building2, Upload, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -232,27 +231,18 @@ export default function Leads() {
           </p>
         </div>
         {isAdmin && (
-          <div className="flex gap-2 shrink-0">
-            <button
-              onClick={() => setShowResearch(true)}
-              className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-3 rounded-2xl shadow-md hover:shadow-lg transition-all group"
-            >
-              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <div className="text-left">
-                <div className="text-sm font-bold leading-tight">Firmen recherchieren</div>
-                <div className="text-[11px] text-blue-200 font-medium leading-tight">Vertriebo Lead-Recherche</div>
-              </div>
-            </button>
-            <Link to="/import-kandidaten"
-              className="flex items-center gap-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-3 rounded-2xl shadow-sm hover:shadow-md transition-all"
-              title="Import-Kandidaten (OpenRegister)"
-            >
-              <Database className="w-4 h-4 text-slate-500" />
-              <span className="text-sm font-semibold hidden sm:block">Import-Kandidaten</span>
-            </Link>
-          </div>
+          <button
+            onClick={() => setShowResearch(true)}
+            className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-5 py-3 rounded-2xl shadow-md hover:shadow-lg transition-all group shrink-0"
+          >
+            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-bold leading-tight">Firmen recherchieren</div>
+              <div className="text-[11px] text-blue-200 font-medium leading-tight">Vertriebo Lead-Recherche</div>
+            </div>
+          </button>
         )}
       </div>
 
