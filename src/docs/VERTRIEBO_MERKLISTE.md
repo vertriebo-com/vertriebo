@@ -68,6 +68,8 @@ Beim Speichern IMMER **alle** dieser Keys synchron befüllen:
 
 | Canonical Key | Legacy-Aliases (auch schreiben) |
 |---|---|
+| **`industry_id`** | — (kanonische Branchen-ID, z.B. `gebaeudereinigung`) |
+| **`industry_name`** | `own_industry` (Displayname, z.B. `Gebäudereinigung`) |
 | `target_customer_types` | `zielkunden` |
 | `excluded_customer_types` | — |
 | `services` | `dienstleistungen` |
@@ -79,6 +81,29 @@ Beim Speichern IMMER **alle** dieser Keys synchron befüllen:
 | `service_area_place_id` | — |
 | `target_locations_json` | `target_locations` (kommagetrennt) |
 | `zielkunden_keywords` | — (abgeleitet aus taxonomy searchKeywordVariants) |
+
+### Industry-ID Persistenz-Strategie (ab 2026-05-17)
+
+**Neue Orgs (Onboarding / CompanySettings):**
+- `IndustryAutocompleteInput` ist die EINZIGE Eingabe für Branchen
+- Bei canonical Auswahl: `industry_id`, `industry_name`, `own_industry` werden geschrieben
+- Bei Fallback ("Andere Branche"): zusätzlich `custom_industry_requested=true`, `custom_industry_label`, `fallback_profile_used`
+
+**Bestandsdaten (Backfill 2026-05-17):**
+- `backfillOrganizationIndustryIds` wurde ausgeführt (dry_run=false)
+- Ergebnis: 5/8 Orgs migriert, 3 ohne Branchenwert korrekt skipped
+- Alle 5 Mappings via `LEGACY_INDUSTRY_MAP` (confidence: legacy_map)
+- Keine Settings-Daten verändert (nur `industry_id` hinzugefügt)
+
+**startResearchRun Industry-ID Priorität:**
+```
+settings.industry_id          ← 1. Priorität (canonical, neu + backfilled)
+  → LEGACY_INDUSTRY_MAP[industry_name]  ← 2. Sicherheitsnetz (alte Orgs ohne Backfill)
+    → industry_name (raw)               ← 3. Last resort → evtl. Fallback-Profil
+```
+
+**REGEL: `LEGACY_INDUSTRY_MAP` in `startResearchRun` ist NUR noch Sicherheitsnetz.**
+Neue Orgs und migrierte Bestandsorgs nutzen direkt `settings.industry_id`.
 
 ---
 
@@ -292,6 +317,7 @@ POST testLeadSearchEngine
 | `processResearchRun` | Batches ausführen, Companies speichern (v6) | user |
 | `getResearchRunStatus` | Status-Polling | user |
 | `testLeadSearchEngine` | Live-Qualitätstest, dry-run, kein DB-Speichern | admin |
+| `backfillOrganizationIndustryIds` | Bestandsdaten-Migration: industry_id backfüllen (dry_run=true/false) | admin |
 | `analyzeLeadEngine` | Engine-Analyse | user |
 | `analyzeLeadTemperature` | Temperatur-Analyse | user |
 | `getKiRecommendation` | KI-Empfehlung | user |
@@ -321,6 +347,7 @@ POST testLeadSearchEngine
 | v4-db-2026-05 | 2026-05-17 | DB als SSOT, TaxonomyEntry Entity | 46 |
 | **v5-weighted-2026-05** | **2026-05-17** | **+scoringSignalWeights, +badFitSignalWeights, +placeTypeConfidence** | **46** |
 | **v6-weighted-scoring** | **2026-05-17** | **+search_strategy aktiv in Query+Scoring, +testLeadSearchEngine Live-Test** | **46** |
+| **industry_id-migration** | **2026-05-17** | **IndustryAutocomplete als SSOT, Backfill für Bestandsorgs, LEGACY_MAP = Sicherheitsnetz** | **46** |
 
 ---
 
