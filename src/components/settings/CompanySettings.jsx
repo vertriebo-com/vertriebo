@@ -54,7 +54,8 @@ export default function CompanySettings({ org: orgProp }) {
   const [plan, setPlan] = useState(null);
 
   const [firmenname, setFirmenname] = useState("");
-  const [industry, setIndustry] = useState("");
+  const [industry, setIndustry] = useState("");         // Label (Anzeige)
+  const [industryId, setIndustryId] = useState("");     // canonical industry_id
   const [telefon, setTelefon] = useState("");
   const [website, setWebsite] = useState("");
   const [websiteError, setWebsiteError] = useState("");
@@ -81,7 +82,12 @@ export default function CompanySettings({ org: orgProp }) {
   const [pendingIndustryChange, setPendingIndustryChange] = useState(null);
 
   // Dynamische Optionen basierend auf gewählter Branche (aus DB-Taxonomie)
-  const currentPreset = industry ? (getPreset(industry) || getIndustryPreset(getIndustryIdByLabel(industry))) : null;
+  // Bevorzuge canonical industryId, dann Label-Lookup als Fallback
+  const currentPreset = industryId
+    ? (getPreset(industryId) || getPreset(industry))
+    : industry
+    ? (getPreset(industry) || getIndustryPreset(getIndustryIdByLabel(industry)))
+    : null;
   const ZIELKUNDEN_OPTIONS = currentPreset?.targetCustomerTypes || BASE_ZIELKUNDEN_OPTIONS;
   const DIENSTLEISTUNGEN_OPTIONS = currentPreset?.ownServices || BASE_DIENSTLEISTUNGEN_OPTIONS;
 
@@ -119,6 +125,7 @@ export default function CompanySettings({ org: orgProp }) {
       setOrg(currentOrg);
       setFirmenname(currentOrg.name || "");
       setIndustry(currentOrg.industry || "");
+      setIndustryId(map.industry_id || "");
       if (currentOrg.plan_id) {
         const plans = await base44.entities.Plan.filter({ id: currentOrg.plan_id });
         setPlan(plans[0] || null);
@@ -242,7 +249,7 @@ export default function CompanySettings({ org: orgProp }) {
 
     await base44.entities.Organization.update(currentOrgId, {
       name: firmenname.trim(),
-      industry,
+      industry: industry,
       service_area_plz: plz,
       service_area_city: cityName,
       service_area_radius_km: parseFloat(radius) || 25,
@@ -255,6 +262,13 @@ export default function CompanySettings({ org: orgProp }) {
     const settingsToSave = {
       company_name:                    firmenname.trim(),
       industry_name:                   industry,
+      industry_id:                     industryId || industry,
+      // Fallback-Tracking: persistent auswertbar in OrganizationSettings
+      ...(industryId?.startsWith("fallback_") ? {
+        custom_industry_requested:     "true",
+        custom_industry_label:         industry,
+        fallback_profile_used:         industryId,
+      } : {}),
       // Kontaktdaten: alle Keys synchron halten
       email_telefon:                   telefon,
       company_phone:                   telefon,
@@ -301,44 +315,46 @@ export default function CompanySettings({ org: orgProp }) {
     setSaving(false);
   };
 
-  // Branchenwechsel mit auto-update Logik für Zielkunden
-  const handleIndustryChange = (newIndustryLabel) => {
-    const newIndustryId = getIndustryIdByLabel(newIndustryLabel);
-    const newPreset = getIndustryPreset(newIndustryId);
+  // Branchenwechsel – nutzt jetzt vollständiges Profil aus IndustryAutocompleteInput
+  const handleIndustryChange = (result) => {
+    if (!result) {
+      setIndustry("");
+      setIndustryId("");
+      return;
+    }
+    const newLabel = result.label;
+    const newId = result.id;
+    // Profil: direkt vom Autocomplete oder aus useTaxonomy-Cache laden
+    const newPreset = result.profile || getPreset(newId) || getPreset(newLabel);
 
-    // Wenn neue Branche hat Vorschläge und Nutzer hat bereits Zielkunden gesetzt
-    // → Dialog zeigen
     if (newPreset && zielkunden.length > 0) {
-      setPendingIndustryChange({
-        oldLabel: industry,
-        newLabel: newIndustryLabel,
-        newPreset: newPreset
-      });
+      setPendingIndustryChange({ oldLabel: industry, newLabel, newId, newPreset });
       setShowIndustryChangeDialog(true);
     } else {
-      // Keine Zielkunden gesetzt oder neue Branche — direkt aktualisieren
-      applyIndustryChange(newIndustryLabel, true);
+      applyIndustryChange(newLabel, newId, newPreset, true);
     }
   };
 
-  const applyIndustryChange = (newIndustryLabel, applySuggestions = true) => {
-    const newIndustryId = getIndustryIdByLabel(newIndustryLabel);
-    const newPreset = getIndustryPreset(newIndustryId);
-
-    setIndustry(newIndustryLabel);
+  const applyIndustryChange = (newLabel, newId, newPreset, applySuggestions = true) => {
+    setIndustry(newLabel);
+    setIndustryId(newId || newLabel);
 
     if (newPreset && applySuggestions) {
-      // Auto-update Zielkunden, Services, Ausschlüsse vom Preset
-      setZielkunden(newPreset.targetCustomerTypes);
+      setZielkunden(newPreset.targetCustomerTypes || []);
       setDienstleistungen(newPreset.ownServices || []);
       setExcludedCustomers(newPreset.excludedCustomerTypes || []);
-      toast.success(`Zielkunden, Leistungen und Ausschlüsse für ${newIndustryLabel} aktualisiert`);
+      toast.success(`Zielkunden, Leistungen und Ausschlüsse für ${newLabel} aktualisiert`);
     }
   };
 
   const handleIndustryChangeConfirm = async (applySuggestions) => {
     if (pendingIndustryChange) {
-      applyIndustryChange(pendingIndustryChange.newLabel, applySuggestions);
+      applyIndustryChange(
+        pendingIndustryChange.newLabel,
+        pendingIndustryChange.newId,
+        pendingIndustryChange.newPreset,
+        applySuggestions
+      );
     }
     setShowIndustryChangeDialog(false);
     setPendingIndustryChange(null);
@@ -396,12 +412,10 @@ export default function CompanySettings({ org: orgProp }) {
               Die Branche bestimmt automatisch vorgeschlagene Zielkunden und Suchbegriffe.
             </p>
             <IndustryAutocompleteInput
-              value={industry ? { id: getIndustryIdByLabel(industry) || industry, label: industry } : null}
-              onChange={(result) => {
-                if (!result) { handleIndustryChange(""); return; }
-                handleIndustryChange(result.label);
-              }}
+              value={industry ? { id: industryId || industry, label: industry } : null}
+              onChange={handleIndustryChange}
               placeholder="Branche suchen oder wählen…"
+              showStatus
             />
           </div>
           <div>

@@ -13,6 +13,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Search, ChevronDown, X, CheckCircle2, AlertCircle, Pencil } from "lucide-react";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
+import { base44 } from "@/api/base44Client";
 
 function normStr(str) {
   return String(str || "")
@@ -28,6 +29,11 @@ function scoreMatch(profile, query) {
   const aliases = (profile.aliases || []).map(normStr);
   const services = (profile.ownServices || []).map(normStr);
   const customers = (profile.targetCustomerTypes || []).map(normStr);
+  const group = normStr(profile.profile_group || "");
+  const categories = (profile.searchableBusinessCategories || []).map(normStr);
+  // searchKeywordVariants: flatten alle Varianten
+  const kwVariants = Object.values(profile.searchKeywordVariants || {})
+    .flat().map(normStr);
 
   // Exakter Label-Match: höchste Priorität
   if (label === q) return 100;
@@ -37,10 +43,16 @@ function scoreMatch(profile, query) {
   if (aliases.some(a => a === q)) return 75;
   if (aliases.some(a => a.startsWith(q))) return 65;
   if (aliases.some(a => a.includes(q))) return 55;
+  // Gruppe
+  if (group.includes(q)) return 50;
+  // Keyword-Varianten
+  if (kwVariants.some(v => v.includes(q))) return 48;
+  // Suchkategorien
+  if (categories.some(c => c.includes(q))) return 45;
   // Services
-  if (services.some(s => s.includes(q))) return 45;
+  if (services.some(s => s.includes(q))) return 40;
   // Zielkunden
-  if (customers.some(c => c.includes(q))) return 35;
+  if (customers.some(c => c.includes(q))) return 32;
   return 0;
 }
 
@@ -64,7 +76,7 @@ const GROUP_ICONS = {
 
 export default function IndustryAutocompleteInput({
   value,       // { id, label } oder null
-  onChange,    // (result: { id, label, isFallback?, fallbackLabel? } | null) => void
+  onChange,    // (result: { id, label, profile?, isFallback?, fallbackLabel? } | null) => void
   placeholder = "Branche suchen, z.B. Gebäudereinigung…",
   showStatus = false,
   className = "",
@@ -135,7 +147,8 @@ export default function IndustryAutocompleteInput({
   const handleSelect = (profile) => {
     setInputValue(profile.label);
     setIsOpen(false);
-    onChange({ id: profile.id, label: profile.label });
+    // Vollständiges Profil mitgeben → Autofill in Onboarding & Settings möglich
+    onChange({ id: profile.id, label: profile.label, profile });
   };
 
   const handleClear = () => {
@@ -147,11 +160,21 @@ export default function IndustryAutocompleteInput({
 
   const handleOtherIndustry = () => {
     setIsOpen(false);
+    const fallbackLabel = inputValue.trim();
+    // Analytics-Tracking (Frontend)
+    base44.analytics.track({
+      eventName: "industry_autocomplete_no_match",
+      properties: {
+        unmatched_industry_label: fallbackLabel || "unbekannt",
+        fallback_profile_used: "fallback_lokaler_dienstleister",
+      },
+    });
     onChange({
       id: "fallback_lokaler_dienstleister",
-      label: inputValue.trim() || "Andere Branche",
+      label: fallbackLabel || "Andere Branche",
       isFallback: true,
-      fallbackLabel: inputValue.trim(),
+      fallbackLabel,
+      profile: null,
     });
   };
 
@@ -213,6 +236,11 @@ export default function IndustryAutocompleteInput({
                           <div className="text-sm font-semibold text-slate-900 leading-tight">{profile.label}</div>
                           {profile.profile_group && (
                             <div className="text-[11px] text-slate-500 mt-0.5">{profile.profile_group}</div>
+                          )}
+                          {profile.ownServices?.length > 0 && (
+                            <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                              {profile.ownServices.slice(0, 3).join(" · ")}
+                            </div>
                           )}
                         </div>
                         {showStatus && (
