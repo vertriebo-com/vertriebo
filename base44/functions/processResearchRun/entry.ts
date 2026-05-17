@@ -422,11 +422,17 @@ Deno.serve(async (req) => {
     let seenPlaceIds = new Set();
     try { seenPlaceIds = new Set(JSON.parse(run.seen_place_ids || '[]')); } catch {}
 
-    // ── Intra-Batch-Dedupe: bestehende Namen + Place-IDs aus DB ─────────────
-    // Wir laden auch google_place_id für exakten Duplikat-Check
+    // ── Intra-Batch-Dedupe: bestehende Namen + Place-IDs + Name+Ort + Name+Tel ──
     const existing = await base44.asServiceRole.entities.Company.filter({ organization_id }, '-created_date', 1000);
     const existingNames = new Set(existing.map(c => normStr(c.name || '')));
     const existingPlaceIds = new Set(existing.filter(c => c.google_place_id).map(c => c.google_place_id));
+    // Composite keys für Name+Ort und Name+Telefon
+    const existingNameOrt = new Set(existing.map(c => `${normStr(c.name)}|${normStr(c.ort || '')}`).filter(k => k.length > 1));
+    const existingNamePhone = new Set(
+      existing
+        .filter(c => c.telefon && normStr(c.telefon).length >= 6)
+        .map(c => `${normStr(c.name)}|${normStr(c.telefon)}`)
+    );
 
     const currentLeadsSaved = run.leads_saved || 0;
     if ((effectiveTarget || 25) - currentLeadsSaved <= 0) {
@@ -510,6 +516,8 @@ Deno.serve(async (req) => {
           }
 
           if (isLikelyChain(place).isChain) { noMatchThisBatch++; continue; }
+
+          // ── Name-basierte Dedupe (schnell, vor dem teuren getPlaceDetails) ──
           if (existingNames.has(normStr(place.name || ''))) { dupSkippedThisBatch++; continue; }
 
           const scoring = scoreCandidate(place, taxonomyProfile, distanceKm, radiusKm, category);
@@ -521,6 +529,21 @@ Deno.serve(async (req) => {
           const matchedServiceContext = matched_target_customer
             ? (taxonomyProfile?.ownServices?.slice(0, 3) || []).join(', ')
             : (taxonomyProfile?.ownServices?.[0] || '');
+
+          // ── Name+Ort und Name+Telefon Dedupe (nach Details-Fetch) ────────
+          const nameOrtKey = `${normStr(place.name)}|${normStr(ort || '')}`;
+          if (ort && existingNameOrt.has(nameOrtKey)) {
+            dupSkippedThisBatch++;
+            console.info(`[processResearchRun] SKIP name+ort duplicate: "${place.name}" / ${ort}`);
+            continue;
+          }
+          const phoneNorm = normStr(details?.formatted_phone_number || '');
+          const namePhoneKey = `${normStr(place.name)}|${phoneNorm}`;
+          if (phoneNorm.length >= 6 && existingNamePhone.has(namePhoneKey)) {
+            dupSkippedThisBatch++;
+            console.info(`[processResearchRun] SKIP name+phone duplicate: "${place.name}" / ${phoneNorm}`);
+            continue;
+          }
 
           // ── Pre-Create Final DB Check (Race-Condition-Schutz) ────────────
           // Letzte Absicherung: nochmal DB prüfen direkt vor dem Create
@@ -564,6 +587,8 @@ Deno.serve(async (req) => {
 
           existingNames.add(normStr(place.name || ''));
           existingPlaceIds.add(place.place_id);
+          if (ort) existingNameOrt.add(nameOrtKey);
+          if (phoneNorm.length >= 6) existingNamePhone.add(namePhoneKey);
           newLeadsSavedThisBatch++;
           console.info(`[processResearchRun] SAVED "${place.name}" run=${research_run_id} batch=${batchIndex} place_id=${place.place_id} score=${scoring.score}`);
         }
