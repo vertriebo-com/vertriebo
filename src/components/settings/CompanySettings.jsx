@@ -10,6 +10,7 @@ import IndustryChangeConfirmDialog from "./IndustryChangeConfirmDialog";
 import { getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 import CityAutocomplete from "./CityAutocomplete";
+import IndustryAutocompleteInput from "@/components/IndustryAutocompleteInput";
 
 const BASE_ZIELKUNDEN_OPTIONS = ["Hausverwaltungen", "Büros", "Arztpraxen", "Industrie", "Logistik", "Hotels", "Schulen", "Pflegeheime"];
 const BASE_DIENSTLEISTUNGEN_OPTIONS = ["Gebäudereinigung","Büroreinigung","Treppenhausreinigung","Fensterreinigung","Hausmeisterdienst","Entrümpelung","Gartenpflege","Winterdienst"];
@@ -394,18 +395,14 @@ export default function CompanySettings({ org: orgProp }) {
             <p className="text-[11px] text-slate-500 mb-2.5 font-medium">
               Die Branche bestimmt automatisch vorgeschlagene Zielkunden und Suchbegriffe.
             </p>
-            <div className="flex flex-wrap gap-2">
-              {INDUSTRIES.map(ind => (
-                <button
-                  key={ind}
-                  type="button"
-                  onClick={() => handleIndustryChange(industry === ind ? "" : ind)}
-                  className={`text-xs px-3 py-1.5 rounded-full border-2 transition-all font-medium ${industry === ind ? "border-primary bg-primary/10 text-primary" : "border-slate-200 text-slate-700 hover:border-primary/40 hover:text-slate-900"}`}
-                >
-                  {ind}
-                </button>
-              ))}
-            </div>
+            <IndustryAutocompleteInput
+              value={industry ? { id: getIndustryIdByLabel(industry) || industry, label: industry } : null}
+              onChange={(result) => {
+                if (!result) { handleIndustryChange(""); return; }
+                handleIndustryChange(result.label);
+              }}
+              placeholder="Branche suchen oder wählen…"
+            />
           </div>
           <div>
             <Label className="text-xs font-semibold mb-1.5 block flex items-center gap-1.5 text-slate-900">

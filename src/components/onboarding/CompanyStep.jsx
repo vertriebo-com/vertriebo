@@ -3,26 +3,26 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { INDUSTRIES } from "@/utils/onboardingConfig";
 import LocationAutocomplete from "@/components/LocationAutocomplete";
-
-const OTHER_INDUSTRY = { icon: "🔧", name: "Andere Branche / Sonstiges" };
+import IndustryAutocompleteInput from "@/components/IndustryAutocompleteInput";
 
 export default function CompanyStep({ onNext, loading, initialData }) {
   const [firmenname, setFirmenname] = useState(initialData?.firmenname || "");
-  const [selectedIndustry, setSelectedIndustry] = useState(initialData?.selectedIndustry || null);
-  const [customIndustry, setCustomIndustry] = useState(initialData?.customIndustry || "");
+  // selectedIndustry: { id, label, isFallback?, fallbackLabel? } | null
+  const [selectedIndustry, setSelectedIndustry] = useState(
+    initialData?.selectedIndustry
+      ? { id: initialData.selectedIndustry.industry_id || initialData.selectedIndustry.id, label: initialData.selectedIndustry.name || initialData.selectedIndustry.label }
+      : null
+  );
   const [location, setLocation] = useState(initialData?.location || null);
   const [radius, setRadius] = useState(initialData?.radius || 25);
-
-  const isOtherIndustry = selectedIndustry?.name === OTHER_INDUSTRY.name;
 
   const handleNext = () => {
     if (!firmenname.trim()) {
       alert("Bitte geben Sie Ihren Firmennamen ein.");
       return;
     }
-    if (!selectedIndustry) {
+    if (!selectedIndustry?.id) {
       alert("Bitte wählen Sie Ihre Branche aus.");
       return;
     }
@@ -30,11 +30,20 @@ export default function CompanyStep({ onNext, loading, initialData }) {
       alert("Bitte geben Sie Ihren Standort ein und wählen Sie ihn aus der Liste aus.");
       return;
     }
-    // Bei "Andere Branche": customIndustry-Label in selectedIndustry einbauen
-    const finalIndustry = isOtherIndustry && customIndustry.trim()
-      ? { ...selectedIndustry, name: customIndustry.trim(), isFallback: true, fallbackLabel: customIndustry.trim() }
-      : selectedIndustry;
-    onNext({ firmenname, selectedIndustry: finalIndustry, location, radius, customIndustry: isOtherIndustry ? customIndustry.trim() : undefined });
+    // Mapping ins alte Format für Kompatibilität mit Onboarding-Flow
+    const finalIndustry = {
+      name: selectedIndustry.label,
+      industry_id: selectedIndustry.id,
+      isFallback: selectedIndustry.isFallback || false,
+      fallbackLabel: selectedIndustry.fallbackLabel || undefined,
+    };
+    onNext({
+      firmenname,
+      selectedIndustry: finalIndustry,
+      location,
+      radius,
+      customIndustry: selectedIndustry.isFallback ? selectedIndustry.fallbackLabel : undefined,
+    });
   };
 
   return (
@@ -56,50 +65,23 @@ export default function CompanyStep({ onNext, loading, initialData }) {
         />
       </div>
 
-      {/* Branche */}
+      {/* Branche – Autocomplete */}
       <div>
         <Label className="text-xs font-semibold text-slate-900 mb-2 block">Ihre Branche *</Label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
-          {INDUSTRIES.filter(i => i.name !== OTHER_INDUSTRY.name).map(ind => (
-            <button
-              key={ind.name}
-              type="button"
-              onClick={() => { setSelectedIndustry(selectedIndustry?.name === ind.name ? null : ind); setCustomIndustry(""); }}
-              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm text-left transition-all ${
-                selectedIndustry?.name === ind.name
-                  ? "border-blue-600 bg-blue-50 font-semibold text-blue-700"
-                  : "border-slate-300 hover:border-blue-300 hover:bg-slate-50 text-slate-700"
-              }`}
-            >
-              <span className="text-lg">{ind.icon}</span>
-              <span className="text-xs leading-tight">{ind.name}</span>
-            </button>
-          ))}
-          {/* "Andere Branche" immer zuletzt */}
-          <button
-            type="button"
-            onClick={() => setSelectedIndustry(isOtherIndustry ? null : OTHER_INDUSTRY)}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm text-left transition-all ${
-              isOtherIndustry
-                ? "border-slate-500 bg-slate-100 font-semibold text-slate-700"
-                : "border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-600 border-dashed"
-            }`}
-          >
-            <span className="text-lg">🔧</span>
-            <span className="text-xs leading-tight">Andere Branche</span>
-          </button>
-        </div>
-        {isOtherIndustry && (
-          <div className="mt-2">
-            <Input
-              value={customIndustry}
-              onChange={e => setCustomIndustry(e.target.value)}
-              placeholder="Ihre Branche eingeben, z.B. Fassadenreinigung…"
-              className="bg-white text-slate-900 border-slate-300"
-              autoFocus
-            />
-            <p className="text-[11px] text-slate-500 mt-1">Wir verwenden ein generisches Profil und nehmen Ihre Branche in unsere Taxonomie-Erweiterung auf.</p>
-          </div>
+        <IndustryAutocompleteInput
+          value={selectedIndustry}
+          onChange={setSelectedIndustry}
+          placeholder="Branche suchen, z.B. Gebäudereinigung…"
+        />
+        {selectedIndustry?.id && !selectedIndustry.isFallback && (
+          <p className="text-[11px] text-green-700 mt-1 font-medium">
+            ✓ Profil gefunden – Zielkunden und Suchbegriffe werden automatisch geladen.
+          </p>
+        )}
+        {selectedIndustry?.isFallback && (
+          <p className="text-[11px] text-slate-500 mt-1">
+            Generisches Profil wird verwendet. Wir nehmen Ihre Branche in unsere Erweiterung auf.
+          </p>
         )}
       </div>
 
@@ -140,7 +122,7 @@ export default function CompanyStep({ onNext, loading, initialData }) {
 
       <Button
         onClick={handleNext}
-        disabled={loading || !firmenname.trim() || !selectedIndustry || !location?.city || (isOtherIndustry && !customIndustry.trim())}
+        disabled={loading || !firmenname.trim() || !selectedIndustry?.id || !location?.city}
         className="w-full gap-2"
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
