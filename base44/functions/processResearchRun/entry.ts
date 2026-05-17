@@ -1,23 +1,25 @@
 /**
  * processResearchRun
  * ==================
- * Verarbeitet einen ResearchRun in kleinen Batches.
+ * v6-weighted-scoring: Gewichtete Signale, Place-Type-Confidence, Search-Strategy-Diagnostics.
  *
- * IDEMPOTENZ-GARANTIEN (v5):
- * 1. Processing-Lock: Setzt processing_lock_until + processing_by vor Batch-Start.
- *    Parallele Aufrufe erkennen den Lock und geben already_processing zurück.
- * 2. Pre-Create-Dedupe via google_place_id: Direkt vor Company.create nochmal
- *    DB prüfen ob google_place_id schon existiert → verhindert Race-Condition-Duplikate.
- * 3. Intra-Batch-Dedupe via seenPlaceIds + existingNames (wie bisher).
+ * SCORING-MODELL (neu):
+ * - scoring_signal_weights: Objekt {signal: Gewicht} pro Profil. Fallback: pauschal 12.
+ * - bad_fit_signal_weights: Objekt {signal: Abzug} pro Profil. Fallback: pauschal -35.
+ * - place_type_confidence: high/medium/low → bestimmt wie stark google_place_types zählen.
+ * - search_strategy: bestimmt ob Direktsuche, Zielkunden-Suche oder gemischt.
  *
- * TAXONOMIE-ARCHITEKTUR (DB-basiert, v4-db):
- * - taxonomyProfile wird von startResearchRun in search_plan_json eingebettet.
- * - Diese Function liest das Profil aus dem Plan — KEIN eigener DB-Call.
+ * DIAGNOSTICS (neu pro Company):
+ * - engine_analysis_json speichert matched_weighted_signals, bad_fit_signals,
+ *   place_type_match_strength, search_strategy_used für spätere Analyse.
+ *
+ * IDEMPOTENZ-GARANTIEN (v5, unverändert):
+ * 1. Processing-Lock + 2. Pre-Create-Dedupe + 3. Intra-Batch-Dedupe
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const GOOGLE_PLACES_API_KEY = Deno.env.get("GOOGLE_PLACES_API_KEY");
-const SEARCH_ENGINE_VERSION = "v5-idempotent";
+const SEARCH_ENGINE_VERSION = "v6-weighted-scoring";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,20 +42,45 @@ function isLikelyChain(candidate) {
   return { isChain: false };
 }
 
-function isBadFit(candidate, profile) {
-  const text = normStr([candidate.name, (candidate.types||[]).join(' '), candidate.vicinity||''].join(' '));
-  for (const kw of (profile?.negativeKeywords || [])) if (text.includes(normStr(kw))) return { bad: true, reason: `NegKw: "${kw}"` };
-  for (const s of (profile?.badFitSignals || [])) if (text.includes(normStr(s))) return { bad: true, reason: `BadFit: "${s}"` };
-  return { bad: false };
+// ── GEWICHTETE BAD-FIT-PRÜFUNG ────────────────────────────────────────────────
+// Gibt { bad: bool, totalPenalty: number, matchedSignals: string[] }
+function checkBadFit(candidate, profile) {
+  const text = normStr([candidate.name, (candidate.types||[]).join(' '), candidate.vicinity||'', candidate.formatted_address||''].join(' '));
+  const matchedSignals = [];
+  let totalPenalty = 0;
+
+  // Negative Keywords → immer hard-fail (unverändert)
+  for (const kw of (profile?.negativeKeywords || [])) {
+    if (text.includes(normStr(kw))) {
+      return { bad: true, hardFail: true, totalPenalty: -100, matchedSignals: [`NegKw:${kw}`] };
+    }
+  }
+
+  // Bad-Fit-Signals → gewichtet
+  const weights = profile?.badFitSignalWeights || {};
+  for (const s of (profile?.badFitSignals || [])) {
+    if (text.includes(normStr(s))) {
+      const penalty = weights[s] ?? -35; // Default -35
+      totalPenalty += penalty;
+      matchedSignals.push(`${s}(${penalty})`);
+    }
+  }
+
+  // Harter Ausschluss wenn Gesamt-Penalty sehr negativ
+  const bad = totalPenalty <= -35;
+  return { bad, hardFail: false, totalPenalty, matchedSignals };
 }
 
-function scoreCandidate(candidate, profile, distanceKm, radiusKm, category) {
+// ── GEWICHTETES SCORING ───────────────────────────────────────────────────────
+function scoreCandidate(candidate, profile, distanceKm, radiusKm, category, placeTypes) {
   const text = normStr([candidate.name, (candidate.types||[]).join(' '), candidate.vicinity||'', candidate.formatted_address||''].join(' '));
   let score = 50;
   const reasons = [];
   let matched_search_category = category || null;
   let matched_target_customer_type = null;
+  let placeTypeMatchStrength = 'none';
 
+  // ── Kategorie-Match ──
   if (!matched_search_category) {
     for (const cat of (profile?.searchableBusinessCategories || [])) {
       const variants = profile?.searchKeywordVariants?.[cat] ? profile.searchKeywordVariants[cat] : [cat];
@@ -61,24 +88,91 @@ function scoreCandidate(candidate, profile, distanceKm, radiusKm, category) {
       if (matched_search_category) break;
     }
   }
-  if (matched_search_category) { score += 20; reasons.push(`Cat:${matched_search_category}`); }
-  for (const s of (profile?.scoringSignals || [])) if (text.includes(normStr(s))) { score += 15; reasons.push(`Sig:${s}`); break; }
-  if (candidate.formatted_phone_number || candidate.international_phone_number) { score += 10; reasons.push("Tel"); }
-  if (candidate.website) { score += 10; reasons.push("Web"); }
-  if (distanceKm !== null && distanceKm <= radiusKm) { score += 10; }
+  if (matched_search_category) { score += 20; reasons.push(`Cat:${matched_search_category}(+20)`); }
 
-  for (const tc of (profile?.targetCustomerTypes || [])) {
-    if (text.includes(normStr(tc))) { matched_target_customer_type = tc; score += 5; reasons.push(`TC:${tc}`); break; }
+  // ── Google Place Types als Boost (confidence-gewichtet) ──
+  const confidence = profile?.placeTypeConfidence || 'medium';
+  const placeTypeBoostMap = { high: 15, medium: 8, low: 3 };
+  const placeTypeBoost = placeTypeBoostMap[confidence] ?? 8;
+  const profilePlaceTypes = profile?.googlePlaceTypes || [];
+  const candidateTypes = placeTypes || candidate.types || [];
+  const placeTypeMatch = candidateTypes.some(t => profilePlaceTypes.includes(t));
+  if (placeTypeMatch && profilePlaceTypes.length > 0) {
+    score += placeTypeBoost;
+    placeTypeMatchStrength = confidence;
+    reasons.push(`PlaceType:${confidence}(+${placeTypeBoost})`);
   }
 
-  const badFit = isBadFit(candidate, profile);
-  if (badFit.bad) { score -= 40; reasons.push(`BadFit:${badFit.reason}`); }
+  // ── GEWICHTETE Scoring-Signale ──
+  const signalWeights = profile?.scoringSignalWeights || {};
+  const signalsList = profile?.scoringSignals || [];
+  let totalSignalScore = 0;
+  const matchedWeightedSignals = [];
+
+  for (const s of signalsList) {
+    if (text.includes(normStr(s))) {
+      const w = signalWeights[s] ?? 12; // Default 12 statt pauschaler 15
+      totalSignalScore += w;
+      matchedWeightedSignals.push(`${s}(+${w})`);
+      // Kein break mehr: mehrere Signale können matchen, bis Cap
+    }
+  }
+  // Cap: max. 35 Punkte aus Signalen (verhindert Überbewertung durch viele schwache Matches)
+  const cappedSignalScore = Math.min(35, totalSignalScore);
+  if (cappedSignalScore > 0) {
+    score += cappedSignalScore;
+    reasons.push(`Signals:[${matchedWeightedSignals.slice(0,4).join(',')}](+${cappedSignalScore})`);
+  }
+
+  // ── Kontaktdaten ──
+  if (candidate.formatted_phone_number || candidate.international_phone_number) { score += 8; reasons.push("Tel(+8)"); }
+  if (candidate.website) { score += 8; reasons.push("Web(+8)"); }
+
+  // ── Distanz ──
+  if (distanceKm !== null && distanceKm <= radiusKm) { score += 8; }
+
+  // ── Zielkunden-Match ──
+  for (const tc of (profile?.targetCustomerTypes || [])) {
+    if (text.includes(normStr(tc))) {
+      matched_target_customer_type = tc;
+      score += 6;
+      reasons.push(`TC:${tc}(+6)`);
+      break;
+    }
+  }
+
+  // ── Bad-Fit prüfen ──
+  const badFit = checkBadFit(candidate, profile);
+  if (badFit.totalPenalty < 0) {
+    score += badFit.totalPenalty; // negativ
+    if (badFit.matchedSignals.length > 0) {
+      reasons.push(`BadFit:[${badFit.matchedSignals.join(',')}](${badFit.totalPenalty})`);
+    }
+  }
 
   score = Math.max(0, Math.min(100, score));
+
+  // ── Diagnostics-Objekt ──
+  const diagnostics = {
+    engine_version: SEARCH_ENGINE_VERSION,
+    score_raw: score,
+    matched_weighted_signals: matchedWeightedSignals,
+    bad_fit_signals_matched: badFit.matchedSignals,
+    bad_fit_penalty: badFit.totalPenalty,
+    place_type_match_strength: placeTypeMatchStrength,
+    place_type_confidence: confidence,
+    search_strategy: profile?.searchStrategy || 'target_customer_search',
+    category_matched: matched_search_category,
+    score_breakdown: reasons.join(' | '),
+  };
+
   return {
-    score, matched_search_category, matched_target_customer_type,
+    score,
+    matched_search_category,
+    matched_target_customer_type,
     relevance_reason: reasons.join(' | ') || 'Base',
     shouldSave: score >= 55 && !badFit.bad,
+    diagnostics,
   };
 }
 
@@ -250,7 +344,6 @@ Deno.serve(async (req) => {
   const startedAt = Date.now();
   const MAX_BATCH_MS = 18000;
   const MAX_RUN_SECONDS = 180;
-  // Lock-Dauer: 25s (großzügig genug für einen Batch, kurz genug für Stale-Recovery)
   const LOCK_DURATION_MS = 25000;
 
   try {
@@ -270,7 +363,7 @@ Deno.serve(async (req) => {
     if (!run) return Response.json({ error: 'ResearchRun nicht gefunden', success: false }, { status: 404 });
     if (run.organization_id !== organization_id) return Response.json({ error: 'Ungültige organization_id', success: false }, { status: 403 });
 
-    // ── Bereits abgeschlossen → sofort zurück ────────────────────────────────
+    // ── Bereits abgeschlossen ────────────────────────────────────────────────
     if (['completed', 'failed', 'partial'].includes(run.status)) {
       return Response.json({
         success: true, done: true, status: run.status,
@@ -284,12 +377,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── force_finish: Stale-Run sofort abschließen ───────────────────────────
+    // ── force_finish ─────────────────────────────────────────────────────────
     if (force_finish) {
       const finishStatus = (run.leads_saved || 0) > 0 ? 'partial' : 'failed';
-      const now = new Date().toISOString();
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-        status: finishStatus, finished_at: now,
+        status: finishStatus, finished_at: new Date().toISOString(),
         current_step: finishStatus === 'partial'
           ? `Recherche abgeschlossen (Timeout): ${run.leads_saved || 0} Kontakte gefunden`
           : 'Recherche abgebrochen (Timeout)',
@@ -309,10 +401,9 @@ Deno.serve(async (req) => {
       const runAgeSeconds = (Date.now() - new Date(run.started_at).getTime()) / 1000;
       if (runAgeSeconds > MAX_RUN_SECONDS) {
         const finishStatus = (run.leads_saved || 0) > 0 ? 'partial' : 'failed';
-        const now = new Date().toISOString();
         console.warn(`[processResearchRun] Max-Runtime überschritten (${Math.round(runAgeSeconds)}s) run=${research_run_id}`);
         await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-          status: finishStatus, finished_at: now,
+          status: finishStatus, finished_at: new Date().toISOString(),
           current_step: finishStatus === 'partial'
             ? `Recherche abgeschlossen (Max-Zeit): ${run.leads_saved || 0} Kontakte gefunden`
             : 'Recherche abgebrochen (Max-Zeit)',
@@ -327,16 +418,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── PROCESSING LOCK CHECK ────────────────────────────────────────────────
-    // Verhindert parallele Batch-Verarbeitung durch ResearchDialog + ActiveResearchBanner
+    // ── PROCESSING LOCK ──────────────────────────────────────────────────────
     const lockUntil = run.processing_lock_until ? new Date(run.processing_lock_until).getTime() : 0;
     const lockBy = run.processing_by || null;
     const workerKey = `${user.email}:${Date.now()}`;
     const isLockActive = lockUntil > Date.now() && lockBy !== null;
 
     if (isLockActive) {
-      // Anderer Worker verarbeitet gerade → nicht einsteigen
-      console.info(`[processResearchRun] Lock aktiv bis ${new Date(lockUntil).toISOString()} by=${lockBy}, skipping run=${research_run_id}`);
       return Response.json({
         success: true, done: false, already_processing: true,
         status: run.status,
@@ -347,7 +435,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Lock setzen BEVOR wir mit dem Batch anfangen
     const lockExpires = new Date(Date.now() + LOCK_DURATION_MS).toISOString();
     await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
       processing_lock_until: lockExpires,
@@ -376,7 +463,7 @@ Deno.serve(async (req) => {
 
     const hasGeoCoords = !!(cityCoords?.lat && cityCoords?.lng);
 
-    // ── Taxonomie-Profil Pflichtprüfung ───────────────────────────────────────
+    // ── Taxonomie-Profil Pflichtprüfung ──────────────────────────────────────
     if (!taxonomyProfile) {
       console.error(`[processResearchRun] taxonomy_profile_missing run=${research_run_id}`);
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
@@ -402,7 +489,7 @@ Deno.serve(async (req) => {
       return Response.json({ success: false, error: 'Keine Suchkategorien.', done: true, status: 'failed' });
     }
 
-    // ── Status auf running setzen (einmalig beim ersten Batch) ───────────────
+    // ── Status auf running setzen ────────────────────────────────────────────
     if (run.status === 'queued') {
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
         status: 'running', current_step: 'Firmenprofile werden gesucht…', progress_percent: 5,
@@ -418,15 +505,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Bereits gesehene Place-IDs (intra-run) ───────────────────────────────
+    // ── Bereits gesehene Place-IDs ───────────────────────────────────────────
     let seenPlaceIds = new Set();
     try { seenPlaceIds = new Set(JSON.parse(run.seen_place_ids || '[]')); } catch {}
 
-    // ── Intra-Batch-Dedupe: bestehende Namen + Place-IDs + Name+Ort + Name+Tel ──
+    // ── Intra-Batch-Dedupe ───────────────────────────────────────────────────
     const existing = await base44.asServiceRole.entities.Company.filter({ organization_id }, '-created_date', 1000);
     const existingNames = new Set(existing.map(c => normStr(c.name || '')));
     const existingPlaceIds = new Set(existing.filter(c => c.google_place_id).map(c => c.google_place_id));
-    // Composite keys für Name+Ort und Name+Telefon
     const existingNameOrt = new Set(existing.map(c => `${normStr(c.name)}|${normStr(c.ort || '')}`).filter(k => k.length > 1));
     const existingNamePhone = new Set(
       existing
@@ -493,15 +579,11 @@ Deno.serve(async (req) => {
           if (newLeadsSavedThisBatch + currentLeadsSaved >= effectiveTarget) break outer;
           if (placeDetailsUsed >= PLACE_DETAILS_PER_BATCH) break outer;
 
-          // ── Intra-Batch: seenPlaceIds (verhindert Doppelverarbeitung im selben Batch) ──
           if (seenPlaceIds.has(place.place_id)) continue;
           seenPlaceIds.add(place.place_id);
 
-          // ── DB-Level Dedupe via google_place_id ──────────────────────────
-          // Verhindert Duplikate auch bei parallelen Requests die beide denselben Place noch nicht gesehen haben
           if (existingPlaceIds.has(place.place_id)) {
             dupSkippedThisBatch++;
-            console.info(`[processResearchRun] SKIP (place_id exists in DB) place_id=${place.place_id} name="${place.name}"`);
             continue;
           }
 
@@ -517,10 +599,9 @@ Deno.serve(async (req) => {
 
           if (isLikelyChain(place).isChain) { noMatchThisBatch++; continue; }
 
-          // ── Name-basierte Dedupe (schnell, vor dem teuren getPlaceDetails) ──
           if (existingNames.has(normStr(place.name || ''))) { dupSkippedThisBatch++; continue; }
 
-          const scoring = scoreCandidate(place, taxonomyProfile, distanceKm, radiusKm, category);
+          const scoring = scoreCandidate(place, taxonomyProfile, distanceKm, radiusKm, category, place.types);
           if (!scoring.shouldSave) { noMatchThisBatch++; continue; }
 
           const details = await getPlaceDetails(place.place_id, GOOGLE_PLACES_API_KEY);
@@ -530,34 +611,32 @@ Deno.serve(async (req) => {
             ? (taxonomyProfile?.ownServices?.slice(0, 3) || []).join(', ')
             : (taxonomyProfile?.ownServices?.[0] || '');
 
-          // ── Name+Ort und Name+Telefon Dedupe (nach Details-Fetch) ────────
+          // Dedupe nach Details
           const nameOrtKey = `${normStr(place.name)}|${normStr(ort || '')}`;
-          if (ort && existingNameOrt.has(nameOrtKey)) {
-            dupSkippedThisBatch++;
-            console.info(`[processResearchRun] SKIP name+ort duplicate: "${place.name}" / ${ort}`);
-            continue;
-          }
+          if (ort && existingNameOrt.has(nameOrtKey)) { dupSkippedThisBatch++; continue; }
           const phoneNorm = normStr(details?.formatted_phone_number || '');
           const namePhoneKey = `${normStr(place.name)}|${phoneNorm}`;
-          if (phoneNorm.length >= 6 && existingNamePhone.has(namePhoneKey)) {
-            dupSkippedThisBatch++;
-            console.info(`[processResearchRun] SKIP name+phone duplicate: "${place.name}" / ${phoneNorm}`);
-            continue;
-          }
+          if (phoneNorm.length >= 6 && existingNamePhone.has(namePhoneKey)) { dupSkippedThisBatch++; continue; }
 
-          // ── Pre-Create Final DB Check (Race-Condition-Schutz) ────────────
-          // Letzte Absicherung: nochmal DB prüfen direkt vor dem Create
-          // (zwischen unserem Read oben und jetzt könnte ein anderer Worker bereits gespeichert haben)
+          // Pre-Create Final DB Check
           const alreadyExists = await base44.asServiceRole.entities.Company.filter({
-            organization_id,
-            google_place_id: place.place_id,
+            organization_id, google_place_id: place.place_id,
           });
           if (alreadyExists && alreadyExists.length > 0) {
             dupSkippedThisBatch++;
             existingPlaceIds.add(place.place_id);
-            console.info(`[processResearchRun] SKIP pre-create check: already exists place_id=${place.place_id}`);
             continue;
           }
+
+          // Diagnostics-JSON für Engine-Analyse
+          const engineDiagnostics = {
+            ...scoring.diagnostics,
+            query_used: variant || query,
+            query_category: category,
+            query_family: family,
+            place_types_from_google: place.types || [],
+            matched_target_customer,
+          };
 
           await base44.asServiceRole.entities.Company.create({
             organization_id,
@@ -580,9 +659,13 @@ Deno.serve(async (req) => {
             research_run_id,
             matched_target_customer_type: scoring.matched_target_customer_type || matched_target_customer || null,
             matched_service_context: matchedServiceContext || null,
-            // Neu: google_place_id + source_provider für Dedupe
             google_place_id: place.place_id || null,
             source_provider: 'google_places',
+            // v6: Engine-Diagnostics speichern
+            engine_analysis_json: JSON.stringify(engineDiagnostics),
+            engine_version: SEARCH_ENGINE_VERSION,
+            engine_confidence: scoring.score,
+            engine_last_analyzed_at: new Date().toISOString(),
           });
 
           existingNames.add(normStr(place.name || ''));
@@ -590,7 +673,7 @@ Deno.serve(async (req) => {
           if (ort) existingNameOrt.add(nameOrtKey);
           if (phoneNorm.length >= 6) existingNamePhone.add(namePhoneKey);
           newLeadsSavedThisBatch++;
-          console.info(`[processResearchRun] SAVED "${place.name}" run=${research_run_id} batch=${batchIndex} place_id=${place.place_id} score=${scoring.score}`);
+          console.info(`[processResearchRun] SAVED "${place.name}" score=${scoring.score} signals=${scoring.diagnostics.matched_weighted_signals?.join(',')} engine=${SEARCH_ENGINE_VERSION}`);
         }
       }
     }
@@ -631,7 +714,6 @@ Deno.serve(async (req) => {
       current_step: newStep,
       seen_place_ids: JSON.stringify([...seenPlaceIds].slice(-500)),
       charged_lead_generation: totalLeadsSaved > 0,
-      // Lock immer aufheben nach Batch
       processing_lock_until: null, processing_by: null,
       ...(isDone ? { finished_at: new Date().toISOString() } : {}),
       ...(isDone && zeroResultCause ? { zero_result_cause: zeroResultCause } : {}),
