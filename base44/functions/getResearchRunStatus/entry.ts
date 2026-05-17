@@ -22,13 +22,41 @@ Deno.serve(async (req) => {
     if (!run) return Response.json({ error: 'ResearchRun nicht gefunden', success: false }, { status: 404 });
     if (run.organization_id !== organization_id) return Response.json({ error: 'Ungültige organization_id', success: false }, { status: 403 });
 
-    const isDone = run.status === 'completed' || run.status === 'failed';
+    // ── Stale-Run-Watchdog ────────────────────────────────────────────────────
+    // Run ist running/queued aber kein Update seit >90s → automatisch beenden
+    if (run.status === 'running' || run.status === 'queued') {
+      const lastUpdate = run.updated_date ? new Date(run.updated_date).getTime() : new Date(run.started_at || run.created_date).getTime();
+      const staleMs = Date.now() - lastUpdate;
+      if (staleMs > 90000) {
+        const finishStatus = (run.leads_saved || 0) > 0 ? 'partial' : 'failed';
+        console.warn(`[getResearchRunStatus] Stale run detected (${Math.round(staleMs/1000)}s idle), forcing ${finishStatus}: ${research_run_id}`);
+        await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+          status: finishStatus,
+          finished_at: new Date().toISOString(),
+          current_step: finishStatus === 'partial'
+            ? `Recherche abgeschlossen: ${run.leads_saved || 0} Kontakte gefunden`
+            : 'Recherche abgebrochen (keine Antwort)',
+          stop_reason: 'stale_run_timeout',
+          error_message: `Run war ${Math.round(staleMs/1000)}s ohne Fortschritt.`,
+        });
+        // Aktualisiertes Objekt simulieren
+        run.status = finishStatus;
+        run.finished_at = new Date().toISOString();
+        run.current_step = finishStatus === 'partial'
+          ? `Recherche abgeschlossen: ${run.leads_saved || 0} Kontakte gefunden`
+          : 'Recherche abgebrochen (keine Antwort)';
+      }
+    }
+
+    const isDone = ['completed', 'failed', 'partial'].includes(run.status);
     let message = run.current_step || 'Recherche läuft…';
 
     if (run.status === 'completed') {
       message = (run.leads_saved || 0) > 0
         ? `${run.leads_saved} neue Firmenkontakte gefunden`
         : 'Keine neuen passenden Firmenkontakte gefunden';
+    } else if (run.status === 'partial') {
+      message = `Recherche teilweise abgeschlossen: ${run.leads_saved || 0} Kontakte gefunden`;
     } else if (run.status === 'failed') {
       message = run.error_message || 'Recherche fehlgeschlagen';
     }

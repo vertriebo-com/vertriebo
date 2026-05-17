@@ -1,67 +1,109 @@
 /**
  * ActiveResearchBanner
- * Zeigt einen Fortschrittsbalken auf der Leads-Seite während ein ResearchRun läuft.
- * Pollt alle 3s den Status und triggert onNewLeads wenn neue Companies gefunden wurden.
+ * Zeigt Fortschrittsbalken während ein ResearchRun läuft.
+ * WICHTIG: Ruft processResearchRun aktiv auf (nicht nur Status-Polling).
+ * Enthält Stale-Run-Watchdog: Run der > 90s kein Update hatte → forciert Abschluss.
  */
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { Loader2, CheckCircle2, X, Sparkles } from "lucide-react";
+import { Loader2, CheckCircle2, X } from "lucide-react";
 
-const POLL_MS = 3000;
+const POLL_MS = 4000;
+const STALE_TIMEOUT_MS = 90000; // 90 Sekunden ohne Fortschritt → Stale
 
 export default function ActiveResearchBanner({ orgId, onNewLeads }) {
-  const [activeRun, setActiveRun] = useState(null); // null | { id, status, leads_saved, progress_percent, message }
-  const [dismissed, setDismissed] = useState(null); // run_id des dismissten Runs
-  const pollRef = useRef(null);
+  const [activeRun, setActiveRun] = useState(null);
+  const [dismissed, setDismissed] = useState(null);
   const lastLeadsSavedRef = useRef(0);
-  const checkingRef = useRef(false);
+  const processingRef = useRef(false);
+  const lastProgressAtRef = useRef(Date.now());
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
 
-  // Suche nach aktiven Runs beim Mount und dann periodisch
   useEffect(() => {
     if (!orgId) return;
-    checkForActiveRun();
-    const interval = setInterval(checkForActiveRun, POLL_MS);
-    return () => { clearInterval(interval); if (pollRef.current) clearTimeout(pollRef.current); };
+    tickLoop();
+    const interval = setInterval(tickLoop, POLL_MS);
+    return () => clearInterval(interval);
   }, [orgId]);
 
-  const checkForActiveRun = async () => {
-    if (checkingRef.current) return;
-    checkingRef.current = true;
+  const tickLoop = async () => {
+    if (processingRef.current) return;
+    processingRef.current = true;
     try {
-      // Lade neueste ResearchRuns für diese Org
+      // 1. Neueste Runs laden
       const runs = await base44.entities.ResearchRun.filter(
-        { organization_id: orgId },
-        '-created_date',
-        3
+        { organization_id: orgId }, '-created_date', 3
       );
-      // Suche nach laufendem Run (queued oder running)
       const running = runs.find(r => r.status === 'queued' || r.status === 'running');
-      // Zuletzt abgeschlossener Run (für 30s noch anzeigen)
       const recentDone = runs.find(r => {
-        if (r.status !== 'completed') return false;
-        const finishedAt = r.finished_at ? new Date(r.finished_at).getTime() : new Date(r.updated_date).getTime();
-        return Date.now() - finishedAt < 30000;
+        if (!['completed', 'partial', 'failed'].includes(r.status)) return false;
+        const ts = r.finished_at ? new Date(r.finished_at).getTime() : new Date(r.updated_date).getTime();
+        return Date.now() - ts < 30000;
       });
 
       if (running) {
-        const newRun = {
+        // 2. Stale-Watchdog: updated_date älter als 90s → Run gilt als hängend
+        const lastUpdate = running.updated_date ? new Date(running.updated_date).getTime() : Date.now();
+        const isStale = Date.now() - lastUpdate > STALE_TIMEOUT_MS;
+
+        if (isStale && retryCountRef.current >= MAX_RETRIES) {
+          // Stale + zu viele Retries → forciert Abschluss via Backend
+          console.warn('[ActiveResearchBanner] Stale run detected, forcing partial finish:', running.id);
+          await base44.functions.invoke('processResearchRun', {
+            research_run_id: running.id,
+            organization_id: orgId,
+            force_finish: true,
+          }).catch(() => {});
+          retryCountRef.current = 0;
+          return;
+        }
+
+        // 3. processResearchRun aufrufen (das eigentliche Batch-Processing)
+        const res = await base44.functions.invoke('processResearchRun', {
+          research_run_id: running.id,
+          organization_id: orgId,
+        });
+        const data = res?.data;
+
+        if (data?.leads_saved > lastLeadsSavedRef.current) {
+          lastProgressAtRef.current = Date.now();
+          retryCountRef.current = 0;
+          lastLeadsSavedRef.current = data.leads_saved;
+          onNewLeads?.();
+        } else if (!isStale) {
+          retryCountRef.current++;
+        }
+
+        if (data?.done || ['completed', 'partial', 'failed'].includes(data?.status)) {
+          setActiveRun({
+            id: running.id,
+            status: data.status || 'completed',
+            leads_saved: data.leads_saved || running.leads_saved || 0,
+            progress_percent: 100,
+            message: data.leads_saved > 0
+              ? `${data.leads_saved} neue Firmenkontakte gefunden`
+              : 'Keine neuen Kontakte gefunden',
+          });
+          lastLeadsSavedRef.current = 0;
+          onNewLeads?.();
+          return;
+        }
+
+        setActiveRun({
           id: running.id,
           status: running.status,
-          leads_saved: running.leads_saved || 0,
-          progress_percent: running.progress_percent || 0,
-          message: running.current_step || 'Recherche läuft…',
-        };
-        setActiveRun(newRun);
+          leads_saved: data?.leads_saved ?? running.leads_saved ?? 0,
+          progress_percent: data?.progress_percent ?? running.progress_percent ?? 0,
+          message: isStale
+            ? `Recherche wird fortgesetzt… ${data?.leads_saved ?? running.leads_saved ?? 0} Kontakte gefunden`
+            : (data?.current_step || running.current_step || 'Recherche läuft…'),
+        });
 
-        // Neue Leads gefunden → onNewLeads triggern
-        if (newRun.leads_saved > lastLeadsSavedRef.current) {
-          lastLeadsSavedRef.current = newRun.leads_saved;
-          onNewLeads?.();
-        }
       } else if (recentDone && recentDone.id !== dismissed) {
         setActiveRun({
           id: recentDone.id,
-          status: 'completed',
+          status: recentDone.status,
           leads_saved: recentDone.leads_saved || 0,
           progress_percent: 100,
           message: (recentDone.leads_saved || 0) > 0
@@ -74,15 +116,15 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
         lastLeadsSavedRef.current = 0;
       }
     } catch (e) {
-      // Stille Fehler – Banner nicht kritisch
+      console.warn('[ActiveResearchBanner] tick error:', e?.message);
     } finally {
-      checkingRef.current = false;
+      processingRef.current = false;
     }
   };
 
   if (!activeRun) return null;
 
-  const isDone = activeRun.status === 'completed';
+  const isDone = ['completed', 'partial', 'failed'].includes(activeRun.status);
   const isRunning = activeRun.status === 'running' || activeRun.status === 'queued';
 
   return (

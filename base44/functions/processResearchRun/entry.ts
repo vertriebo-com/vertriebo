@@ -254,6 +254,7 @@ async function upsertUsageLog(base44, organization_id, newLeads) {
 Deno.serve(async (req) => {
   const startedAt = Date.now();
   const MAX_BATCH_MS = 18000;
+  const MAX_RUN_SECONDS = 180; // 3 Minuten absolute Max-Laufzeit pro ResearchRun
 
   try {
     const base44 = createClientFromRequest(req);
@@ -261,7 +262,7 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Nicht eingeloggt', success: false }, { status: 401 });
 
     const body = await req.json();
-    const { research_run_id, organization_id } = body;
+    const { research_run_id, organization_id, force_finish } = body;
     if (!research_run_id || !organization_id) {
       return Response.json({ error: 'research_run_id und organization_id erforderlich', success: false }, { status: 400 });
     }
@@ -272,15 +273,63 @@ Deno.serve(async (req) => {
     if (!run) return Response.json({ error: 'ResearchRun nicht gefunden', success: false }, { status: 404 });
     if (run.organization_id !== organization_id) return Response.json({ error: 'Ungültige organization_id', success: false }, { status: 403 });
 
-    if (run.status === 'completed' || run.status === 'failed') {
+    if (['completed', 'failed', 'partial'].includes(run.status)) {
       return Response.json({
         success: true, done: true, status: run.status,
         leads_saved: run.leads_saved || 0,
         progress_percent: run.progress_percent || 100,
         message: run.status === 'completed'
           ? `Recherche abgeschlossen: ${run.leads_saved || 0} neue Firmenkontakte gefunden.`
+          : run.status === 'partial'
+          ? `Recherche teilweise abgeschlossen: ${run.leads_saved || 0} Kontakte gefunden.`
           : `Recherche fehlgeschlagen: ${run.error_message || 'Unbekannter Fehler'}`,
       });
+    }
+
+    // ── force_finish: Stale-Run sofort abschließen ───────────────────────────
+    if (force_finish) {
+      const finishStatus = (run.leads_saved || 0) > 0 ? 'partial' : 'failed';
+      const now = new Date().toISOString();
+      await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+        status: finishStatus,
+        finished_at: now,
+        current_step: finishStatus === 'partial'
+          ? `Recherche teilweise abgeschlossen (Timeout): ${run.leads_saved || 0} Kontakte gefunden`
+          : 'Recherche abgebrochen (Timeout – keine Kontakte)',
+        stop_reason: 'stale_run_timeout',
+        error_message: 'Run wurde durch Stale-Watchdog beendet.',
+      });
+      return Response.json({
+        success: true, done: true, status: finishStatus,
+        leads_saved: run.leads_saved || 0,
+        progress_percent: 100,
+        message: `Recherche beendet (Timeout): ${run.leads_saved || 0} Kontakte gefunden`,
+      });
+    }
+
+    // ── Max-Runtime-Guard: Run läuft seit > MAX_RUN_SECONDS → Abschluss erzwingen ──
+    if (run.started_at) {
+      const runAgeSeconds = (Date.now() - new Date(run.started_at).getTime()) / 1000;
+      if (runAgeSeconds > MAX_RUN_SECONDS) {
+        const finishStatus = (run.leads_saved || 0) > 0 ? 'partial' : 'failed';
+        const now = new Date().toISOString();
+        console.warn(`[processResearchRun] Max-Runtime überschritten (${Math.round(runAgeSeconds)}s) für run=${research_run_id}`);
+        await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+          status: finishStatus,
+          finished_at: now,
+          current_step: finishStatus === 'partial'
+            ? `Recherche abgeschlossen (Max-Zeit): ${run.leads_saved || 0} Kontakte gefunden`
+            : 'Recherche abgebrochen (Max-Zeit erreicht)',
+          stop_reason: 'max_runtime_exceeded',
+          error_message: `Max-Laufzeit von ${MAX_RUN_SECONDS}s überschritten.`,
+        });
+        return Response.json({
+          success: true, done: true, status: finishStatus,
+          leads_saved: run.leads_saved || 0,
+          progress_percent: 100,
+          message: `Recherche beendet: ${run.leads_saved || 0} Kontakte gefunden`,
+        });
+      }
     }
 
     // ── Suchplan lesen ───────────────────────────────────────────────────────
@@ -540,8 +589,18 @@ Deno.serve(async (req) => {
       const base44b = createClientFromRequest(req);
       const body2 = await req.clone().json().catch(() => ({}));
       if (body2.research_run_id) {
+        // Aktuellen Run-Stand lesen um leads_saved zu kennen
+        const existingRuns = await base44b.asServiceRole.entities.ResearchRun.filter({ id: body2.research_run_id }).catch(() => []);
+        const existingRun = existingRuns[0];
+        const finishStatus = (existingRun?.leads_saved || 0) > 0 ? 'partial' : 'failed';
         await base44b.asServiceRole.entities.ResearchRun.update(body2.research_run_id, {
-          status: 'partial', error_message: error?.message, current_step: 'Fehler – Recherche teilweise abgeschlossen',
+          status: finishStatus,
+          error_message: error?.message,
+          current_step: finishStatus === 'partial'
+            ? `Recherche teilweise abgeschlossen: ${existingRun?.leads_saved || 0} Kontakte gefunden`
+            : 'Recherche fehlgeschlagen',
+          finished_at: new Date().toISOString(),
+          stop_reason: 'exception',
         });
       }
     } catch {}

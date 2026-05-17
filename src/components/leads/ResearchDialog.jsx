@@ -105,7 +105,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       setLeadsSaved(data.leads_saved || 0);
       setCurrentStep(data.current_step || data.message || "");
 
-      if (data.done) {
+      if (data.done || ['completed', 'partial', 'failed'].includes(data?.status)) {
         stopPolling();
         setPhase("done");
         onSuccess?.();
@@ -118,6 +118,17 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       processingRef.current = false;
     }
   };
+
+  // Sicherheitsnetz: Nach 3 Minuten ohne done-Signal → erzwinge Abschluss-UI
+  useEffect(() => {
+    if (phase !== "running") return;
+    const timeout = setTimeout(() => {
+      stopPolling();
+      setPhase("done"); // Zeigt "X Kontakte gefunden" – Run wird im Backend durch Watchdog beendet
+      onSuccess?.();
+    }, 3 * 60 * 1000);
+    return () => clearTimeout(timeout);
+  }, [phase]);
 
   // ── Schließen ────────────────────────────────────────────────────────────
   const handleClose = () => {
