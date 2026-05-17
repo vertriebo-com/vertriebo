@@ -24,9 +24,11 @@ export const ZIELKUNDEN_SEARCH_MAPPING = {
   "Krankenhäuser / Kliniken":      ["Krankenhaus", "Klinik", "Pflegeheim", "Altenheim", "Reha"],
 };
 
-const ZIELKUNDEN_OPTIONS = Object.keys(ZIELKUNDEN_SEARCH_MAPPING);
+// Fallback-Zielkunden wenn keine Branche gewählt (aus ZIELKUNDEN_SEARCH_MAPPING)
+const BASE_ZIELKUNDEN_OPTIONS = Object.keys(ZIELKUNDEN_SEARCH_MAPPING);
 
-const DIENSTLEISTUNGEN_OPTIONS = [
+// Basis-Dienstleistungen als Fallback wenn keine Branche gesetzt
+const BASE_DIENSTLEISTUNGEN_OPTIONS = [
   "Gebäudereinigung","Büroreinigung","Treppenhausreinigung","Fensterreinigung",
   "Hausmeisterdienst","Entrümpelung","Gartenpflege","Winterdienst",
   "Sicherheitsdienst","IT-Service","Catering","Logistik / Transport",
@@ -98,6 +100,11 @@ export default function CompanySettings({ org: orgProp }) {
   const [standardVertriebler, setStandardVertriebler] = useState("none");
   const [showIndustryChangeDialog, setShowIndustryChangeDialog] = useState(false);
   const [pendingIndustryChange, setPendingIndustryChange] = useState(null);
+
+  // Dynamische Optionen basierend auf gewählter Branche
+  const currentPreset = industry ? getIndustryPreset(getIndustryIdByLabel(industry)) : null;
+  const ZIELKUNDEN_OPTIONS = currentPreset?.targetCustomerTypes || BASE_ZIELKUNDEN_OPTIONS;
+  const DIENSTLEISTUNGEN_OPTIONS = currentPreset?.ownServices || BASE_DIENSTLEISTUNGEN_OPTIONS;
 
   useEffect(() => { loadData(); }, []);
 
@@ -242,7 +249,17 @@ export default function CompanySettings({ org: orgProp }) {
     if (!currentOrgId) { toast.error("Keine Organisation gefunden."); setSaving(false); return; }
 
     const normalizedWebsite = normalizeUrl(website);
-    const zielkundenKeywords = zielkunden.flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z]).join(", ");
+    // Keywords: aus ZIELKUNDEN_SEARCH_MAPPING (Fallback) ODER aus Taxonomy-searchKeywordVariants
+    const zielkundenKeywords = zielkunden.flatMap(z => {
+      if (ZIELKUNDEN_SEARCH_MAPPING[z]) return ZIELKUNDEN_SEARCH_MAPPING[z];
+      // Für Branchen-Zielkunden: prüfe ob Taxonomy searchKeywordVariants passen
+      if (currentPreset?.searchKeywordVariants) {
+        for (const [group, variants] of Object.entries(currentPreset.searchKeywordVariants)) {
+          if (group === z || variants.includes(z)) return variants;
+        }
+      }
+      return [z]; // fallback: direkt als Suchbegriff
+    }).join(", ");
 
     const cityName = mainCity?.city || "";
     const cityLat = mainCity?.lat || null;
