@@ -1,236 +1,193 @@
-# Vertriebo Merkliste – Architektur & Entscheidungen
+# VERTRIEBO ARCHITEKTUR-MERKLISTE
+## Stand: 2026-05-17 | v4-ssot
 
-_Zuletzt aktualisiert: 2026-05-17_
+> **PFLICHTLEKTÜRE vor jedem Feature.** Verstöße gegen diese Regeln führen zu inkonsistentem Verhalten, Datenverlust und schwer debuggbaren Fehlern.
 
 ---
 
-## ██████████████████████████████████████████████████████████
-## P0 DAUERREGEL: Zentrale Bausteine statt Einzel-Fixes
-## ██████████████████████████████████████████████████████████
+## 1. SINGLE SOURCE OF TRUTH — TAXONOMIE
 
-> **Gilt ab sofort für ALLE Änderungen an Vertriebo.**
-> Diese Regel hat die höchste Priorität. Sie ist keine Empfehlung, sondern Pflicht.
+### Frontend: `utils/leadSearchTaxonomy.js`
+Die **einzige** autorisierte Quelle für:
+- Branchen-IDs und Labels
+- `targetCustomerTypes` (Zielkunden)
+- `ownServices` (Dienstleistungen)
+- `excludedCustomerTypes` (Ausschlüsse)
+- `searchableBusinessCategories` (Google-Suchkategorien)
+- `searchKeywordVariants` (Suchbegriff-Varianten)
+- `negativeKeywords` / `badFitSignals`
+- `scoringSignals`
+- `queryPriority`
+- `idealCustomerProfiles` (nur Scoring/KI, NICHT für rohe Suche)
+- `googlePlaceTypes`
 
-### Grundsatz
+### Backend: `functions/processResearchRun` (TAXONOMY_DATA)
+- Die `TAXONOMY_DATA`-Konstante in `processResearchRun` ist eine **1:1-Kopie** von `leadSearchTaxonomy.js`.
+- Deno Deploy erlaubt keine lokalen Imports → Kopie ist technisch notwendig.
+- **Bei jeder Taxonomie-Änderung: BEIDE Dateien aktualisieren.**
+- `TAXONOMY_VERSION` im Backend muss bei inhaltlichen Änderungen erhöht werden (Format: `v{N}-{slug}-{YYYY-MM}`).
+- `taxonomy_version` wird in jedem ResearchRun gespeichert → Rückverfolgung möglich.
+
+### Adapter: `utils/industryTargetPresets.js`
+- **Enthält KEINE eigenen Daten** — leitet ausschließlich aus `leadSearchTaxonomy.js` weiter.
+- Alle UI-Komponenten importieren von hier (Onboarding, CompanySettings, TargetingStep).
+- Stellt `INDUSTRY_PRESETS`, `getIndustryPreset`, `getIndustryIdByLabel`, `getIndustryLabels` bereit.
 
 **VERBOTEN:**
-- Eine einzelne Seite fixen, ohne die anderen zu prüfen
-- Einen Key nur an einer Stelle ändern
-- Ein Problem lokal lösen, ohne auf Duplikate zu prüfen
-- Eine Logik zweimal implementieren (Onboarding ≠ Settings ≠ ResearchDialog)
-- Zwei parallele Taxonomie-Systeme pflegen
-
-**PFLICHT:**
-- Zentralen Baustein / zentrale Resolver-Logik bauen
-- Diesen Baustein überall verwenden
-- Backend-Resolver absichern (Priorität: canonical > legacy)
-- Legacy-Daten weiter unterstützen
-- Diese Merkliste aktualisieren
+- Eigene Branchen-Arrays in Components, Pages oder Utility-Dateien.
+- Hardcodierte Keyword-Listen außerhalb der Taxonomy.
+- `ZIELKUNDEN_SEARCH_MAPPING` oder ähnliche lokale Mappings.
 
 ---
 
-### Pflicht-Check vor JEDER Änderung
+## 2. KANONISCHE SETTING-KEYS (OrganizationSettings)
 
-Vor jeder Umsetzung folgende Fragen beantworten:
+Beim Speichern IMMER **alle** dieser Keys synchron befüllen:
 
-1. Gibt es dafür schon eine bestehende Logik? → Zuerst wiederverwenden.
-2. Gibt es mehrere Stellen, die dasselbe machen? → Zusammenführen.
-3. Muss daraus ein wiederverwendbarer Baustein werden?
-4. Betrifft es **Onboarding**? → `pages/Onboarding` + `components/onboarding/*`
-5. Betrifft es **Einstellungen**? → `pages/SettingsPage` + `components/settings/*`
-6. Betrifft es **ResearchDialog**? → `components/leads/ResearchDialog`
-7. Betrifft es **Leadseite / LeadDetail**? → `pages/Leads` + `pages/LeadDetail`
-8. Betrifft es **Dashboard / Usage**? → `pages/Dashboard` + `UsageLog` Entity
-9. Betrifft es **Billing / Limits**? → `components/settings/BillingSettings` + Plan-Entity
-10. Betrifft es **Backend-Resolver oder Entity-Schema**? → `processResearchRun` / `startResearchRun`
-11. Muss **diese Merkliste** aktualisiert werden? → Immer wenn neue Regel/Baustein entsteht.
-
----
-
-### Gilt für diese Bereiche (vollständige Liste)
-
-| Bereich | Zentraler Baustein / Resolver |
-|---------|-------------------------------|
-| Ortsauswahl / Suchgebiet | `components/LocationAutocomplete.jsx` |
-| Zielkunden / Branche / Ausschlüsse | `utils/industryTargetPresets.js` → leitet aus `utils/leadSearchTaxonomy.js` ab |
-| Branchen-Taxonomie (Single Source) | `utils/leadSearchTaxonomy.js` (NIEMALS duplizieren) |
-| Lead-Recherche Settings | `resolveResearchSettings()` in `generateLeads` |
-| Google / Places API | `functions/geocodeCity` (Backend-Proxy) |
-| Zusätzliche Zielorte | `target_locations_json` (canonical) + Legacy-Kommaliste |
-| Billing / Plan-Limits | `Plan`-Entity + `UsageLog` |
-| Rollen / Zugriff | `OrganizationMember.role` + `OnboardingGuard` |
-| E-Mail-Templates | `functions/initOrgEmailTemplates` |
-| Engine / Temperatur-Analyse | `functions/analyzeLeadTemperature` |
-| Async Research | `startResearchRun` → `processResearchRun` → `getResearchRunStatus` |
+| Canonical Key | Legacy-Aliases (auch schreiben) |
+|---|---|
+| `target_customer_types` | `zielkunden` |
+| `excluded_customer_types` | — |
+| `services` | `dienstleistungen` |
+| `service_area_city` | `lead_plz_city` |
+| `service_area_plz` | `lead_plz` |
+| `service_area_radius_km` | `lead_radius_km` |
+| `service_area_lat` | — |
+| `service_area_lng` | — |
+| `service_area_place_id` | — |
+| `target_locations_json` | `target_locations` (kommagetrennt) |
+| `zielkunden_keywords` | — (abgeleitet aus taxonomy searchKeywordVariants) |
 
 ---
 
-## ██████████████████████████████████████████████████████████
-## ARCHITEKTUR: PRESET / KEYWORD ENGINE
-## ██████████████████████████████████████████████████████████
+## 3. RESEARCH ENGINE — processResearchRun
 
-### Single Source of Truth: leadSearchTaxonomy.js
+### Query-Building
+- `hasGeoCoords = true` → `cityMode = 'geo_only'` → **kein Stadtname im Query-String** (Google nutzt `locationBias`)
+- `hasGeoCoords = false` → `cityMode = 'keyword_with_city'` → Stadt ggf. in Query
+- Queries haben Metadaten: `family`, `weight`, `source`, `city_mode`, `matched_target_customer`, `excluded_terms_applied`
 
-```
-utils/leadSearchTaxonomy.js   ← DIE EINZIGE TAXONOMIE-QUELLE
-  └── utils/industryTargetPresets.js  (re-exportiert, kein Duplikat)
-        └── components/onboarding/TargetingStep
-        └── components/settings/CompanySettings
-        └── components/onboarding/CompanyStep
-  └── functions/processResearchRun  (Inline-Kopie nur als Fallback-Notlösung)
-```
+### Ausschlüsse
+- `excludedCustomerTypes` aus den Settings → werden beim Query-Building gefiltert (Kategorien werden entfernt)
+- `negativeKeywords` + `badFitSignals` aus Taxonomy → Scoring-Penalty (-40 Punkte → shouldSave = false)
 
-**Regel:** Jede Änderung an Branchen-Presets, Zielkunden, Keywords, Ausschlüssen
-MUSS in `leadSearchTaxonomy.js` gemacht werden. Kein anderer Ort.
+### Zielkunden-Wirkung
+- Nutzer-definierte `targetCustomerTypes` → höchste Query-Priorität (weight 10)
+- Taxonomy-`queryPriority` → zweite Priorität
+- Rest der `searchableBusinessCategories` → dritte Priorität
 
-### Canonical Settings Keys (Lesen & Schreiben)
+### ResearchRun-Felder (NEU in v4)
+| Feld | Beschreibung |
+|---|---|
+| `taxonomy_version` | Version der genutzten Taxonomie |
+| `industry_id` | Normalisierte Branchen-ID |
+| `selected_target_customer_types` | Gewählte Zielkunden |
+| `selected_services` | Gewählte Dienstleistungen |
+| `excluded_customer_types` | Aktive Ausschlüsse |
+| `query_families_used` | JSON-Array der genutzten Keyword-Familien |
+| `search_queries_used` | JSON mit allen Queries + Metadaten |
+| `city_mode` | geo_only oder keyword_with_city |
+| `search_centers_used` | JSON-Array der genutzten Geo-Zentren |
+| `zero_result_cause` | Diagnose-Feld bei 0 Leads |
+| `raw_hits` | Anzahl geprüfter Google-Treffer |
 
-| Feld | Canonical Key | Legacy Keys (lesen, nicht schreiben) |
-|------|---------------|--------------------------------------|
-| Zielkunden | `target_customer_types` | `zielkunden` |
-| Dienstleistungen | `services` | `dienstleistungen` |
-| Ausschlüsse | `excluded_customer_types` | `zielkunden_ausschluss` |
-| Branche | `industry_name` | `own_industry`, `org.industry` |
-| Suchgebiet-Stadt | `service_area_city` | `lead_plz_city` |
-| Koordinaten | `service_area_lat/lng` | — |
-| Radius | `service_area_radius_km` | `lead_radius_km` |
-| Zielorte (strukturiert) | `target_locations_json` | `target_locations`, `additional_cities` |
-
-**Onboarding schreibt:** `target_customer_types`, `excluded_customer_types`, `services`  
-**CompanySettings schreibt:** ALLE canonical Keys + Legacy Keys synchron  
-**processResearchRun liest:** canonical > legacy (Resolver-Logik)
-
-### Zielkunden / Dienstleistungen / Ausschlüsse — echte Wirkung
-
-Diese Einstellungen beeinflussen systemweit:
-
-| Einstellung | Wirkung |
-|------------|---------|
-| `target_customer_types` | → SearchPlan-Queries in processResearchRun |
-| `target_customer_types` | → Lead-Scoring (matched_target_customer_type) |
-| `excluded_customer_types` | → negative Suchbegriffe + badFitSignals-Prüfung |
-| `services` | → E-Mail-Vorlagen (via initOrgEmailTemplates + Kontextvariablen) |
-| `services` | → KI-Skripte (salesCoach / getKiRecommendation) |
-| `services` | → Follow-up-Texte (followUpAgent) |
-
-**WICHTIG:** UI-Text darf NICHT versprechen was das Backend nicht umsetzt.
-Vor jedem neuen UI-Label prüfen: Hat das einen echten Backend-Effekt?
+### Scoring-Schwellwert
+- `score >= 55` → Lead wird gespeichert
+- `badFit = true` → immer verwerfen
 
 ---
 
-## ██████████████████████████████████████████████████████████
-## ARCHITEKTUR: ASYNC RESEARCH RUN
-## ██████████████████████████████████████████████████████████
-
-### Flow
+## 4. ONBOARDING → SETTINGS → RESEARCH SYNCHRONISATION
 
 ```
-1. startResearchRun    → ResearchRun Entity erstellen (status: queued)
-2. processResearchRun  → Batches abarbeiten (Google Places, Scoring, Speichern)
-3. getResearchRunStatus → Frontend pollt alle 3 Sekunden
-4. Leads-Seite         → zeigt ActiveResearchBanner während aktiv
-5. Neue Leads          → erscheinen automatisch in der Leadliste
-```
+Onboarding (TargetingStep)
+  → getIndustryPreset(industryId) aus industryTargetPresets.js
+  → speichert: target_customer_types, excluded_customer_types, services
 
-### Regeln
+CompanySettings
+  → liest: map.target_customer_types || map.zielkunden
+  → schreibt: ALLE kanonischen Keys (Tabelle oben)
+  → Zielkunden-Optionen: currentPreset?.targetCustomerTypes || BASE_ZIELKUNDEN_OPTIONS
 
-- `processResearchRun` läuft in kleinen Batches (idempotent, restartable)
-- UsageLog zählt NUR echte Company-Erstellungen (kein raw_hits)
-- `generateLeads` (alter direkter Flow) bleibt für Trial-Recherche erhalten
-- `runUnifiedResearch` ist für zukünftige v2 reserviert, NICHT im Kundenflow
+startResearchRun (Backend)
+  → liest OrganizationSettings: target_customer_types, excluded_customer_types, services
+  → baut search_plan_json mit diesen Werten
 
-### Query-Generierung
-
-- **City-free Queries:** Wenn `service_area_lat/lng` vorhanden → keine Stadt im Query
-- **City-Fallback:** Nur wenn keine Koordinaten → `{keyword} {stadtname}`
-- **Search Centers:** Hauptort + Zielorte aus `target_locations_json`
-- **FastMode:** max. 3-4 Query-Stems pro Vertikal, Core-Terme only, früh stoppen
-- **Normalmodus:** alle queryPriority-Einträge, Varianten, mehrere Runden
-
-### ResearchRun-Metadaten (geplant / vorbereitet)
-
-ResearchRun speichert bereits:
-- `search_plan_json`: generierte Queries mit source/family/weight
-- `target_customer_types`: genutzte Zielkunden
-- `excluded_customer_types`: angewandte Ausschlüsse
-- `summary`: Ergebnis-JSON mit Statistiken
-
-Geplant (nächste Iteration):
-- `preset_version`: Taxonomie-Version zum Zeitpunkt des Runs
-- `vertical_slug`: Branche als Taxonomy-ID
-- `query_families_json`: strukturierte Query-Familien
-
----
-
-## Konkrete Beispiele für korrekte Umsetzung
-
-### Ortsauswahl (umgesetzt 2026-05-16)
-```
-LocationAutocomplete (components/LocationAutocomplete.jsx)
-  └── Onboarding (CompanyStep)
-  └── Settings (CompanySettings via CityAutocomplete-Alias)
-  └── ResearchDialog (bei fehlendem Ort)
-```
-Strukturierte Daten:
-- `service_area_city`, `service_area_place_id`, `service_area_lat`, `service_area_lng`
-- `target_locations_json`: `[{ city, label, place_id, lat, lng, country }]`
-- Legacy weiter unterstützt: `lead_plz_city`, `target_locations`, `additional_cities`
-
-### Zielkunden / Branche (umgesetzt 2026-05-17)
-```
-leadSearchTaxonomy.js (EINZIGE QUELLE)
-  → industryTargetPresets.js (re-export, kein Duplikat)
-    → TargetingStep (Onboarding)  speichert: target_customer_types, excluded_customer_types, services
-    → CompanySettings (Settings)  liest + schreibt canonical + legacy Keys synchron
-  → processResearchRun (Backend)  liest canonical, nutzt Taxonomy für Queries
+processResearchRun (Backend)
+  → liest search_plan_json.targetCustomerTypes
+  → buildQueriesForIndustry() filtert mit excludedCustomerTypes
+  → speichert matched_target_customer_type auf jede Company
 ```
 
 ---
 
-## KRITISCHE ARCHITEKTUR-REGEL: Keine verschachtelten Function-Calls
+## 5. UI-KOMPONENTEN — ZUSTAND (2026-05-17)
 
-> **Eingeführt: 2026-05-16 nach Timeout-Bug**
+| Komponente | Status | Anmerkung |
+|---|---|---|
+| `TargetingStep` | ✅ Taxonomy-basiert | nutzt `getIndustryPreset` |
+| `CompanySettings` | ✅ Taxonomy-basiert | kein lokales Mapping mehr |
+| `ResearchDialog` | ✅ Funktional | pollt `getResearchRunStatus` |
+| `ActiveResearchBanner` | ✅ Funktional | zeigt Fortschritt |
+| `Leads` | ✅ Funktional | filter + sort korrekt |
+| `LeadDetail/EngineBox` | ✅ Funktional | zeigt engine_analysis_json |
+| `Dashboard` | ✅ Funktional | getDashboardData korrekt |
+| `SettingsPage` | ✅ Tabs korrekt | Admin vs Sales Rep |
+| `BillingSettings` | ✅ Stripe Checkout | createCheckoutSession |
+| `PlatformAdmin` | ✅ Funktional | getPlatformAdminData |
 
-`runUnifiedResearch` hat per `base44.functions.invoke("generateLeads", ...)` eine Funktion in einer Funktion aufgerufen → **Timeout im Kundenflow**.
-
-**Regel:** Orchestratoren dürfen NICHT andere schwere Backend-Functions aufrufen.
-
-**Aktueller MVP-Zustand:**
-- `ResearchDialog` → ruft direkt `startResearchRun` auf
-- `processResearchRun` → läuft als Automation / per Polling
-- `runUnifiedResearch` → für zukünftige v2 reserviert
-
----
-
-## KRITISCHE ARCHITEKTUR-REGEL: Canonical Research Settings Resolver
-
-> **Eingeführt: 2026-05-16 nach Settings-Key-Mismatch-Audit**
-
-Priorität: `org.*` > canonical Settings > legacy Settings > Geocoding-Fallback
-
-**Regeln**
-- **Keine Stadt-Sonderfälle.** Kein Hardcode für Neuwied, Koblenz oder andere Städte.
-- **Jede neue UI-Einstellung → Resolver updaten.**
-- **`target_locations_json`** ist canonical für Zielorte mit Koordinaten.
-- **Bei 0 Ergebnissen** → intern `zero_result_cause` setzen.
+**GELÖSCHT (bewusst entfernt):**
+- `LeadGenSettings` → war obsolet, doppelte Logik
 
 ---
 
-## Gelöschte / deprecated Komponenten
+## 6. BACKEND-FUNCTIONS — ÜBERSICHT
 
-| Datei | Status | Grund |
-|-------|--------|-------|
-| `components/settings/LeadGenSettings` | **GELÖSCHT 2026-05-17** | Veraltete PLZ-Logik, wurde durch CompanySettings ersetzt, war nirgends mehr gerendert |
-| `utils/industryTargetPresets.js` (alte hardcodierte Presets) | **Ersetzt 2026-05-17** | Leitet jetzt aus leadSearchTaxonomy.js ab, kein Duplikat mehr |
+| Function | Zweck | Auth |
+|---|---|---|
+| `startResearchRun` | Erstellt ResearchRun, baut Suchplan | user |
+| `processResearchRun` | Führt Batches aus, speichert Companies | user |
+| `getResearchRunStatus` | Pollt Status eines Runs | user |
+| `analyzeLeadEngine` | Phase-1 Engine-Analyse eines Leads | user |
+| `analyzeLeadTemperature` | Temperatur-Analyse (hot/warm/cold) | user |
+| `getKiRecommendation` | KI-Empfehlung für Lead | user |
+| `getDashboardData` | Dashboard-Aggregation | user |
+| `checkAccess` | Organisations-Berechtigungsprüfung | user |
+| `enrichCompany` | Firmen-Anreicherung (Kontaktdaten) | user |
+| `generateLeads` | Legacy-Endpoint (nutzt processResearchRun) | user |
+| `startResearchRun` | Suchplan aufbauen + queuen | user |
+| `geocodeCity` | Stadt → Koordinaten | user |
+| `sendBrevoEmail` | E-Mail via Brevo | user |
+| `sendSmtpEmail` | E-Mail via SMTP | user |
+| `salesCoach` | KI-Anrufcoach | user |
+| `morningReport` | Tagesreport-Generator | user |
+| `priorityAgent` | Prioritätslisten-Agent | user |
+| `followUpAgent` | Follow-up-Vorschläge | user |
+| `cleanupAgent` | Daten-Bereinigung | admin |
+| `platformAdmin` | Plattform-Verwaltungsoperationen | admin |
+| `createCheckoutSession` | Stripe Checkout | user |
+| `createPortalSession` | Stripe Kundenportal | user |
+| `stripeWebhook` | Stripe-Webhook-Handler | webhook |
 
 ---
 
-## Backlog
+## 7. VERBOTENE PATTERNS
 
-- [ ] processResearchRun: Inline-Taxonomy durch Import aus leadSearchTaxonomy.js ersetzen (sobald Backend-Imports unterstützt werden)
-- [ ] preset_version + vertical_slug in ResearchRun speichern
-- [ ] Register-Integration aktivieren (syncOpenRegister im Hintergrund)
-- [ ] Admin-Dashboard: Überblick über Research-Runs + Auto-Matches
-- [ ] Performance-Optimierung: parallele Grid-Punkte bei Google
-- [ ] ResearchDialog: LocationAutocomplete wenn Ort fehlt oder überschrieben werden soll
-- [ ] FastMode als eigener Modus mit eigenem Budget und Core-Terms-Only-Logik
+1. **Eigene Taxonomie-Daten in UI-Komponenten** → immer `utils/industryTargetPresets.js`
+2. **`processResearchRun` Taxonomy ohne Sync** → beide Dateien müssen identisch sein
+3. **Settings-Keys ohne Legacy-Aliases** → immer vollständige Tabelle aus §2
+4. **Lokale Imports in Deno Functions** → technisch unmöglich, Inlining verwenden
+5. **InvokeLLM für Suche** → nur für Scoring, Empfehlung, Skripte, Follow-up
+6. **Nested setTimeout/setInterval in Backend-Functions** → Deno Deploy unterstützt das nicht
+7. **KI ohne echte Daten** → matched_target_customer_type, services etc. müssen aus echten Settings kommen
+
+---
+
+## 8. TAXONOMIE-CHANGELOG
+
+| Version | Datum | Änderung |
+|---|---|---|
+| v1 | 2024-xx | Initial, ~8 Branchen |
+| v2 | 2025-01 | Erweiterung auf 15 Branchen |
+| v3-async | 2025-06 | Async batch processing, 23 Branchen |
+| v4-ssot-2026-05 | 2026-05-17 | SSOT-Konsolidierung, Query-Metadaten, zero_result_cause, city_mode, Taxonomie-Sync Frontend↔Backend |

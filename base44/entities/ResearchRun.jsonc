@@ -131,6 +131,58 @@
     "top_leads": {
       "type": "string",
       "title": "Top-Leads (JSON)"
+    },
+    "taxonomy_version": {
+      "type": "string",
+      "title": "Taxonomie-Version",
+      "description": "Version der Taxonomie die bei diesem Run aktiv war (z.B. v4-ssot-2026-05)"
+    },
+    "industry_id": {
+      "type": "string",
+      "title": "Normalisierte Branchen-ID",
+      "description": "Kanonische Branchen-ID aus der Taxonomie (z.B. gebaeudereinigung)"
+    },
+    "selected_target_customer_types": {
+      "type": "string",
+      "title": "Gew\u00e4hlte Zielkunden (komma-getrennt)"
+    },
+    "selected_services": {
+      "type": "string",
+      "title": "Gew\u00e4hlte Dienstleistungen (komma-getrennt)"
+    },
+    "query_families_used": {
+      "type": "string",
+      "title": "Genutzte Query-Familien (JSON-Array)"
+    },
+    "search_queries_used": {
+      "type": "string",
+      "title": "Alle Suchanfragen mit Metadaten (JSON)"
+    },
+    "city_mode": {
+      "type": "string",
+      "title": "Stadt-Modus",
+      "enum": [
+        "geo_only",
+        "keyword_with_city"
+      ],
+      "description": "geo_only = Stadt nicht im Query (Koordinaten via locationBias), keyword_with_city = Stadt im Suchbegriff enthalten"
+    },
+    "search_centers_used": {
+      "type": "string",
+      "title": "Verwendete Suchzentren (JSON-Array)"
+    },
+    "zero_result_cause": {
+      "type": "string",
+      "title": "Ursache bei Null-Ergebnis",
+      "enum": [
+        "no_queries_built",
+        "no_google_results",
+        "all_duplicates",
+        "no_match_score",
+        "all_queries_exhausted",
+        "no_geo_coords"
+      ],
+      "description": "Warum wurden keine Leads gefunden? Hilft bei Diagnose und Optimierung."
     }
   },
   "required": [
