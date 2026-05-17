@@ -77,6 +77,133 @@ Deno.serve(async (req) => {
 
     const newLeadsFromResearch = companies.filter(c => c.research_run_id);
 
+    // ── Actionable Leads für "Heute wichtig" ────────────────────────────────
+    // WHY: Dashboard soll konkrete tagesaktuelle Handlungen zeigen, nicht nur Zahlen.
+    // LOGIC: Priorisierung: 1. Tasks (überfällig/heute) → 2. heiße Leads → 3. warme + next_best_action
+    //        → 4. Neue ohne Aufgabe → 5. Leads mit hohem Score ohne Kontakt
+    // EVIDENCE: engine_analysis_json, lead_temperature, lead_temperature_score, status, tasks, telefon/email
+
+    // Task-Lookup: Welche Companies haben offene Tasks?
+    const tasksByCompanyId = {};
+    for (const t of openTasks) {
+      if (t.company_id && !t.erledigt) {
+        if (!tasksByCompanyId[t.company_id]) tasksByCompanyId[t.company_id] = [];
+        tasksByCompanyId[t.company_id].push(t);
+      }
+    }
+
+    // Überfällige/Heute-Tasks → als Aktionen
+    const overdueActionItems = overdueTasks.slice(0, 3).map(t => ({
+      type: 'task_overdue',
+      company_id: t.company_id || null,
+      company_name: t.company_name || t.titel,
+      action: t.typ || 'Aufgabe',
+      reason: `Überfällig seit ${t.faellig_am ? new Date(t.faellig_am).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' }) : '?'}`,
+      priority: 0,
+      task_id: t.id,
+    }));
+
+    const todayActionItems = todayTasks.slice(0, 3).map(t => ({
+      type: 'task_today',
+      company_id: t.company_id || null,
+      company_name: t.company_name || t.titel,
+      action: t.typ || 'Aufgabe',
+      reason: 'Heute fällig',
+      priority: 1,
+      task_id: t.id,
+    }));
+
+    // Company-basierte Aktionen (ohne Task-Duplikate)
+    const companiesWithTasks = new Set(Object.keys(tasksByCompanyId));
+
+    const companyActionItems = [];
+    const activeStatuses = ['Neu', 'Kontakt', 'Rückruf', 'Termin', 'Angebot'];
+
+    for (const company of companies) {
+      if (!activeStatuses.includes(company.status)) continue;
+      if (company.is_blacklisted) continue;
+      if (companyActionItems.length >= 8) break;
+
+      // Engine-Daten parsen
+      let engineData = null;
+      try {
+        if (company.engine_analysis_json) engineData = JSON.parse(company.engine_analysis_json);
+      } catch {}
+
+      const nextBestAction = engineData?.next_best_action || company.next_best_action || null;
+      const leadTemp = company.lead_temperature || 'unknown';
+      const tempScore = company.lead_temperature_score || 0;
+      const hasContact = !!(company.telefon || company.email);
+
+      // Heiße Leads ohne Task
+      if ((company.is_hot || leadTemp === 'hot') && !companiesWithTasks.has(company.id)) {
+        const action = nextBestAction || (company.telefon ? 'Anrufen' : company.email ? 'E-Mail senden' : 'Recherchieren');
+        companyActionItems.push({
+          type: 'hot_lead',
+          company_id: company.id,
+          company_name: company.name,
+          action,
+          reason: 'Heißer Lead',
+          priority: 2,
+          lead_temperature: leadTemp,
+          has_contact: hasContact,
+        });
+        continue;
+      }
+
+      // Warme Leads mit next_best_action
+      if (leadTemp === 'warm' && nextBestAction && !companiesWithTasks.has(company.id)) {
+        companyActionItems.push({
+          type: 'warm_lead_action',
+          company_id: company.id,
+          company_name: company.name,
+          action: nextBestAction,
+          reason: 'Warmer Lead mit Empfehlung',
+          priority: 3,
+          lead_temperature: leadTemp,
+          has_contact: hasContact,
+        });
+        continue;
+      }
+
+      // Rückruf-Status ohne offene Task → Nachfassen
+      if (company.status === 'Rückruf' && !companiesWithTasks.has(company.id)) {
+        companyActionItems.push({
+          type: 'callback_pending',
+          company_id: company.id,
+          company_name: company.name,
+          action: 'Rückruf durchführen',
+          reason: 'Rückruf ausstehend',
+          priority: 3,
+          lead_temperature: leadTemp,
+          has_contact: hasContact,
+        });
+        continue;
+      }
+
+      // Neue Leads mit gutem Score, kontaktierbar, keine Task
+      if (company.status === 'Neu' && hasContact && (company.relevance_score || 0) >= 65 && !companiesWithTasks.has(company.id)) {
+        const action = company.telefon ? 'Erstgespräch führen' : 'E-Mail vorbereiten';
+        companyActionItems.push({
+          type: 'new_contactable',
+          company_id: company.id,
+          company_name: company.name,
+          action,
+          reason: `Neuer Lead · ${company.branche || 'Dienstleister'}`,
+          priority: 4,
+          lead_temperature: leadTemp,
+          has_contact: hasContact,
+        });
+      }
+    }
+
+    // Alle Action Items zusammenführen, sortieren und auf 6 begrenzen
+    const allActionItems = [
+      ...overdueActionItems,
+      ...todayActionItems,
+      ...companyActionItems.sort((a, b) => a.priority - b.priority),
+    ].slice(0, 6);
+
     // Pipeline-Statistiken
     const pipelineStats = {
       neu: companies.filter(c => c.status === "Neu").length,
@@ -130,6 +257,7 @@ Deno.serve(async (req) => {
         overdueTasks,
         recentActivities,
         newLeadsFromResearch,
+        actionableLeads: allActionItems,
       },
       meta: {
         totalCompanies: companies.length,

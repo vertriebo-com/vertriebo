@@ -6,10 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import {
   Building2,
-  Phone,
-  Clock,
   ArrowRight,
-  AlertCircle,
   PhoneCall,
   CheckCircle2,
   TrendingUp,
@@ -17,8 +14,7 @@ import {
   Calendar,
   Star,
   Zap,
-  Activity,
-  Sparkles
+  Activity
 } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
@@ -26,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import moment from "moment";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
+import DailyActionList from "@/components/dashboard/DailyActionList";
 
 export default function Dashboard() {
   const { user: authUser, org: authOrg } = useLeadsFilter();
@@ -131,6 +128,7 @@ export default function Dashboard() {
   const todayTasks = data.todayTasks || [];
   const overdueTasks = data.overdueTasks || [];
   const recentActivities = data.recentActivities || [];
+  const actionableLeads = data.actionableLeads || [];
   const newLeadsFromResearch = data.newLeadsFromResearch || [];
   const contactsThisWeek = stats.contactsThisWeek || 0;
   const weeklyGoal = stats.weeklyGoal || 20;
@@ -297,53 +295,25 @@ export default function Dashboard() {
               <h2 className="text-sm font-semibold text-slate-900">Heute wichtig</h2>
             </div>
           </div>
-          <div className="p-5 space-y-3">
+          <div className="p-5">
             {loading ? (
-              // Loading Skeleton
-              [1, 2, 3].map(i => (
-                <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                  <Skeleton className="w-2 h-2 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-3/4" />
-                    <Skeleton className="h-3 w-1/2" />
-                  </div>
-                </div>
-              ))
-            ) : (
-              <>
-                {overdueTasks.length > 0 && (
-                  <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold text-red-900">{overdueTasks.length} überfällige Aufgabe(n)</p>
-                      <p className="text-xs text-red-700 mt-0.5">Bitte zuerst erledigen</p>
+              <div className="space-y-2">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                    <Skeleton className="w-4 h-4 rounded" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
                     </div>
                   </div>
-                )}
-
-                {todayTasks.length > 0 ? (
-                  <div className="space-y-2">
-                    {todayTasks.slice(0, 3).map(task => (
-                      <div key={task.id} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-lg hover:bg-slate-100 transition-colors">
-                        <div className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-900 truncate">{task.titel}</p>
-                          <p className="text-xs text-slate-700">{task.company_name || "Allgemein"}</p>
-                        </div>
-                        <Link to={`/tasks`}>
-                          <ArrowRight className="w-4 h-4 text-slate-500 hover:text-blue-600 transition-colors" />
-                        </Link>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto mb-3" />
-                    <p className="text-sm font-semibold text-slate-900">Alle Aufgaben erledigt!</p>
-                    <p className="text-xs font-medium text-slate-700 mt-1">Keine Aufgaben für heute</p>
-                  </div>
-                )}
-              </>
+                ))}
+              </div>
+            ) : (
+              <DailyActionList
+                actionableLeads={actionableLeads}
+                todayTasksCount={todayTasks.length}
+                overdueTasksCount={overdueTasks.length}
+              />
             )}
           </div>
         </div>
