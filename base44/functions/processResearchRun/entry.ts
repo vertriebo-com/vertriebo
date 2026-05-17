@@ -322,7 +322,7 @@ Deno.serve(async (req) => {
         status: 'failed',
         error_message: `taxonomy_profile_missing: Kein Taxonomie-Profil für Branche "${industry}" (id=${industryId}). startResearchRun hat kein Profil eingebettet. Bitte Branche in Einstellungen prüfen und Recherche neu starten.`,
         finished_at: new Date().toISOString(),
-        zero_result_cause: 'no_queries_built',
+        zero_result_cause: 'taxonomy_profile_missing',
       });
       return Response.json({
         success: false,
