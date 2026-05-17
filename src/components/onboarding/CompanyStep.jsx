@@ -6,12 +6,16 @@ import { Loader2 } from "lucide-react";
 import { INDUSTRIES } from "@/utils/onboardingConfig";
 import LocationAutocomplete from "@/components/LocationAutocomplete";
 
+const OTHER_INDUSTRY = { icon: "🔧", name: "Andere Branche / Sonstiges" };
+
 export default function CompanyStep({ onNext, loading, initialData }) {
   const [firmenname, setFirmenname] = useState(initialData?.firmenname || "");
   const [selectedIndustry, setSelectedIndustry] = useState(initialData?.selectedIndustry || null);
-  // Strukturiertes Ortsobjekt: { city, label, place_id, lat, lng }
+  const [customIndustry, setCustomIndustry] = useState(initialData?.customIndustry || "");
   const [location, setLocation] = useState(initialData?.location || null);
   const [radius, setRadius] = useState(initialData?.radius || 25);
+
+  const isOtherIndustry = selectedIndustry?.name === OTHER_INDUSTRY.name;
 
   const handleNext = () => {
     if (!firmenname.trim()) {
@@ -26,7 +30,11 @@ export default function CompanyStep({ onNext, loading, initialData }) {
       alert("Bitte geben Sie Ihren Standort ein und wählen Sie ihn aus der Liste aus.");
       return;
     }
-    onNext({ firmenname, selectedIndustry, location, radius });
+    // Bei "Andere Branche": customIndustry-Label in selectedIndustry einbauen
+    const finalIndustry = isOtherIndustry && customIndustry.trim()
+      ? { ...selectedIndustry, name: customIndustry.trim(), isFallback: true, fallbackLabel: customIndustry.trim() }
+      : selectedIndustry;
+    onNext({ firmenname, selectedIndustry: finalIndustry, location, radius, customIndustry: isOtherIndustry ? customIndustry.trim() : undefined });
   };
 
   return (
@@ -51,12 +59,12 @@ export default function CompanyStep({ onNext, loading, initialData }) {
       {/* Branche */}
       <div>
         <Label className="text-xs font-semibold text-slate-900 mb-2 block">Ihre Branche *</Label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {INDUSTRIES.map(ind => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
+          {INDUSTRIES.filter(i => i.name !== OTHER_INDUSTRY.name).map(ind => (
             <button
               key={ind.name}
               type="button"
-              onClick={() => setSelectedIndustry(selectedIndustry?.name === ind.name ? null : ind)}
+              onClick={() => { setSelectedIndustry(selectedIndustry?.name === ind.name ? null : ind); setCustomIndustry(""); }}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm text-left transition-all ${
                 selectedIndustry?.name === ind.name
                   ? "border-blue-600 bg-blue-50 font-semibold text-blue-700"
@@ -67,7 +75,32 @@ export default function CompanyStep({ onNext, loading, initialData }) {
               <span className="text-xs leading-tight">{ind.name}</span>
             </button>
           ))}
+          {/* "Andere Branche" immer zuletzt */}
+          <button
+            type="button"
+            onClick={() => setSelectedIndustry(isOtherIndustry ? null : OTHER_INDUSTRY)}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm text-left transition-all ${
+              isOtherIndustry
+                ? "border-slate-500 bg-slate-100 font-semibold text-slate-700"
+                : "border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-600 border-dashed"
+            }`}
+          >
+            <span className="text-lg">🔧</span>
+            <span className="text-xs leading-tight">Andere Branche</span>
+          </button>
         </div>
+        {isOtherIndustry && (
+          <div className="mt-2">
+            <Input
+              value={customIndustry}
+              onChange={e => setCustomIndustry(e.target.value)}
+              placeholder="Ihre Branche eingeben, z.B. Fassadenreinigung…"
+              className="bg-white text-slate-900 border-slate-300"
+              autoFocus
+            />
+            <p className="text-[11px] text-slate-500 mt-1">Wir verwenden ein generisches Profil und nehmen Ihre Branche in unsere Taxonomie-Erweiterung auf.</p>
+          </div>
+        )}
       </div>
 
       {/* Standort */}
@@ -107,7 +140,7 @@ export default function CompanyStep({ onNext, loading, initialData }) {
 
       <Button
         onClick={handleNext}
-        disabled={loading || !firmenname.trim() || !selectedIndustry || !location?.city}
+        disabled={loading || !firmenname.trim() || !selectedIndustry || !location?.city || (isOtherIndustry && !customIndustry.trim())}
         className="w-full gap-2"
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}

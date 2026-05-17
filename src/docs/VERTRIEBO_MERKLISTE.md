@@ -208,10 +208,82 @@ Fehlendes Profil = sofortiger status='failed' + error='taxonomy_profile_missing'
 
 ## 8. TAXONOMIE-CHANGELOG
 
-| Version | Datum | Architektur |
+| Version | Datum | Architektur | Profile |
+|---|---|---|---|
+| v1 | 2024 | Initial, inline in Functions | ~8 |
+| v2 | 2025-01 | utils/leadSearchTaxonomy.js | 15 |
+| v3-async | 2025-06 | async batch, Frontend-SSOT | 23 |
+| v4-ssot-2026-05 | 2026-05-17 | Frontend-SSOT via industryTargetPresets.js | 23 |
+| **v4-db-2026-05** | **2026-05-17** | **DB als SSOT, TaxonomyEntry Entity, kein Copy-Paste** | **46** |
+
+---
+
+## 9. TAXONOMIE-ERWEITERUNGS-BACKLOG
+
+### Prinzip: 23 Profile sind Startbestand — nicht finale Marktabdeckung
+
+**Stand 2026-05-17: 46 Profile (23 Core + 18 Erweitert + 5 Fallback)**
+
+### Profil-Kategorien
+
+| Kategorie | IDs | Beschreibung |
 |---|---|---|
-| v1 | 2024 | Initial, ~8 Branchen, inline in Functions |
-| v2 | 2025-01 | 15 Branchen, utils/leadSearchTaxonomy.js |
-| v3-async | 2025-06 | 23 Branchen, async batch, Frontend-SSOT |
-| v4-ssot-2026-05 | 2026-05-17 | Frontend-SSOT via industryTargetPresets.js |
-| **v4-db-2026-05** | **2026-05-17** | **DB als SSOT, TaxonomyEntry Entity, kein Copy-Paste** |
+| **Core Verticals** (23) | gebaeudereinigung … schulungen_weiterbildung | Hauptbranchen, hochoptimiert |
+| **Erweiterte Dienstleister** (18) | dachdecker … messebau | Spezialbranchen mit vollen Profilen |
+| **Fallback-Profile** (5) | fallback_* | Für unbekannte Branchen, verhindert Kundenpfad-Abbrüche |
+
+### Fallback-Strategie
+```
+Nutzer wählt "Andere Branche / Sonstiges"
+    ↓
+customIndustry-Label wird gespeichert (OrganizationSettings.custom_industry_requested)
+    ↓
+startResearchRun lädt fallback_lokaler_dienstleister als Basis
+    ↓
+Research läuft mit generischen B2B-Suchkategorien
+    ↓
+custom_industry_requested wird in PlatformAdmin sichtbar → Taxonomy-Erweiterung Backlog
+```
+
+### Tracking-Keys (OrganizationSettings)
+| Key | Inhalt | Zweck |
+|---|---|---|
+| `custom_industry_requested` | JSON: {industry_label, industry_id_attempted, fallback_used, requested_at} | Welche Branchen fehlen in der Taxonomie |
+| `taxonomy_profile_used` | industry_id (kommt aus search_plan_json) | Welches Profil bei letztem Run aktiv war |
+
+### Qualitätscheckliste für neue Profile
+Jedes Profil MUSS enthalten:
+- [ ] `own_services` (5–15 eigene Dienstleistungen)
+- [ ] `target_customer_types` (5–15 konkrete Zielkunden)
+- [ ] `excluded_customer_types` (mind. 3 Ausschlüsse inkl. "Privathaushalte", "Jobs")
+- [ ] `searchable_business_categories` (min. 5 Google-Suchkategorien)
+- [ ] `search_keyword_variants` (mind. 3 Familien mit je 2–4 Varianten)
+- [ ] `negative_keywords` (min. 5: immer "privat", "job", "karriere")
+- [ ] `bad_fit_signals` (min. 4)
+- [ ] `scoring_signals` (min. 6 relevante B2B-Signale)
+- [ ] `query_priority` (geordnete Top-5-Kategorien)
+- [ ] `ideal_customer_profiles` (2–4 qualitative Profile)
+- [ ] `google_place_types` (min. 2 Google Place Types)
+
+### Nächste Profile (Backlog)
+- Schornsteinfeger
+- Kälteanlagentechnik (Klima/Kühlung Industrie)
+- Reinigungsmittelgroßhandel
+- Sicherheitstechnik (ohne Wachschutz)
+- Videoüberwachung / Access Control
+- Glasreinigung Spezialist
+- Gebäude-IT / Smart Building
+- Hebe- und Krananlagen
+- Kanalreinigung
+- Winterdienstservice
+- Containerdienst / Entsorgung Gewerbe
+- Reinraumreinigung
+- Parkraummanagement
+
+### Neue Profile hinzufügen
+1. Eintrag in `TAXONOMY_SEED` in `functions/getTaxonomy` ergänzen
+2. Icon + Name in `INDUSTRIES` in `utils/onboardingConfig.js` ergänzen
+3. Legacy-Alias in `LEGACY_INDUSTRY_ID_MAP` in `utils/industryTargetPresets.js` ergänzen
+4. `TAXONOMY_VERSION` in `getTaxonomy` erhöhen (Format: `v{N}-db-{YYYY-MM}`)
+5. Admin: `getTaxonomy({ action: "seed_reset" })` aufrufen
+6. Verifikation: `getTaxonomy({ action: "list" })` → count muss stimmen

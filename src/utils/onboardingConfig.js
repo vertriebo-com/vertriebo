@@ -1,6 +1,9 @@
 // ─── Onboarding-Konfiguration ───────────────────────────────────────────────────
 
+// Vollständige Branchenliste (DB-synchron mit getTaxonomy SEED)
+// Neue Branchen hier hinzufügen + TAXONOMY_SEED in getTaxonomy erweitern
 export const INDUSTRIES = [
+  // Core Verticals
   { icon: "🧹", name: "Gebäudereinigung" },
   { icon: "🔒", name: "Sicherheitsdienst" },
   { icon: "💻", name: "IT-Service" },
@@ -11,6 +14,41 @@ export const INDUSTRIES = [
   { icon: "🏥", name: "Gesundheit / Medizin" },
   { icon: "🏢", name: "Immobilien" },
   { icon: "📦", name: "Lager / Fulfillment" },
+  { icon: "🏠", name: "Facility Service" },
+  { icon: "🗑️", name: "Entrümpelung" },
+  { icon: "🎨", name: "Maler / Renovierung" },
+  { icon: "⚡", name: "Elektro / Gebäudetechnik" },
+  { icon: "🚿", name: "SHK / Sanitär / Heizung" },
+  { icon: "🎪", name: "Eventservice" },
+  { icon: "📣", name: "Marketing / Webdesign" },
+  { icon: "👥", name: "Personal / Zeitarbeit" },
+  { icon: "🚗", name: "Fuhrparkservice" },
+  { icon: "❤️", name: "Pflege / Betreuung" },
+  { icon: "📚", name: "Schulungen / Weiterbildung" },
+  { icon: "📊", name: "Buchhaltung / Büroservice" },
+  { icon: "⚙️", name: "Industrieservice" },
+  // Erweiterte Dienstleister
+  { icon: "🏗️", name: "Dachdecker" },
+  { icon: "🔧", name: "Gerüstbau" },
+  { icon: "🧱", name: "Trockenbau / Innenausbau" },
+  { icon: "🪟", name: "Fliesenleger" },
+  { icon: "🪵", name: "Bodenleger" },
+  { icon: "🔑", name: "Schlüsseldienst / Schließanlagen" },
+  { icon: "🐀", name: "Schädlingsbekämpfung" },
+  { icon: "🔥", name: "Brandschutzservice" },
+  { icon: "🛗", name: "Aufzugservice" },
+  { icon: "🚪", name: "Tor- und Türtechnik" },
+  { icon: "☀️", name: "Photovoltaik-Service" },
+  { icon: "📦", name: "Umzugsunternehmen" },
+  // B2B Spezialprofile
+  { icon: "🖨️", name: "Druckerei / Werbetechnik" },
+  { icon: "🗂️", name: "Aktenvernichtung / Dokumentenmanagement" },
+  { icon: "⚡", name: "Energieberatung" },
+  { icon: "🦺", name: "Arbeitsschutz / Arbeitssicherheit" },
+  { icon: "🔐", name: "Datenschutz / Compliance" },
+  { icon: "🏗️", name: "Messebau" },
+  // Fallback
+  { icon: "🔧", name: "Andere Branche / Sonstiges" },
 ];
 
 export const SERVICES = [

@@ -233,8 +233,26 @@ Deno.serve(async (req) => {
       }, { status: 500 });
     }
 
-    // HARD FAIL: Kein Profil → kein Run erstellen.
-    // processResearchRun darf nur mit eingebettetem taxonomyProfile laufen.
+    // FALLBACK: Wenn kein exaktes Profil → Fallback-Profil laden (verhindert Kundenpfad-Abbruch)
+    // Für benutzerdefinierte Branchen ("Andere Branche") wird ein generisches Fallback-Profil genutzt.
+    let usedFallbackProfile = false;
+    if (!taxonomyProfile) {
+      console.warn(`[startResearchRun] Kein exaktes Profil für "${industry}" (id=${industryId}) — versuche Fallback`);
+      // Fallback-Strategie: fallback_lokaler_dienstleister als Basis
+      const fallbackId = 'fallback_lokaler_dienstleister';
+      try {
+        const fbRes = await base44.functions.invoke('getTaxonomy', { action: 'get_single', industry_id: fallbackId });
+        if (fbRes?.data?.success && fbRes.data.profile) {
+          taxonomyProfile = fbRes.data.profile;
+          usedFallbackProfile = true;
+          console.info(`[startResearchRun] Fallback-Profil geladen: ${fallbackId}`);
+        }
+      } catch (fbErr) {
+        console.error('[startResearchRun] Fallback-Profil Ladefehler:', fbErr?.message);
+      }
+    }
+
+    // HARD FAIL: Auch Fallback nicht verfügbar
     if (!taxonomyProfile) {
       console.error(`[startResearchRun] taxonomy_profile_missing: industry="${industry}" industryId="${industryId}"`);
       return Response.json({
@@ -244,10 +262,26 @@ Deno.serve(async (req) => {
       }, { status: 400 });
     }
 
+    // Custom-Industry-Tracking: Speichern wenn Nutzer "Andere Branche" oder unbekannte Branche nutzt
+    if (usedFallbackProfile || industry === 'Andere Branche / Sonstiges' || !industryId) {
+      try {
+        const orgSettings = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id, key: 'custom_industry_requested' });
+        const existing = orgSettings[0];
+        const trackData = { industry_label: industry, industry_id_attempted: industryId, fallback_used: usedFallbackProfile, requested_at: new Date().toISOString() };
+        if (existing) {
+          await base44.asServiceRole.entities.OrganizationSettings.update(existing.id, { value: JSON.stringify(trackData) });
+        } else {
+          await base44.asServiceRole.entities.OrganizationSettings.create({ organization_id, key: 'custom_industry_requested', value: JSON.stringify(trackData) });
+        }
+        console.info(`[startResearchRun] Custom-Industry getrackt: ${industry}`);
+      } catch {}
+    }
+
     // ── Suchplan zusammenbauen (Taxonomie-Profil eingebettet) ────────────────
     const searchPlanData = {
       industry,
       industryId,
+      usedFallbackProfile: usedFallbackProfile || false,
       city,
       radiusKm,
       radiusMeters: Math.min(radiusKm * 1000, 50000),

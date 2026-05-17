@@ -18,6 +18,7 @@ import { base44 } from "@/api/base44Client";
 // Wird lokal gepflegt weil es keine Daten enthält, nur Aliases.
 // Muss synchron mit DB-Einträgen sein (industry_id-Werte).
 const LEGACY_INDUSTRY_ID_MAP = {
+  // Core Verticals
   "Gebäudereinigung": "gebaeudereinigung",
   "Gartenbau / Gartenpflege": "gartenbau",
   "Gartenbau": "gartenbau",
@@ -69,6 +70,54 @@ const LEGACY_INDUSTRY_ID_MAP = {
   "Schulungen / Weiterbildung": "schulungen_weiterbildung",
   "Schulungen": "schulungen_weiterbildung",
   "Weiterbildung": "schulungen_weiterbildung",
+  // Erweiterte Dienstleister
+  "Dachdecker": "dachdecker",
+  "Gerüstbau": "geruestbau",
+  "Trockenbau / Innenausbau": "trockenbau_innenausbau",
+  "Trockenbau": "trockenbau_innenausbau",
+  "Innenausbau": "trockenbau_innenausbau",
+  "Fliesenleger": "fliesenleger",
+  "Bodenleger": "bodenleger",
+  "Schlüsseldienst / Schließanlagen": "schluesseldienst_schliesanlagen",
+  "Schlüsseldienst": "schluesseldienst_schliesanlagen",
+  "Schließanlagen": "schluesseldienst_schliesanlagen",
+  "Schädlingsbekämpfung": "schaedlingsbekaempfung",
+  "Kammerjäger": "schaedlingsbekaempfung",
+  "Brandschutzservice": "brandschutzservice",
+  "Brandschutz": "brandschutzservice",
+  "Aufzugservice": "aufzugservice",
+  "Aufzug": "aufzugservice",
+  "Tor- und Türtechnik": "tor_tuertechnik",
+  "Tore": "tor_tuertechnik",
+  "Photovoltaik-Service": "photovoltaik_service",
+  "Photovoltaik": "photovoltaik_service",
+  "Solar": "photovoltaik_service",
+  "Umzugsunternehmen": "umzugsunternehmen",
+  "Umzug": "umzugsunternehmen",
+  // B2B Spezialprofile
+  "Druckerei / Werbetechnik": "druckerei_werbetechnik",
+  "Druckerei": "druckerei_werbetechnik",
+  "Werbetechnik": "druckerei_werbetechnik",
+  "Aktenvernichtung / Dokumentenmanagement": "aktenvernichtung_dokumentenmanagement",
+  "Aktenvernichtung": "aktenvernichtung_dokumentenmanagement",
+  "Dokumentenmanagement": "aktenvernichtung_dokumentenmanagement",
+  "Energieberatung": "energieberatung",
+  "Arbeitsschutz / Arbeitssicherheit": "arbeitsschutz_arbeitssicherheit",
+  "Arbeitsschutz": "arbeitsschutz_arbeitssicherheit",
+  "Arbeitssicherheit": "arbeitsschutz_arbeitssicherheit",
+  "Datenschutz / Compliance": "datenschutz_compliance",
+  "Datenschutz": "datenschutz_compliance",
+  "Compliance": "datenschutz_compliance",
+  "Messebau": "messebau",
+  // Fallback-Profile
+  "Andere Branche / Sonstiges": "fallback_lokaler_dienstleister",
+  "Andere Branche": "fallback_lokaler_dienstleister",
+  "Sonstiges": "fallback_lokaler_dienstleister",
+  "Lokaler Dienstleister (Allgemein)": "fallback_lokaler_dienstleister",
+  "Handwerksbetrieb (Allgemein)": "fallback_handwerk_allgemein",
+  "B2B-Service (Allgemein)": "fallback_b2b_service",
+  "Immobiliennaher Dienstleister": "fallback_immobiliennaher_dienstleister",
+  "Gesundheitsnaher Dienstleister": "fallback_gesundheitsnaher_dienstleister",
 };
 
 // ── Modul-Cache ──────────────────────────────────────────────────────────────
