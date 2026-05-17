@@ -233,13 +233,12 @@ Deno.serve(async (req) => {
         { is_active: true }, 'sort_order', 100
       );
 
-      // Self-seeding: Falls DB leer, Seed-Daten einmalig schreiben
+      // Self-seeding: Falls DB leer, sequentiell schreiben (Rate-Limit-sicher)
       if (entries.length === 0) {
         console.info('[getTaxonomy] DB leer – initialisiere mit Seed-Daten...');
-        const createOps = TAXONOMY_SEED.map(seed =>
-          base44.asServiceRole.entities.TaxonomyEntry.create(seedEntryToDbRecord(seed))
-        );
-        await Promise.all(createOps);
+        for (const seed of TAXONOMY_SEED) {
+          await base44.asServiceRole.entities.TaxonomyEntry.create(seedEntryToDbRecord(seed));
+        }
         entries = await base44.asServiceRole.entities.TaxonomyEntry.filter(
           { is_active: true }, 'sort_order', 100
         );
@@ -271,15 +270,31 @@ Deno.serve(async (req) => {
       if (!user || !['admin', 'platform_owner', 'platform_admin'].includes(user.role)) {
         return Response.json({ error: 'Admin-Zugriff erforderlich', success: false }, { status: 403 });
       }
-      // Bestehende deaktivieren
+      // Upsert-Strategie: Update wenn vorhanden, Create wenn neu (minimal DB-Writes)
       const existing = await base44.asServiceRole.entities.TaxonomyEntry.filter({}, 'sort_order', 200);
-      await Promise.all(existing.map(e => base44.asServiceRole.entities.TaxonomyEntry.update(e.id, { is_active: false })));
-      // Seed neu schreiben
-      const createOps = TAXONOMY_SEED.map(seed =>
-        base44.asServiceRole.entities.TaxonomyEntry.create(seedEntryToDbRecord(seed))
-      );
-      await Promise.all(createOps);
-      return Response.json({ success: true, message: `${TAXONOMY_SEED.length} Einträge neu gesetzt`, version: TAXONOMY_VERSION });
+      const existingById = {};
+      for (const e of existing) existingById[e.industry_id] = e;
+
+      let updated = 0, created = 0;
+      for (const seed of TAXONOMY_SEED) {
+        const record = { ...seedEntryToDbRecord(seed), is_active: true };
+        const existing_entry = existingById[seed.industry_id];
+        if (existing_entry) {
+          await base44.asServiceRole.entities.TaxonomyEntry.update(existing_entry.id, record);
+          updated++;
+        } else {
+          await base44.asServiceRole.entities.TaxonomyEntry.create(record);
+          created++;
+        }
+      }
+      // Nicht mehr im Seed vorhandene deaktivieren
+      const seedIds = new Set(TAXONOMY_SEED.map(s => s.industry_id));
+      for (const e of existing) {
+        if (!seedIds.has(e.industry_id) && e.is_active) {
+          await base44.asServiceRole.entities.TaxonomyEntry.update(e.id, { is_active: false });
+        }
+      }
+      return Response.json({ success: true, message: `${updated} aktualisiert, ${created} neu`, version: TAXONOMY_VERSION });
     }
 
     // ── get_single: Einzelnen Eintrag per industry_id ────────────────────────

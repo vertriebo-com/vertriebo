@@ -13,8 +13,7 @@
     },
     "version": {
       "type": "string",
-      "title": "Version dieser Eintrags",
-      "description": "z.B. v4-ssot-2026-05"
+      "title": "Version dieses Eintrags"
     },
     "is_active": {
       "type": "boolean",
@@ -25,6 +24,25 @@
       "type": "number",
       "title": "Reihenfolge in der UI",
       "default": 99
+    },
+    "status": {
+      "type": "string",
+      "title": "Qualit\u00e4tsstatus",
+      "enum": [
+        "production_ready",
+        "draft",
+        "needs_review",
+        "deprecated"
+      ],
+      "default": "production_ready"
+    },
+    "profile_group": {
+      "type": "string",
+      "title": "Profilgruppe (z.B. Handwerk & Bau)"
+    },
+    "aliases": {
+      "type": "string",
+      "title": "Aliase (JSON-Array)"
     },
     "own_services": {
       "type": "string",
@@ -54,13 +72,59 @@
       "type": "string",
       "title": "Bad-Fit-Signale (JSON-Array)"
     },
+    "bad_fit_signal_weights": {
+      "type": "string",
+      "title": "Bad-Fit-Signal-Gewichte (JSON-Objekt) \u2014 v6"
+    },
     "scoring_signals": {
       "type": "string",
       "title": "Scoring-Signale (JSON-Array)"
     },
+    "scoring_signal_weights": {
+      "type": "string",
+      "title": "Scoring-Signal-Gewichte (JSON-Objekt) \u2014 v6"
+    },
     "query_priority": {
       "type": "string",
       "title": "Query-Priorit\u00e4t (JSON-Array)"
+    },
+    "search_strategy": {
+      "type": "string",
+      "title": "Such-Strategie \u2014 v6",
+      "enum": [
+        "target_customer_search",
+        "provider_search",
+        "mixed",
+        "registry_enrichment_recommended",
+        "website_signal_required"
+      ],
+      "default": "target_customer_search"
+    },
+    "place_type_confidence": {
+      "type": "string",
+      "title": "Place-Type-Konfidenz \u2014 v6",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
+      "default": "medium"
+    },
+    "profile_quality_score": {
+      "type": "number",
+      "title": "Qualit\u00e4tsscore (0\u2013100)"
+    },
+    "profile_quality_notes": {
+      "type": "string",
+      "title": "Qualit\u00e4ts-Notizen (Review)"
+    },
+    "reviewed_at": {
+      "type": "string",
+      "title": "Gepr\u00fcft am (YYYY-MM-DD)"
+    },
+    "reviewed_by": {
+      "type": "string",
+      "title": "Gepr\u00fcft von"
     },
     "ideal_customer_profiles": {
       "type": "string",

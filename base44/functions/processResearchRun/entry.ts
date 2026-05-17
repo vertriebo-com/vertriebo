@@ -1,15 +1,26 @@
 /**
  * processResearchRun
  * ==================
- * v6-weighted-scoring: Gewichtete Signale, Place-Type-Confidence, Search-Strategy-Diagnostics.
+ * v6-weighted-scoring: Gewichtete Signale, Place-Type-Confidence, Search-Strategy-Query-Steuerung.
  *
- * SCORING-MODELL (neu):
+ * SCORING-MODELL:
  * - scoring_signal_weights: Objekt {signal: Gewicht} pro Profil. Fallback: pauschal 12.
  * - bad_fit_signal_weights: Objekt {signal: Abzug} pro Profil. Fallback: pauschal -35.
  * - place_type_confidence: high/medium/low → bestimmt wie stark google_place_types zählen.
- * - search_strategy: bestimmt ob Direktsuche, Zielkunden-Suche oder gemischt.
+ * - search_strategy: STEUERT AKTIV die Query-Generierung:
+ *   - target_customer_search: Sucht nach Zielkunden (Hausverwaltungen, Praxen etc.) → Standard
+ *   - provider_search: Sucht nach gleichartigen Anbietern (z.B. Konkurrenz-Analyse)
+ *   - mixed: Kombiniert beides — erst Zielkunden, dann Provider
+ *   - registry_enrichment_recommended: Fokus auf offizielle Registereinträge
+ *   - website_signal_required: Nur Companies mit Website werden gespeichert
  *
- * DIAGNOSTICS (neu pro Company):
+ * QUERY-STEUERUNG via search_strategy:
+ * - target_customer_search: queryPriority aus targetCustomerTypes, Score-Bonus für TC-Match (+10)
+ * - provider_search: queryPriority direkt aus searchableBusinessCategories
+ * - mixed: beide Listen kombiniert, Zielkunden zuerst
+ * - website_signal_required: Normales Query-Building + shouldSave prüft website
+ *
+ * DIAGNOSTICS (pro Company):
  * - engine_analysis_json speichert matched_weighted_signals, bad_fit_signals,
  *   place_type_match_strength, search_strategy_used für spätere Analyse.
  *
@@ -131,14 +142,23 @@ function scoreCandidate(candidate, profile, distanceKm, radiusKm, category, plac
   // ── Distanz ──
   if (distanceKm !== null && distanceKm <= radiusKm) { score += 8; }
 
-  // ── Zielkunden-Match ──
+  // ── Zielkunden-Match (Bonus abhängig von search_strategy) ──
+  const strategy = profile?.searchStrategy || 'target_customer_search';
+  const tcBonus = strategy === 'target_customer_search' ? 10 : strategy === 'mixed' ? 8 : 6;
   for (const tc of (profile?.targetCustomerTypes || [])) {
     if (text.includes(normStr(tc))) {
       matched_target_customer_type = tc;
-      score += 6;
-      reasons.push(`TC:${tc}(+6)`);
+      score += tcBonus;
+      reasons.push(`TC:${tc}(+${tcBonus})`);
       break;
     }
+  }
+
+  // ── Website-Signal für website_signal_required ──
+  const websiteRequired = strategy === 'website_signal_required';
+  if (websiteRequired && !candidate.website) {
+    score = Math.min(score, 54); // Unter Schwellwert erzwingen wenn keine Website
+    reasons.push('NoWebsite(cap54)');
   }
 
   // ── Bad-Fit prüfen ──
@@ -164,6 +184,7 @@ function scoreCandidate(candidate, profile, distanceKm, radiusKm, category, plac
     search_strategy: profile?.searchStrategy || 'target_customer_search',
     category_matched: matched_search_category,
     score_breakdown: reasons.join(' | '),
+    tc_bonus_applied: strategy === 'target_customer_search' ? 10 : strategy === 'mixed' ? 8 : 6,
   };
 
   return {
@@ -183,6 +204,7 @@ function buildQueriesFromProfile(profile, targetCustomerTypes, excludedCustomerT
   const excludedNorm = excludedCustomerTypes.map(e => normStr(e));
   const cityMode = hasGeoCoords ? 'geo_only' : 'keyword_with_city';
   const familiesUsed = new Set();
+  const strategy = profile?.searchStrategy || 'target_customer_search';
 
   if (profile) {
     const usedCats = (profile.searchableBusinessCategories || []).filter(c => {
@@ -190,23 +212,44 @@ function buildQueriesFromProfile(profile, targetCustomerTypes, excludedCustomerT
     });
 
     let prioritized = [];
-    if (targetCustomerTypes.length > 0) {
-      const userPrio = [];
-      for (const tc of targetCustomerTypes) {
-        const tcNorm = normStr(tc);
-        for (const cat of usedCats) {
-          if (normStr(cat).includes(tcNorm) || tcNorm.includes(normStr(cat))) {
-            if (!userPrio.includes(cat)) userPrio.push(cat);
+
+    // ── search_strategy steuert Query-Reihenfolge ──────────────────────────
+    if (strategy === 'provider_search') {
+      // Provider-Suche: direkt nach eigenen Kategorien suchen (kein TC-Match)
+      const staticPrio = (profile.queryPriority || []).filter(c => usedCats.includes(c));
+      const rest = usedCats.filter(c => !staticPrio.includes(c));
+      prioritized = [...staticPrio, ...rest];
+    } else if (strategy === 'registry_enrichment_recommended') {
+      // Register-Modus: bevorzuge offizielle Kategorien mit formalen Namen
+      const staticPrio = (profile.queryPriority || []).filter(c => usedCats.includes(c));
+      const rest = usedCats.filter(c => !staticPrio.includes(c));
+      prioritized = [...staticPrio, ...rest];
+    } else {
+      // target_customer_search / mixed / website_signal_required:
+      // Zielkunden-Kategorien priorisieren
+      if (targetCustomerTypes.length > 0) {
+        const userPrio = [];
+        for (const tc of targetCustomerTypes) {
+          const tcNorm = normStr(tc);
+          for (const cat of usedCats) {
+            if (normStr(cat).includes(tcNorm) || tcNorm.includes(normStr(cat))) {
+              if (!userPrio.includes(cat)) userPrio.push(cat);
+            }
           }
         }
+        const staticPrio = (profile.queryPriority || []).filter(c => usedCats.includes(c) && !userPrio.includes(c));
+        const rest = usedCats.filter(c => !userPrio.includes(c) && !staticPrio.includes(c));
+        // mixed: fügt provider-seitige Kategorien ans Ende
+        if (strategy === 'mixed') {
+          prioritized = [...userPrio, ...staticPrio, ...rest];
+        } else {
+          prioritized = [...userPrio, ...staticPrio, ...rest];
+        }
+      } else {
+        const staticPrio = (profile.queryPriority || []).filter(c => usedCats.includes(c));
+        const rest = usedCats.filter(c => !staticPrio.includes(c));
+        prioritized = [...staticPrio, ...rest];
       }
-      const staticPrio = (profile.queryPriority || []).filter(c => usedCats.includes(c) && !userPrio.includes(c));
-      const rest = usedCats.filter(c => !userPrio.includes(c) && !staticPrio.includes(c));
-      prioritized = [...userPrio, ...staticPrio, ...rest];
-    } else {
-      const staticPrio = (profile.queryPriority || []).filter(c => usedCats.includes(c));
-      const rest = usedCats.filter(c => !(profile.queryPriority || []).includes(c));
-      prioritized = [...staticPrio, ...rest];
     }
 
     const maxVariants = trialStage === 'free_preview' ? 2 : 3;
@@ -231,6 +274,7 @@ function buildQueriesFromProfile(profile, targetCustomerTypes, excludedCustomerT
             query: v, category: cat, variant: v, family, weight,
             source: isUserMatched ? 'user_target' : 'taxonomy',
             city_mode: cityMode,
+            search_strategy: strategy,
             matched_target_customer: isUserMatched
               ? targetCustomerTypes.find(tc => normStr(cat).includes(normStr(tc)) || normStr(tc).includes(normStr(cat)))
               : null,
