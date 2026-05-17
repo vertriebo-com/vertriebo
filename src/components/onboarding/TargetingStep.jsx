@@ -4,10 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
+import { getIndustryIdByLabel } from "@/utils/industryTargetPresets";
+import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { SERVICES } from "@/utils/onboardingConfig";
 
 export default function TargetingStep({ onBack, onNext, loading, industry, initialData }) {
+  const { getPreset } = useTaxonomy();
   const [targetCustomers, setTargetCustomers] = useState(initialData?.targetCustomers || []);
   const [excluded, setExcluded] = useState(initialData?.excluded || []);
   const [services, setServices] = useState(initialData?.services || []);
@@ -15,11 +17,11 @@ export default function TargetingStep({ onBack, onNext, loading, industry, initi
   const [suggestedServices, setSuggestedServices] = useState([]);
   const [customServiceInput, setCustomServiceInput] = useState("");
 
-  // Auto-populate from taxonomy based on industry
+  // Auto-populate from taxonomy based on industry (DB-Quelle via useTaxonomy)
   useEffect(() => {
     if (industry) {
       const industryId = getIndustryIdByLabel(industry.name);
-      const preset = getIndustryPreset(industryId);
+      const preset = getPreset(industryId) || getPreset(industry.name);
       
       if (preset?.targetCustomerTypes) {
         setSuggestedTargets(preset.targetCustomerTypes);

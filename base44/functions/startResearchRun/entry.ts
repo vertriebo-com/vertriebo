@@ -1,13 +1,19 @@
 /**
  * startResearchRun
+ * ================
  * Erstellt sofort einen ResearchRun mit status=queued und gibt zurück.
  * Keine Google-Schleife hier – nur Setup + Plan-Checks.
+ *
+ * TAXONOMIE-ARCHITEKTUR:
+ * - Lädt Taxonomie via getTaxonomy (DB-Quelle, kanonisch).
+ * - Bettet das Profil der gewählten Branche in search_plan_json ein.
+ * - processResearchRun liest das Profil aus dem Plan → kein eigener DB-Call nötig.
+ * - taxonomy_hash + taxonomy_version werden im ResearchRun gespeichert.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const GOOGLE_PLACES_API_KEY = Deno.env.get("GOOGLE_PLACES_API_KEY");
 
-// ── Taxonomy (inline, gleiche Quelle wie generateLeads) ─────────────────────
 const LEGACY_INDUSTRY_MAP = {
   "Gebäudereinigung":"gebaeudereinigung","Gartenbau / Gartenpflege":"gartenbau","Gartenbau":"gartenbau",
   "Hausmeisterdienst / Facility Service":"facility_service","Facility Service":"facility_service","Hausmeisterdienst":"facility_service",
@@ -200,10 +206,33 @@ Deno.serve(async (req) => {
       ...additionalCityObjects.filter(o => o.lat && o.lng).map(o => ({ lat: o.lat, lng: o.lng, city: o.city }))
     ];
 
-    // Queries aufbauen (vereinfacht, ohne volle Taxonomy inline)
-    // processResearchRun bekommt den kompletten searchPlan und führt die Queries aus
+    // ── Taxonomie laden (kanonische DB-Quelle via getTaxonomy) ──────────────
+    let taxonomyProfile = null;
+    let taxonomyHash = null;
+    let taxonomyVersion = null;
+
+    const industryId = LEGACY_INDUSTRY_MAP[industry] || industry;
+    try {
+      const taxRes = await base44.functions.invoke('getTaxonomy', { action: 'get_single', industry_id: industryId });
+      if (taxRes?.data?.success && taxRes.data.profile) {
+        taxonomyProfile = taxRes.data.profile;
+        // Für taxonomy_hash: lade alle Profile kurz
+        const allTax = await base44.functions.invoke('getTaxonomy', { action: 'list' });
+        taxonomyHash = allTax?.data?.taxonomy_hash || null;
+        taxonomyVersion = allTax?.data?.version || null;
+        console.info(`[startResearchRun] Taxonomie geladen: ${industryId} hash=${taxonomyHash}`);
+      } else {
+        console.warn(`[startResearchRun] Keine Taxonomie für Branche "${industry}" (id=${industryId})`);
+      }
+    } catch (taxErr) {
+      console.error('[startResearchRun] Taxonomie-Ladefehler:', taxErr?.message);
+      // Nicht abbrechen – processResearchRun kann ohne Profil laufen (schlechtere Qualität)
+    }
+
+    // ── Suchplan zusammenbauen (Taxonomie-Profil eingebettet) ────────────────
     const searchPlanData = {
       industry,
+      industryId,
       city,
       radiusKm,
       radiusMeters: Math.min(radiusKm * 1000, 50000),
@@ -215,6 +244,10 @@ Deno.serve(async (req) => {
       allCenters,
       effectiveTarget,
       remainingPreviewLeads,
+      // Taxonomie-Profil eingebettet → processResearchRun braucht kein eigenes Inline-Objekt
+      taxonomyProfile,
+      taxonomyHash,
+      taxonomyVersion,
     };
 
     // ── ResearchRun erstellen ────────────────────────────────────────────────
@@ -239,6 +272,10 @@ Deno.serve(async (req) => {
       seen_place_ids: JSON.stringify([]),
       started_at: now,
       created_by: user.email,
+      // Taxonomie-Metadaten direkt im Run
+      taxonomy_version: taxonomyVersion || 'unknown',
+      taxonomy_hash: taxonomyHash || 'unknown',
+      industry_id: industryId,
     });
 
     console.info(`[startResearchRun] Created run=${run.id} org=${organization_id} target=${effectiveTarget} city=${city}`);

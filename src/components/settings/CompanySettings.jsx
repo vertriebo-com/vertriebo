@@ -7,24 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import IndustryChangeConfirmDialog from "./IndustryChangeConfirmDialog";
-import { INDUSTRY_PRESETS, getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
+import { getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
+import { useTaxonomy } from "@/hooks/useTaxonomy";
 import CityAutocomplete from "./CityAutocomplete";
 
-// Fallback-Zielkunden wenn keine Branche gewählt
-const BASE_ZIELKUNDEN_OPTIONS = [
-  "Hausverwaltungen", "Büros", "Arztpraxen", "Industrie",
-  "Logistik", "Hotels", "Schulen", "Pflegeheime",
-];
-
-// Basis-Dienstleistungen als Fallback wenn keine Branche gesetzt
-const BASE_DIENSTLEISTUNGEN_OPTIONS = [
-  "Gebäudereinigung","Büroreinigung","Treppenhausreinigung","Fensterreinigung",
-  "Hausmeisterdienst","Entrümpelung","Gartenpflege","Winterdienst",
-  "Sicherheitsdienst","IT-Service","Catering","Logistik / Transport",
-];
-
-// Branchen direkt aus der Taxonomie laden
-const INDUSTRIES = INDUSTRY_PRESETS.map(p => p.label);
+const BASE_ZIELKUNDEN_OPTIONS = ["Hausverwaltungen", "Büros", "Arztpraxen", "Industrie", "Logistik", "Hotels", "Schulen", "Pflegeheime"];
+const BASE_DIENSTLEISTUNGEN_OPTIONS = ["Gebäudereinigung","Büroreinigung","Treppenhausreinigung","Fensterreinigung","Hausmeisterdienst","Entrümpelung","Gartenpflege","Winterdienst"];
 
 const PLAN_RADIUS_LIMITS = {
   starter:      25,
@@ -56,6 +44,7 @@ function isValidUrl(val) {
 }
 
 export default function CompanySettings({ org: orgProp }) {
+  const { labels: INDUSTRIES, getPreset } = useTaxonomy();
   const [org, setOrg] = useState(orgProp || null);
   const [orgId, setOrgId] = useState(orgProp?.id || null);
   const [loading, setLoading] = useState(true);
@@ -90,8 +79,8 @@ export default function CompanySettings({ org: orgProp }) {
   const [showIndustryChangeDialog, setShowIndustryChangeDialog] = useState(false);
   const [pendingIndustryChange, setPendingIndustryChange] = useState(null);
 
-  // Dynamische Optionen basierend auf gewählter Branche
-  const currentPreset = industry ? getIndustryPreset(getIndustryIdByLabel(industry)) : null;
+  // Dynamische Optionen basierend auf gewählter Branche (aus DB-Taxonomie)
+  const currentPreset = industry ? (getPreset(industry) || getIndustryPreset(getIndustryIdByLabel(industry))) : null;
   const ZIELKUNDEN_OPTIONS = currentPreset?.targetCustomerTypes || BASE_ZIELKUNDEN_OPTIONS;
   const DIENSTLEISTUNGEN_OPTIONS = currentPreset?.ownServices || BASE_DIENSTLEISTUNGEN_OPTIONS;
 

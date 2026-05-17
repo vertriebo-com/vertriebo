@@ -1,0 +1,86 @@
+{
+  "name": "TaxonomyEntry",
+  "type": "object",
+  "properties": {
+    "industry_id": {
+      "type": "string",
+      "title": "Branchen-ID (kanonisch)",
+      "description": "Eindeutiger Bezeichner z.B. gebaeudereinigung"
+    },
+    "label": {
+      "type": "string",
+      "title": "Anzeigename"
+    },
+    "version": {
+      "type": "string",
+      "title": "Version dieser Eintrags",
+      "description": "z.B. v4-ssot-2026-05"
+    },
+    "is_active": {
+      "type": "boolean",
+      "title": "Aktiv",
+      "default": true
+    },
+    "sort_order": {
+      "type": "number",
+      "title": "Reihenfolge in der UI",
+      "default": 99
+    },
+    "own_services": {
+      "type": "string",
+      "title": "Eigene Dienstleistungen (JSON-Array)"
+    },
+    "target_customer_types": {
+      "type": "string",
+      "title": "Zielkundentypen (JSON-Array)"
+    },
+    "excluded_customer_types": {
+      "type": "string",
+      "title": "Ausgeschlossene Typen (JSON-Array)"
+    },
+    "searchable_business_categories": {
+      "type": "string",
+      "title": "Google-Suchkategorien (JSON-Array)"
+    },
+    "search_keyword_variants": {
+      "type": "string",
+      "title": "Suchbegriff-Varianten (JSON-Objekt)"
+    },
+    "negative_keywords": {
+      "type": "string",
+      "title": "Negative Keywords (JSON-Array)"
+    },
+    "bad_fit_signals": {
+      "type": "string",
+      "title": "Bad-Fit-Signale (JSON-Array)"
+    },
+    "scoring_signals": {
+      "type": "string",
+      "title": "Scoring-Signale (JSON-Array)"
+    },
+    "query_priority": {
+      "type": "string",
+      "title": "Query-Priorit\u00e4t (JSON-Array)"
+    },
+    "ideal_customer_profiles": {
+      "type": "string",
+      "title": "Ideale Kundenprofile (JSON-Array, nur f\u00fcr KI/Scoring)"
+    },
+    "google_place_types": {
+      "type": "string",
+      "title": "Google Place Types (JSON-Array)"
+    },
+    "content_hash": {
+      "type": "string",
+      "title": "Hash des Inhalts (zur Sync-Validierung)"
+    },
+    "last_updated_by": {
+      "type": "string",
+      "title": "Zuletzt ge\u00e4ndert von (E-Mail)"
+    }
+  },
+  "required": [
+    "industry_id",
+    "label"
+  ]
+}
