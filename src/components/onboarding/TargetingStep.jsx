@@ -23,13 +23,21 @@ export default function TargetingStep({ onBack, onNext, loading, industry, initi
       
       if (preset?.targetCustomerTypes) {
         setSuggestedTargets(preset.targetCustomerTypes);
-        setTargetCustomers(preset.targetCustomerTypes);
+        // Nur vorausfüllen wenn noch keine Auswahl getroffen
+        if (targetCustomers.length === 0) {
+          setTargetCustomers(preset.targetCustomerTypes);
+        }
       }
       
       if (preset?.ownServices) {
         setSuggestedServices(preset.ownServices);
       } else {
         setSuggestedServices(SERVICES);
+      }
+
+      // Ausschlüsse aus Preset vorausfüllen
+      if (preset?.excludedCustomerTypes && excluded.length === 0) {
+        setExcluded(preset.excludedCustomerTypes);
       }
     }
   }, [industry]);
@@ -104,10 +112,10 @@ export default function TargetingStep({ onBack, onNext, loading, industry, initi
       {/* Ausschlüsse (optional) */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6">
         <h2 className="text-lg font-bold text-slate-900 mb-1">Welche Firmen ausschließen? (optional)</h2>
-        <p className="text-sm font-medium text-slate-600 mb-4">z.B. Konkurrenten oder ungeeignete Kundentypen.</p>
+        <p className="text-sm font-medium text-slate-600 mb-4">Diese Zielgruppen werden bei der Lead-Generierung nicht berücksichtigt.</p>
 
         <div className="flex flex-wrap gap-2">
-          {["Konkurrenten", "Private Kunden", "Regierungsbehörden"].map(type => (
+          {(suggestedTargets.length > 0 ? suggestedTargets : ["Privathaushalte", "Kleinanzeigen", "Jobsuchende"]).map(type => (
             <button
               key={type}
               type="button"
