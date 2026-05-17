@@ -10,22 +10,11 @@ import IndustryChangeConfirmDialog from "./IndustryChangeConfirmDialog";
 import { INDUSTRY_PRESETS, getIndustryPreset, getIndustryIdByLabel } from "@/utils/industryTargetPresets";
 import CityAutocomplete from "./CityAutocomplete";
 
-// ─── Zielkunden → Google Places Suchbegriffe Mapping ─────────────────────────
-export const ZIELKUNDEN_SEARCH_MAPPING = {
-  "Hausverwaltungen":              ["Hausverwaltung", "Immobilienverwaltung", "WEG Verwaltung", "Property Management", "Wohnungsverwaltung"],
-  "Büros":                         ["Büro", "Unternehmen", "Gewerbe", "Kanzlei", "Beratung"],
-  "Arztpraxen":                    ["Arztpraxis", "Zahnarzt", "Physiotherapie", "Praxis", "Ärztehaus"],
-  "Restaurants":                   ["Restaurant", "Café", "Gastronomie", "Bistro", "Imbiss"],
-  "Immobilienfirmen":              ["Immobilienmakler", "Immobilienbüro", "Immobilienunternehmen", "Makler"],
-  "Gewerbekunden":                 ["Gewerbebetrieb", "Handwerk", "Werkstatt", "Produktion", "Fabrik"],
-  "Industrie":                     ["Industrieunternehmen", "Produktionsstätte", "Lager", "Logistik", "Fertigung"],
-  "Logistik":                      ["Spedition", "Lagerhaus", "Logistikzentrum", "Fulfillment", "Transport"],
-  "Schulen / Bildungseinrichtungen": ["Schule", "Gymnasium", "Berufsschule", "Kindergarten", "Bildungszentrum"],
-  "Krankenhäuser / Kliniken":      ["Krankenhaus", "Klinik", "Pflegeheim", "Altenheim", "Reha"],
-};
-
-// Fallback-Zielkunden wenn keine Branche gewählt (aus ZIELKUNDEN_SEARCH_MAPPING)
-const BASE_ZIELKUNDEN_OPTIONS = Object.keys(ZIELKUNDEN_SEARCH_MAPPING);
+// Fallback-Zielkunden wenn keine Branche gewählt
+const BASE_ZIELKUNDEN_OPTIONS = [
+  "Hausverwaltungen", "Büros", "Arztpraxen", "Industrie",
+  "Logistik", "Hotels", "Schulen", "Pflegeheime",
+];
 
 // Basis-Dienstleistungen als Fallback wenn keine Branche gesetzt
 const BASE_DIENSTLEISTUNGEN_OPTIONS = [
@@ -249,16 +238,11 @@ export default function CompanySettings({ org: orgProp }) {
     if (!currentOrgId) { toast.error("Keine Organisation gefunden."); setSaving(false); return; }
 
     const normalizedWebsite = normalizeUrl(website);
-    // Keywords: aus ZIELKUNDEN_SEARCH_MAPPING (Fallback) ODER aus Taxonomy-searchKeywordVariants
+    // Keywords aus Taxonomy-searchKeywordVariants ableiten
     const zielkundenKeywords = zielkunden.flatMap(z => {
-      if (ZIELKUNDEN_SEARCH_MAPPING[z]) return ZIELKUNDEN_SEARCH_MAPPING[z];
-      // Für Branchen-Zielkunden: prüfe ob Taxonomy searchKeywordVariants passen
-      if (currentPreset?.searchKeywordVariants) {
-        for (const [group, variants] of Object.entries(currentPreset.searchKeywordVariants)) {
-          if (group === z || variants.includes(z)) return variants;
-        }
-      }
-      return [z]; // fallback: direkt als Suchbegriff
+      if (currentPreset?.searchKeywordVariants?.[z]) return currentPreset.searchKeywordVariants[z];
+      // Fallback: direkt als Suchbegriff verwenden
+      return [z];
     }).join(", ");
 
     const cityName = mainCity?.city || "";
@@ -581,11 +565,14 @@ export default function CompanySettings({ org: orgProp }) {
                 </span>
               ))}
             </div>
-            {zielkunden.length > 0 && (
+            {zielkunden.length > 0 && currentPreset && (
               <div className="text-[11px] text-slate-600 font-medium bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5">
                 <span className="font-semibold text-slate-900">Aktive Suchbegriffe:</span>{" "}
-                {zielkunden.flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z]).slice(0, 8).join(", ")}
-                {zielkunden.flatMap(z => ZIELKUNDEN_SEARCH_MAPPING[z] || [z]).length > 8 && " ..."}
+                {zielkunden.flatMap(z => {
+                  const variants = currentPreset.searchKeywordVariants?.[z];
+                  return variants || [z];
+                }).slice(0, 8).join(", ")}
+                {zielkunden.flatMap(z => currentPreset.searchKeywordVariants?.[z] || [z]).length > 8 && " ..."}
               </div>
             )}
             <div className="flex gap-2 mt-2.5">

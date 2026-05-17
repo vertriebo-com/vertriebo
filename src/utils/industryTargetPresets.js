@@ -1,22 +1,19 @@
 /**
  * industryTargetPresets.js
  * ========================
- * SINGLE SOURCE OF TRUTH: Leitet direkt aus leadSearchTaxonomy.js ab.
- * 
+ * ADAPTER — enthält KEINE eigenen Preset-Daten.
+ * Einzige Quelle: utils/leadSearchTaxonomy.js
+ *
  * Alle Komponenten (Onboarding, CompanySettings, TargetingStep)
- * verwenden diese Datei. Sie importiert und re-exportiert aus der
- * zentralen Taxonomie, sodass es KEINE doppelte Preset-Logik gibt.
- * 
- * Frühere hardcodierte INDUSTRY_PRESETS wurden entfernt.
- * Die Taxonomy (leadSearchTaxonomy.js) ist die einzige Quelle.
+ * importieren von hier. Diese Datei leitet ausschließlich weiter.
  */
 
-import { LEAD_SEARCH_TAXONOMY, normalizeIndustryId } from "./leadSearchTaxonomy.js";
+import { LEAD_SEARCH_TAXONOMY, normalizeIndustryId } from "./leadSearchTaxonomy";
 
 /**
- * INDUSTRY_PRESETS: Aus der zentralen Taxonomy abgeleitet.
- * Format kompatibel mit dem alten Format (id, label, ownServices, targetCustomerTypes,
- * excludedCustomerTypes, searchKeywordVariants).
+ * INDUSTRY_PRESETS — abgeleitet aus der zentralen Taxonomy.
+ * Format ist kompatibel mit dem alten hardcodierten Format.
+ * Keine eigenen Daten hier.
  */
 export const INDUSTRY_PRESETS = Object.values(LEAD_SEARCH_TAXONOMY).map(entry => ({
   id: entry.id,
@@ -25,7 +22,6 @@ export const INDUSTRY_PRESETS = Object.values(LEAD_SEARCH_TAXONOMY).map(entry =>
   targetCustomerTypes: entry.targetCustomerTypes || [],
   excludedCustomerTypes: entry.excludedCustomerTypes || [],
   searchKeywordVariants: entry.searchKeywordVariants || {},
-  // Erweiterte Felder aus der Taxonomy
   searchableBusinessCategories: entry.searchableBusinessCategories || [],
   idealCustomerProfiles: entry.idealCustomerProfiles || [],
   negativeKeywords: entry.negativeKeywords || [],
@@ -36,8 +32,8 @@ export const INDUSTRY_PRESETS = Object.values(LEAD_SEARCH_TAXONOMY).map(entry =>
 }));
 
 /**
- * Preset für eine bestimmte Branche abrufen.
- * Unterstützt sowohl neue Taxonomy-IDs als auch Legacy-Bezeichnungen.
+ * Preset für eine Branche abrufen.
+ * Unterstützt Taxonomy-IDs ("gebaeudereinigung") und Labels ("Gebäudereinigung").
  */
 export function getIndustryPreset(industryId) {
   if (!industryId) return null;
@@ -46,19 +42,20 @@ export function getIndustryPreset(industryId) {
 }
 
 /**
- * Alle verfügbaren Branchen-Labels.
+ * Alle Branchen-Labels.
  */
 export function getIndustryLabels() {
   return INDUSTRY_PRESETS.map(p => p.label);
 }
 
 /**
- * ID aus Label auflösen — nutzt normalizeIndustryId aus der Taxonomy.
+ * ID aus Label auflösen.
+ * "Gebäudereinigung" → "gebaeudereinigung"
  */
 export function getIndustryIdByLabel(label) {
   if (!label) return undefined;
   return normalizeIndustryId(label) || undefined;
 }
 
-// Re-exporte aus der zentralen Taxonomie für direkten Zugriff
-export { LEAD_SEARCH_TAXONOMY, normalizeIndustryId } from "./leadSearchTaxonomy.js";
+// Direkt-Zugriff auf Taxonomy-Kern
+export { LEAD_SEARCH_TAXONOMY, normalizeIndustryId } from "./leadSearchTaxonomy";
