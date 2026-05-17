@@ -120,6 +120,12 @@ export default function CompanySettings({ org: orgProp }) {
       base44.entities.OrganizationMember.filter({ organization_id: currentOrgId, status: "active" }),
     ]);
 
+    // map ZUERST erstellen, bevor currentOrg-Felder gesetzt werden
+    const map = {};
+    settings.forEach(s => { map[s.key] = s.value; });
+
+    setMembers(orgMembers);
+
     const currentOrg = orgs[0] || null;
     if (currentOrg) {
       setOrg(currentOrg);
@@ -131,10 +137,6 @@ export default function CompanySettings({ org: orgProp }) {
         setPlan(plans[0] || null);
       }
     }
-
-    setMembers(orgMembers);
-    const map = {};
-    settings.forEach(s => { map[s.key] = s.value; });
 
     // Telefon: mehrere Legacy-Keys prüfen
     setTelefon(map.email_telefon || map.company_phone || map.phone || "");
