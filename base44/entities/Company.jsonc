@@ -239,6 +239,22 @@
       "type": "string",
       "format": "date-time",
       "title": "Zuletzt Engine-analysiert"
+    },
+    "google_place_id": {
+      "type": "string",
+      "title": "Google Place ID",
+      "description": "Eindeutige Google Place ID \u2013 verhindert Duplikate bei parallelen Batch-L\u00e4ufen"
+    },
+    "source_provider": {
+      "type": "string",
+      "title": "Datenquelle Provider",
+      "enum": [
+        "google_places",
+        "manual",
+        "csv_import",
+        "api"
+      ],
+      "default": "manual"
     }
   },
   "required": [

@@ -2,19 +2,22 @@
  * processResearchRun
  * ==================
  * Verarbeitet einen ResearchRun in kleinen Batches.
- * Idempotent: doppelte Aufrufe erzeugen keine doppelten Companies.
  *
- * TAXONOMIE-ARCHITEKTUR (DB-basiert, produktionsreif):
- * - startResearchRun lädt Taxonomie-Profil via getTaxonomy (DB-Quelle).
- * - Das Profil wird in search_plan_json.taxonomyProfile eingebettet.
- * - Diese Function liest das Profil aus dem Plan — KEINE eigene Taxonomie-Kopie.
- * - taxonomy_hash + taxonomy_version kommen aus dem Plan.
- * - KEIN manueller Sync notwendig. Eine Wahrheitsquelle: TaxonomyEntry-DB.
+ * IDEMPOTENZ-GARANTIEN (v5):
+ * 1. Processing-Lock: Setzt processing_lock_until + processing_by vor Batch-Start.
+ *    Parallele Aufrufe erkennen den Lock und geben already_processing zurück.
+ * 2. Pre-Create-Dedupe via google_place_id: Direkt vor Company.create nochmal
+ *    DB prüfen ob google_place_id schon existiert → verhindert Race-Condition-Duplikate.
+ * 3. Intra-Batch-Dedupe via seenPlaceIds + existingNames (wie bisher).
+ *
+ * TAXONOMIE-ARCHITEKTUR (DB-basiert, v4-db):
+ * - taxonomyProfile wird von startResearchRun in search_plan_json eingebettet.
+ * - Diese Function liest das Profil aus dem Plan — KEIN eigener DB-Call.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 const GOOGLE_PLACES_API_KEY = Deno.env.get("GOOGLE_PLACES_API_KEY");
-const SEARCH_ENGINE_VERSION = "v4-db";
+const SEARCH_ENGINE_VERSION = "v5-idempotent";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,18 +76,12 @@ function scoreCandidate(candidate, profile, distanceKm, radiusKm, category) {
 
   score = Math.max(0, Math.min(100, score));
   return {
-    score,
-    matched_search_category,
-    matched_target_customer_type,
+    score, matched_search_category, matched_target_customer_type,
     relevance_reason: reasons.join(' | ') || 'Base',
     shouldSave: score >= 55 && !badFit.bad,
   };
 }
 
-/**
- * Baut strukturierte Queries aus dem Taxonomie-Profil.
- * Profil kommt aus dem searchPlan (eingebettet von startResearchRun).
- */
 function buildQueriesFromProfile(profile, targetCustomerTypes, excludedCustomerTypes, trialStage, hasGeoCoords) {
   const queries = [];
   const seen = new Set();
@@ -150,7 +147,6 @@ function buildQueriesFromProfile(profile, targetCustomerTypes, excludedCustomerT
     }
   }
 
-  // Fallback: Nutzer-Zielkunden direkt
   if (queries.length === 0 && targetCustomerTypes.length > 0) {
     for (const tc of targetCustomerTypes.slice(0, maxQ)) {
       if (excludedNorm.some(ex => normStr(tc).includes(ex))) continue;
@@ -166,8 +162,7 @@ function buildQueriesFromProfile(profile, targetCustomerTypes, excludedCustomerT
 
 async function searchPlaces(query, coords, radiusMeters, apiKey) {
   const body = {
-    textQuery: query,
-    languageCode: "de",
+    textQuery: query, languageCode: "de",
     locationBias: { circle: { center: { latitude: coords.lat, longitude: coords.lng }, radius: Math.min(radiusMeters, 50000) } },
     maxResultCount: 20,
   };
@@ -254,7 +249,9 @@ async function upsertUsageLog(base44, organization_id, newLeads) {
 Deno.serve(async (req) => {
   const startedAt = Date.now();
   const MAX_BATCH_MS = 18000;
-  const MAX_RUN_SECONDS = 180; // 3 Minuten absolute Max-Laufzeit pro ResearchRun
+  const MAX_RUN_SECONDS = 180;
+  // Lock-Dauer: 25s (großzügig genug für einen Batch, kurz genug für Stale-Recovery)
+  const LOCK_DURATION_MS = 25000;
 
   try {
     const base44 = createClientFromRequest(req);
@@ -273,6 +270,7 @@ Deno.serve(async (req) => {
     if (!run) return Response.json({ error: 'ResearchRun nicht gefunden', success: false }, { status: 404 });
     if (run.organization_id !== organization_id) return Response.json({ error: 'Ungültige organization_id', success: false }, { status: 403 });
 
+    // ── Bereits abgeschlossen → sofort zurück ────────────────────────────────
     if (['completed', 'failed', 'partial'].includes(run.status)) {
       return Response.json({
         success: true, done: true, status: run.status,
@@ -291,46 +289,71 @@ Deno.serve(async (req) => {
       const finishStatus = (run.leads_saved || 0) > 0 ? 'partial' : 'failed';
       const now = new Date().toISOString();
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-        status: finishStatus,
-        finished_at: now,
+        status: finishStatus, finished_at: now,
         current_step: finishStatus === 'partial'
-          ? `Recherche teilweise abgeschlossen (Timeout): ${run.leads_saved || 0} Kontakte gefunden`
-          : 'Recherche abgebrochen (Timeout – keine Kontakte)',
+          ? `Recherche abgeschlossen (Timeout): ${run.leads_saved || 0} Kontakte gefunden`
+          : 'Recherche abgebrochen (Timeout)',
         stop_reason: 'stale_run_timeout',
-        error_message: 'Run wurde durch Stale-Watchdog beendet.',
+        error_message: 'Run durch Stale-Watchdog beendet.',
+        processing_lock_until: null, processing_by: null,
       });
       return Response.json({
         success: true, done: true, status: finishStatus,
-        leads_saved: run.leads_saved || 0,
-        progress_percent: 100,
-        message: `Recherche beendet (Timeout): ${run.leads_saved || 0} Kontakte gefunden`,
+        leads_saved: run.leads_saved || 0, progress_percent: 100,
+        message: `Recherche beendet: ${run.leads_saved || 0} Kontakte gefunden`,
       });
     }
 
-    // ── Max-Runtime-Guard: Run läuft seit > MAX_RUN_SECONDS → Abschluss erzwingen ──
+    // ── Max-Runtime-Guard ────────────────────────────────────────────────────
     if (run.started_at) {
       const runAgeSeconds = (Date.now() - new Date(run.started_at).getTime()) / 1000;
       if (runAgeSeconds > MAX_RUN_SECONDS) {
         const finishStatus = (run.leads_saved || 0) > 0 ? 'partial' : 'failed';
         const now = new Date().toISOString();
-        console.warn(`[processResearchRun] Max-Runtime überschritten (${Math.round(runAgeSeconds)}s) für run=${research_run_id}`);
+        console.warn(`[processResearchRun] Max-Runtime überschritten (${Math.round(runAgeSeconds)}s) run=${research_run_id}`);
         await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-          status: finishStatus,
-          finished_at: now,
+          status: finishStatus, finished_at: now,
           current_step: finishStatus === 'partial'
             ? `Recherche abgeschlossen (Max-Zeit): ${run.leads_saved || 0} Kontakte gefunden`
-            : 'Recherche abgebrochen (Max-Zeit erreicht)',
+            : 'Recherche abgebrochen (Max-Zeit)',
           stop_reason: 'max_runtime_exceeded',
-          error_message: `Max-Laufzeit von ${MAX_RUN_SECONDS}s überschritten.`,
+          processing_lock_until: null, processing_by: null,
         });
         return Response.json({
           success: true, done: true, status: finishStatus,
-          leads_saved: run.leads_saved || 0,
-          progress_percent: 100,
+          leads_saved: run.leads_saved || 0, progress_percent: 100,
           message: `Recherche beendet: ${run.leads_saved || 0} Kontakte gefunden`,
         });
       }
     }
+
+    // ── PROCESSING LOCK CHECK ────────────────────────────────────────────────
+    // Verhindert parallele Batch-Verarbeitung durch ResearchDialog + ActiveResearchBanner
+    const lockUntil = run.processing_lock_until ? new Date(run.processing_lock_until).getTime() : 0;
+    const lockBy = run.processing_by || null;
+    const workerKey = `${user.email}:${Date.now()}`;
+    const isLockActive = lockUntil > Date.now() && lockBy !== null;
+
+    if (isLockActive) {
+      // Anderer Worker verarbeitet gerade → nicht einsteigen
+      console.info(`[processResearchRun] Lock aktiv bis ${new Date(lockUntil).toISOString()} by=${lockBy}, skipping run=${research_run_id}`);
+      return Response.json({
+        success: true, done: false, already_processing: true,
+        status: run.status,
+        leads_saved: run.leads_saved || 0,
+        progress_percent: run.progress_percent || 5,
+        current_step: run.current_step || 'Recherche läuft…',
+        message: run.current_step || 'Recherche läuft…',
+      });
+    }
+
+    // Lock setzen BEVOR wir mit dem Batch anfangen
+    const lockExpires = new Date(Date.now() + LOCK_DURATION_MS).toISOString();
+    await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+      processing_lock_until: lockExpires,
+      processing_by: workerKey,
+      worker_attempts: (run.worker_attempts || 0) + 1,
+    });
 
     // ── Suchplan lesen ───────────────────────────────────────────────────────
     let searchPlan;
@@ -338,73 +361,54 @@ Deno.serve(async (req) => {
       searchPlan = JSON.parse(run.search_plan_json || '{}');
     } catch {
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-        status: 'failed', error_message: 'Suchplan ungültig', finished_at: new Date().toISOString()
+        status: 'failed', error_message: 'Suchplan ungültig', finished_at: new Date().toISOString(),
+        processing_lock_until: null, processing_by: null,
       });
       return Response.json({ success: false, error: 'Suchplan ungültig', done: true, status: 'failed' }, { status: 400 });
     }
 
     const {
-      industry,
-      industryId,
-      city,
-      radiusKm,
-      radiusMeters,
-      targetCustomerTypes = [],
-      excludedCustomerTypes = [],
-      trialStage,
-      cityCoords,
-      allPoints = [],
-      allCenters = [],
-      effectiveTarget,
-      taxonomyProfile,  // ← Eingebettet von startResearchRun via DB
-      taxonomyHash,
-      taxonomyVersion,
+      industry, industryId, city, radiusKm, radiusMeters,
+      targetCustomerTypes = [], excludedCustomerTypes = [],
+      trialStage, cityCoords, allPoints = [], allCenters = [],
+      effectiveTarget, taxonomyProfile, taxonomyHash, taxonomyVersion,
     } = searchPlan;
 
     const hasGeoCoords = !!(cityCoords?.lat && cityCoords?.lng);
 
     // ── Taxonomie-Profil Pflichtprüfung ───────────────────────────────────────
-    // KEIN stilles Weiterlaufen ohne Profil – das wäre eine undiagnostizierbare Qualitätsdegradierung.
     if (!taxonomyProfile) {
-      console.error(`[processResearchRun] taxonomy_profile_missing run=${research_run_id} industry=${industry} industryId=${industryId}`);
+      console.error(`[processResearchRun] taxonomy_profile_missing run=${research_run_id}`);
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
         status: 'failed',
-        error_message: `taxonomy_profile_missing: Kein Taxonomie-Profil für Branche "${industry}" (id=${industryId}). startResearchRun hat kein Profil eingebettet. Bitte Branche in Einstellungen prüfen und Recherche neu starten.`,
+        error_message: `taxonomy_profile_missing: Kein Profil für "${industry}".`,
         finished_at: new Date().toISOString(),
         zero_result_cause: 'taxonomy_profile_missing',
+        processing_lock_until: null, processing_by: null,
       });
-      return Response.json({
-        success: false,
-        done: true,
-        status: 'failed',
-        error: 'taxonomy_profile_missing',
-        error_message: `Kein Taxonomie-Profil für Branche "${industry}". Bitte Branche in den Einstellungen setzen und Recherche neu starten.`,
-      }, { status: 400 });
+      return Response.json({ success: false, done: true, status: 'failed', error: 'taxonomy_profile_missing' }, { status: 400 });
     }
 
-    // ── Queries aus eingebettetem Profil bauen ───────────────────────────────
-    // Kein DB-Call hier, kein Inline-Taxonomy-Objekt. Profil kommt aus dem Plan.
+    // ── Queries bauen ────────────────────────────────────────────────────────
     const { queries: allQueries, queryFamiliesUsed, cityMode } = buildQueriesFromProfile(
       taxonomyProfile, targetCustomerTypes, excludedCustomerTypes, trialStage, hasGeoCoords
     );
 
     if (allQueries.length === 0) {
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-        status: 'failed', error_message: 'Keine Suchkategorien gefunden.', finished_at: new Date().toISOString(), zero_result_cause: 'no_queries_built',
+        status: 'failed', error_message: 'Keine Suchkategorien gefunden.', finished_at: new Date().toISOString(),
+        zero_result_cause: 'no_queries_built', processing_lock_until: null, processing_by: null,
       });
-      return Response.json({ success: false, error: 'Keine Suchkategorien gefunden.', done: true, status: 'failed' });
+      return Response.json({ success: false, error: 'Keine Suchkategorien.', done: true, status: 'failed' });
     }
 
-    // ── Status auf running + Metadaten setzen ────────────────────────────────
+    // ── Status auf running setzen (einmalig beim ersten Batch) ───────────────
     if (run.status === 'queued') {
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-        status: 'running',
-        current_step: 'Firmenprofile werden gesucht…',
-        progress_percent: 5,
+        status: 'running', current_step: 'Firmenprofile werden gesucht…', progress_percent: 5,
+        started_at: new Date().toISOString(),
         taxonomy_version: taxonomyVersion || 'unknown',
-        taxonomy_hash: taxonomyHash || 'unknown',
-        industry_id: industryId || industry,
-        city_mode: cityMode,
+        industry_id: industryId || industry, city_mode: cityMode,
         query_families_used: JSON.stringify(queryFamiliesUsed),
         selected_target_customer_types: targetCustomerTypes.join(', '),
         excluded_customer_types: excludedCustomerTypes.join(', '),
@@ -414,17 +418,22 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Bereits gesehene Place-IDs ───────────────────────────────────────────
+    // ── Bereits gesehene Place-IDs (intra-run) ───────────────────────────────
     let seenPlaceIds = new Set();
     try { seenPlaceIds = new Set(JSON.parse(run.seen_place_ids || '[]')); } catch {}
 
-    // ── Duplikat-Check ───────────────────────────────────────────────────────
-    const existing = await base44.asServiceRole.entities.Company.filter({ organization_id }, '-created_date', 500);
+    // ── Intra-Batch-Dedupe: bestehende Namen + Place-IDs aus DB ─────────────
+    // Wir laden auch google_place_id für exakten Duplikat-Check
+    const existing = await base44.asServiceRole.entities.Company.filter({ organization_id }, '-created_date', 1000);
     const existingNames = new Set(existing.map(c => normStr(c.name || '')));
+    const existingPlaceIds = new Set(existing.filter(c => c.google_place_id).map(c => c.google_place_id));
 
     const currentLeadsSaved = run.leads_saved || 0;
     if ((effectiveTarget || 25) - currentLeadsSaved <= 0) {
-      await base44.asServiceRole.entities.ResearchRun.update(research_run_id, { status: 'completed', progress_percent: 100, current_step: 'Recherche abgeschlossen', finished_at: new Date().toISOString() });
+      await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+        status: 'completed', progress_percent: 100, current_step: 'Recherche abgeschlossen',
+        finished_at: new Date().toISOString(), processing_lock_until: null, processing_by: null,
+      });
       return Response.json({ success: true, done: true, status: 'completed', leads_saved: currentLeadsSaved, progress_percent: 100 });
     }
 
@@ -440,6 +449,7 @@ Deno.serve(async (req) => {
         status: 'completed', progress_percent: 100,
         current_step: currentLeadsSaved > 0 ? `${currentLeadsSaved} Firmenkontakte gefunden` : 'Keine neuen Kontakte gefunden',
         finished_at: new Date().toISOString(),
+        processing_lock_until: null, processing_by: null,
         ...(currentLeadsSaved === 0 ? { zero_result_cause: 'all_queries_exhausted' } : {}),
       });
       return Response.json({ success: true, done: true, status: 'completed', leads_saved: currentLeadsSaved, progress_percent: 100 });
@@ -450,12 +460,14 @@ Deno.serve(async (req) => {
     const pointsToSearch = (allPoints.length > 0 ? allPoints : basePoint ? [basePoint] : []).slice(0, 3);
 
     if (pointsToSearch.length === 0) {
-      await base44.asServiceRole.entities.ResearchRun.update(research_run_id, { status: 'failed', error_message: 'Keine Suchkoordinaten.', finished_at: new Date().toISOString(), zero_result_cause: 'no_geo_coords' });
+      await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+        status: 'failed', error_message: 'Keine Suchkoordinaten.', finished_at: new Date().toISOString(),
+        zero_result_cause: 'no_geo_coords', processing_lock_until: null, processing_by: null,
+      });
       return Response.json({ success: false, error: 'Keine Suchkoordinaten.', done: true, status: 'failed' });
     }
 
     const pointRadiusMeters = Math.min(15000, Math.max(8000, radiusMeters / Math.max(pointsToSearch.length, 1)));
-
     let newLeadsSavedThisBatch = 0, rawHitsThisBatch = 0, dupSkippedThisBatch = 0, noMatchThisBatch = 0, outsideRadiusThisBatch = 0, placeDetailsUsed = 0;
 
     outer:
@@ -474,8 +486,18 @@ Deno.serve(async (req) => {
         for (const place of places) {
           if (newLeadsSavedThisBatch + currentLeadsSaved >= effectiveTarget) break outer;
           if (placeDetailsUsed >= PLACE_DETAILS_PER_BATCH) break outer;
+
+          // ── Intra-Batch: seenPlaceIds (verhindert Doppelverarbeitung im selben Batch) ──
           if (seenPlaceIds.has(place.place_id)) continue;
           seenPlaceIds.add(place.place_id);
+
+          // ── DB-Level Dedupe via google_place_id ──────────────────────────
+          // Verhindert Duplikate auch bei parallelen Requests die beide denselben Place noch nicht gesehen haben
+          if (existingPlaceIds.has(place.place_id)) {
+            dupSkippedThisBatch++;
+            console.info(`[processResearchRun] SKIP (place_id exists in DB) place_id=${place.place_id} name="${place.name}"`);
+            continue;
+          }
 
           const placeLat = place.geometry?.location?.lat;
           const placeLng = place.geometry?.location?.lng;
@@ -490,9 +512,7 @@ Deno.serve(async (req) => {
           if (isLikelyChain(place).isChain) { noMatchThisBatch++; continue; }
           if (existingNames.has(normStr(place.name || ''))) { dupSkippedThisBatch++; continue; }
 
-          // Scoring mit DB-Profil aus searchPlan (taxonomyProfile ist hier garantiert != null)
           const scoring = scoreCandidate(place, taxonomyProfile, distanceKm, radiusKm, category);
-
           if (!scoring.shouldSave) { noMatchThisBatch++; continue; }
 
           const details = await getPlaceDetails(place.place_id, GOOGLE_PLACES_API_KEY);
@@ -501,6 +521,20 @@ Deno.serve(async (req) => {
           const matchedServiceContext = matched_target_customer
             ? (taxonomyProfile?.ownServices?.slice(0, 3) || []).join(', ')
             : (taxonomyProfile?.ownServices?.[0] || '');
+
+          // ── Pre-Create Final DB Check (Race-Condition-Schutz) ────────────
+          // Letzte Absicherung: nochmal DB prüfen direkt vor dem Create
+          // (zwischen unserem Read oben und jetzt könnte ein anderer Worker bereits gespeichert haben)
+          const alreadyExists = await base44.asServiceRole.entities.Company.filter({
+            organization_id,
+            google_place_id: place.place_id,
+          });
+          if (alreadyExists && alreadyExists.length > 0) {
+            dupSkippedThisBatch++;
+            existingPlaceIds.add(place.place_id);
+            console.info(`[processResearchRun] SKIP pre-create check: already exists place_id=${place.place_id}`);
+            continue;
+          }
 
           await base44.asServiceRole.entities.Company.create({
             organization_id,
@@ -523,11 +557,15 @@ Deno.serve(async (req) => {
             research_run_id,
             matched_target_customer_type: scoring.matched_target_customer_type || matched_target_customer || null,
             matched_service_context: matchedServiceContext || null,
+            // Neu: google_place_id + source_provider für Dedupe
+            google_place_id: place.place_id || null,
+            source_provider: 'google_places',
           });
 
           existingNames.add(normStr(place.name || ''));
+          existingPlaceIds.add(place.place_id);
           newLeadsSavedThisBatch++;
-          console.info(`[processResearchRun] SAVED "${place.name}" run=${research_run_id} batch=${batchIndex} score=${scoring.score} family=${family} taxonomy=${taxonomyHash}`);
+          console.info(`[processResearchRun] SAVED "${place.name}" run=${research_run_id} batch=${batchIndex} place_id=${place.place_id} score=${scoring.score}`);
         }
       }
     }
@@ -558,23 +596,23 @@ Deno.serve(async (req) => {
       : `Suche läuft… ${totalLeadsSaved} Kontakte bisher gefunden`;
 
     await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-      status: newStatus,
-      leads_saved: totalLeadsSaved,
+      status: newStatus, leads_saved: totalLeadsSaved,
       duplicates_skipped: (run.duplicates_skipped || 0) + dupSkippedThisBatch,
       no_match_count: (run.no_match_count || 0) + noMatchThisBatch,
       outside_radius_count: (run.outside_radius_count || 0) + outsideRadiusThisBatch,
       raw_hits: (run.raw_hits || 0) + rawHitsThisBatch,
       progress_percent: isDone ? 100 : progressPercent,
-      batch_index: nextBatchIndex,
-      total_batches: totalBatches,
+      batch_index: nextBatchIndex, total_batches: totalBatches,
       current_step: newStep,
       seen_place_ids: JSON.stringify([...seenPlaceIds].slice(-500)),
       charged_lead_generation: totalLeadsSaved > 0,
+      // Lock immer aufheben nach Batch
+      processing_lock_until: null, processing_by: null,
       ...(isDone ? { finished_at: new Date().toISOString() } : {}),
       ...(isDone && zeroResultCause ? { zero_result_cause: zeroResultCause } : {}),
     });
 
-    console.info(`[processResearchRun] Batch ${batchIndex} done: newSaved=${newLeadsSavedThisBatch} totalSaved=${totalLeadsSaved} done=${isDone} cityMode=${cityMode} engine=${SEARCH_ENGINE_VERSION}`);
+    console.info(`[processResearchRun] Batch ${batchIndex} done: newSaved=${newLeadsSavedThisBatch} totalSaved=${totalLeadsSaved} done=${isDone} engine=${SEARCH_ENGINE_VERSION}`);
 
     return Response.json({
       success: true, done: isDone, status: newStatus,
@@ -589,7 +627,6 @@ Deno.serve(async (req) => {
       const base44b = createClientFromRequest(req);
       const body2 = await req.clone().json().catch(() => ({}));
       if (body2.research_run_id) {
-        // Aktuellen Run-Stand lesen um leads_saved zu kennen
         const existingRuns = await base44b.asServiceRole.entities.ResearchRun.filter({ id: body2.research_run_id }).catch(() => []);
         const existingRun = existingRuns[0];
         const finishStatus = (existingRun?.leads_saved || 0) > 0 ? 'partial' : 'failed';
@@ -601,6 +638,7 @@ Deno.serve(async (req) => {
             : 'Recherche fehlgeschlagen',
           finished_at: new Date().toISOString(),
           stop_reason: 'exception',
+          processing_lock_until: null, processing_by: null,
         });
       }
     } catch {}

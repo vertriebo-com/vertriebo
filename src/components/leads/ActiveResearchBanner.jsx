@@ -1,22 +1,27 @@
 /**
  * ActiveResearchBanner
+ * ====================
  * Zeigt Fortschrittsbalken während ein ResearchRun läuft.
- * WICHTIG: Ruft processResearchRun aktiv auf (nicht nur Status-Polling).
- * Enthält Stale-Run-Watchdog: Run der > 90s kein Update hatte → forciert Abschluss.
+ *
+ * WICHTIG – Koordination mit ResearchDialog:
+ * - Wenn ein Processing-Lock aktiv ist (run.processing_lock_until in Zukunft),
+ *   verarbeitet der Banner NICHT selbst → verhindert parallele Duplikate.
+ * - Banner ruft processResearchRun nur auf wenn KEIN aktiver Lock existiert.
+ * - ResearchDialog ist der primäre Worker solange er offen ist.
+ * - Banner übernimmt als Fallback wenn Dialog geschlossen wurde.
  */
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Loader2, CheckCircle2, X } from "lucide-react";
 
-const POLL_MS = 4000;
-const STALE_TIMEOUT_MS = 90000; // 90 Sekunden ohne Fortschritt → Stale
+const POLL_MS = 5000; // Etwas längerer Interval als ResearchDialog (3s), um Kollisionen zu reduzieren
+const STALE_TIMEOUT_MS = 90000;
 
 export default function ActiveResearchBanner({ orgId, onNewLeads }) {
   const [activeRun, setActiveRun] = useState(null);
   const [dismissed, setDismissed] = useState(null);
   const lastLeadsSavedRef = useRef(0);
   const processingRef = useRef(false);
-  const lastProgressAtRef = useRef(Date.now());
   const retryCountRef = useRef(0);
   const MAX_RETRIES = 3;
 
@@ -31,7 +36,6 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
     if (processingRef.current) return;
     processingRef.current = true;
     try {
-      // 1. Neueste Runs laden
       const runs = await base44.entities.ResearchRun.filter(
         { organization_id: orgId }, '-created_date', 3
       );
@@ -43,13 +47,17 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
       });
 
       if (running) {
-        // 2. Stale-Watchdog: updated_date älter als 90s → Run gilt als hängend
+        // ── Lock-Prüfung: Aktiver Worker läuft bereits (z.B. ResearchDialog) ──
+        const lockUntil = running.processing_lock_until ? new Date(running.processing_lock_until).getTime() : 0;
+        const isLockActive = lockUntil > Date.now();
+
+        // Stale-Check
         const lastUpdate = running.updated_date ? new Date(running.updated_date).getTime() : Date.now();
         const isStale = Date.now() - lastUpdate > STALE_TIMEOUT_MS;
 
         if (isStale && retryCountRef.current >= MAX_RETRIES) {
-          // Stale + zu viele Retries → forciert Abschluss via Backend
-          console.warn('[ActiveResearchBanner] Stale run detected, forcing partial finish:', running.id);
+          // Stale + zu viele Retries → forcierter Abschluss
+          console.warn('[ActiveResearchBanner] Stale run, forcing finish:', running.id);
           await base44.functions.invoke('processResearchRun', {
             research_run_id: running.id,
             organization_id: orgId,
@@ -59,7 +67,25 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
           return;
         }
 
-        // 3. processResearchRun aufrufen (das eigentliche Batch-Processing)
+        // ── Wenn Lock aktiv: nur anzeigen, NICHT selbst verarbeiten ──────────
+        if (isLockActive) {
+          // Anderer Worker (ResearchDialog) ist aktiv → nur UI aktualisieren
+          setActiveRun({
+            id: running.id,
+            status: running.status,
+            leads_saved: running.leads_saved ?? 0,
+            progress_percent: running.progress_percent ?? 5,
+            message: running.current_step || 'Recherche läuft…',
+          });
+
+          if ((running.leads_saved || 0) > lastLeadsSavedRef.current) {
+            lastLeadsSavedRef.current = running.leads_saved || 0;
+            onNewLeads?.();
+          }
+          return;
+        }
+
+        // ── Kein Lock aktiv → Banner kann selbst verarbeiten (Dialog geschlossen) ──
         const res = await base44.functions.invoke('processResearchRun', {
           research_run_id: running.id,
           organization_id: orgId,
@@ -67,11 +93,10 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
         const data = res?.data;
 
         if (data?.leads_saved > lastLeadsSavedRef.current) {
-          lastProgressAtRef.current = Date.now();
-          retryCountRef.current = 0;
           lastLeadsSavedRef.current = data.leads_saved;
+          retryCountRef.current = 0;
           onNewLeads?.();
-        } else if (!isStale) {
+        } else if (!isStale && !data?.already_processing) {
           retryCountRef.current++;
         }
 
@@ -81,7 +106,7 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
             status: data.status || 'completed',
             leads_saved: data.leads_saved || running.leads_saved || 0,
             progress_percent: 100,
-            message: data.leads_saved > 0
+            message: (data.leads_saved || 0) > 0
               ? `${data.leads_saved} neue Firmenkontakte gefunden`
               : 'Keine neuen Kontakte gefunden',
           });
@@ -95,9 +120,7 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
           status: running.status,
           leads_saved: data?.leads_saved ?? running.leads_saved ?? 0,
           progress_percent: data?.progress_percent ?? running.progress_percent ?? 0,
-          message: isStale
-            ? `Recherche wird fortgesetzt… ${data?.leads_saved ?? running.leads_saved ?? 0} Kontakte gefunden`
-            : (data?.current_step || running.current_step || 'Recherche läuft…'),
+          message: data?.current_step || running.current_step || 'Recherche läuft…',
         });
 
       } else if (recentDone && recentDone.id !== dismissed) {
@@ -156,7 +179,6 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
         )}
       </div>
 
-      {/* Progress Bar (nur wenn running) */}
       {isRunning && (
         <div className="mt-2.5">
           <div className="w-full bg-blue-100 rounded-full h-1.5">

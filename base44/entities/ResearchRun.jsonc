@@ -134,13 +134,11 @@
     },
     "taxonomy_version": {
       "type": "string",
-      "title": "Taxonomie-Version",
-      "description": "Version der Taxonomie die bei diesem Run aktiv war (z.B. v4-ssot-2026-05)"
+      "title": "Taxonomie-Version"
     },
     "industry_id": {
       "type": "string",
-      "title": "Normalisierte Branchen-ID",
-      "description": "Kanonische Branchen-ID aus der Taxonomie (z.B. gebaeudereinigung)"
+      "title": "Normalisierte Branchen-ID"
     },
     "selected_target_customer_types": {
       "type": "string",
@@ -164,8 +162,7 @@
       "enum": [
         "geo_only",
         "keyword_with_city"
-      ],
-      "description": "geo_only = Stadt nicht im Query (Koordinaten via locationBias), keyword_with_city = Stadt im Suchbegriff enthalten"
+      ]
     },
     "search_centers_used": {
       "type": "string",
@@ -180,9 +177,29 @@
         "all_duplicates",
         "no_match_score",
         "all_queries_exhausted",
-        "no_geo_coords"
-      ],
-      "description": "Warum wurden keine Leads gefunden? Hilft bei Diagnose und Optimierung."
+        "no_geo_coords",
+        "taxonomy_profile_missing"
+      ]
+    },
+    "stop_reason": {
+      "type": "string",
+      "title": "Stopp-Grund (intern)"
+    },
+    "worker_attempts": {
+      "type": "number",
+      "title": "Worker-Versuche",
+      "default": 0
+    },
+    "processing_lock_until": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Verarbeitungs-Lock bis",
+      "description": "Atomarer Lock: Wenn gesetzt und in der Zukunft, verarbeitet kein anderer Worker diesen Run"
+    },
+    "processing_by": {
+      "type": "string",
+      "title": "Verarbeitet von (Worker-Key)",
+      "description": "Eindeutiger Worker-Key des aktiven Verarbeiters"
     }
   },
   "required": [
