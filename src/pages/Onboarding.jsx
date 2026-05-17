@@ -105,9 +105,18 @@ export default function Onboarding() {
         });
       }
 
-      // Settings: strukturierte Ortsdaten + Legacy-Keys für Rückwärtskompatibilität
+      // Settings: Branche (canonical + legacy) + Ortsdaten
+      const isFallback = data.selectedIndustry.isFallback || false;
       const settingsToSave = [
+        { key: "industry_name",          value: data.selectedIndustry.name },
+        { key: "industry_id",            value: data.selectedIndustry.industry_id || data.selectedIndustry.name },
         { key: "own_industry",           value: data.selectedIndustry.name },
+        // Fallback-Tracking
+        ...(isFallback ? [
+          { key: "custom_industry_requested", value: "true" },
+          { key: "custom_industry_label",     value: data.selectedIndustry.fallbackLabel || data.selectedIndustry.name },
+          { key: "fallback_profile_used",     value: data.selectedIndustry.industry_id || "fallback_lokaler_dienstleister" },
+        ] : []),
         { key: "lead_plz_city",          value: cityName },
         { key: "lead_radius_km",         value: String(data.radius) },
         { key: "service_area_city",      value: cityName },

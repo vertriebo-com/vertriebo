@@ -211,7 +211,8 @@ Deno.serve(async (req) => {
     let taxonomyHash = null;
     let taxonomyVersion = null;
 
-    const industryId = LEGACY_INDUSTRY_MAP[industry] || industry;
+    // Canonical industry_id: direkt aus Settings bevorzugt (wird von Onboarding + CompanySettings gesetzt)
+    const industryId = settings.industry_id || LEGACY_INDUSTRY_MAP[industry] || industry;
     try {
       const taxRes = await base44.functions.invoke('getTaxonomy', { action: 'get_single', industry_id: industryId });
       if (taxRes?.data?.success && taxRes.data.profile) {
