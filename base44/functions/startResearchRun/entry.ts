@@ -226,7 +226,22 @@ Deno.serve(async (req) => {
       }
     } catch (taxErr) {
       console.error('[startResearchRun] Taxonomie-Ladefehler:', taxErr?.message);
-      // Nicht abbrechen – processResearchRun kann ohne Profil laufen (schlechtere Qualität)
+      return Response.json({
+        success: false,
+        error: 'taxonomy_load_error',
+        message: `Taxonomie konnte nicht geladen werden: ${taxErr?.message}. Bitte erneut versuchen.`,
+      }, { status: 500 });
+    }
+
+    // HARD FAIL: Kein Profil → kein Run erstellen.
+    // processResearchRun darf nur mit eingebettetem taxonomyProfile laufen.
+    if (!taxonomyProfile) {
+      console.error(`[startResearchRun] taxonomy_profile_missing: industry="${industry}" industryId="${industryId}"`);
+      return Response.json({
+        success: false,
+        error: 'taxonomy_profile_missing',
+        message: `Kein Taxonomie-Profil für Branche "${industry}" (id="${industryId}"). Bitte Branche in den Einstellungen prüfen.`,
+      }, { status: 400 });
     }
 
     // ── Suchplan zusammenbauen (Taxonomie-Profil eingebettet) ────────────────
