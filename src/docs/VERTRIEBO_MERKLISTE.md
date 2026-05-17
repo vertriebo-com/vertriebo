@@ -1,5 +1,5 @@
 # VERTRIEBO ARCHITEKTUR-MERKLISTE
-## Stand: 2026-05-17 | v4-db
+## Stand: 2026-05-17 | v4-db — FINAL VERIFIZIERT
 
 > **PFLICHTREGEL: Nicht "akzeptabel" — produktionsreif, kundenreif, robust.**
 > Jede Entscheidung muss diese Standards erfüllen. Keine Dummy-Logik, keine doppelte Wahrheit, keine technischen Schulden an der Kernfunktion.
@@ -44,12 +44,13 @@ processResearchRun (Backend)
 ```
 
 ### Regeln
-- **EINE Wahrheitsquelle:** TaxonomyEntry in der DB.
+- **EINE Wahrheitsquelle:** TaxonomyEntry in der DB. `utils/leadSearchTaxonomy.js` ist KEIN Runtime-Datum mehr — nur historische Referenz.
 - **Kein Copy-Paste** zwischen Frontend und Backend.
 - **Kein Inline-Taxonomy-Objekt** in processResearchRun.
 - **Self-Seeding:** getTaxonomy initialisiert DB automatisch beim ersten Aufruf.
 - **Admin-Reset:** `getTaxonomy({ action: "seed_reset" })` setzt Seed neu.
 - **Hash-Tracking:** `taxonomy_hash` in jedem ResearchRun → vollständige Rückverfolgung.
+- **taxonomy_profile_missing = HARD FAIL:** processResearchRun bricht sofort mit status=failed ab wenn kein Profil im Plan.
 
 ### Taxonomie ändern
 1. `TAXONOMY_SEED` in `functions/getTaxonomy` aktualisieren
@@ -109,12 +110,16 @@ Beim Speichern IMMER **alle** dieser Keys synchron befüllen:
 - `badFit = true` → immer verwerfen (negativeKeywords, badFitSignals aus DB-Profil)
 
 ### Zero-Result-Diagnose (zero_result_cause)
-- `no_queries_built` → kein Profil + keine Zielkunden
+- `taxonomy_profile_missing` → **HARD FAIL**: kein Profil in search_plan_json.taxonomyProfile → sofortiger Abbruch mit status=failed, kein stilles Weiterlaufen
+- `no_queries_built` → Profil vorhanden, aber keine Kategorien aus Zielkunden ableitbar
 - `no_geo_coords` → Stadt nicht aufgelöst
 - `no_google_results` → Google API hat nichts zurückgegeben
 - `all_duplicates` → alle Treffer schon in DB
 - `no_match_score` → Scoring zu streng oder BadFit
 - `all_queries_exhausted` → alle Batches fertig, 0 Leads
+
+**KRITISCHE REGEL:** processResearchRun darf NIEMALS ohne taxonomyProfile weiterlaufen.
+Fehlendes Profil = sofortiger status='failed' + error='taxonomy_profile_missing'. Kein Fallback-Score.
 
 ---
 

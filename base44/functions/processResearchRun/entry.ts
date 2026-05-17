@@ -314,6 +314,25 @@ Deno.serve(async (req) => {
 
     const hasGeoCoords = !!(cityCoords?.lat && cityCoords?.lng);
 
+    // ── Taxonomie-Profil Pflichtprüfung ───────────────────────────────────────
+    // KEIN stilles Weiterlaufen ohne Profil – das wäre eine undiagnostizierbare Qualitätsdegradierung.
+    if (!taxonomyProfile) {
+      console.error(`[processResearchRun] taxonomy_profile_missing run=${research_run_id} industry=${industry} industryId=${industryId}`);
+      await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+        status: 'failed',
+        error_message: `taxonomy_profile_missing: Kein Taxonomie-Profil für Branche "${industry}" (id=${industryId}). startResearchRun hat kein Profil eingebettet. Bitte Branche in Einstellungen prüfen und Recherche neu starten.`,
+        finished_at: new Date().toISOString(),
+        zero_result_cause: 'no_queries_built',
+      });
+      return Response.json({
+        success: false,
+        done: true,
+        status: 'failed',
+        error: 'taxonomy_profile_missing',
+        error_message: `Kein Taxonomie-Profil für Branche "${industry}". Bitte Branche in den Einstellungen setzen und Recherche neu starten.`,
+      }, { status: 400 });
+    }
+
     // ── Queries aus eingebettetem Profil bauen ───────────────────────────────
     // Kein DB-Call hier, kein Inline-Taxonomy-Objekt. Profil kommt aus dem Plan.
     const { queries: allQueries, queryFamiliesUsed, cityMode } = buildQueriesFromProfile(
@@ -422,10 +441,8 @@ Deno.serve(async (req) => {
           if (isLikelyChain(place).isChain) { noMatchThisBatch++; continue; }
           if (existingNames.has(normStr(place.name || ''))) { dupSkippedThisBatch++; continue; }
 
-          // Scoring mit DB-Profil aus searchPlan
-          const scoring = taxonomyProfile
-            ? scoreCandidate(place, taxonomyProfile, distanceKm, radiusKm, category)
-            : { score: 60, matched_search_category: category, matched_target_customer_type: null, relevance_reason: `NoProfile:${category}`, shouldSave: !isBadFit(place, {}).bad };
+          // Scoring mit DB-Profil aus searchPlan (taxonomyProfile ist hier garantiert != null)
+          const scoring = scoreCandidate(place, taxonomyProfile, distanceKm, radiusKm, category);
 
           if (!scoring.shouldSave) { noMatchThisBatch++; continue; }
 
