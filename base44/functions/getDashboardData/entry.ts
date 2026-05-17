@@ -9,17 +9,31 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // ── Rollenauflösung ────────────────────────────────────────────────────
+    // Priorität: platform admin (user.role) > org owner > organization_admin member > sales_rep
+    const isPlatformAdmin = ["admin", "platform_owner", "platform_admin", "support_agent", "readonly_support"].includes(user.role);
+
     // Organisation ermitteln
     let org = null;
-    const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
-    org = orgs?.[0] || null;
+    let memberRecord = null;
 
-    if (!org) {
-      const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" });
-      if (memberships?.[0]?.organization_id) {
-        const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
-        org = memberOrgs?.[0] || null;
-      }
+    const [ownerOrgs, memberships] = await Promise.all([
+      base44.entities.Organization.filter({ owner_email: user.email }),
+      base44.entities.OrganizationMember.filter({ user_email: user.email, status: "active" }),
+    ]);
+
+    org = ownerOrgs?.[0] || null;
+
+    if (!org && memberships?.[0]?.organization_id) {
+      const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
+      org = memberOrgs?.[0] || null;
+      memberRecord = memberships[0];
+    }
+
+    // Platform-Admin ohne eigene Org: erste Org nehmen (für Support-Ansicht)
+    if (!org && isPlatformAdmin) {
+      const anyOrg = await base44.asServiceRole.entities.Organization.list("-created_date", 1);
+      org = anyOrg?.[0] || null;
     }
 
     if (!org) {
@@ -27,7 +41,12 @@ Deno.serve(async (req) => {
     }
 
     const orgId = org.id;
-    const isAdmin = user.role === "admin";
+    const isOrgOwner = org.owner_email === user.email;
+    const memberRole = memberRecord?.role || null; // 'organization_admin' | 'sales_rep' | null
+    const isOrgAdmin = isPlatformAdmin || isOrgOwner || memberRole === 'organization_admin';
+    const isSalesRep = !isOrgAdmin && memberRole === 'sales_rep';
+    // Legacy-kompatibel: isAdmin = org-weiter Zugriff
+    const isAdmin = isOrgAdmin;
 
     // Blacklist laden für Filter
     const blacklist = await base44.entities.Blacklist.filter({ organization_id: orgId });
@@ -124,26 +143,39 @@ Deno.serve(async (req) => {
       if (company.is_blacklisted) continue;
       if (companyActionItems.length >= 8) break;
 
-      // Engine-Daten parsen
+      // Engine-Daten parsen + next_best_action normalisieren
+      // next_best_action kann sein: string (legacy) | { title, reason, type } (engine v2)
       let engineData = null;
       try {
         if (company.engine_analysis_json) engineData = JSON.parse(company.engine_analysis_json);
       } catch {}
 
-      const nextBestAction = engineData?.next_best_action || company.next_best_action || null;
+      const rawNba = engineData?.next_best_action || company.next_best_action || null;
+      let nbaTitle = null, nbaReason = null, nbaType = null;
+      if (rawNba) {
+        if (typeof rawNba === 'string') {
+          nbaTitle = rawNba;
+        } else if (typeof rawNba === 'object') {
+          nbaTitle = rawNba.title || rawNba.action || null;
+          nbaReason = rawNba.reason || null;
+          nbaType = rawNba.type || null;
+        }
+      }
+
       const leadTemp = company.lead_temperature || 'unknown';
       const tempScore = company.lead_temperature_score || 0;
       const hasContact = !!(company.telefon || company.email);
 
       // Heiße Leads ohne Task
       if ((company.is_hot || leadTemp === 'hot') && !companiesWithTasks.has(company.id)) {
-        const action = nextBestAction || (company.telefon ? 'Anrufen' : company.email ? 'E-Mail senden' : 'Recherchieren');
+        const action = nbaTitle || (company.telefon ? 'Anrufen' : company.email ? 'E-Mail senden' : 'Recherchieren');
         companyActionItems.push({
           type: 'hot_lead',
           company_id: company.id,
           company_name: company.name,
           action,
-          reason: 'Heißer Lead',
+          reason: nbaReason || 'Heißer Lead',
+          action_type: nbaType || null,
           priority: 2,
           lead_temperature: leadTemp,
           has_contact: hasContact,
@@ -152,13 +184,14 @@ Deno.serve(async (req) => {
       }
 
       // Warme Leads mit next_best_action
-      if (leadTemp === 'warm' && nextBestAction && !companiesWithTasks.has(company.id)) {
+      if (leadTemp === 'warm' && nbaTitle && !companiesWithTasks.has(company.id)) {
         companyActionItems.push({
           type: 'warm_lead_action',
           company_id: company.id,
           company_name: company.name,
-          action: nextBestAction,
-          reason: 'Warmer Lead mit Empfehlung',
+          action: nbaTitle,
+          reason: nbaReason || 'Warmer Lead mit Empfehlung',
+          action_type: nbaType || null,
           priority: 3,
           lead_temperature: leadTemp,
           has_contact: hasContact,
@@ -240,6 +273,9 @@ Deno.serve(async (req) => {
         email: user.email,
         full_name: user.full_name,
         role: user.role,
+        org_role: isOrgAdmin ? 'organization_admin' : (isSalesRep ? 'sales_rep' : null),
+        is_platform_admin: isPlatformAdmin,
+        is_org_admin: isOrgAdmin,
         org,
       },
       stats: {
