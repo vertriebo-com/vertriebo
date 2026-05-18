@@ -492,37 +492,66 @@ Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 - Dauerregel: Services, Zielkunden, Branchenlogik aus Settings müssen echte Wirkung in allen 7 Modulen haben — keine generischen Texte wenn Kontext vorhanden
 
 **Nächste offene Kernblöcke (nach Priorisierung):**
-- ✅ Phase 1 Admin-/Owner-Diagnosecenter: ResearchRunDiagnostics — ABGESCHLOSSEN 2026-05-18
-- Ausstehend: Phase 2 LeadScoringDiagnostics, Phase 3 Dry-Test-Center, Phase 4 Usage/Billing-Diagnose
-
-### ✅ Phase 1 Admin-/Owner-Diagnosecenter: ResearchRunDiagnostics (2026-05-18)
-
-**Implementiert:**
-- `components/platform-admin/ResearchRunDiagnostics.jsx` — direkte Entity-Abfrage, keine Dummy-Werte
-- Neuer Tab "Diagnose & Monitoring" in `pages/PlatformAdmin.jsx`
-- Platform Admin sieht alle Runs, Org Admin nur eigene Org — serverseitig erzwungen via `organization_id`-Filter
-- Filter: nach Org, nach Status (queued/running/completed/partial/failed), Freitext-Suche
-- Status-Badges mit Icons (inkl. Lock-Anzeige für aktive Verarbeitungs-Locks)
-- Detailansicht (Accordion): Kennzahlen, Taxonomie, Zeitverlauf, Stopp-Gründe, Suchzentren, Suchanfragen
-- JSON-Felder (search_queries_used, search_centers_used) robust geparst mit Fallback-Anzeige bei ungültigem JSON
-- Laufzeit berechnet aus started_at/finished_at, Fallback-Kennzeichnung wenn nur geschätzt
-- Worker-Versuche und Lock-Status sichtbar
-
-**Akzeptanzkriterien:**
-- ✅ platformAdminHasDiagnosticsTab
-- ✅ researchRunDiagnosticsUsesRealData
-- ✅ orgNamesResolved
-- ✅ adminCanFilterByOrgAndStatus
-- ✅ adminCanOpenRunDetail
-- ✅ roleAccessIsRespected
-- ✅ noDummyDiagnostics
-- ✅ merklisteUpdated
-
-**Offen (nächste Phasen):**
+- ✅ Phase 1: ResearchRunDiagnostics — ABGESCHLOSSEN 2026-05-18
 - ✅ Phase 2: LeadScoringDiagnostics — ABGESCHLOSSEN 2026-05-18
 - ✅ Phase 3: Dry-Test-Center (LeadEngineDryTest) — ABGESCHLOSSEN 2026-05-18
-- ✅ UX-Fix: Diagnose-Sub-Tabs (Research Runs / Lead Scoring / Dry-Test / Usage-Billing) — ABGESCHLOSSEN 2026-05-18
-- Phase 4: Usage/Billing-Diagnose (UsageLog Entity)
+- ✅ Phase 4: Usage/Billing-Diagnose (UsageBillingDiagnostics) — ABGESCHLOSSEN 2026-05-18
+
+---
+
+## 12. ADMIN-/OWNER-DIAGNOSECENTER — GESAMTVERIFIKATION (2026-05-18) 🎉
+
+### ✅ Alle Phasen abgeschlossen und live getestet
+
+| Phase | Komponente | Status | Verifikation |
+|---|---|---|---|
+| **Phase 1** | `ResearchRunDiagnostics` | ✅ LIVE | Echte ResearchRun-Daten, Filter nach Org/Status, Detailansicht mit Taxonomie/Queries/Locks |
+| **Phase 2** | `LeadScoringDiagnostics` | ✅ LIVE | Echte Company-Daten, Score/Signals/Engine-Analysis, Filter funktionieren |
+| **Phase 3** | `LeadEngineDryTest` | ✅ LIVE | testLeadSearchEngine aus UI, kein DB-Speichern, Top/Rejected-Leads sichtbar |
+| **Phase 4** | `UsageBillingDiagnostics` | ✅ LIVE | Echte UsageLogs, Run-vs-Usage-Abgleich, Plausibilitäts-Warnungen |
+
+### ✅ Rollen-Zugriff verifiziert
+
+| Rolle | Zugriff | Verifikation |
+|---|---|---|
+| **Platform Admin** | Alle Orgs, alle Runs, alle UsageLogs | ✅ Serverseitig erzwungen via `organization_id`-Filter |
+| **Org Admin** | Nur eigene Org | ✅ `isOrgAdmin`-Check + orgId-Filter |
+| **Normaler User** | Kein Zugriff | ✅ `hasAccess`-Check zeigt Fehlermeldung |
+
+### ✅ UX-Verbesserungen umgesetzt
+
+- **Sub-Tabs** verhindern langes Scrollen (Research Runs / Lead Scoring / Dry-Test / Usage-Billing)
+- **Filter-Bars** mit Org-Auswahl, Monatsauswahl, Freitext-Suche
+- **Accordion-Details** für kompakte Darstellung
+- **Warn-Badges** für Plausibilitätsprobleme (Usage > Run, kein UsageLog, partial ohne finish, etc.)
+- **Keine Mutationen** — alle Diagnose-Komponenten sind READ-ONLY
+
+### ✅ Plausibilitätsprüfungen (UsageBillingDiagnostics)
+
+Warnungen werden erkannt und angezeigt:
+- `usage_higher`: UsageLog > ResearchRun.leads_saved
+- `no_usage`: ResearchRun mit Leads, aber kein UsageLog
+- `partial_no_finish`: Partial-Status ohne finished_at
+- `failed_with_usage`: Failed-Status mit gespeicherten Leads
+
+### ✅ Akzeptanzkriterien erfüllt
+
+- ✅ adminOwnerDiagnosticsCenterCompleted
+- ✅ researchRunDiagnosticsComplete
+- ✅ leadScoringDiagnosticsComplete
+- ✅ leadEngineDryTestComplete
+- ✅ usageBillingDiagnosticsComplete
+- ✅ roleAccessVerified
+- ✅ noDummyDiagnostics (alle Komponenten nutzen echte Entity-Daten)
+- ✅ noBillingMutationInDiagnostics (READ-ONLY)
+- ✅ merklisteFinalized
+- ✅ diagnosticsSubNavigationExists
+- ✅ noLongScrollBetweenDiagnosticsModules
+
+### 🎉 BLOCK ABGESCHLOSSEN: Admin-/Owner-Diagnosecenter
+
+**Alle 4 Phasen live getestet und verifiziert.**
+**Nächster Kernblock kann priorisiert werden.**
 
 ---
 
@@ -543,7 +572,7 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 
 ---
 
-## 12. TAXONOMIE-ERWEITERUNGS-BACKLOG
+## 13. TAXONOMIE-ERWEITERUNGS-BACKLOG
 
 ### Profil-Kategorien
 
