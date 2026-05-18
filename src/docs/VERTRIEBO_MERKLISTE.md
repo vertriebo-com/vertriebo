@@ -437,7 +437,7 @@ Alle Akzeptanz-Kriterien erfüllt:
 Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 ```
 
-### ✅ P0 ABGESCHLOSSEN: Branchenspezifischer Vertriebsprozess (2026-05-18)
+### ✅ P0–P2 ABGESCHLOSSEN: Branchenspezifischer Vertriebsprozess (2026-05-18) — PRODUKTIONSREIF
 
 **`analyzeLeadEngine`:**
 - `loadOrgSettings()` lädt `services`, `target_customer_types`, `industry_name` aus OrganizationSettings
@@ -481,8 +481,18 @@ Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 - Live-Test: org=6a042bdb22ac907a26c5affe, reminders_sent=1, Tagesfokus mit dienstleistungen+zielkunden-Fallback gerendert ✅
 - Bugfix: settingsMap-Bug (undefined reference) behoben ✅
 
-**Offen (P3):**
-- Kein weiterer offener Vertriebsprozess-Block bekannt
+**Gesamtverifikation abgeschlossen (2026-05-18):**
+- ✅ analyzeLeadEngine: outreach_angle, suggested_opening, qualification_questions aus services + matched_target_customer_type
+- ✅ getKiRecommendation: matched_service_context, engine_analysis_json, relevance_reason im LLM-Prompt
+- ✅ emailTemplates / SendEmailDialog: Intro-Text und topic aus services + matched_service_context
+- ✅ followUpAgent: Task-Titel + Beschreibung aus matched_service_context + matched_target_customer_type + services
+- ✅ salesCoach: Tagesfokus-Block aus matched_service_context + org-weiten services + zielkunden
+- ✅ CallScriptDialog: LLM-Prompt mit firmenname, dienstleistungen, zielkunden, company.branche
+- ✅ LeadDetail / EngineBox: engine_analysis_json vollständig angezeigt, handleReanalyze aktualisiert Daten
+- Dauerregel: Services, Zielkunden, Branchenlogik aus Settings müssen echte Wirkung in allen 7 Modulen haben — keine generischen Texte wenn Kontext vorhanden
+
+**Nächste offene Kernblöcke (nach Priorisierung):**
+- Produktblock ausstehend — Entscheidung per Chat vor Start
 
 ### Priorität 2: Produktblock — E-Mail / KI-Skripte / Follow-ups
 Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_customer_types, matched_target_customer_type aus Company):
