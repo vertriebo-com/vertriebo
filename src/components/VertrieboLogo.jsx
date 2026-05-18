@@ -9,7 +9,7 @@ export default function VertrieboLogo({ size = "default", className = "" }) {
 
   return (
     <svg
-      viewBox="0 0 1000 1000"
+      viewBox="0 0 1200 900"
       className={`${sizes[size] || sizes.default} ${className}`}
       preserveAspectRatio="xMidYMid meet"
       style={{ display: "block" }}>
@@ -26,44 +26,44 @@ export default function VertrieboLogo({ size = "default", className = "" }) {
         </linearGradient>
       </defs>
       
-      {/* Gold V - Larger and clearer */}
+      {/* Gold V - Left side */}
       <path
-        d="M 280 250 L 420 650 L 360 650 L 310 500 L 260 650 L 200 650 L 340 250 Z"
+        d="M 180 200 L 320 600 L 260 600 L 210 450 L 160 600 L 100 600 L 240 200 Z"
         fill="url(#goldGradient)"
         style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }} />
       
-      {/* Silver O - Better visibility */}
+      {/* Silver O - Middle left */}
       <circle 
-        cx="580" 
-        cy="450" 
-        r="140" 
+        cx="480" 
+        cy="400" 
+        r="130" 
         fill="none" 
         stroke="url(#silverGradient)" 
-        strokeWidth="70"
+        strokeWidth="65"
         style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }} />
 
-      {/* Text VERTRIEBO - Bold and clear */}
+      {/* Text VERTRIEBO - Centered and bold */}
       <text
-        x="500"
-        y="820"
-        fontSize="180"
+        x="600"
+        y="780"
+        fontSize="160"
         fontWeight="900"
         fontFamily="Inter, sans-serif"
         textAnchor="middle"
         fill="#FFFFFF"
-        letterSpacing="12"
+        letterSpacing="10"
         style={{ filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}>
         VERTRIEBO
       </text>
 
-      {/* Gold O at end - Accent */}
+      {/* Gold O at end - Right accent */}
       <circle 
-        cx="850" 
-        cy="800" 
-        r="30" 
+        cx="1050" 
+        cy="760" 
+        r="28" 
         fill="none" 
         stroke="url(#goldGradient)" 
-        strokeWidth="18"
+        strokeWidth="16"
         style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }} />
     </svg>
   );
