@@ -18,20 +18,15 @@ export default function PipelineBar({ companies, activeStatus, onStatusClick }) 
   });
 
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
-            <TrendingUp className="w-3.5 h-3.5 text-blue-600" />
-          </div>
-          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Pipeline</h3>
-        </div>
-        <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-lg">{total} Leads</span>
+    <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm p-3 mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Pipeline-Übersicht</h3>
+        <span className="text-xs font-medium text-slate-600">{total} Leads</span>
       </div>
       
-      <div className="grid grid-cols-7 gap-1.5">
+      {/* Kompakte Status-Zeile */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
         {PIPELINE_STAGES.map(stage => {
-          const Icon = stage.icon;
           const count = counts[stage.status] || 0;
           const isActive = activeStatus === stage.status;
           
@@ -39,27 +34,24 @@ export default function PipelineBar({ companies, activeStatus, onStatusClick }) 
             <button
               key={stage.status}
               onClick={() => onStatusClick(isActive ? null : stage.status)}
-              className={`flex flex-col items-center p-2 rounded-xl transition-all cursor-pointer ${
-                isActive ? `${stage.bg} ${stage.text} ring-2 ring-current shadow-sm` : "hover:bg-slate-50"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                isActive ? `${stage.bg} ${stage.text} ring-2 ring-current` : "hover:bg-slate-50"
               }`}
             >
-              <div className={`w-6 h-6 rounded-lg ${stage.color} flex items-center justify-center mb-1 shadow-sm`}>
-                <Icon className="w-3.5 h-3.5 text-white" />
-              </div>
-              <span className={`text-base font-bold ${isActive ? stage.text : "text-slate-900"}`}>{count}</span>
-              <span className={`text-[9px] font-semibold ${isActive ? stage.text : "text-slate-600"} leading-none mt-0.5 text-center`}>{stage.status}</span>
+              <span className={`text-sm font-bold ${isActive ? stage.text : "text-slate-900"}`}>{count}</span>
+              <span className={`text-[10px] font-medium ${isActive ? stage.text : "text-slate-600"}`}>{stage.status}</span>
             </button>
           );
         })}
       </div>
       
-      {/* Progress Line */}
-      <div className="mt-3 h-2 bg-slate-100 rounded-full overflow-hidden flex">
+      {/* Progress Line - Subtil */}
+      <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
         {PIPELINE_STAGES.map(stage => {
           const count = counts[stage.status] || 0;
           const percentage = total > 0 ? (count / total) * 100 : 0;
           return (
-            <div key={stage.status} className={`${stage.color} transition-all`} style={{ width: `${percentage}%` }} />
+            <div key={stage.status} className={`${stage.color}`} style={{ width: `${percentage}%` }} />
           );
         })}
       </div>
