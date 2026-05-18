@@ -7,7 +7,7 @@ const PIPELINE_STAGES = [
   { status: "Termin", icon: Calendar, color: "bg-purple-500", text: "text-purple-600", bg: "bg-purple-50", border: "border-purple-200" },
   { status: "Angebot", icon: FileText, color: "bg-indigo-500", text: "text-indigo-600", bg: "bg-indigo-50", border: "border-indigo-200" },
   { status: "Gewonnen", icon: Award, color: "bg-green-500", text: "text-green-600", bg: "bg-green-50", border: "border-green-200" },
-  { status: "Verloren", icon: XCircle, color: "bg-gray-500", text: "text-gray-600", bg: "bg-gray-50", border: "border-gray-200" },
+  { status: "Verloren", icon: XCircle, color: "bg-gray-400", text: "text-gray-500", bg: "bg-gray-50", border: "border-gray-200" },
 ];
 
 export default function PipelineBar({ companies, activeStatus, onStatusClick }) {
@@ -17,16 +17,25 @@ export default function PipelineBar({ companies, activeStatus, onStatusClick }) 
     counts[stage.status] = companies.filter(c => c.status === stage.status).length;
   });
 
+  // Nur Stages mit Einträgen oder aktiv gefilterte zeigen
+  const visibleStages = PIPELINE_STAGES.filter(s => counts[s.status] > 0 || activeStatus === s.status);
+
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Vertriebs-Pipeline</h3>
-        <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">{total} Leads</span>
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-3">
+      <div className="flex items-center justify-between mb-2.5">
+        <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Pipeline</h3>
+        {activeStatus && (
+          <button
+            onClick={() => onStatusClick(null)}
+            className="text-[10px] font-semibold text-blue-600 hover:underline"
+          >
+            Filter aufheben
+          </button>
+        )}
       </div>
       
-      {/* Status-Chips - Größer und besser lesbar */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {PIPELINE_STAGES.map(stage => {
+      <div className="flex flex-wrap gap-1.5">
+        {visibleStages.map(stage => {
           const count = counts[stage.status] || 0;
           const isActive = activeStatus === stage.status;
           const Icon = stage.icon;
@@ -35,41 +44,39 @@ export default function PipelineBar({ companies, activeStatus, onStatusClick }) 
             <button
               key={stage.status}
               onClick={() => onStatusClick(isActive ? null : stage.status)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl border transition-all cursor-pointer ${
-                isActive 
-                  ? `${stage.bg} ${stage.border} ${stage.text} shadow-md scale-105` 
-                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-all ${
+                isActive
+                  ? `${stage.bg} ${stage.border} ${stage.text} shadow-sm font-bold`
+                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
               }`}
             >
-              <Icon className={`w-4 h-4 ${isActive ? stage.text : "text-slate-400"}`} />
-              <span className={`text-sm font-bold ${isActive ? stage.text : "text-slate-900"}`}>{count}</span>
-              <span className={`text-xs font-medium ${isActive ? stage.text : "text-slate-600"}`}>{stage.status}</span>
+              <Icon className={`w-3 h-3 ${isActive ? stage.text : "text-slate-400"}`} />
+              <span className="font-bold">{count}</span>
+              <span className={isActive ? "" : "text-slate-500"}>{stage.status}</span>
             </button>
           );
         })}
+        {visibleStages.length === 0 && (
+          <p className="text-xs text-slate-400">Keine Leads vorhanden</p>
+        )}
       </div>
-      
-      {/* Progress Bar - Visueller */}
-      <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex">
-        {PIPELINE_STAGES.map(stage => {
-          const count = counts[stage.status] || 0;
-          const percentage = total > 0 ? (count / total) * 100 : 0;
-          return (
-            <div 
-              key={stage.status} 
-              className={`${stage.color} transition-all duration-300`} 
-              style={{ width: `${percentage}%` }}
-              title={`${stage.status}: ${count}`}
-            />
-          );
-        })}
-      </div>
-      
-      {/* Legende */}
-      <div className="flex items-center justify-between mt-3 text-[10px] text-slate-500">
-        <span>Pipeline-Verteilung</span>
-        <span className="font-medium">{total > 0 ? '100%' : 'Keine Daten'}</span>
-      </div>
+
+      {total > 0 && (
+        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden flex mt-3">
+          {PIPELINE_STAGES.map(stage => {
+            const count = counts[stage.status] || 0;
+            const pct = (count / total) * 100;
+            return pct > 0 ? (
+              <div
+                key={stage.status}
+                className={`${stage.color} transition-all duration-300`}
+                style={{ width: `${pct}%` }}
+                title={`${stage.status}: ${count}`}
+              />
+            ) : null;
+          })}
+        </div>
+      )}
     </div>
   );
 }

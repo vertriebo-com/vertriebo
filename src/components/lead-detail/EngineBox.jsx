@@ -1,113 +1,48 @@
 /**
- * EngineBox – Vertriebo Engine Phase 1 UI
- * 
- * Zeigt persistierte engine_analysis_json Daten von analyzeLeadEngine Backend.
- * Kein Render-based Analysis, keine Performance-Probleme.
- * 
- * Displays:
- * - Vertriebo Score + Temperatur
- * - Kurzfazit (summary)
- * - Warum-Begründung (reason)
- * - Top-Signale (fit, contactability, engagement, timing)
- * - Risiken & Fehlende Daten
- * - Nächster bester Schritt (actionable)
- * - Gesprächsansatz (outreach_angle)
- * - Eröffnungssatz (suggested_opening)
- * - Qualifizierungsfragen
- * - Einwände (objections)
+ * EngineBox – KI-Empfehlung für den Lead
+ * Kundenfreundlich: keine technischen Rohdaten, keine "Phase 1" Labels
  */
 
 import { useState } from "react";
-import { Zap, AlertCircle, CheckCircle2, Clock, RefreshCw, Target, ChevronDown } from "lucide-react";
+import { Lightbulb, CheckCircle2, Clock, RefreshCw, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 
-// Safe parse helpers
 function safeParseJSON(value) {
   if (!value) return null;
   if (typeof value === 'object') return value;
-  if (typeof value !== 'string') return null;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(value); } catch { return null; }
 }
 
 function safeParseArray(value) {
   if (!value) return [];
   if (Array.isArray(value)) return value;
-  if (typeof value !== 'string') return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  try { const p = JSON.parse(value); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
-// Normalize temperature to consistent format
 function normalizeTemperature(value) {
-  const raw = String(value || 'open').toLowerCase();
-  if (raw.includes('hot')) return 'Hot';
-  if (raw.includes('warm')) return 'Warm';
-  if (raw.includes('cold') || raw.includes('kalt')) return 'Cold';
-  return 'Open';
+  const raw = String(value || '').toLowerCase();
+  if (raw.includes('hot')) return 'hot';
+  if (raw.includes('warm')) return 'warm';
+  if (raw.includes('cold') || raw.includes('kalt')) return 'cold';
+  return 'unknown';
 }
 
-// Extract signals from various possible shapes
-function extractSignals(engineAnalysisJson) {
-  const signals = engineAnalysisJson?.signals || engineAnalysisJson?.signal_groups || {};
+function extractSignals(json) {
+  const signals = json?.signals || json?.signal_groups || {};
   return {
-    fit: signals.fit || signals.fit_signals || engineAnalysisJson?.fit_signals || [],
-    contactability: signals.contactability || signals.contactability_signals || engineAnalysisJson?.contactability_signals || [],
-    engagement: signals.engagement || signals.engagement_signals || engineAnalysisJson?.engagement_signals || [],
-    timing: signals.timing || signals.timing_signals || engineAnalysisJson?.timing_signals || [],
-    risk: signals.risk || signals.risk_signals || engineAnalysisJson?.risk_signals || [],
-    missing_data: signals.missing_data || signals.missingData || engineAnalysisJson?.missing_data || []
+    fit: signals.fit || json?.fit_signals || [],
+    contactability: signals.contactability || json?.contactability_signals || [],
+    engagement: signals.engagement || json?.engagement_signals || [],
+    timing: signals.timing || json?.timing_signals || [],
+    risk: signals.risk || json?.risk_signals || [],
+    missing_data: signals.missing_data || json?.missing_data || []
   };
 }
 
-// Human-readable signal labels
-const SIGNAL_LABELS = {
-  phone_available: "Telefonnummer vorhanden",
-  email_available: "E-Mail-Adresse vorhanden",
-  website_available: "Website vorhanden",
-  contact_person_available: "Ansprechpartner vorhanden",
-  contact_log_exists: "Kontaktversuch dokumentiert",
-  industry_match: "Passt zum Zielkundenprofil",
-  recent_contact: "Kürzlich kontaktiert",
-  new_lead: "Neuer Lead",
-  task_due_today: "Aufgabe heute fällig",
-  task_overdue: "Aufgabe überfällig",
-  offer_requested: "Angebot angefordert",
-  offer_sent: "Angebot versendet",
-  appointment_scheduled: "Termin vereinbart",
-  callback_scheduled: "Rückruf vereinbart",
-};
-
-const RISK_LABELS = {
-  lost_status: "Status: Verloren",
-  no_contact_data: "Keine Kontaktdaten vorhanden",
-  unknown_decision_maker: "Entscheider noch nicht bekannt",
-  no_response: "Bisher keine positive Reaktion",
-  poor_fit: "Zielgruppenpassung unklar",
-  poor_data_quality: "Datenqualität unvollständig",
-  long_time_no_contact: "Lange kein Kontakt",
-};
-
-function labelSignal(raw) {
-  return SIGNAL_LABELS[raw] || raw;
-}
-
-function labelRisk(raw) {
-  return RISK_LABELS[raw] || raw;
-}
-
-// Clean placeholder text from AI-generated content
-function cleanPlaceholderText(text) {
+function cleanText(text) {
   if (!text) return '';
   return text
     .replace(/\[Ihr Name\]/g, 'ich')
@@ -115,85 +50,82 @@ function cleanPlaceholderText(text) {
     .replace(/\[Dein Name\]/g, 'ich')
     .replace(/\[Dein Unternehmen\]/g, 'unserem Unternehmen')
     .replace(/\[Thema\]/g, 'Ihrem aktuellen Bedarf')
-    .replace(/\[Service\]/g, 'externe Dienstleistungen')
-    .replace(/\[your_name\]/gi, 'ich')
-    .replace(/\[your_company\]/gi, 'unserem Unternehmen')
-    .replace(/\$\{.*?\}/g, '[...]');
+    .replace(/\[Service\]/g, 'unsere Leistungen')
+    .replace(/\$\{.*?\}/g, '[...]')
+    .replace(/^Cat:/i, '')
+    .trim();
 }
 
+const SIGNAL_LABELS = {
+  phone_available: "Telefonnummer vorhanden",
+  email_available: "E-Mail vorhanden",
+  website_available: "Website vorhanden",
+  contact_person_available: "Ansprechpartner vorhanden",
+  contact_log_exists: "Kontakt wurde bereits dokumentiert",
+  industry_match: "Passt zu Ihrer Zielgruppe",
+  recent_contact: "Kürzlich kontaktiert",
+  new_lead: "Neuer Kontakt",
+  task_due_today: "Aufgabe heute fällig",
+  task_overdue: "Aufgabe überfällig",
+  offer_requested: "Angebot wurde angefordert",
+  offer_sent: "Angebot wurde versendet",
+  appointment_scheduled: "Termin vereinbart",
+  callback_scheduled: "Rückruf vereinbart",
+};
+
+const RISK_LABELS = {
+  lost_status: "Status: Verloren",
+  no_contact_data: "Keine Kontaktdaten vorhanden",
+  unknown_decision_maker: "Entscheider noch unbekannt",
+  no_response: "Bisher keine positive Reaktion",
+  poor_fit: "Zielgruppenpassung unklar",
+  poor_data_quality: "Unvollständige Datenbasis",
+  long_time_no_contact: "Lange kein Kontakt mehr",
+};
+
 const DUE_LABELS = {
-  today: "Heute",
-  tomorrow: "Morgen",
-  this_week: "Diese Woche",
-  next_week: "Nächste Woche",
+  today: "Heute", tomorrow: "Morgen", this_week: "Diese Woche", next_week: "Nächste Woche"
 };
 
 export default function EngineBox({ company, contactLogs = [], tasks = [], orgId, onAddTask, onReanalyze }) {
   const [analyzing, setAnalyzing] = useState(false);
-  
-  // Parse persisted engine_analysis_json or fallback to legacy fields
-  const engineAnalysisJson = safeParseJSON(company?.engine_analysis_json);
-  
-  const hasPersisted = !!engineAnalysisJson || (company?.lead_temperature && company.lead_temperature !== "unknown");
-  
-  // Extract from new engine bundle (priority) or legacy fields (fallback)
-  const extractedSignals = engineAnalysisJson ? extractSignals(engineAnalysisJson) : {};
-  
-  const analysis = engineAnalysisJson ? {
-    temperature: normalizeTemperature(engineAnalysisJson.temperature),
-    score: engineAnalysisJson.vertriebo_score || 0,
-    confidence: engineAnalysisJson.confidence_score || 0,
-    summary: cleanPlaceholderText(engineAnalysisJson.summary || ""),
-    reason: cleanPlaceholderText(engineAnalysisJson.reason || ""),
-    nextBestAction: engineAnalysisJson.next_best_action || {},
-    outreachAngle: cleanPlaceholderText(engineAnalysisJson.outreach_angle || ""),
-    suggestedOpening: cleanPlaceholderText(engineAnalysisJson.suggested_opening || ""),
-    qualificationQuestions: (engineAnalysisJson.qualification_questions || []).map(q => cleanPlaceholderText(q)),
-    objectionsToExpect: engineAnalysisJson.objections_to_expect || [],
+
+  const engineJson = safeParseJSON(company?.engine_analysis_json);
+  const hasAnalysis = !!engineJson || (company?.lead_temperature && company.lead_temperature !== "unknown");
+
+  const signals = engineJson ? extractSignals(engineJson) : {};
+
+  const analysis = engineJson ? {
+    temperature: normalizeTemperature(engineJson.temperature),
+    score: engineJson.vertriebo_score || 0,
+    summary: cleanText(engineJson.summary || ""),
+    reason: cleanText(engineJson.reason || ""),
+    nextBestAction: engineJson.next_best_action || {},
     topSignals: [
-      ...extractedSignals.fit,
-      ...extractedSignals.contactability,
-      ...extractedSignals.engagement,
-      ...extractedSignals.timing
-    ].filter(s => s.present !== false).slice(0, 5),
-    riskSignals: extractedSignals.risk || [],
-    missingData: extractedSignals.missing_data || []
+      ...((signals.fit || []).filter(s => s.present !== false)),
+      ...((signals.contactability || []).filter(s => s.present !== false)),
+      ...((signals.engagement || []).filter(s => s.present !== false)),
+      ...((signals.timing || []).filter(s => s.present !== false)),
+    ].slice(0, 4),
+    riskSignals: (signals.risk || []).slice(0, 3),
+    missingData: (signals.missing_data || []).slice(0, 3),
   } : {
     temperature: normalizeTemperature(company?.lead_temperature),
     score: company?.lead_temperature_score || 0,
-    confidence: 0,
     summary: "",
-    reason: cleanPlaceholderText(company?.lead_temperature_reason || ""),
+    reason: cleanText(company?.lead_temperature_reason || ""),
     nextBestAction: {},
-    outreachAngle: "",
-    suggestedOpening: "",
-    qualificationQuestions: [],
-    objectionsToExpect: [],
     topSignals: [],
-    riskSignals: safeParseArray(company?.risk_signals),
-    missingData: safeParseArray(company?.missing_data)
+    riskSignals: safeParseArray(company?.risk_signals).slice(0, 3),
+    missingData: safeParseArray(company?.missing_data).slice(0, 3),
   };
-  
-  const tempColor = {
-    Hot: "from-red-500 to-orange-500",
-    Warm: "from-amber-500 to-orange-400",
-    Cold: "from-slate-500 to-slate-400",
-    Open: "from-slate-400 to-slate-300",
-  }[analysis.temperature] || "from-slate-400 to-slate-300";
 
-  const tempBg = {
-    Hot: "bg-red-50 border-red-200",
-    Warm: "bg-amber-50 border-amber-200",
-    Cold: "bg-slate-50 border-slate-200",
-    Open: "bg-slate-50 border-slate-200",
-  }[analysis.temperature] || "bg-slate-50 border-slate-200";
-
-  const tempText = {
-    Hot: "text-red-900",
-    Warm: "text-amber-900",
-    Cold: "text-slate-900",
-    Open: "text-slate-700",
-  }[analysis.temperature] || "text-slate-700";
+  const tempConfig = {
+    hot:     { label: "Heiß",  bg: "bg-red-50 border-red-200",    text: "text-red-800",    badge: "bg-red-100 text-red-700 border-red-200" },
+    warm:    { label: "Warm",  bg: "bg-amber-50 border-amber-200", text: "text-amber-800",  badge: "bg-amber-100 text-amber-700 border-amber-200" },
+    cold:    { label: "Kalt",  bg: "bg-slate-50 border-slate-200", text: "text-slate-700",  badge: "bg-slate-100 text-slate-600 border-slate-200" },
+    unknown: { label: "–",     bg: "bg-slate-50 border-slate-200", text: "text-slate-600",  badge: "bg-slate-100 text-slate-500 border-slate-200" },
+  }[analysis.temperature] || { label: "–", bg: "bg-slate-50 border-slate-200", text: "text-slate-600", badge: "bg-slate-100 text-slate-500 border-slate-200" };
 
   const handleAddTask = () => {
     if (onAddTask) {
@@ -210,9 +142,8 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
         company_id: company.id,
         organization_id: orgId
       });
-      // Reload company from backend so engine_analysis_json is fresh
       if (onReanalyze) await onReanalyze();
-      toast.success("Lead neu analysiert");
+      toast.success("Analyse aktualisiert");
     } catch (error) {
       toast.error("Analyse fehlgeschlagen: " + error.message);
     } finally {
@@ -220,147 +151,134 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
     }
   };
 
+  // Kein Analyse-Ergebnis
+  if (!hasAnalysis) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1.5 mb-3">
+          <Lightbulb className="w-3.5 h-3.5" /> Vertriebo KI
+        </h3>
+        <div className="text-center py-5">
+          <Lightbulb className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+          <p className="text-sm font-medium text-slate-600 mb-1">Noch keine KI-Analyse</p>
+          <p className="text-xs text-slate-400 mb-3">Analysieren Sie diesen Lead für Empfehlungen und Priorisierung</p>
+          <Button size="sm" onClick={handleReanalyze} disabled={analyzing} className="gap-1.5">
+            <RefreshCw className={`w-3.5 h-3.5 ${analyzing ? 'animate-spin' : ''}`} />
+            {analyzing ? "Analysiert…" : "Jetzt analysieren"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      {/* ═══ HEADER ═══ */}
-      <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-purple-600" />
-            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Vertriebo Engine</h3>
-          </div>
-          <span className="text-[10px] font-semibold text-slate-500">Phase 1</span>
-        </div>
-
-        {/* Score + Temperatur (Prominent) */}
-        <div className={`rounded-lg border-2 p-4 ${tempBg}`}>
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-600 mb-1">Score</p>
-              <div className="flex items-baseline gap-2">
-                <span className={`text-3xl font-black ${tempText}`}>{analysis.score}</span>
-                <span className={`text-sm font-bold ${tempText}`}>{analysis.temperature}</span>
-              </div>
-            </div>
-            <div className="text-right text-xs text-slate-600">
-              <p>Sicherheit</p>
-              <p className="text-lg font-bold text-slate-800">{Math.round(analysis.confidence)}%</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Kurzfazit */}
-        {analysis.summary && (
-          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm font-semibold text-blue-900 leading-relaxed">{analysis.summary}</p>
-          </div>
-        )}
-
-        {/* Nächster bester Schritt – kompakt */}
-        {analysis.nextBestAction && Object.keys(analysis.nextBestAction).length > 0 && (
-          <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-600 mb-1">Nächster Schritt</p>
-            <p className="text-sm font-semibold text-slate-900">{analysis.nextBestAction.title}</p>
-            {analysis.nextBestAction.reason && <p className="text-xs text-slate-700 mt-1">{analysis.nextBestAction.reason}</p>}
-            {analysis.nextBestAction.due && <p className="text-[10px] text-slate-600 mt-1 font-semibold">Fällig: {DUE_LABELS[analysis.nextBestAction.due] || analysis.nextBestAction.due}</p>}
-          </div>
-        )}
-
-        {/* Warum diese Bewertung – kurz */}
-        {analysis.reason && (
-          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs font-bold uppercase tracking-wide text-blue-700 mb-1">Warum?</p>
-            <p className="text-xs text-blue-900 leading-relaxed">{analysis.reason}</p>
-          </div>
-        )}
+    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+          <Lightbulb className="w-3.5 h-3.5" /> Vertriebo KI
+        </h3>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${tempConfig.badge}`}>{tempConfig.label}</span>
       </div>
 
-      {/* ═══ SIGNALE/RISIKEN/FEHLENDE DATEN ALS CHIPS ═══ */}
-      {(analysis.topSignals.length > 0 || analysis.riskSignals.length > 0 || analysis.missingData.length > 0) && (
-        <div className="space-y-2">
-          {/* Top-Signale als Chips */}
-          {analysis.topSignals.length > 0 && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700 mb-2">Signale</p>
-              <div className="flex flex-wrap gap-1.5">
-                {analysis.topSignals.map((signal, i) => (
-                  <Badge key={i} variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-normal">
-                    ✓ {labelSignal(signal.signal)}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+      {/* Nächster bester Schritt – PROMINENT */}
+      {analysis.nextBestAction && Object.keys(analysis.nextBestAction).length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-blue-600 mb-1">Was jetzt tun?</p>
+          <p className="text-sm font-bold text-blue-900">{analysis.nextBestAction.title}</p>
+          {analysis.nextBestAction.reason && (
+            <p className="text-xs text-blue-700 mt-1 leading-relaxed">{analysis.nextBestAction.reason}</p>
           )}
-
-          {/* Risiken als Chips */}
-          {analysis.riskSignals.length > 0 && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-red-700 mb-2">Risiken</p>
-              <div className="flex flex-wrap gap-1.5">
-                {analysis.riskSignals.map((risk, i) => (
-                  <Badge key={i} variant="secondary" className="bg-red-50 text-red-700 border-red-200 font-normal">
-                    ⚠ {labelRisk(risk.signal)}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+          {analysis.nextBestAction.due && (
+            <p className="text-[10px] font-semibold text-blue-600 mt-1.5">
+              Empfohlener Zeitpunkt: {DUE_LABELS[analysis.nextBestAction.due] || analysis.nextBestAction.due}
+            </p>
           )}
-
-          {/* Fehlende Daten als Chips */}
-          {analysis.missingData.length > 0 && (
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-700 mb-2">Fehlt</p>
-              <div className="flex flex-wrap gap-1.5">
-                {analysis.missingData.map((item, i) => {
-                  const MISSING_LABELS = {
-                    contact_person: "Ansprechpartner",
-                    email: "E-Mail-Adresse",
-                    phone: "Telefonnummer",
-                    website: "Website",
-                    target_customer_confirmation: "Zielgruppen-Match",
-                    concrete_need: "konkreter Bedarf"
-                  };
-                  const raw = item.field || item;
-                  const label = MISSING_LABELS[raw] || raw;
-                  return (
-                    <Badge key={i} variant="outline" className="font-normal">
-                      {label}
-                    </Badge>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          <Button size="sm" onClick={handleAddTask} className="mt-2 w-full gap-1.5 h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white">
+            <Clock className="w-3 h-3" /> Als Aufgabe eintragen
+          </Button>
         </div>
       )}
 
-      {/* ═══ ACTIONS ═══ */}
-      <div className="flex gap-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={handleAddTask}
-          className="flex-1 gap-1.5 bg-white border-[#E2E8F0] text-slate-700 hover:bg-slate-50"
-        >
-          <Clock className="w-4 h-4" /> Aufgabe erstellen
-        </Button>
-        <Button 
-          variant="default" 
-          size="sm" 
-          onClick={handleReanalyze}
-          disabled={analyzing}
-          className="flex-1 gap-1.5"
-        >
-          <RefreshCw className={`w-4 h-4 ${analyzing ? 'animate-spin' : ''}`} /> {analyzing ? "Läuft..." : "Neu analysieren"}
-        </Button>
-      </div>
-
-      {/* ═══ METADATA ═══ */}
-      {hasPersisted && (
-        <div className="text-[10px] text-slate-500 text-center p-3 bg-slate-50 rounded-lg">
-          Zuletzt analysiert: {company?.engine_last_analyzed_at ? new Date(company.engine_last_analyzed_at).toLocaleString('de-DE') : "—"}
+      {/* Zusammenfassung */}
+      {analysis.summary && (
+        <div className="text-sm text-slate-700 leading-relaxed bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+          {analysis.summary}
         </div>
       )}
+
+      {/* Warum dieser Lead passt */}
+      {analysis.reason && !analysis.summary && (
+        <div className="text-sm text-slate-700 leading-relaxed bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+          {analysis.reason}
+        </div>
+      )}
+
+      {/* Positive Signale */}
+      {analysis.topSignals.length > 0 && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700 mb-1.5">Gute Zeichen</p>
+          <div className="flex flex-wrap gap-1.5">
+            {analysis.topSignals.map((signal, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                ✓ {SIGNAL_LABELS[signal.signal] || signal.signal}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Risiken */}
+      {analysis.riskSignals.length > 0 && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-red-600 mb-1.5">Achtung</p>
+          <div className="flex flex-wrap gap-1.5">
+            {analysis.riskSignals.map((risk, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full">
+                ⚠ {RISK_LABELS[risk.signal || risk] || risk.signal || risk}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Fehlende Daten */}
+      {analysis.missingData.length > 0 && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">Noch nicht erfasst</p>
+          <div className="flex flex-wrap gap-1.5">
+            {analysis.missingData.map((item, i) => {
+              const MISSING = {
+                contact_person: "Ansprechpartner",
+                email: "E-Mail",
+                phone: "Telefon",
+                website: "Website",
+                target_customer_confirmation: "Zielgruppen-Match",
+                concrete_need: "Konkreter Bedarf",
+              };
+              const raw = item.field || item;
+              return (
+                <span key={i} className="text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full">
+                  {MISSING[raw] || raw}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Neu analysieren */}
+      <div className="pt-1 border-t border-slate-100 flex items-center justify-between">
+        <span className="text-[10px] text-slate-400">
+          {company?.engine_last_analyzed_at
+            ? `Analysiert: ${new Date(company.engine_last_analyzed_at).toLocaleDateString('de-DE')}`
+            : ""}
+        </span>
+        <Button variant="outline" size="sm" onClick={handleReanalyze} disabled={analyzing}
+          className="h-7 text-xs gap-1 bg-white border-slate-200">
+          <RefreshCw className={`w-3 h-3 ${analyzing ? 'animate-spin' : ''}`} />
+          {analyzing ? "Läuft…" : "Aktualisieren"}
+        </Button>
+      </div>
     </div>
   );
 }

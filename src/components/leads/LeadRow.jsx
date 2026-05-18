@@ -13,35 +13,27 @@ const QUICK_LOG_ACTIONS = [
   { label: "✗ Kein Interesse", ergebnis: "Kein Interesse", status: "Verloren", color: "hover:bg-gray-50 text-gray-700" },
 ];
 
-function OutcomeBadge({ outcome }) {
-  if (!outcome) return null;
-  const styles = {
-    won: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    relevant: "bg-blue-50 text-blue-700 border-blue-200",
-    not_relevant: "bg-slate-100 text-slate-500 border-slate-200",
-  };
-  const labels = { won: "Gewonnen", relevant: "Relevant", not_relevant: "Nicht relevant" };
-  return (
-    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${styles[outcome] || styles.relevant}`}>
-      {labels[outcome] || outcome}
-    </span>
-  );
-}
-
 function statusColor(status) {
   if (status === "Rückruf") return "bg-amber-50 text-amber-700 border-amber-200 font-bold";
   if (status === "Termin") return "bg-purple-50 text-purple-700 border-purple-200 font-bold";
   if (status === "Angebot") return "bg-indigo-50 text-indigo-700 border-indigo-200 font-bold";
   if (status === "Gewonnen") return "bg-emerald-50 text-emerald-700 border-emerald-200 font-bold";
-  if (status === "Verloren") return "bg-slate-50 text-slate-600 border-slate-200";
-  return "bg-blue-50 text-blue-700 border-blue-200 font-bold";
+  if (status === "Verloren") return "bg-slate-50 text-slate-500 border-slate-200";
+  if (status === "Kontakt") return "bg-teal-50 text-teal-700 border-teal-200 font-bold";
+  return "bg-blue-50 text-blue-700 border-blue-200";
 }
 
-export default function LeadRow({ company, isAdmin, onLogged, outcome }) {
+function temperatureLabel(score, temperature) {
+  if (temperature === 'hot' || score >= 60) return { label: "Heiß", cls: "text-orange-700 bg-orange-50 border-orange-200 font-bold" };
+  if (temperature === 'warm' || score >= 30) return { label: "Warm", cls: "text-amber-700 bg-amber-50 border-amber-200" };
+  return null; // Kalt nicht anzeigen – wenig Mehrwert
+}
+
+export default function LeadRow({ company, isAdmin, onLogged }) {
   const [showActions, setShowActions] = useState(false);
 
-  const priorityLabel = (company.priority_score || 0) >= 60 ? "Heiß" : (company.priority_score || 0) >= 30 ? "Warm" : "Kalt";
-  const priorityColor = (company.priority_score || 0) >= 60 ? "text-orange-700 bg-orange-50 border-orange-200 font-bold" : (company.priority_score || 0) >= 30 ? "text-amber-700 bg-amber-50 border-amber-200" : "text-slate-600 bg-slate-50 border-slate-200";
+  const score = company.priority_score || 0;
+  const temp = temperatureLabel(score, company.lead_temperature);
 
   const handleQuickLog = async (action) => {
     const me = await base44.auth.me();
@@ -63,180 +55,164 @@ export default function LeadRow({ company, isAdmin, onLogged, outcome }) {
   };
 
   return (
-    <div className="group bg-white border border-slate-200 rounded-2xl p-5 hover:shadow-lg hover:border-blue-300 hover:shadow-blue-100/50 transition-all duration-200">
-      {/* Mobile Layout - Stacked */}
-      <div className="lg:hidden space-y-4">
-        <div className="flex items-start gap-4">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md ${
-            company.is_hot ? "bg-gradient-to-br from-orange-100 to-red-100 border-2 border-orange-300" : "bg-gradient-to-br from-blue-100 to-indigo-100 border-2 border-blue-300"
+    <div className="group bg-white border border-slate-200 rounded-xl hover:shadow-md hover:border-blue-200 transition-all duration-150">
+      {/* Mobile */}
+      <div className="lg:hidden p-3.5">
+        <div className="flex items-start gap-3">
+          <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+            company.is_hot ? "bg-orange-100 border border-orange-300" : "bg-blue-100 border border-blue-200"
           }`}>
-            {company.is_hot ? <Flame className="w-8 h-8 text-orange-600" /> : <Building2 className="w-8 h-8 text-blue-600" />}
+            {company.is_hot ? <Flame className="w-5 h-5 text-orange-600" /> : <Building2 className="w-5 h-5 text-blue-600" />}
           </div>
           <div className="flex-1 min-w-0">
-            <Link
-              to={`/leads/${company.id}`}
-              className="text-lg font-bold text-slate-900 hover:text-blue-600 transition-colors block mb-1.5"
-              title={company.name}
-            >
+            <Link to={`/leads/${company.id}`} className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors block truncate">
               {company.name}
             </Link>
-            <div className="flex items-center gap-2 flex-wrap mb-2">
-              <span className="text-sm font-medium text-slate-700">{company.branche || "Branche nicht angegeben"}</span>
+            <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-600 flex-wrap">
+              {company.branche && <span className="font-medium text-slate-700">{company.branche}</span>}
               {company.ort && (
-                <span className="flex items-center gap-1 text-sm text-slate-600">
-                  <MapPin className="w-3.5 h-3.5" /> {company.ort}
+                <span className="flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" /> {company.ort}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+              <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${statusColor(company.status)}`}>
+                {company.status}
+              </span>
+              {temp && (
+                <span className={`px-2 py-0.5 rounded-md border text-[10px] ${temp.cls}`}>
+                  {temp.label}
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className={`px-3 py-1.5 rounded-lg border text-xs ${statusColor(company.status)}`}>
-                {company.status}
-              </div>
-              <div className={`px-3 py-1.5 rounded-lg border text-xs ${priorityColor}`}>
-                {priorityLabel}
-              </div>
-            </div>
           </div>
         </div>
-
-        {/* Aktionen */}
-        <div className="flex items-center gap-2 pt-2">
-          {company.telefon && (
-            <a href={`tel:${company.telefon}`} className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 transition-all text-sm font-bold shadow-sm">
-              <Phone className="w-4 h-4" /> Anrufen
-            </a>
-          )}
+        <div className="flex items-center gap-2 mt-3">
           <Link
             to={`/leads/${company.id}`}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all text-sm font-bold shadow-sm"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-sm transition-all"
           >
-            Details
-            <ArrowRight className="w-4 h-4" />
+            Details <ArrowRight className="w-3.5 h-3.5" />
           </Link>
+          {company.telefon && (
+            <a
+              href={`tel:${company.telefon}`}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold shadow-sm transition-all"
+            >
+              <Phone className="w-3.5 h-3.5" /> Anrufen
+            </a>
+          )}
         </div>
       </div>
 
-      {/* Desktop Layout - Horizontal */}
-      <div className="hidden lg:flex items-center gap-6">
-        {/* Company Info - Left */}
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md ${
-            company.is_hot ? "bg-gradient-to-br from-orange-100 to-red-100 border-2 border-orange-300" : "bg-gradient-to-br from-blue-100 to-indigo-100 border-2 border-blue-300"
-          }`}>
-            {company.is_hot ? <Flame className="w-8 h-8 text-orange-600" /> : <Building2 className="w-8 h-8 text-blue-600" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <Link
-              to={`/leads/${company.id}`}
-              className="text-xl font-bold text-slate-900 hover:text-blue-600 transition-colors block mb-1"
-              title={company.name}
-            >
-              {company.name}
-            </Link>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-medium text-slate-700">{company.branche || "Branche nicht angegeben"}</span>
-              {company.ort && (
-                <span className="flex items-center gap-1 text-sm text-slate-600">
-                  <MapPin className="w-3.5 h-3.5" /> {company.ort}
-                </span>
-              )}
-            </div>
+      {/* Desktop */}
+      <div className="hidden lg:flex items-center gap-4 px-4 py-3">
+        {/* Icon */}
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+          company.is_hot ? "bg-orange-100 border border-orange-300" : "bg-blue-100 border border-blue-200"
+        }`}>
+          {company.is_hot ? <Flame className="w-5 h-5 text-orange-600" /> : <Building2 className="w-5 h-5 text-blue-600" />}
+        </div>
+
+        {/* Company Info */}
+        <div className="flex-1 min-w-0">
+          <Link
+            to={`/leads/${company.id}`}
+            className="text-sm font-bold text-slate-900 hover:text-blue-600 transition-colors block truncate"
+            title={company.name}
+          >
+            {company.name}
+          </Link>
+          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-600">
+            {company.branche && <span className="font-medium text-slate-700 truncate">{company.branche}</span>}
+            {company.ort && (
+              <>
+                <span className="text-slate-300">·</span>
+                <span className="flex items-center gap-0.5 flex-shrink-0"><MapPin className="w-2.5 h-2.5" /> {company.ort}</span>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Status & Priority - Besser sichtbar */}
-        <div className="hidden md:flex items-center gap-2 min-w-[200px]">
-          <div className={`px-3.5 py-2 rounded-xl border text-xs ${statusColor(company.status)} shadow-sm`}>
+        {/* Status + Temperatur */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className={`px-2.5 py-1 rounded-lg border text-xs ${statusColor(company.status)}`}>
             {company.status}
-          </div>
-          <div className={`px-3.5 py-2 rounded-xl border text-xs ${priorityColor} shadow-sm`}>
-            {priorityLabel}
-          </div>
-        </div>
-
-        {/* Vertriebler - Freundlicher */}
-        <div className="hidden lg:flex items-center min-w-[150px]">
-          {company.assigned_to ? (
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center border border-blue-300">
-                <User className="w-4 h-4 text-blue-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-slate-800 truncate">{company.assigned_to.split("@")[0]}</p>
-                <p className="text-[10px] text-slate-500 truncate">{company.assigned_to}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 text-slate-400">
-              <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
-                <User className="w-4 h-4 text-slate-400" />
-              </div>
-              <span className="text-xs">Nicht zugewiesen</span>
-            </div>
+          </span>
+          {temp && (
+            <span className={`px-2.5 py-1 rounded-lg border text-xs ${temp.cls}`}>
+              {temp.label}
+            </span>
           )}
         </div>
 
-        {/* Actions - Klare Hierarchie */}
-        <div className="flex items-center gap-2">
+        {/* Vertriebler */}
+        {company.assigned_to && (
+          <div className="hidden xl:flex items-center gap-1.5 flex-shrink-0 min-w-[120px]">
+            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+              <User className="w-3 h-3 text-blue-600" />
+            </div>
+            <span className="text-xs font-medium text-slate-700 truncate">{company.assigned_to.split("@")[0]}</span>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <Link
             to={`/leads/${company.id}`}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all text-sm font-bold shadow-sm hover:shadow-md"
-            title="Details"
+            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-sm transition-all"
           >
             Details
           </Link>
           {company.telefon && (
             <a
               href={`tel:${company.telefon}`}
-              className="p-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-sm hover:shadow-md"
+              className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-all"
               title="Anrufen"
             >
-              <Phone className="w-4 h-4" />
+              <Phone className="w-3.5 h-3.5" />
             </a>
           )}
           {company.email && (
             <a
               href={`mailto:${company.email}`}
-              className="p-2.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 hover:border-blue-300 transition-all"
+              className="p-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-all"
               title="E-Mail"
             >
-              <Mail className="w-4 h-4" />
+              <Mail className="w-3.5 h-3.5" />
             </a>
           )}
           <div className="relative">
             <button
               onClick={() => setShowActions(!showActions)}
-              className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all"
-              title="Mehr"
+              className="p-2 rounded-lg bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all"
             >
-              <MoreHorizontal className="w-4 h-4" />
+              <MoreHorizontal className="w-3.5 h-3.5" />
             </button>
             {showActions && (
-              <div className="absolute right-0 top-full mt-2 z-50 w-60 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
-                <div className="px-4 py-2.5 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-slate-100">
-                  <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wide">Schnell-Log</span>
+              <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+                <div className="px-3 py-2 border-b border-slate-100 bg-slate-50">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Schnell-Log</span>
                 </div>
-                <div className="p-1.5">
+                <div className="p-1">
                   {QUICK_LOG_ACTIONS.map((action, idx) => (
                     <button
                       key={idx}
                       onClick={() => handleQuickLog(action)}
-                      className={`w-full flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold transition-colors ${action.color}`}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${action.color}`}
                     >
                       {action.label}
                     </button>
                   ))}
                 </div>
-                <div className="border-t border-slate-100 p-1.5">
+                <div className="border-t border-slate-100 p-1">
                   <button
                     onClick={() => {
                       setShowActions(false);
                       window.dispatchEvent(new CustomEvent("open-task-dialog", { detail: { companyId: company.id, companyName: company.name } }));
                     }}
-                    className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50"
                   >
-                    <Calendar className="w-3.5 h-3.5" />
-                    Aufgabe erstellen
+                    <Calendar className="w-3.5 h-3.5" /> Aufgabe erstellen
                   </button>
                   {isAdmin && (
                     <button
@@ -248,7 +224,7 @@ export default function LeadRow({ company, isAdmin, onLogged, outcome }) {
                           });
                         }
                       }}
-                      className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50"
                     >
                       Löschen
                     </button>

@@ -231,9 +231,9 @@ export default function Leads() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Hero Zone - Kompakt & Fokus */}
-      <div className="bg-gradient-to-r from-white to-blue-50/30 border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5 mb-4">
+    <div className="space-y-2.5">
+      {/* Hero Zone - Kompakt */}
+      <div className="bg-gradient-to-r from-white to-blue-50/30 border border-slate-200 rounded-xl shadow-sm p-3.5 sm:p-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 mb-0.5">Leads</h1>
@@ -283,14 +283,14 @@ export default function Leads() {
         <PrimaryActionCard company={filtered[0]} onAnalyze={handleAnalyzeLatest} />
       )}
 
-      {/* Compact Stats - 3-4 relevante KPIs */}
+      {/* Compact Stats */}
       <CompactStats companies={filtered} />
 
       {/* Pipeline - Kompakt */}
       <PipelineBar companies={companies} activeStatus={statusFilter} onStatusClick={setStatusFilter} />
 
-      {/* Filterbar - Kompakt & gruppiert */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-3 sm:p-4 mb-4">
+      {/* Filterbar */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-3 sm:p-3.5">
         <div className="flex flex-col gap-3">
           {/* Suche + Sortierung */}
           <div className="flex flex-col sm:flex-row gap-3">
@@ -448,9 +448,9 @@ export default function Leads() {
           )}
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {visibleLeads.map(company => (
-            <LeadRow key={company.id} company={company} isAdmin={isAdmin} onLogged={loadData} outcome={outcomeByCompany[company.id] || null} />
+            <LeadRow key={company.id} company={company} isAdmin={isAdmin} onLogged={loadData} />
           ))}
 
           {/* Seitenweise anzeigen (innerhalb geladener Kontakte) */}
