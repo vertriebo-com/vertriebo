@@ -172,6 +172,11 @@ export default function Landing() {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+    
+    // Force reload for mobile testing
+    const handleHashChange = () => window.location.reload();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
   useEffect(() => {
@@ -285,16 +290,18 @@ export default function Landing() {
 
       {/* NAVBAR */}
       <nav style={{
-        position: "sticky",
+        position: "fixed",
         top: 0,
         left: 0,
         right: 0,
         zIndex: 9999,
-        background: "#020617",
+        backgroundColor: "#020617",
+        backgroundImage: "none",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
-        height: "60px"
+        height: "60px",
+        width: "100%"
       }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 16px", height: "60px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 20px", height: "60px", display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", boxSizing: "border-box" }}>
           {/* Logo Links - Groß und klar sichtbar */}
           <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0 }}>
             <VertrieboLogo size="lg" className="" />
