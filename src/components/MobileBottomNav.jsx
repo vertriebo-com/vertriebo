@@ -8,7 +8,7 @@ const NAV = [
   { path: "/leads", label: "Leads", icon: Building2 },
   { path: "/tasks", label: "Aufgaben", icon: ListTodo },
   { path: "/calendar", label: "Kalender", icon: CalendarCheck },
-  { path: "/settings", label: "Einstellungen", icon: Settings, adminOnly: true },
+  { path: "/settings", label: "Einstellungen", icon: Settings },
 ];
 
 export default function MobileBottomNav() {
