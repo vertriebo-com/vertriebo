@@ -1,5 +1,5 @@
 # VERTRIEBO ARCHITEKTUR-MERKLISTE
-## Stand: 2026-05-18 | v6-weighted-scoring-b7a — 36/41 Profile validiert
+## Stand: 2026-05-18 | v6-weighted-scoring-b7b — 41/41 ALLE PROFILE VALIDIERT ✅
 
 > **PFLICHTREGEL: Nicht "akzeptabel" — produktionsreif, kundenreif, robust.**
 > Jede Entscheidung muss diese Standards erfüllen. Keine Dummy-Logik, keine doppelte Wahrheit, keine technischen Schulden an der Kernfunktion.
@@ -311,9 +311,11 @@ batch4Abgeschlossen                       ✅ 15/15 Tests GOOD (marketing, perso
 batch5Abgeschlossen                       ✅ 15/15 Tests GOOD (pflege, schulungen, dachdecker, geruestbau, trockenbau)
 batch6Abgeschlossen                       ✅ 15/15 Tests GOOD (fliesenleger, bodenleger, schluesseldienst, schaedlingsbekaempfung, brandschutz)
 batch7AAbgeschlossen                      ✅ 15/15 Tests GOOD (aufzugservice, tor_tuertechnik, photovoltaik_service, umzugsunternehmen, druckerei_werbetechnik)
+batch7BAbgeschlossen                      ✅ 15/15 Tests GOOD (aktenvernichtung, energieberatung, arbeitsschutz, datenschutz_compliance, messebau)
 weightedSignalsSeedSafe                   ✅ Gewichte NUR in TAXONOMY_SEED gepflegt
-taxonomyVersionV6WeightedScoringB7a       ✅ aktiv, seed_reset ausgeführt
-allExistingProfilesQualityReviewed        ⏳ 36/41 validiert — Batch 7B ausstehend (5 Profile)
+taxonomyVersionV6WeightedScoringB7b       ✅ aktiv, seed_reset ausgeführt
+allExistingProfilesQualityReviewed        ✅ 41/41 VOLLSTÄNDIG VALIDIERT — Branchenprofil-Qualitätsblock abgeschlossen
+readyForNextProductIntegrationBlock       ✅ FREIGEGEBEN
 readyForNextProductIntegrationBlock       ❌ BLOCKED bis allExistingProfilesQualityReviewed
 ```
 
@@ -464,7 +466,8 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 | **Batch 5** (5 auditiert) | pflege_betreuung, schulungen_weiterbildung, dachdecker, geruestbau, trockenbau_innenausbau | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
 | **Batch 6** (5 auditiert) | fliesenleger, bodenleger, schluesseldienst_schliesanlagen, schaedlingsbekaempfung, brandschutzservice | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
 | **Batch 7A** (5 auditiert) | aufzugservice, tor_tuertechnik, photovoltaik_service, umzugsunternehmen, druckerei_werbetechnik | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
-| **Batch 7B** (ausstehend) | aktenvernichtung_dokumentenmanagement, energieberatung, arbeitsschutz_arbeitssicherheit, datenschutz_compliance, messebau | ⚠️ Qualitätsaudit ausstehend — finale 5 Profile |
+| **Batch 7B** (5 auditiert) | aktenvernichtung_dokumentenmanagement, energieberatung, arbeitsschutz_arbeitssicherheit, datenschutz_compliance, messebau | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
+| **🎉 ABGESCHLOSSEN** | Alle 41 nicht-Fallback-Profile validiert | ✅ Branchenprofil-Qualitätsblock vollständig |
 | **Fallback-Profile** (5) | fallback_* | ✅ bewusst generisch |
 
 ### Nächste Profile (Backlog, ERST nach Qualitätstest)
