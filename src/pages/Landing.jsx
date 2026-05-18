@@ -72,26 +72,31 @@ const FEATURES = [
   { icon: "📊", title: "Echtzeit-Erfolgsquoten", desc: "Sehen Sie sofort, wie Ihr Team performt: Quote pro Vertriebler, beste Branchen, ROI der Recherche.", color: "border-rose-500/20 bg-rose-500/5" },
 ];
 
-// Stable Particles Component
+// Stable Particles Component - Enhanced visibility, subtle movement
 const Particles = () => {
   const particles = useMemo(() => {
-    return Array.from({ length: 20 }, (_, i) => ({
+    return Array.from({ length: 24 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
       top: Math.random() * 100,
-      duration: 5 + Math.random() * 10,
-      delay: Math.random() * 5
+      size: 2 + Math.random() * 3,
+      opacity: 0.2 + Math.random() * 0.3,
+      duration: 15 + Math.random() * 15,
+      delay: Math.random() * 10
     }));
   }, []);
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, overflow: "hidden" }}>
       {particles.map(p => (
         <div key={p.id} style={{
-          position: "absolute", width: 4, height: 4, background: "rgba(37,99,235,0.3)", borderRadius: "50%",
+          position: "absolute", width: p.size, height: p.size,
+          background: `radial-gradient(circle, rgba(96,165,250,${p.opacity}) 0%, rgba(139,92,246,${p.opacity * 0.5}) 100%)`,
+          borderRadius: "50%",
           left: `${p.left}%`, top: `${p.top}%`,
           animation: `float ${p.duration}s ease-in-out infinite`,
           animationDelay: `${p.delay}s`,
-          filter: "blur(1px)"
+          filter: "blur(2px)",
+          boxShadow: `0 0 ${p.size * 3}px rgba(96,165,250,${p.opacity})`
         }} />
       ))}
     </div>
@@ -189,10 +194,18 @@ export default function Landing() {
       <Particles />
       <style>{`
         @keyframes float {
-          0%, 100% { transform: translate(0, 0); opacity: 0.3; }
-          25% { transform: translate(30px, -40px); opacity: 0.6; }
-          50% { transform: translate(-25px, -70px); opacity: 0.4; }
-          75% { transform: translate(35px, -35px); opacity: 0.6; }
+          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.2; }
+          25% { transform: translate(15px, -25px) scale(1.1); opacity: 0.35; }
+          50% { transform: translate(-12px, -40px) scale(0.95); opacity: 0.25; }
+          75% { transform: translate(18px, -20px) scale(1.05); opacity: 0.35; }
+        }
+        @keyframes pulse-glow {
+          0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+          50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.1); }
+        }
+        @keyframes shimmer {
+          0% { background-position: 200% center; }
+          100% { background-position: -200% center; }
         }
         @keyframes shimmer {
           0% { background-position: -200% center; }
@@ -254,14 +267,25 @@ export default function Landing() {
       {/* HERO */}
       <section style={{
         minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
-        background: "radial-gradient(ellipse 80% 60% at 50% -10%,rgba(37,99,235,0.25),transparent),radial-gradient(ellipse 60% 40% at 80% 80%,rgba(124,58,237,0.15),transparent)",
+        background: "#020617",
         position: "relative", overflow: "hidden", paddingTop: 80
       }}>
-        {/* Grid background */}
+        {/* Premium Background: Noise + Glows */}
         <div style={{
           position: "absolute", inset: 0, pointerEvents: "none",
-          backgroundImage: "linear-gradient(rgba(255,255,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.03) 1px,transparent 1px)",
-          backgroundSize: "48px 48px"
+          background: `
+            radial-gradient(ellipse 80% 50% at 50% -10%, rgba(37,99,235,0.15), transparent 70%),
+            radial-gradient(ellipse 60% 40% at 70% 60%, rgba(124,58,237,0.12), transparent 70%),
+            radial-gradient(ellipse 50% 30% at 30% 80%, rgba(59,130,246,0.08), transparent 70%)
+          `,
+          filter: "blur(40px)"
+        }} />
+        
+        {/* Noise Texture Overlay */}
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none",
+          opacity: 0.03,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
         }} />
 
         <div style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
