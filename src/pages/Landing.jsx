@@ -353,7 +353,7 @@ export default function Landing() {
       <section style={{
         minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
         background: "#020617",
-        position: "relative", overflow: "hidden", paddingTop: 80
+        position: "relative", overflow: "hidden", paddingTop: isMobile ? 100 : 80
       }}>
         {/* Premium Background: Noise + Glows */}
         <div style={{
@@ -373,7 +373,7 @@ export default function Landing() {
           backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
         }} />
 
-        <div style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+        <div style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", padding: isMobile ? "0 16px" : "0 24px" }}>
           {/* Responsive Grid: 1 column mobile, 2 columns tablet+ */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 48, alignItems: "center" }}>
             {/* Left: Content */}
