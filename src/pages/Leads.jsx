@@ -231,28 +231,25 @@ export default function Leads() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Hero Zone - Klarer Fokus */}
-      <div className="bg-gradient-to-r from-white to-blue-50/50 border border-slate-200 rounded-2xl shadow-sm p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-4">
+      {/* Hero Zone - Kompakt & Fokus */}
+      <div className="bg-gradient-to-r from-white to-blue-50/30 border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5 mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-1">Leads</h1>
-            <p className="text-sm font-semibold text-slate-700">
+            <h1 className="text-2xl font-bold text-slate-900 mb-0.5">Leads</h1>
+            <p className="text-sm font-medium text-slate-700">
               {companies.length} {companies.length === 1 ? 'Firmenkontakt' : 'Firmenkontakte'}
               {filtered.filter(c => c.status === "Rückruf").length > 0 && (
                 <span className="ml-2 text-amber-700">· {filtered.filter(c => c.status === "Rückruf").length} Rückrufe offen</span>
               )}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {isAdmin && (
-              <Button onClick={() => setShowResearch(true)} className="gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md">
-                <Sparkles className="w-4 h-4" /> Firmen recherchieren
+              <Button onClick={() => setShowResearch(true)} size="sm" className="gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-sm">
+                <Sparkles className="w-3.5 h-3.5" /> Firmen recherchieren
               </Button>
             )}
-            <Button onClick={() => setShowAdd(true)} variant="outline" className="gap-2 bg-white border-slate-200 text-slate-700 hover:bg-slate-50">
-              <Plus className="w-4 h-4" /> Neuer Lead
-            </Button>
           </div>
         </div>
       </div>
@@ -292,8 +289,8 @@ export default function Leads() {
       {/* Pipeline - Kompakt */}
       <PipelineBar companies={companies} activeStatus={statusFilter} onStatusClick={setStatusFilter} />
 
-      {/* Filterbar - Prominent & gruppiert */}
-      <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm p-4 mb-6">
+      {/* Filterbar - Kompakt & gruppiert */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-3 sm:p-4 mb-4">
         <div className="flex flex-col gap-3">
           {/* Suche + Sortierung */}
           <div className="flex flex-col sm:flex-row gap-3">
@@ -347,7 +344,7 @@ export default function Leads() {
 
         {/* Aktive Filter */}
         {(statusFilter || priorityFilter !== "Alle" || assignedFilter !== "Alle" || search || newRunFilter) && (
-          <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-[#E2E8F0]">
+          <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-slate-200">
             {statusFilter && <button onClick={() => setStatusFilter(null)} className="inline-flex items-center gap-1 text-xs font-medium bg-purple-100 text-purple-700 border border-purple-200 px-2.5 py-1 rounded-full hover:bg-purple-200"><span>{statusFilter}</span><X className="w-3 h-3"/></button>}
             {priorityFilter !== "Alle" && <button onClick={() => setPriorityFilter("Alle")} className="inline-flex items-center gap-1 text-xs font-medium bg-orange-100 text-orange-700 border border-orange-200 px-2.5 py-1 rounded-full hover:bg-orange-200"><span>Temperatur: {priorityFilter}</span><X className="w-3 h-3"/></button>}
             {assignedFilter !== "Alle" && <button onClick={() => setAssignedFilter("Alle")} className="inline-flex items-center gap-1 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full hover:bg-blue-200"><span>Vertriebler: {assignedFilter}</span><X className="w-3 h-3"/></button>}
@@ -425,33 +422,33 @@ export default function Leads() {
         </div>
       )}
 
-      {/* Leads List */}
+      {/* Leads List - Früher sichtbar */}
       {filtered.length === 0 ? (
-        <div className="bg-white border border-[#E2E8F0] rounded-2xl p-16 text-center">
-          <Building2 className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-          <h3 className="text-lg font-bold text-slate-900 mb-2">Keine Leads gefunden</h3>
-          <p className="text-sm text-slate-600 mb-6">
+        <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
+          <Building2 className="w-14 h-14 mx-auto mb-3 text-slate-300" />
+          <h3 className="text-lg font-bold text-slate-900 mb-1.5">Keine Leads gefunden</h3>
+          <p className="text-sm text-slate-600 mb-5">
             {companies.length === 0 ? "Noch keine Firmenkontakte vorhanden." : "Filter anpassen oder neuen Lead hinzufügen."}
           </p>
           {companies.length === 0 ? (
-           <div className="flex flex-col gap-3 max-w-sm mx-auto">
+           <div className="flex flex-col gap-2.5 max-w-sm mx-auto">
              <Button size="lg" onClick={() => setShowResearch(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm w-full">
                <TrendingUp className="w-4 h-4" /> Firmen automatisch recherchieren
              </Button>
              {isAdmin && (
                <a href="/import" className="w-full">
-                 <Button variant="outline" size="lg" className="gap-2 border border-[#E2E8F0] w-full">
+                 <Button variant="outline" size="lg" className="gap-2 border border-slate-200 w-full">
                    <Upload className="w-4 h-4" /> CSV/Excel importieren
                  </Button>
                </a>
              )}
            </div>
           ) : (
-            <Button variant="outline" onClick={() => { setStatusFilter(null); setFocusFilter(null); setSearch(""); }} className="gap-2 border border-[#E2E8F0]">Filter zurücksetzen</Button>
+            <Button variant="outline" onClick={() => { setStatusFilter(null); setFocusFilter(null); setSearch(""); }} className="gap-2 border border-slate-200">Filter zurücksetzen</Button>
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {visibleLeads.map(company => (
             <LeadRow key={company.id} company={company} isAdmin={isAdmin} onLogged={loadData} outcome={outcomeByCompany[company.id] || null} />
           ))}

@@ -79,10 +79,10 @@ export default function Layout() {
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
-        {/* Logo */}
-        <div className="px-4 py-5 border-b border-[#E2E8F0]">
-          <Link to="/dashboard" className="flex items-center">
-            <VertrieboLogo size="lg" className="h-12 w-auto" />
+        {/* Logo - Sauber dargestellt */}
+        <div className="px-4 py-4 border-b border-[#E2E8F0]">
+          <Link to="/dashboard" className="flex items-center justify-center">
+            <VertrieboLogo size="lg" className="h-10 w-auto" />
           </Link>
         </div>
 
