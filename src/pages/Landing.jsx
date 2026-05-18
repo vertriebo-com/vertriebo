@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Check, Zap, ArrowRight, ChevronDown, Star, MapPin, Target, Phone, Mail, Users, TrendingUp, Shield, Brain, BarChart3, User } from "lucide-react";
+import { Check, Zap, ArrowRight, ChevronDown, Star, MapPin, Target, Phone, Mail, Users, TrendingUp, Shield, Brain, BarChart3, User, Search, Globe, Calendar, FileText, Layout, Lightbulb, CircleHelp } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import VertrieboLogo from "@/components/VertrieboLogo";
@@ -62,15 +62,27 @@ const FAQS = [
 
 
 const FEATURES = [
-{ icon: "🔍", title: "Automatische Firmenkontakt-Recherche", desc: "Legen Sie Zielgebiet, Branche und Kundentyp fest – Vertriebo findet passende Firmenkontakte für Ihren Vertrieb.", color: "border-blue-500/20 bg-blue-500/5" },
-{ icon: "🗺️", title: "Lückenlose Gebiets-Abdeckung", desc: "Nicht nur die Kreisstadt — Vertriebo durchsucht alle Orte in Ihrem Radius automatisch.", color: "border-teal-500/20 bg-teal-500/5" },
-{ icon: "⭐", title: "Priorisierte Tagesliste", desc: "Tagesprioritäten statt Chaos. Heute fällige Rückrufe, priorisierte Neuleads und offene Angebote – Ihr Team sieht auf einen Blick, wer heute angerufen werden sollte.", color: "border-amber-500/20 bg-amber-500/5" },
-{ icon: "📞", title: "Komplette Kontakthistorie", desc: "Alle Gespräche, E-Mails und Notizen zu jeder Firma an einem Ort. Anrufe dokumentiert, E-Mail-Verlauf, gespeicherte Notizen – nichts geht verloren.", color: "border-emerald-500/20 bg-emerald-500/5" },
-{ icon: "✉️", title: "E-Mails & Follow-ups", desc: "E-Mail-Vorlagen mit Ihrem Logo und Signatur, automatische Aufgaben und Follow-up-Erinnerungen – von Erstansprache bis Nachfassen alles organisiert.", color: "border-purple-500/20 bg-purple-500/5" },
-{ icon: "👥", title: "Vertriebssteuerung für Teams", desc: "Admins sehen Fortschritt, offene Aufgaben, Aktivität und Ergebnisse. Vertriebler sehen nur ihre eigenen Leads.", color: "border-indigo-500/20 bg-indigo-500/5" },
-{ icon: "✅", title: "Alles leicht bedienbar", desc: "Keine komplizierte CRM-Einrichtung. Zielgebiet festlegen, Kontakte recherchieren, losarbeiten.", color: "border-slate-500/20 bg-slate-500/5" },
-{ icon: "🧠", title: "System das mitlernt", desc: "Je mehr Sie nutzen, desto besser wird Vertriebo. Erfolgreiche Branchen werden automatisch priorisiert.", color: "border-orange-500/20 bg-orange-500/5" },
-{ icon: "📊", title: "Echtzeit-Erfolgsquoten", desc: "Sehen Sie sofort, wie Ihr Team performt: Quote pro Vertriebler, beste Branchen, ROI der Recherche.", color: "border-rose-500/20 bg-rose-500/5" }];
+{ icon: Search, title: "Automatische Firmenkontakt-Recherche", desc: "Legen Sie Zielgebiet, Branche und Kundentyp fest – Vertriebo findet passende Firmenkontakte für Ihren Vertrieb.", accent: "blue" },
+{ icon: Globe, title: "Lückenlose Gebiets-Abdeckung", desc: "Nicht nur die Kreisstadt — Vertriebo durchsucht alle Orte in Ihrem Radius automatisch.", accent: "teal" },
+{ icon: Star, title: "Priorisierte Tagesliste", desc: "Tagesprioritäten statt Chaos. Heute fällige Rückrufe, priorisierte Neuleads und offene Angebote – Ihr Team sieht auf einen Blick, wer heute angerufen werden sollte.", accent: "amber" },
+{ icon: Phone, title: "Komplette Kontakthistorie", desc: "Alle Gespräche, E-Mails und Notizen zu jeder Firma an einem Ort. Anrufe dokumentiert, E-Mail-Verlauf, gespeicherte Notizen – nichts geht verloren.", accent: "emerald" },
+{ icon: Mail, title: "E-Mails & Follow-ups", desc: "E-Mail-Vorlagen mit Ihrem Logo und Signatur, automatische Aufgaben und Follow-up-Erinnerungen – von Erstansprache bis Nachfassen alles organisiert.", accent: "purple" },
+{ icon: Users, title: "Vertriebssteuerung für Teams", desc: "Admins sehen Fortschritt, offene Aufgaben, Aktivität und Ergebnisse. Vertriebler sehen nur ihre eigenen Leads.", accent: "indigo" },
+{ icon: Layout, title: "Alles leicht bedienbar", desc: "Keine komplizierte CRM-Einrichtung. Zielgebiet festlegen, Kontakte recherchieren, losarbeiten.", accent: "slate" },
+{ icon: Brain, title: "System das mitlernt", desc: "Je mehr Sie nutzen, desto besser wird Vertriebo. Erfolgreiche Branchen werden automatisch priorisiert.", accent: "orange" },
+{ icon: BarChart3, title: "Echtzeit-Erfolgsquoten", desc: "Sehen Sie sofort, wie Ihr Team performt: Quote pro Vertriebler, beste Branchen, ROI der Recherche.", accent: "rose" }];
+
+const ACCENT_COLORS = {
+  blue: { bg: "rgba(37,99,235,0.06)", border: "rgba(37,99,235,0.2)", iconBg: "rgba(37,99,235,0.1)", iconColor: "#60a5fa" },
+  teal: { bg: "rgba(20,184,166,0.06)", border: "rgba(20,184,166,0.2)", iconBg: "rgba(20,184,166,0.1)", iconColor: "#2dd4bf" },
+  amber: { bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.2)", iconBg: "rgba(245,158,11,0.1)", iconColor: "#fbbf24" },
+  emerald: { bg: "rgba(16,185,129,0.06)", border: "rgba(16,185,129,0.2)", iconBg: "rgba(16,185,129,0.1)", iconColor: "#34d399" },
+  purple: { bg: "rgba(139,92,246,0.06)", border: "rgba(139,92,246,0.2)", iconBg: "rgba(139,92,246,0.1)", iconColor: "#a78bfa" },
+  indigo: { bg: "rgba(99,102,241,0.06)", border: "rgba(99,102,241,0.2)", iconBg: "rgba(99,102,241,0.1)", iconColor: "#818cf8" },
+  slate: { bg: "rgba(100,116,139,0.06)", border: "rgba(100,116,139,0.2)", iconBg: "rgba(100,116,139,0.1)", iconColor: "#94a3b8" },
+  orange: { bg: "rgba(249,115,22,0.06)", border: "rgba(249,115,22,0.2)", iconBg: "rgba(249,115,22,0.1)", iconColor: "#fb923c" },
+  rose: { bg: "rgba(244,63,94,0.06)", border: "rgba(244,63,94,0.2)", iconBg: "rgba(244,63,94,0.1)", iconColor: "#f472b6" }
+};
 
 
 // Stable Particles Component - Larger and faster movement
@@ -226,6 +238,12 @@ export default function Landing() {
         @keyframes marquee {
           from { transform: translateX(0); }
           to { transform: translateX(-50%); }
+        }
+        @media (max-width: 768px) {
+          .feature-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (min-width: 769px) and (max-width: 1024px) {
+          .feature-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
       `}</style>
 
@@ -558,20 +576,68 @@ export default function Landing() {
             </div>
           </RevealOnScroll>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 }}>
-            {FEATURES.map((f, i) =>
-            <RevealOnScroll key={i} delay={i * 100}>
-                <div style={{
-                background: "rgba(255,255,255,0.03)", border: `1px solid ${f.color.split(" ")[0].replace("border-", "").replace("-500/20", "")}`,
-                borderColor: f.color.includes("blue") ? "rgba(37,99,235,0.2)" : f.color.includes("teal") ? "rgba(20,184,166,0.2)" : f.color.includes("amber") ? "rgba(245,158,11,0.2)" : f.color.includes("emerald") ? "rgba(16,185,129,0.2)" : f.color.includes("purple") ? "rgba(139,92,246,0.2)" : f.color.includes("indigo") ? "rgba(99,102,241,0.2)" : f.color.includes("orange") ? "rgba(249,115,22,0.2)" : f.color.includes("rose") ? "rgba(244,63,94,0.2)" : "rgba(100,116,139,0.2)",
-                borderRadius: 20, padding: 28, transition: "all 0.3s", cursor: "default"
-              }}>
-                  <div style={{ fontSize: 36, marginBottom: 16 }}>{f.icon}</div>
-                  <h3 style={{ fontSize: 17, fontWeight: 800, color: "white", marginBottom: 10 }}>{f.title}</h3>
-                  <p style={{ fontSize: 14, color: "rgba(148,163,184,1)", lineHeight: 1.7 }}>{f.desc}</p>
-                </div>
-              </RevealOnScroll>
-            )}
+          <div className="feature-grid" style={{ 
+            display: "grid", 
+            gridTemplateColumns: "repeat(3,1fr)", 
+            gap: 20,
+          }}>
+            {FEATURES.map((f, i) => {
+              const colors = ACCENT_COLORS[f.accent];
+              const IconComponent = f.icon;
+              return (
+              <RevealOnScroll key={i} delay={i * 80}>
+                  <div style={{
+                    background: "rgba(255,255,255,0.03)",
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 16,
+                    padding: 24,
+                    transition: "all 0.3s",
+                    cursor: "default",
+                    minHeight: 280,
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-4px)";
+                    e.currentTarget.style.borderColor = colors.iconColor;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.borderColor = colors.border;
+                  }}>
+                    {/* Icon Container */}
+                    <div style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 12,
+                      background: colors.iconBg,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: 16,
+                      flexShrink: 0
+                    }}>
+                      <IconComponent size={24} color={colors.iconColor} strokeWidth={2} />
+                    </div>
+                    
+                    {/* Content */}
+                    <h3 style={{
+                      fontSize: 16,
+                      fontWeight: 700,
+                      color: "white",
+                      marginBottom: 8,
+                      lineHeight: 1.4
+                    }}>{f.title}</h3>
+                    <p style={{
+                      fontSize: 13,
+                      color: "rgba(148,163,184,1)",
+                      lineHeight: 1.6,
+                      flex: 1
+                    }}>{f.desc}</p>
+                  </div>
+                </RevealOnScroll>
+              );
+            })}
           </div>
         </div>
       </section>
