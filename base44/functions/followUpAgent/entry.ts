@@ -74,6 +74,88 @@ async function checkAccess(req, { organization_id, action, check_limit=null, cur
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── Org Settings Loader ─────────────────────────────────────────────────────
+async function loadOrgSettings(base44, organization_id) {
+  try {
+    const records = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id });
+    const map = {};
+    for (const r of records) map[r.key] = r.value;
+    return {
+      services: map.services || map.dienstleistungen || '',
+      targetCustomerTypes: map.target_customer_types || map.zielkunden || '',
+    };
+  } catch {
+    return { services: '', targetCustomerTypes: '' };
+  }
+}
+
+// ─── Task Text Builder ────────────────────────────────────────────────────────
+function buildTaskTexts(company, orgSettings, type) {
+  const serviceCtx = company.matched_service_context || '';
+  const leadType = company.matched_target_customer_type || company.branche || '';
+  const firstService = serviceCtx
+    ? serviceCtx.split(',')[0].trim()
+    : (orgSettings.services ? orgSettings.services.split(',')[0].trim() : '');
+
+  // Titel
+  let titel;
+  if (type === 'rueckruf') {
+    if (leadType && firstService) {
+      titel = `Rückruf bei ${leadType} wegen ${firstService}: ${company.name}`;
+    } else if (firstService) {
+      titel = `Rückruf wegen ${firstService}: ${company.name}`;
+    } else {
+      titel = `Rückruf: ${company.name}`;
+    }
+  } else if (type === 'nachfassen') {
+    if (leadType && firstService) {
+      titel = `Nachfassen bei ${leadType} wegen ${firstService}: ${company.name}`;
+    } else if (firstService) {
+      titel = `Nachfassen wegen ${firstService}: ${company.name}`;
+    } else {
+      titel = `Nachfassen: ${company.name} – kein Kontakt seit 7 Tagen`;
+    }
+  } else if (type === 'angebot_nachfassen') {
+    if (firstService) {
+      titel = `Angebot ${firstService} nachfassen: ${company.name}`;
+    } else {
+      titel = `Angebot nachfassen: ${company.name} – seit 7 Tagen kein Feedback`;
+    }
+  } else { // reaktivieren
+    if (leadType && firstService) {
+      titel = `Reaktivieren: ${leadType} ${company.name} – ${firstService} ansprechen`;
+    } else if (firstService) {
+      titel = `Reaktivieren: ${company.name} – ${firstService} ansprechen`;
+    } else {
+      titel = `Reaktivieren: ${company.name} – seit 30 Tagen inaktiv`;
+    }
+  }
+
+  // Beschreibung
+  const parts = [];
+  if (leadType) parts.push(`Lead-Typ: ${leadType}`);
+  if (serviceCtx) {
+    parts.push(`Relevante Leistung: ${serviceCtx}`);
+  } else if (orgSettings.services) {
+    parts.push(`Angebotene Leistungen: ${orgSettings.services.split(',').slice(0,3).join(', ')}`);
+  }
+  if (company.relevance_reason) parts.push(`Warum passend: ${company.relevance_reason}`);
+
+  // Nächster Schritt je nach Typ
+  if (type === 'rueckruf') {
+    parts.push(`Nächster Schritt: Ansprechpartner klären und Bedarf für ${firstService || 'unsere Leistungen'} kurz qualifizieren.`);
+  } else if (type === 'nachfassen') {
+    parts.push(`Nächster Schritt: Kontakt aufnehmen und Status klären – hat sich etwas verändert?`);
+  } else if (type === 'angebot_nachfassen') {
+    parts.push(`Nächster Schritt: Feedback zum Angebot einholen und Entscheidung herbeiführen.`);
+  } else {
+    parts.push(`Nächster Schritt: Lead erneut kontaktieren und Aktualität des Bedarfs prüfen.`);
+  }
+
+  const beschreibung = parts.length > 1 ? parts.join('\n') : null;
+  return { titel, beschreibung };
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -93,10 +175,11 @@ Deno.serve(async (req) => {
     const thirtyDaysAgo = new Date(now - 30*24*60*60*1000);
 
     // ── 2. Alle Daten org-spezifisch laden ─────────────────────────────────
-    const [companies, tasks, contactLogs] = await Promise.all([
+    const [companies, tasks, contactLogs, orgSettings] = await Promise.all([
       base44.asServiceRole.entities.Company.filter({ organization_id }),
       base44.asServiceRole.entities.Task.filter({ organization_id }),
       base44.asServiceRole.entities.ContactLog.filter({ organization_id }),
+      loadOrgSettings(base44, organization_id),
     ]);
 
     const activeCompanies = companies.filter(c => !["Gewonnen","Verloren"].includes(c.status) && !c.is_blacklisted);
@@ -120,10 +203,11 @@ Deno.serve(async (req) => {
     for (const company of activeCompanies.filter(c => c.status === "Rückruf")) {
       const hasRückrufTask = (openTasksByCompany[company.id]||[]).some(t => t.typ === "Rückruf");
       if (!hasRückrufTask) {
+        const { titel, beschreibung } = buildTaskTexts(company, orgSettings, 'rueckruf');
         await base44.asServiceRole.entities.Task.create({
           organization_id,
           company_id: company.id, company_name: company.name,
-          titel: `Rückruf: ${company.name}`, typ: "Rückruf", prioritaet: "Hoch",
+          titel, beschreibung, typ: "Rückruf", prioritaet: "Hoch",
           faellig_am: new Date().toISOString(), erledigt: false, assigned_to: company.assigned_to,
         });
         tasksCreated++;
@@ -135,10 +219,11 @@ Deno.serve(async (req) => {
       const lastContact = lastContactByCompany[company.id];
       if (!lastContact || new Date(lastContact) < sevenDaysAgo) {
         if (!(openTasksByCompany[company.id]||[]).length) {
+          const { titel, beschreibung } = buildTaskTexts(company, orgSettings, 'nachfassen');
           await base44.asServiceRole.entities.Task.create({
             organization_id,
             company_id: company.id, company_name: company.name,
-            titel: `Nachfassen: ${company.name} – kein Kontakt seit 7 Tagen`, typ: "Nachfassen", prioritaet: "Hoch",
+            titel, beschreibung, typ: "Nachfassen", prioritaet: "Hoch",
             faellig_am: new Date().toISOString(), erledigt: false, assigned_to: company.assigned_to,
           });
           tasksCreated++;
@@ -152,10 +237,11 @@ Deno.serve(async (req) => {
       if (!lastContact || new Date(lastContact) < sevenDaysAgo) {
         const hasNachfass = (openTasksByCompany[company.id]||[]).some(t => t.typ === "Nachfassen");
         if (!hasNachfass) {
+          const { titel, beschreibung } = buildTaskTexts(company, orgSettings, 'angebot_nachfassen');
           await base44.asServiceRole.entities.Task.create({
             organization_id,
             company_id: company.id, company_name: company.name,
-            titel: `Angebot nachfassen: ${company.name} – seit 7 Tagen kein Feedback`, typ: "Nachfassen", prioritaet: "Hoch",
+            titel, beschreibung, typ: "Nachfassen", prioritaet: "Hoch",
             faellig_am: new Date().toISOString(), erledigt: false, assigned_to: company.assigned_to,
           });
           tasksCreated++;
@@ -168,10 +254,11 @@ Deno.serve(async (req) => {
       const lastContact = lastContactByCompany[company.id];
       const lastActivity = lastContact ? new Date(lastContact) : new Date(company.created_date);
       if (lastActivity < thirtyDaysAgo && !(openTasksByCompany[company.id]||[]).length) {
+        const { titel, beschreibung } = buildTaskTexts(company, orgSettings, 'reaktivieren');
         await base44.asServiceRole.entities.Task.create({
           organization_id,
           company_id: company.id, company_name: company.name,
-          titel: `Reaktivieren: ${company.name} – seit 30 Tagen inaktiv`, typ: "Nachfassen", prioritaet: "Mittel",
+          titel, beschreibung, typ: "Nachfassen", prioritaet: "Mittel",
           faellig_am: new Date().toISOString(), erledigt: false, assigned_to: company.assigned_to,
         });
         tasksCreated++;

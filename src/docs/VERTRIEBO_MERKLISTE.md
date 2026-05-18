@@ -471,8 +471,11 @@ Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 - ✅ fallbackEmailTemplatesUseMatchedTargetCustomerType
 - ✅ fallbackEmailTemplatesUseMatchedServiceContext
 
-**Offen (P1/P2):**
-- followUpAgent: Task-Titel mit matched_service_context anreichern
+**P1 ABGESCHLOSSEN (2026-05-18):**
+- ✅ followUpAgent: Task-Titel und -Beschreibungen mit matched_service_context, matched_target_customer_type, relevance_reason und orgSettings.services angereichert
+- Akzeptanzkriterien: followUpTasksUseMatchedServiceContext ✅ | followUpTasksUseTargetCustomerType ✅ | followUpDescriptionsExplainLeadFit ✅ | followUpFallbackSafeWhenContextMissing ✅ | noGenericFollowUpWhenContextExists ✅ | noBillingOrResearchSideEffects ✅
+
+**Offen (P2):**
 - salesCoach: Tages-Reminder branchenspezifisch
 
 ### Priorität 2: Produktblock — E-Mail / KI-Skripte / Follow-ups
