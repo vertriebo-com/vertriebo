@@ -207,16 +207,29 @@ export default function Onboarding() {
         onboarding_completed_at: new Date().toISOString(),
       });
 
-      // Show success message based on results
       const leadsFound = researchResult?.leads_saved || 0;
-      if (leadsFound > 0) {
-        toast.success(`${leadsFound} Firmenkontakte gefunden!`);
-      } else {
-        toast.info('Keine passenden Firmen gefunden - bitte Suchgebiet anpassen');
-      }
+      const status = researchResult?.status;
+      const runId = researchResult?.research_run_id;
 
-      // Navigate to dashboard (shows leads + next actions)
-      navigate("/dashboard");
+      // Intelligentes Routing basierend auf Ergebnis
+      if (status === 'completed' || status === 'partial') {
+        if (leadsFound > 0) {
+          // ERFOLG: Zur Leadseite mit Filter auf neue Leads
+          toast.success(`${leadsFound} Firmenkontakte gefunden!`);
+          navigate(`/leads?new_run=${runId}`);
+        } else {
+          // 0 LEADS: Zur Leadseite mit Empty-State-Alternativen
+          toast.info('Keine passenden Firmen gefunden - bitte Suchgebiet anpassen');
+          navigate('/leads?onboarding_zero_leads=true');
+        }
+      } else if (status === 'failed') {
+        // FEHLER: Zur Leadseite mit Recovery-Optionen
+        toast.error('Recherche konnte nicht abgeschlossen werden');
+        navigate('/leads?onboarding_failed=true');
+      } else {
+        // DEFAULT: Dashboard
+        navigate("/dashboard");
+      }
     } catch (e) {
       toast.error("Fehler: " + e.message);
       navigate("/dashboard");

@@ -637,7 +637,38 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 - ✅ Keine doppelten Leads, keine doppelte Usage-Zählung
 
 **Nächste Phase:**
-- Phase 2: Dashboard Empty State + First-Value Guidance
+- Phase 2: Dashboard Empty State + First-Value Guidance — ABGESCHLOSSEN ✅
+
+### Phase 2: First-Value-Flow nach Onboarding — ABGESCHLOSSEN ✅ (2026-05-18)
+
+**Ziel:** Nutzer nach Onboarding-Recherche direkt in sinnvollen nächsten Zustand führen.
+
+**Umsetzung:**
+- ✅ **Intelligentes Routing** basierend auf Recherche-Ergebnis:
+  - `completed`/`partial` + Leads gefunden → `/leads?new_run={runId}` mit Success-Box
+  - `completed`/`partial` + 0 Leads → `/leads?onboarding_zero_leads=true` mit Alternativen
+  - `failed` → `/leads?onboarding_failed=true` mit Recovery-Optionen
+- ✅ **Leadseite zeigt kontextspezifische States:**
+  - Success-Box: "X Firmenkontakte gefunden, starten Sie mit bestem Lead"
+  - Zero-Leads-State: Konkrete Optionen (Radius erhöhen, Zielkunden anpassen, erneut recherchieren)
+  - Failed-State: Freundliche Fehlermeldung + Retry-CTA
+- ✅ **Kein Dashboard als Dead-End** nach Onboarding
+- ✅ **Keine technischen Begriffe** (zero_result_cause etc.) im Kundenflow
+- ✅ **Bestehende Leadseite genutzt** (kein neuer Page-Build nötig)
+
+**Akzeptanzkriterien:**
+- ✅ onboardingAfterSuccessfulResearchRoutesToBestNextStep
+- ✅ leadsFoundRoutesToLeadsPageWithNewResultsVisible
+- ✅ partialResearchRoutesToLeadsWithSuccessContext
+- ✅ zeroLeadStateOffersClearNextActions
+- ✅ failedResearchShowsFriendlyRecovery
+- ✅ dashboardNotUsedAsDeadEndAfterOnboarding
+- ✅ noTechnicalDebugTermsForCustomers
+- ✅ noBigDesignRefactorYet
+- ✅ merklisteUpdated
+
+**Nächste Phase:**
+- Phase 3: Dashboard Empty State Modernisierung (separater Block)
 
 **Ziel:** Onboarding-Launch auf stabilen async ResearchRun-Flow umstellen.
 

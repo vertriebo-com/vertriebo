@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Plus, Filter, X, MoreVertical, Download, TrendingUp, Building2, Upload, Sparkles } from "lucide-react";
+import { Search, Plus, Filter, X, MoreVertical, Download, TrendingUp, Building2, Upload, Sparkles, Activity, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -18,6 +19,7 @@ import LearnedIntelligencePanel from "../components/settings/LearnedIntelligence
 import moment from "moment";
 
 export default function Leads() {
+  const navigate = useNavigate();
   const { user, org, filterCompanies, loading: filterLoading } = useLeadsFilter();
   
   // ═ States
@@ -40,12 +42,28 @@ export default function Leads() {
   const [leadLimit, setLeadLimit] = useState(100);
   const [loadingMore, setLoadingMore] = useState(false);
   const [learnedIntelligenceLoaded, setLearnedIntelligenceLoaded] = useState(false);
+  const [showOnboardingZeroLeads, setShowOnboardingZeroLeads] = useState(false);
+  const [showOnboardingFailed, setShowOnboardingFailed] = useState(false);
 
   // ═ Effects
-  // Parse new_run query parameter
+  // Parse query parameters: new_run, onboarding_zero_leads, onboarding_failed
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setNewRunFilter(params.get("new_run"));
+    const newRun = params.get("new_run");
+    setNewRunFilter(newRun);
+    
+    // Onboarding-Zustände anzeigen
+    const onboardingZeroLeads = params.get("onboarding_zero_leads");
+    const onboardingFailed = params.get("onboarding_failed");
+    
+    if (onboardingZeroLeads === 'true') {
+      // Zeige Empty-State mit Alternativen
+      setShowOnboardingZeroLeads(true);
+    }
+    if (onboardingFailed === 'true') {
+      // Zeige Recovery-Message
+      setShowOnboardingFailed(true);
+    }
   }, []);
 
   const orgId = org?.id || null;
@@ -351,6 +369,74 @@ export default function Leads() {
         )}
       </div>
 
+      {/* Onboarding Zero-Leads State */}
+      {showOnboardingZeroLeads && companies.length === 0 && (
+        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-8 mb-6 text-center">
+          <div className="flex items-center justify-center mb-4">
+            <Target className="w-12 h-12 text-amber-600" />
+          </div>
+          <h3 className="text-xl font-bold text-amber-900 mb-2">Keine passenden Firmenkontakte gefunden</h3>
+          <p className="text-sm text-amber-800 mb-6 max-w-lg mx-auto">
+            Das kann an zu engen Einstellungen liegen. Hier sind konkrete Optionen um mehr Treffer zu erhalten:
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3 max-w-2xl mx-auto mb-6">
+            <Button 
+              onClick={() => navigate('/settings?tab=company')} 
+              className="gap-2 bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              <Target className="w-4 h-4" /> Suchradius erhöhen
+            </Button>
+            <Button 
+              onClick={() => navigate('/settings?tab=targeting')} 
+              className="gap-2 bg-white border border-amber-300 text-amber-700 hover:bg-amber-50"
+            >
+              <Filter className="w-4 h-4" /> Zielkunden anpassen
+            </Button>
+            <Button 
+              onClick={() => { setShowResearch(true); setShowOnboardingZeroLeads(false); }} 
+              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white sm:col-span-2"
+            >
+              <Sparkles className="w-4 h-4" /> Erneut recherchieren
+            </Button>
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => { setShowOnboardingZeroLeads(false); navigate('/dashboard'); }} 
+            className="text-slate-600"
+          >
+            Zum Dashboard
+          </Button>
+        </div>
+      )}
+
+      {/* Onboarding Failed State */}
+      {showOnboardingFailed && (
+        <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-2xl p-8 mb-6 text-center">
+          <div className="flex items-center justify-center mb-4">
+            <Activity className="w-12 h-12 text-red-600" />
+          </div>
+          <h3 className="text-xl font-bold text-red-900 mb-2">Recherche konnte nicht abgeschlossen werden</h3>
+          <p className="text-sm text-red-800 mb-6">
+            Bitte prüfen Sie Ihre Einstellungen oder starten Sie die Recherche erneut.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button 
+              onClick={() => { setShowResearch(true); setShowOnboardingFailed(false); }} 
+              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Sparkles className="w-4 h-4" /> Erneut versuchen
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => { setShowOnboardingFailed(false); navigate('/dashboard'); }} 
+              className="text-slate-600"
+            >
+              Zum Dashboard
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Leads List */}
       {filtered.length === 0 ? (
         <div className="bg-white border border-[#E2E8F0] rounded-2xl p-16 text-center">
@@ -371,10 +457,10 @@ export default function Leads() {
                  </Button>
                </a>
              )}
-            </div>
-           ) : (
-             <Button variant="outline" onClick={() => { setStatusFilter(null); setFocusFilter(null); setSearch(""); }} className="gap-2 border border-[#E2E8F0]">Filter zurücksetzen</Button>
-           )}
+           </div>
+          ) : (
+            <Button variant="outline" onClick={() => { setStatusFilter(null); setFocusFilter(null); setSearch(""); }} className="gap-2 border border-[#E2E8F0]">Filter zurücksetzen</Button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
