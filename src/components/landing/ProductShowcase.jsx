@@ -1,17 +1,18 @@
 import { Building2, Phone, Mail, Calendar, User, TrendingUp, Star, Check, X, PhoneCall, MessageSquare, FileText, Clock, MapPin, Briefcase } from "lucide-react";
+import VertrieboLogo from "@/components/VertrieboLogo";
 
 const PRIORITIZED_LEADS = [
-  { name: "Schmidt Gebäudereinigung GmbH", branche: "Gebäudereinigung", ort: "Berlin", prio: "Hoch", status: "Rückruf", contact: "Herr Schmidt", lastContact: "Gestern", tasks: 2 },
-  { name: "Hausmeisterdienst Müller", branche: "Hausmeister", ort: "Potsdam", prio: "Hoch", status: "Erstkontakt", contact: "Frau Müller", lastContact: "Nie", tasks: 1 },
-  { name: "Security Services Nord", branche: "Sicherheitsdienst", ort: "Hamburg", prio: "Mittel", status: "Angebot", contact: "Herr König", lastContact: "Vor 3 Tagen", tasks: 3 },
-  { name: "Gartenbau Schmidt GmbH", branche: "Garten- und Landschaftsbau", ort: "Berlin", prio: "Mittel", status: "Termin", contact: "Herr Schmidt", lastContact: "Heute", tasks: 1 },
+  { name: "Schmidt Gebäudereinigung GmbH", branche: "Gebäudereinigung", ort: "Berlin", prio: "Hoch", status: "Rückruf" },
+  { name: "Hausmeisterdienst Müller", branche: "Facility Management", ort: "Potsdam", prio: "Hoch", status: "Erstkontakt" },
+  { name: "Security Services Nord", branche: "Sicherheitsdienst", ort: "Hamburg", prio: "Mittel", status: "Angebot" },
+  { name: "Gartenbau Schmidt GmbH", branche: "Garten- und Landschaftsbau", ort: "Berlin", prio: "Mittel", status: "Termin" },
 ];
 
 const TODAY_TASKS = [
-  { time: "09:00", type: "Rückruf", company: "Schmidt GmbH", status: "offen" },
-  { time: "11:30", type: "Angebot senden", company: "Müller KG", status: "offen" },
-  { time: "14:00", type: "Termin", company: "Nord GmbH", status: "bestätigt" },
-  { time: "16:00", type: "Nachfassen", company: "Meier GmbH", status: "offen" },
+  { time: "09:00", type: "Rückruf", company: "Schmidt Gebäudereinigung", status: "offen" },
+  { time: "11:30", type: "Angebot senden", company: "Müller Facility", status: "offen" },
+  { time: "14:00", type: "Termin", company: "Security Services Nord", status: "bestätigt" },
+  { time: "16:00", type: "Nachfassen", company: "Gartenbau Schmidt", status: "offen" },
 ];
 
 export default function ProductShowcase() {
@@ -46,56 +47,55 @@ export default function ProductShowcase() {
 
           {/* App Header */}
           <div style={{ background: "#0c1428", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 32, height: 32, background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ color: "white", fontWeight: 900, fontSize: 14 }}>V</span>
-              </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <VertrieboLogo variant="light" size="sm" />
               <div>
-                <p style={{ fontSize: 13, fontWeight: 800, color: "white" }}>Vertriebo</p>
-                <p style={{ fontSize: 10, color: "rgba(100,116,139,1)" }}>Dashboard</p>
+                <p style={{ fontSize: 13, fontWeight: 800, color: "white" }}>Dashboard</p>
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "rgba(100,116,139,1)" }}>
-              <User size={14} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "rgba(148,163,184,1)" }}>
+              <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#2563eb,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "white" }}>
+                MM
+              </div>
               <span>Max Mustermann</span>
             </div>
           </div>
 
           {/* Dashboard Content */}
           <div style={{ padding: 24 }}>
-            {/* Stats Row */}
+            {/* Stats Row - Realistische Zahlen */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12, marginBottom: 24 }}>
               <div style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: 12, padding: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#93c5fd", textTransform: "uppercase" }}>Heute fällig</span>
                   <Calendar size={14} color="#60a5fa" />
                 </div>
-                <p style={{ fontSize: 28, fontWeight: 900, color: "#60a5fa" }}>12</p>
-                <p style={{ fontSize: 10, color: "rgba(100,116,139,1)", marginTop: 4 }}>Rückrufe & Aufgaben</p>
+                <p style={{ fontSize: 28, fontWeight: 900, color: "#60a5fa" }}>8</p>
+                <p style={{ fontSize: 10, color: "rgba(148,163,184,1)", marginTop: 4 }}>Rückrufe & Aufgaben</p>
               </div>
               <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 12, padding: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#86efac", textTransform: "uppercase" }}>Offene Leads</span>
                   <Building2 size={14} color="#4ade80" />
                 </div>
-                <p style={{ fontSize: 28, fontWeight: 900, color: "#4ade80" }}>47</p>
-                <p style={{ fontSize: 10, color: "rgba(100,116,139,1)", marginTop: 4 }}>Firmen im Pipeline</p>
+                <p style={{ fontSize: 28, fontWeight: 900, color: "#4ade80" }}>34</p>
+                <p style={{ fontSize: 10, color: "rgba(148,163,184,1)", marginTop: 4 }}>Firmen in Pipeline</p>
               </div>
               <div style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 12, padding: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#c4b5fd", textTransform: "uppercase" }}>Diese Woche</span>
                   <TrendingUp size={14} color="#a78bfa" />
                 </div>
-                <p style={{ fontSize: 28, fontWeight: 900, color: "#a78bfa" }}>23</p>
-                <p style={{ fontSize: 10, color: "rgba(100,116,139,1)", marginTop: 4 }}>Anrufe durchgeführt</p>
+                <p style={{ fontSize: 28, fontWeight: 900, color: "#a78bfa" }}>18</p>
+                <p style={{ fontSize: 10, color: "rgba(148,163,184,1)", marginTop: 4 }}>Anrufe durchgeführt</p>
               </div>
               <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 12, padding: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
                   <span style={{ fontSize: 9, fontWeight: 700, color: "#fcd34d", textTransform: "uppercase" }}>Konversionsrate</span>
                   <Star size={14} color="#fbbf24" />
                 </div>
-                <p style={{ fontSize: 28, fontWeight: 900, color: "#fbbf24" }}>18%</p>
-                <p style={{ fontSize: 10, color: "rgba(100,116,139,1)", marginTop: 4 }}>Von Lead zu Kunde</p>
+                <p style={{ fontSize: 28, fontWeight: 900, color: "#fbbf24" }}>22%</p>
+                <p style={{ fontSize: 10, color: "rgba(148,163,184,1)", marginTop: 4 }}>Durchschnittlich</p>
               </div>
             </div>
 

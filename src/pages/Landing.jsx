@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Check, Zap, ArrowRight, ChevronDown, Star, MapPin, Target, Phone, Mail, Users, TrendingUp, Shield, Brain, BarChart3 } from "lucide-react";
+import { Check, Zap, ArrowRight, ChevronDown, Star, MapPin, Target, Phone, Mail, Users, TrendingUp, Shield, Brain, BarChart3, User } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import VertrieboLogo from "@/components/VertrieboLogo";
@@ -437,35 +437,49 @@ export default function Landing() {
               {/* App Content */}
               <div style={{ background: "#0c1428", display: "flex", minHeight: 400 }}>
                 {/* Mini Sidebar */}
-                <div style={{ width: 56, background: "#080e1e", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 0", gap: 16 }}>
-                  <div style={{ width: 32, height: 32, background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ color: "white", fontWeight: 900, fontSize: 14 }}>V</span>
+                <div style={{ width: 64, background: "#080e1e", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 0", gap: 16 }}>
+                  <div style={{ padding: "8px 4px" }}>
+                    <VertrieboLogo variant="light" size="sm" />
                   </div>
                   {[1,2,3,4,5].map(i => (
-                    <div key={i} style={{ width: 20, height: 20, background: i === 1 ? "rgba(37,99,235,0.15)" : "transparent", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", border: i === 1 ? "1px solid rgba(37,99,235,0.3)" : "none" }}>
-                      <div style={{ width: 10, height: 10, background: i === 1 ? "#3b82f6" : "rgba(71,85,105,0.5)", borderRadius: 2 }} />
+                    <div key={i} style={{ width: 24, height: 24, background: i === 1 ? "rgba(37,99,235,0.15)" : "transparent", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: i === 1 ? "1px solid rgba(37,99,235,0.3)" : "none" }}>
+                      <div style={{ width: 12, height: 12, background: i === 1 ? "#3b82f6" : "rgba(71,85,105,0.5)", borderRadius: 3 }} />
                     </div>
                   ))}
                 </div>
 
                 {/* Main Dashboard */}
                 <div style={{ flex: 1, padding: 16 }}>
-                  {/* Stats Row */}
+                  {/* App Header mit Logo */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <VertrieboLogo variant="light" size="sm" />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(148,163,184,1)" }}>Dashboard</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: "linear-gradient(135deg,#2563eb,#7c3aed)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 10, color: "white" }}>
+                        MM
+                      </div>
+                      <span style={{ fontSize: 10, color: "rgba(148,163,184,1)" }}>Max M.</span>
+                    </div>
+                  </div>
+
+                  {/* Stats Row - Realistische Zahlen */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
                     <div style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: 10, padding: 12 }}>
                       <p style={{ fontSize: 9, fontWeight: 700, color: "#93c5fd", textTransform: "uppercase", marginBottom: 4 }}>Heute fällig</p>
-                      <p style={{ fontSize: 24, fontWeight: 900, color: "#60a5fa" }}>12</p>
-                      <p style={{ fontSize: 9, color: "rgba(100,116,139,1)" }}>Rückrufe</p>
+                      <p style={{ fontSize: 24, fontWeight: 900, color: "#60a5fa" }}>8</p>
+                      <p style={{ fontSize: 9, color: "rgba(148,163,184,1)" }}>Rückrufe</p>
                     </div>
                     <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 10, padding: 12 }}>
                       <p style={{ fontSize: 9, fontWeight: 700, color: "#86efac", textTransform: "uppercase", marginBottom: 4 }}>Offen</p>
-                      <p style={{ fontSize: 24, fontWeight: 900, color: "#4ade80" }}>47</p>
-                      <p style={{ fontSize: 9, color: "rgba(100,116,139,1)" }}>Leads</p>
+                      <p style={{ fontSize: 24, fontWeight: 900, color: "#4ade80" }}>34</p>
+                      <p style={{ fontSize: 9, color: "rgba(148,163,184,1)" }}>Leads</p>
                     </div>
                     <div style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 10, padding: 12 }}>
                       <p style={{ fontSize: 9, fontWeight: 700, color: "#c4b5fd", textTransform: "uppercase", marginBottom: 4 }}>Woche</p>
-                      <p style={{ fontSize: 24, fontWeight: 900, color: "#a78bfa" }}>23</p>
-                      <p style={{ fontSize: 9, color: "rgba(100,116,139,1)" }}>Anrufe</p>
+                      <p style={{ fontSize: 24, fontWeight: 900, color: "#a78bfa" }}>18</p>
+                      <p style={{ fontSize: 9, color: "rgba(148,163,184,1)" }}>Anrufe</p>
                     </div>
                   </div>
 
