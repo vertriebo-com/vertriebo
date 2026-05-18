@@ -83,10 +83,25 @@ POST testLeadSearchEngine
 | schaedlingsbekaempfung | ✅ GOOD (99/58) Köln | ✅ GOOD (98/60) Düsseldorf | ✅ GOOD (98/56) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
 | brandschutzservice | ✅ GOOD (96/58) Köln | ✅ GOOD (96/59) Dortmund | ✅ GOOD (95/58) Koblenz | **✅ PRODUCTION READY** | ✅ 12 aktiv |
 
-### Batch 7+ — Ausstehend
+### Batch 7A — Industrie & Logistik & Werbetechnik (abgeschlossen 2026-05-18)
+
+| profile_id | Großstadt | Mittelstadt | Kleinstadt | Gesamt-Verdict | Gewichte |
+|---|---|---|---|---|---|
+| aufzugservice | ✅ GOOD (96/55) Frankfurt | ✅ GOOD (95/51) Bonn | ✅ GOOD (95/48) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| tor_tuertechnik | ✅ GOOD (96/57) Hamburg | ✅ GOOD (97/56) Dortmund | ✅ GOOD (95/54) Koblenz | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| photovoltaik_service | ✅ GOOD (97/49) Stuttgart | ✅ GOOD (96/39) Bonn | ✅ GOOD (96/47) Koblenz | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| umzugsunternehmen | ✅ GOOD (97/60) Düsseldorf | ✅ GOOD (97/58) Köln | ✅ GOOD (98/55) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| druckerei_werbetechnik | ✅ GOOD (97/58) Köln | ✅ GOOD (99/59) Düsseldorf | ✅ GOOD (98/58) Koblenz | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+
+### Batch 7B — Ausstehend
 
 | profile_id | Label | Status |
 |---|---|---|
+| aktenvernichtung_dokumentenmanagement | Aktenvernichtung / Dokumentenmanagement | ⏳ ausstehend |
+| energieberatung | Energieberatung | ⏳ ausstehend |
+| arbeitsschutz_arbeitssicherheit | Arbeitsschutz / Arbeitssicherheit | ⏳ ausstehend |
+| datenschutz_compliance | Datenschutz / Compliance | ⏳ ausstehend |
+| messebau | Messebau | ⏳ ausstehend |
 | aufzugservice | Aufzugservice | ⏳ ausstehend |
 | tor_tuertechnik | Tor- und Türtechnik | ⏳ ausstehend |
 | photovoltaik_service | Photovoltaik-Service | ⏳ ausstehend |
@@ -485,11 +500,11 @@ POST testLeadSearchEngine
 | schluesseldienst_schliesanlagen | Schlüsseldienst / Schließanlagen | `production_ready` | ✅ GOOD (avgScore 97) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | schaedlingsbekaempfung | Schädlingsbekämpfung | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | brandschutzservice | Brandschutzservice | `production_ready` | ✅ GOOD (avgScore 96) | ✅ 12 Gewichte aktiv | 2026-05-18 |
-| aufzugservice | Aufzugservice | `production_ready` | ⏳ Test ausstehend | — | — |
-| tor_tuertechnik | Tor- und Türtechnik | `production_ready` | ⏳ Test ausstehend | — | — |
-| photovoltaik_service | Photovoltaik-Service | `production_ready` | ⏳ Test ausstehend | — | — |
-| umzugsunternehmen | Umzugsunternehmen | `production_ready` | ⏳ Test ausstehend | — | — |
-| druckerei_werbetechnik | Druckerei / Werbetechnik | `production_ready` | ⏳ Test ausstehend | — | — |
+| aufzugservice | Aufzugservice | `production_ready` | ✅ GOOD (avgScore 95–96) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| tor_tuertechnik | Tor- und Türtechnik | `production_ready` | ✅ GOOD (avgScore 95–97) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| photovoltaik_service | Photovoltaik-Service | `production_ready` | ✅ GOOD (avgScore 96–97) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| umzugsunternehmen | Umzugsunternehmen | `production_ready` | ✅ GOOD (avgScore 97–98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| druckerei_werbetechnik | Druckerei / Werbetechnik | `production_ready` | ✅ GOOD (avgScore 97–99) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | aktenvernichtung_dokumentenmanagement | Aktenvernichtung / Dokumentenmanagement | `production_ready` | ⏳ Test ausstehend | — | — |
 | energieberatung | Energieberatung | `production_ready` | ⏳ Test ausstehend | — | — |
 | arbeitsschutz_arbeitssicherheit | Arbeitsschutz / Arbeitssicherheit | `production_ready` | ⏳ Test ausstehend | — | — |
@@ -529,6 +544,7 @@ _Keine offenen Punkte für die 8 Kernprofile. Alle Tuning-Maßnahmen abgeschloss
 | 2026-05-17 | **Tuning abgeschlossen** — 3 Profile nachgepflegt: scoring_signal_weights (10 Gewichte), place_type_confidence=high, SEED aktualisiert, TAXONOMY_VERSION=v6-weighted-scoring |
 | 2026-05-18 | **Batch 1 finaler Abschluss** — maler_renovierung, shk, elektro_gebaeudetechnik: seed_reset + 9 Re-Tests bestätigt. scoring_signal_weights_count=10 in allen 3 Profilen verifiziert. Alle 24 Batch-1-Tests GOOD. |
 | 2026-05-18 | **Batch 5 abgeschlossen** — pflege_betreuung, schulungen_weiterbildung, dachdecker, geruestbau, trockenbau_innenausbau × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. pflege_betreuung avgScore=100. TAXONOMY_VERSION=v6-weighted-scoring-b5 |
+| 2026-05-18 | **Batch 7A abgeschlossen** — aufzugservice, tor_tuertechnik, photovoltaik_service, umzugsunternehmen, druckerei_werbetechnik × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. druckerei_werbetechnik avgScore=97–99 (bester Batch-7A-Score). place_type=high für aufzugservice, umzugsunternehmen, druckerei_werbetechnik. TAXONOMY_VERSION=v6-weighted-scoring-b7a. 36/41 Profile validiert. |
 | 2026-05-18 | **Batch 6 abgeschlossen** — fliesenleger, bodenleger, schluesseldienst_schliesanlagen, schaedlingsbekaempfung, brandschutzservice × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. schaedlingsbekaempfung avgScore=98-99 (bester Score Batch 6). place_type_confidence=high für fliesenleger, schluesseldienst, schaedlingsbekaempfung, brandschutzservice. TAXONOMY_VERSION=v6-weighted-scoring-b6. 31/41 Profile validiert. |
 | 2026-05-18 | **Batch 4 abgeschlossen** — marketing_webdesign_werbung, personal_zeitarbeit, buchhaltung_steuernahe_dienste, industrieservice, fuhrparkservice_fahrzeugpflege × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. TAXONOMY_VERSION=v6-weighted-scoring-b4 |
 | 2026-05-18 | **Batch 3 abgeschlossen** — immobilien, lager_fulfillment, entruempelung, eventservice, gesundheit_medizin × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. gesundheit_medizin mit avgScore=100 bisher bester Score. TAXONOMY_VERSION=v6-weighted-scoring-b3 |

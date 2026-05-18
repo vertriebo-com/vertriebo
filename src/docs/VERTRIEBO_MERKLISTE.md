@@ -1,5 +1,5 @@
 # VERTRIEBO ARCHITEKTUR-MERKLISTE
-## Stand: 2026-05-18 | v6-weighted-scoring-b6 — 31/41 Profile validiert
+## Stand: 2026-05-18 | v6-weighted-scoring-b7a — 36/41 Profile validiert
 
 > **PFLICHTREGEL: Nicht "akzeptabel" — produktionsreif, kundenreif, robust.**
 > Jede Entscheidung muss diese Standards erfüllen. Keine Dummy-Logik, keine doppelte Wahrheit, keine technischen Schulden an der Kernfunktion.
@@ -310,9 +310,10 @@ batch3Abgeschlossen                       ✅ 15/15 Tests GOOD (immobilien, lage
 batch4Abgeschlossen                       ✅ 15/15 Tests GOOD (marketing, personal, buchhaltung, industrie, fuhrpark)
 batch5Abgeschlossen                       ✅ 15/15 Tests GOOD (pflege, schulungen, dachdecker, geruestbau, trockenbau)
 batch6Abgeschlossen                       ✅ 15/15 Tests GOOD (fliesenleger, bodenleger, schluesseldienst, schaedlingsbekaempfung, brandschutz)
+batch7AAbgeschlossen                      ✅ 15/15 Tests GOOD (aufzugservice, tor_tuertechnik, photovoltaik_service, umzugsunternehmen, druckerei_werbetechnik)
 weightedSignalsSeedSafe                   ✅ Gewichte NUR in TAXONOMY_SEED gepflegt
-taxonomyVersionV6WeightedScoringB6        ✅ aktiv, seed_reset ausgeführt
-allExistingProfilesQualityReviewed        ⏳ 31/41 validiert — Batch 7+ ausstehend
+taxonomyVersionV6WeightedScoringB7a       ✅ aktiv, seed_reset ausgeführt
+allExistingProfilesQualityReviewed        ⏳ 36/41 validiert — Batch 7B ausstehend (5 Profile)
 readyForNextProductIntegrationBlock       ❌ BLOCKED bis allExistingProfilesQualityReviewed
 ```
 
@@ -462,8 +463,8 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 | **Batch 4** (5 auditiert) | marketing_webdesign_werbung, personal_zeitarbeit, buchhaltung_steuernahe_dienste, industrieservice, fuhrparkservice_fahrzeugpflege | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
 | **Batch 5** (5 auditiert) | pflege_betreuung, schulungen_weiterbildung, dachdecker, geruestbau, trockenbau_innenausbau | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
 | **Batch 6** (5 auditiert) | fliesenleger, bodenleger, schluesseldienst_schliesanlagen, schaedlingsbekaempfung, brandschutzservice | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
-| **Core Verticals** (ausstehend) | aufzugservice … messebau (10 Profile) | ⚠️ Qualitätsaudit Batch 7+ |
-| **Erweiterte Dienstleister** | tor_tuertechnik, photovoltaik_service, umzugsunternehmen, druckerei, aktenvernichtung, energieberatung, arbeitsschutz, datenschutz, messebau, aufzugservice | ⚠️ Qualitätsaudit ausstehend |
+| **Batch 7A** (5 auditiert) | aufzugservice, tor_tuertechnik, photovoltaik_service, umzugsunternehmen, druckerei_werbetechnik | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
+| **Batch 7B** (ausstehend) | aktenvernichtung_dokumentenmanagement, energieberatung, arbeitsschutz_arbeitssicherheit, datenschutz_compliance, messebau | ⚠️ Qualitätsaudit ausstehend — finale 5 Profile |
 | **Fallback-Profile** (5) | fallback_* | ✅ bewusst generisch |
 
 ### Nächste Profile (Backlog, ERST nach Qualitätstest)
