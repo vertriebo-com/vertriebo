@@ -3,13 +3,14 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search, Filter, ChevronDown, Building2, Shield, AlertTriangle,
-  Clock, DollarSign, BarChart3, Plus, MoreVertical, Eye, Lock, Unlock,
-  FileText, Zap, Wrench, CheckCircle2, AlertCircle, Activity
+  Clock, DollarSign, Plus, MoreVertical, Eye, Lock, Unlock,
+  Zap, Wrench, CheckCircle2, AlertCircle
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import ResearchRunDiagnostics from '@/components/platform-admin/ResearchRunDiagnostics';
 import LeadScoringDiagnostics from '@/components/platform-admin/LeadScoringDiagnostics';
 import LeadEngineDryTest from '@/components/platform-admin/LeadEngineDryTest';
+import { FlaskConical, Activity, BarChart3, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -961,25 +962,48 @@ export default function PlatformAdmin() {
           </TabsContent>
 
           <TabsContent value="diagnostics">
-            <div className="space-y-6">
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                <ResearchRunDiagnostics
-                  userRole={currentUser?.role}
-                  userEmail={currentUser?.email}
-                  orgId={currentUser ? organizations.find(o => o.owner_email === currentUser.email)?.id : null}
-                />
-              </div>
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                <LeadScoringDiagnostics
-                  userRole={currentUser?.role}
-                  userEmail={currentUser?.email}
-                  orgId={currentUser ? organizations.find(o => o.owner_email === currentUser.email)?.id : null}
-                />
-              </div>
-              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                <LeadEngineDryTest userRole={currentUser?.role} />
-              </div>
-            </div>
+            <Tabs defaultValue="research-runs" className="space-y-4">
+              <TabsList className="bg-white border border-slate-200 p-1 h-auto gap-1">
+                <TabsTrigger value="research-runs" className="gap-2 text-xs">
+                  <FileText className="w-3.5 h-3.5" /> Research Runs
+                </TabsTrigger>
+                <TabsTrigger value="lead-scoring" className="gap-2 text-xs">
+                  <Activity className="w-3.5 h-3.5" /> Lead Scoring
+                </TabsTrigger>
+                <TabsTrigger value="dry-test" className="gap-2 text-xs">
+                  <FlaskConical className="w-3.5 h-3.5" /> Dry-Test
+                </TabsTrigger>
+                <TabsTrigger value="usage-billing" className="gap-2 text-xs text-slate-400" disabled>
+                  <BarChart3 className="w-3.5 h-3.5" /> Usage/Billing (bald)
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="research-runs">
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                  <ResearchRunDiagnostics
+                    userRole={currentUser?.role}
+                    userEmail={currentUser?.email}
+                    orgId={currentUser ? organizations.find(o => o.owner_email === currentUser.email)?.id : null}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="lead-scoring">
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                  <LeadScoringDiagnostics
+                    userRole={currentUser?.role}
+                    userEmail={currentUser?.email}
+                    orgId={currentUser ? organizations.find(o => o.owner_email === currentUser.email)?.id : null}
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="dry-test">
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                  <LeadEngineDryTest userRole={currentUser?.role} />
+                </div>
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
         </Tabs>

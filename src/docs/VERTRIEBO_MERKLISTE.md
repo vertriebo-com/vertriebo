@@ -521,6 +521,7 @@ Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 **Offen (nächste Phasen):**
 - ✅ Phase 2: LeadScoringDiagnostics — ABGESCHLOSSEN 2026-05-18
 - ✅ Phase 3: Dry-Test-Center (LeadEngineDryTest) — ABGESCHLOSSEN 2026-05-18
+- ✅ UX-Fix: Diagnose-Sub-Tabs (Research Runs / Lead Scoring / Dry-Test / Usage-Billing) — ABGESCHLOSSEN 2026-05-18
 - Phase 4: Usage/Billing-Diagnose (UsageLog Entity)
 
 ---
