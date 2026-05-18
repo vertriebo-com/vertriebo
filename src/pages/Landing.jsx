@@ -409,10 +409,10 @@ export default function Landing() {
 
             {/* Trust Badges */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, fontSize: 13, color: "rgba(100,116,139,1)" }}>
-              {["14 Tage kostenlos testen", "Monatlich kündbar", "DSGVO-orientiert", "Für deutsche B2B-Dienstleister"].map((t) =>
-                <span key={t} style={{ display: "flex", alignItems: "center", gap: 6 }} className="hidden">
-                  <Check size={14} color="#22c55e" strokeWidth={2.5} />{t}
-                </span>
+              {["14 Tage kostenlos testen", "Monatlich kündbar", "DSGVO-orientiert", "Für deutsche B2B-Dienstleister"].map((t) => null
+
+
+
                 )}
             </div>
           </div>
