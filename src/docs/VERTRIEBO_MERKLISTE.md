@@ -255,33 +255,51 @@ POST testLeadSearchEngine
 
 ---
 
-## 6. QUALITÄTS-VALIDIERTE KERNPROFILE (v6, Stand 2026-05-17)
+## 6. QUALITÄTS-VALIDIERTE KERNPROFILE (v6, Stand 2026-05-18)
 
-**Qualitätsmatrix abgeschlossen: 8 Kernprofile × 3 Regionen = 24 Tests. Alle GOOD. Alle Profile nachgepflegt.**
+**P0-Regel: Alle 46 Profile müssen validiert sein. Batch 1 + Batch 2 abgeschlossen = 11/41 validiert.**
+
+### Batch 1 — Handwerk & Facility (8 Profile × 3 Regionen = 24 Tests, abgeschlossen 2026-05-17/18)
+
+| Profil | profile_quality_score | Signal-Gewichte | avgScore | Status | Finaler Re-Test |
+|---|---|---|---|---|---|
+| gebaeudereinigung | 92 | ✅ 15 aktiv | 97 | ✅ production_ready | — (kein Tuning nötig) |
+| facility_service | 88 | ✅ 15 aktiv | 96 | ✅ production_ready | — (kein Tuning nötig) |
+| it_service | 90 | ✅ 16 aktiv | 98 | ✅ production_ready | — (kein Tuning nötig) |
+| spedition_logistik | 78 | ✅ 16 aktiv | 95 | ✅ production_ready | — (kein Tuning nötig) |
+| handwerk | 85 | ✅ 13 aktiv | 97 | ✅ production_ready | — (kein Tuning nötig) |
+| maler_renovierung | 78 | ✅ 10 aktiv | 97 | ✅ production_ready | ✅ 2026-05-18 Re-Test GOOD |
+| shk | 80 | ✅ 10 aktiv | 95 | ✅ production_ready | ✅ 2026-05-18 Re-Test GOOD |
+| elektro_gebaeudetechnik | 79 | ✅ 10 aktiv | 95 | ✅ production_ready | ✅ 2026-05-18 Re-Test GOOD |
+
+### Batch 2 — Sicherheit & Gastronomie & Event (3 Profile × 3 Regionen = 9 Tests, abgeschlossen 2026-05-18)
 
 | Profil | profile_quality_score | Signal-Gewichte | avgScore | Status |
 |---|---|---|---|---|
-| gebaeudereinigung | 92 | ✅ 15 aktiv | 97 | ✅ production_ready |
-| facility_service | 88 | ✅ 15 aktiv | 96 | ✅ production_ready |
-| it_service | 90 | ✅ 16 aktiv | 98 | ✅ production_ready |
-| spedition_logistik | 78 | ✅ 16 aktiv | 95 | ✅ production_ready |
-| handwerk | 85 | ✅ 13 aktiv | 97 | ✅ production_ready |
-| maler_renovierung | 78 | ✅ 10 aktiv (neu) | 96 | ✅ production_ready |
-| shk | 80 | ✅ 10 aktiv (neu) | 95 | ✅ production_ready |
-| elektro_gebaeudetechnik | 79 | ✅ 10 aktiv (neu) | 95 | ✅ production_ready |
-| alle anderen 38 Profile | — | ⚠️ nicht geprüft | — | ⚠️ Qualitätsaudit ausstehend |
+| sicherheitsdienst | 80 | ✅ 12 aktiv | 98 | ✅ production_ready |
+| gartenbau | 78 | ✅ 12 aktiv | 98 | ✅ production_ready |
+| catering | 82 | ✅ 12 aktiv | 99 | ✅ production_ready |
 
-**REGEL: Keine weiteren Profile hinzufügen bis die 8 Kernprofile in echten Runs bestätigt sind.**
+### Noch ausstehend (30 nicht-Fallback-Profile)
+
+| Nächste Batch-Kandidaten | Warum priorisiert |
+|---|---|
+| immobilien, lager_fulfillment, entruempelung | Gebäude/Facility-Cluster |
+| eventservice, gesundheit_medizin | Event + Gesundheit |
+| marketing_webdesign_werbung, buchhaltung_steuernahe_dienste | IT & Beratung |
+| … (23 weitere) | nach Batch 3+ |
+
+**P0-Regel: Kein Produktblock starten, bis `allExistingProfilesQualityReviewed = true`.**
 
 ### Validierter Endstatus (2026-05-18)
 
 ```
-coreProfileQualityMatrixCompleted         ✅ 24/24 Tests GOOD
-weightedSignalsSeedSafe                   ✅ Gewichte nur in TAXONOMY_SEED gepflegt
-taxonomyVersionV6WeightedScoring          ✅ aktiv, seed_reset ausgeführt
-leadEngineCoreProfilesValidated           ✅ alle 8 Profile production_ready
-merklisteUpdated                          ✅ dieser Block
-readyForNextProductIntegrationBlock       ✅ E-Mail-Vorlagen / KI-Skripte / Follow-ups
+batch1FinalAbschluss                      ✅ 24/24 Tests GOOD, seed_reset, Re-Tests bestätigt
+batch2Abgeschlossen                       ✅ 9/9 Tests GOOD (sicherheitsdienst, gartenbau, catering)
+weightedSignalsSeedSafe                   ✅ Gewichte NUR in TAXONOMY_SEED gepflegt
+taxonomyVersionV6WeightedScoringB2        ✅ aktiv, seed_reset ausgeführt
+allExistingProfilesQualityReviewed        ⏳ 11/41 validiert — Batch 3+ ausstehend
+readyForNextProductIntegrationBlock       ❌ BLOCKED bis allExistingProfilesQualityReviewed
 ```
 
 ### Nächste fachliche Prüfung (empfohlen vor Produktblock)
@@ -377,6 +395,8 @@ readyForNextProductIntegrationBlock       ✅ E-Mail-Vorlagen / KI-Skripte / Fol
 | **v6-weighted-scoring** | **2026-05-17** | **+search_strategy aktiv in Query+Scoring, +testLeadSearchEngine Live-Test** | **46** |
 | **industry_id-migration** | **2026-05-17** | **IndustryAutocomplete als SSOT, Backfill für Bestandsorgs, LEGACY_MAP = Sicherheitsnetz** | **46** |
 | **quality-matrix-v1** | **2026-05-17** | **24 Tests: 8 Profile × 3 Regionen. Alle GOOD. maler/shk/elektro Gewichte nachgepflegt. place_type_confidence=high. TAXONOMY_VERSION=v6-weighted-scoring** | **46** |
+| **quality-matrix-b1-final** | **2026-05-18** | **Batch 1 finaler Abschluss: seed_reset + 9 Re-Tests. scoring_signal_weights_count=10 in maler/shk/elektro bestätigt. Alle 24 Tests weiterhin GOOD.** | **46** |
+| **quality-matrix-b2** | **2026-05-18** | **Batch 2: sicherheitsdienst, gartenbau, catering × 3 Regionen = 9 Tests, alle GOOD (avgScore 97–99). 12 Gewichte je Profil. TAXONOMY_VERSION=v6-weighted-scoring-b2** | **46** |
 
 ---
 
@@ -418,8 +438,9 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 
 | Kategorie | IDs | Status |
 |---|---|---|
-| **Core Verticals** (8 auditiert) | gebaeudereinigung, facility_service, it_service, spedition_logistik, handwerk, maler_renovierung, shk, elektro_gebaeudetechnik | ✅ v6 gewichtet, 24 Tests GOOD |
-| **Core Verticals** (15 weitere) | sicherheitsdienst … schulungen_weiterbildung | ⚠️ Qualitätsaudit ausstehend |
+| **Batch 1** (8 auditiert) | gebaeudereinigung, facility_service, it_service, spedition_logistik, handwerk, maler_renovierung, shk, elektro_gebaeudetechnik | ✅ v6 gewichtet, 24 Tests GOOD, Re-Tests bestätigt |
+| **Batch 2** (3 auditiert) | sicherheitsdienst, gartenbau, catering | ✅ v6 gewichtet, 9 Tests GOOD, 12 Gewichte aktiv |
+| **Core Verticals** (ausstehend) | immobilien … schulungen_weiterbildung | ⚠️ Qualitätsaudit Batch 3+ |
 | **Erweiterte Dienstleister** (18) | dachdecker … messebau | ⚠️ Qualitätsaudit ausstehend |
 | **Fallback-Profile** (5) | fallback_* | ✅ bewusst generisch |
 

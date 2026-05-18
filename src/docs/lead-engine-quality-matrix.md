@@ -31,9 +31,9 @@ POST testLeadSearchEngine
 | it_service | ✅ GOOD (98/60) Köln | ✅ GOOD (98/60) Bonn | ✅ GOOD (98/60) Bendorf | **✅ PRODUCTION READY** | ✅ 16 aktiv |
 | spedition_logistik | ✅ GOOD (96/53) Dortmund | ✅ GOOD (95/53) Koblenz | ✅ GOOD (95/48) Neuwied | **✅ PRODUCTION READY** | ✅ 16 aktiv |
 | handwerk | ✅ GOOD (97/52) Köln | ✅ GOOD (97/50) Bonn | ✅ GOOD (96/47) Neuwied | **✅ PRODUCTION READY** | ✅ 13 aktiv |
-| maler_renovierung | ✅ GOOD (97/56) Düsseldorf | ✅ GOOD (97/53) Koblenz | ✅ GOOD (97/48) Neuwied | **✅ PRODUCTION READY** | ✅ 10 aktiv |
-| shk | ✅ GOOD (95/57) Köln | ✅ GOOD (95/55) Bonn | ✅ GOOD (95/54) Neuwied | **✅ PRODUCTION READY** | ✅ 10 aktiv |
-| elektro_gebaeudetechnik | ✅ GOOD (95/56) Köln | ✅ GOOD (96/50) Bonn | ✅ GOOD (95/47) Neuwied | **✅ PRODUCTION READY** | ✅ 10 aktiv |
+| maler_renovierung | ✅ GOOD (97/56) Düsseldorf | ✅ GOOD (97/54) Koblenz | ✅ GOOD (97/47) Neuwied | **✅ PRODUCTION READY** | ✅ 10 aktiv |
+| shk | ✅ GOOD (95/58) Köln | ✅ GOOD (95/56) Bonn | ✅ GOOD (95/54) Neuwied | **✅ PRODUCTION READY** | ✅ 10 aktiv |
+| elektro_gebaeudetechnik | ✅ GOOD (95/57) Köln | ✅ GOOD (96/51) Bonn | ✅ GOOD (95/49) Neuwied | **✅ PRODUCTION READY** | ✅ 10 aktiv |
 
 ### Batch 2 — Gebäude/Event/Gastronomie (abgeschlossen 2026-05-18)
 
@@ -439,9 +439,9 @@ POST testLeadSearchEngine
 | it_service | IT-Service | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 16 Gewichte aktiv | 2026-05-17 |
 | spedition_logistik | Spedition / Logistik | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 16 Gewichte aktiv | 2026-05-17 |
 | handwerk | Handwerk | `production_ready` | ✅ GOOD (avgScore 97) | ✅ 13 Gewichte aktiv | 2026-05-17 |
-| maler_renovierung | Maler / Renovierung | `production_ready` | ✅ GOOD (avgScore 96) | ✅ 10 Gewichte aktiv | 2026-05-17 |
-| shk | SHK / Sanitär / Heizung / Klima | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 10 Gewichte aktiv | 2026-05-17 |
-| elektro_gebaeudetechnik | Elektro / Gebäudetechnik | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 10 Gewichte aktiv | 2026-05-17 |
+| maler_renovierung | Maler / Renovierung | `production_ready` | ✅ GOOD (avgScore 97) | ✅ 10 Gewichte aktiv | 2026-05-18 |
+| shk | SHK / Sanitär / Heizung / Klima | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 10 Gewichte aktiv | 2026-05-18 |
+| elektro_gebaeudetechnik | Elektro / Gebäudetechnik | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 10 Gewichte aktiv | 2026-05-18 |
 | sicherheitsdienst | Sicherheitsdienst | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | gartenbau | Gartenbau | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | catering | Catering | `production_ready` | ✅ GOOD (avgScore 99) | ✅ 12 Gewichte aktiv | 2026-05-18 |
@@ -507,4 +507,5 @@ _Keine offenen Punkte für die 8 Kernprofile. Alle Tuning-Maßnahmen abgeschloss
 | 2026-05-17 | v6 Weighted Scoring live — scoringSignalWeights aus DB geladen |
 | 2026-05-17 | **24 Tests vollständig** — 8 Kernprofile × 3 Regionen — alle GOOD. Kritischer Befund: scoring_signal_weights fehlte bei maler_renovierung, shk, elektro_gebaeudetechnik |
 | 2026-05-17 | **Tuning abgeschlossen** — 3 Profile nachgepflegt: scoring_signal_weights (10 Gewichte), place_type_confidence=high, SEED aktualisiert, TAXONOMY_VERSION=v6-weighted-scoring |
+| 2026-05-18 | **Batch 1 finaler Abschluss** — maler_renovierung, shk, elektro_gebaeudetechnik: seed_reset + 9 Re-Tests bestätigt. scoring_signal_weights_count=10 in allen 3 Profilen verifiziert. Alle 24 Batch-1-Tests GOOD. |
 | 2026-05-18 | **P0-Regel aktiviert** — Alle Profile müssen geprüft werden. Batch 2 gestartet: sicherheitsdienst, gartenbau, catering — 9 Tests, alle GOOD (avgScore 97–99). 12 Gewichte je Profil eingetragen. TAXONOMY_VERSION=v6-weighted-scoring-b2 |
