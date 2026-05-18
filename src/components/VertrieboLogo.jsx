@@ -7,11 +7,10 @@ export default function VertrieboLogo({ size = "default", className = "" }) {
     xl: "h-32 w-auto"
   };
 
-  // Placeholder bis echtes Logo-Bild vorhanden
   return (
     <div className={`${sizes[size] || sizes.default} ${className}`} style={{ display: "flex", alignItems: "center" }}>
       <img 
-        src="/logo.png" 
+        src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/76f46b4fa_ChatGPTImage18Mai202615_39_07.png" 
         alt="Vertriebo Logo" 
         className="w-full h-full object-contain"
         style={{ display: "block" }}
