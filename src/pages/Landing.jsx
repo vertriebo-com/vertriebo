@@ -72,17 +72,17 @@ const FEATURES = [
   { icon: "📊", title: "Echtzeit-Erfolgsquoten", desc: "Sehen Sie sofort, wie Ihr Team performt: Quote pro Vertriebler, beste Branchen, ROI der Recherche.", color: "border-rose-500/20 bg-rose-500/5" },
 ];
 
-// Stable Particles Component - Enhanced visibility, subtle movement
+// Stable Particles Component - Larger and faster movement
 const Particles = () => {
   const particles = useMemo(() => {
-    return Array.from({ length: 24 }, (_, i) => ({
+    return Array.from({ length: 30 }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
       top: Math.random() * 100,
-      size: 2 + Math.random() * 3,
-      opacity: 0.2 + Math.random() * 0.3,
-      duration: 15 + Math.random() * 15,
-      delay: Math.random() * 10
+      size: 4 + Math.random() * 5,
+      opacity: 0.3 + Math.random() * 0.4,
+      duration: 8 + Math.random() * 10,
+      delay: Math.random() * 5
     }));
   }, []);
   return (
@@ -194,10 +194,10 @@ export default function Landing() {
       <Particles />
       <style>{`
         @keyframes float {
-          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.2; }
-          25% { transform: translate(15px, -25px) scale(1.1); opacity: 0.35; }
-          50% { transform: translate(-12px, -40px) scale(0.95); opacity: 0.25; }
-          75% { transform: translate(18px, -20px) scale(1.05); opacity: 0.35; }
+          0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
+          25% { transform: translate(40px, -60px) scale(1.2); opacity: 0.5; }
+          50% { transform: translate(-35px, -80px) scale(1.1); opacity: 0.4; }
+          75% { transform: translate(45px, -50px) scale(1.15); opacity: 0.5; }
         }
         @keyframes pulse-glow {
           0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
