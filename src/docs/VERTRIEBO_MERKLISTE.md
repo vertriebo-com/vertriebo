@@ -519,7 +519,7 @@ Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 - ✅ merklisteUpdated
 
 **Offen (nächste Phasen):**
-- Phase 2: LeadScoringDiagnostics (Company Entity, engine_analysis_json)
+- ✅ Phase 2: LeadScoringDiagnostics — ABGESCHLOSSEN 2026-05-18
 - Phase 3: Dry-Test-Center (testLeadSearchEngine UI)
 - Phase 4: Usage/Billing-Diagnose (UsageLog Entity)
 

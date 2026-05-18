@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import ResearchRunDiagnostics from '@/components/platform-admin/ResearchRunDiagnostics';
+import LeadScoringDiagnostics from '@/components/platform-admin/LeadScoringDiagnostics';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -959,12 +960,21 @@ export default function PlatformAdmin() {
           </TabsContent>
 
           <TabsContent value="diagnostics">
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-              <ResearchRunDiagnostics
-                userRole={currentUser?.role}
-                userEmail={currentUser?.email}
-                orgId={currentUser ? organizations.find(o => o.owner_email === currentUser.email)?.id : null}
-              />
+            <div className="space-y-6">
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                <ResearchRunDiagnostics
+                  userRole={currentUser?.role}
+                  userEmail={currentUser?.email}
+                  orgId={currentUser ? organizations.find(o => o.owner_email === currentUser.email)?.id : null}
+                />
+              </div>
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                <LeadScoringDiagnostics
+                  userRole={currentUser?.role}
+                  userEmail={currentUser?.email}
+                  orgId={currentUser ? organizations.find(o => o.owner_email === currentUser.email)?.id : null}
+                />
+              </div>
             </div>
           </TabsContent>
 
