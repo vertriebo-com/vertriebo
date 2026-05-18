@@ -308,13 +308,13 @@ export default function Landing() {
             display: "flex", 
             alignItems: "center", 
             flexShrink: 0,
-            maxWidth: "200px",
+            maxWidth: "280px",
             overflow: "hidden"
           }}>
             <img 
               src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/8e6400f40_ChatGPTImage18Mai202615_39_07.png"
               alt="Vertriebo"
-              style={{ height: "36px", width: "auto", display: "block", objectFit: "contain" }}
+              style={{ height: "48px", width: "auto", display: "block", objectFit: "contain" }}
             />
           </div>
           
