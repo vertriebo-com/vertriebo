@@ -10,7 +10,14 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
   const [message, setMessage] = useState("Starte Recherche...");
   const [leadsFound, setLeadsFound] = useState(0);
   const [isDone, setIsDone] = useState(false);
+  const [runStatus, setRunStatus] = useState(null); // completed/partial/failed
   const [availableLimit, setAvailableLimit] = useState(null);
+  const [planInfo, setPlanInfo] = useState({ name: 'Starter', trialStage: 'free_preview' });
+  
+  // FIRST_VALUE_TARGET_COUNT: Begrenzung für ersten Recherche-Lauf im Onboarding
+  // Zweck: Verhindert API-Kosten-Explosion bei Testnutzern, gibt schnelle First-Value-Experience
+  // Wird aus Plan-Limit abgeleitet, maximum 10 für free_preview, sonst Plan-Limit
+  const FIRST_VALUE_TARGET_COUNT = planInfo.trialStage === 'free_preview' ? 10 : (typeof availableLimit === 'number' ? Math.min(25, availableLimit) : 25);
 
   // Load available trial/plan limit on mount
   useEffect(() => {
@@ -21,6 +28,11 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
         const usedContacts = dashboardData?.meta?.currentUsage?.leads_created || 0;
         const available = maxContacts === -1 ? 'unbegrenzt' : Math.max(0, maxContacts - usedContacts);
         setAvailableLimit(available);
+        
+        // Store plan info for messaging
+        const planName = dashboardData?.meta?.planName || 'Starter';
+        const trialStage = dashboardData?.org?.trial_stage || 'free_preview';
+        setPlanInfo({ name: planName, trialStage });
       } catch (e) {
         console.warn('[LaunchStep] Limit load failed:', e.message);
       }
@@ -45,6 +57,7 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
             setProgress(data.progress_percent || 0);
             setMessage(data.current_step || 'Recherche läuft...');
             setLeadsFound(data.leads_saved || 0);
+            setRunStatus(data.status);
 
             // Check if done
             if (data.done || ['completed', 'partial', 'failed'].includes(data.status)) {
@@ -71,9 +84,10 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
     setIsSearching(true);
     try {
       // Start research run (async, queued status)
+      // FIRST_VALUE_TARGET_COUNT: siehe oben – dokumentierte Begrenzung für Onboarding-First-Value
       const run = await base44.functions.invoke('startResearchRun', {
         organization_id: orgId,
-        target_count: typeof availableLimit === 'number' ? Math.min(10, availableLimit) : 10,
+        target_count: FIRST_VALUE_TARGET_COUNT,
       });
       
       if (run.data?.research_run_id) {
@@ -104,10 +118,22 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
         {/* Title */}
         <div>
           <h2 className="text-2xl font-bold text-slate-900 mb-2">
-            {isDone ? 'Recherche abgeschlossen!' : 'Wir suchen passende Unternehmen...'}
+            {runStatus === 'failed' 
+              ? 'Recherche konnte nicht abgeschlossen werden'
+              : runStatus === 'partial'
+              ? 'Recherche teilweise abgeschlossen'
+              : isDone 
+              ? 'Recherche abgeschlossen!' 
+              : 'Wir suchen passende Unternehmen...'}
           </h2>
           <p className="text-sm font-medium text-slate-600">
-            {isDone ? 'Gleich gehts weiter zu Ihren Leads' : 'Das dauert etwa 30–60 Sekunden'}
+            {runStatus === 'failed'
+              ? 'Bitte Suchgebiet oder Zielkunden anpassen und erneut versuchen'
+              : runStatus === 'partial'
+              ? `${leadsFound} Firmenkontakte gefunden – gleich gehts weiter`
+              : isDone 
+              ? 'Gleich gehts weiter zu Ihren Leads' 
+              : 'Das dauert etwa 30–60 Sekunden'}
           </p>
         </div>
 
@@ -125,17 +151,29 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
         )}
 
         {/* Live Status */}
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-          <p className="text-sm font-semibold text-blue-900 mb-1">{message}</p>
+        <div className={`${
+          runStatus === 'failed' ? 'bg-red-50 border-red-200' : 
+          runStatus === 'partial' ? 'bg-amber-50 border-amber-200' : 
+          'bg-blue-50 border-blue-200'
+        } rounded-xl p-4`}>
+          <p className={`text-sm font-semibold mb-1 ${
+            runStatus === 'failed' ? 'text-red-900' : 
+            runStatus === 'partial' ? 'text-amber-900' : 
+            'text-blue-900'
+          }`}>{message}</p>
           {leadsFound > 0 && (
-            <p className="text-xs text-blue-700">
+            <p className={`text-xs ${
+              runStatus === 'failed' ? 'text-red-700' : 
+              runStatus === 'partial' ? 'text-amber-700' : 
+              'text-blue-700'
+            }`}>
               {leadsFound} {leadsFound === 1 ? 'Firmenkontakt' : 'Firmenkontakte'} gefunden
             </p>
           )}
         </div>
 
         {/* Steps */}
-        {!isDone && (
+        {!isDone && runStatus !== 'failed' && (
           <div className="space-y-2 text-sm text-slate-700">
             <div className="flex items-center gap-2 justify-center">
               <span className={`w-2 h-2 rounded-full ${progress > 10 ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`} />
@@ -174,7 +212,7 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2">
           <p className="font-semibold text-blue-900">
             {typeof availableLimit === 'number' 
-              ? `${availableLimit} Firmenkontakte verfügbar`
+              ? `${availableLimit} Firmenkontakte ${planInfo.trialStage === 'free_preview' ? 'in der Vorschau' : 'verfügbar'}`
               : availableLimit === 'unbegrenzt'
               ? 'Unbegrenzte Firmenkontakte'
               : 'Firmenkontakte verfügbar'}
@@ -193,7 +231,9 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
           </div>
           <div className="flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
-            <span className="text-slate-700"><strong>Trial:</strong> 14 Tage kostenlos</span>
+            <span className="text-slate-700">
+              <strong>Status:</strong> {planInfo.trialStage === 'free_preview' ? 'Vorschau aktiv' : planInfo.trialStage === 'verified_trial' ? 'Testphase aktiv' : 'Abo aktiv'}
+            </span>
           </div>
         </div>
 
@@ -210,15 +250,17 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
       </div>
 
       {/* Upgrade Info */}
-      <div className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4">
-        <p className="text-xs font-semibold text-slate-700 mb-2">💡 Upgrade Tipp</p>
-        <p className="text-xs text-slate-600 mb-3">Mit dem 14-Tage-Testzugang erhalten Sie:</p>
-        <ul className="text-xs text-slate-600 space-y-1 mb-3">
-          <li>✓ Bis zu 75 Firmenkontakte pro Recherche</li>
-          <li>✓ Unbegrenzte KI-Analysen</li>
-          <li>✓ Automatische E-Mail-Vorlagen</li>
-        </ul>
-      </div>
+      {planInfo.trialStage === 'free_preview' && (
+        <div className="bg-gradient-to-r from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4">
+          <p className="text-xs font-semibold text-slate-700 mb-2">💡 Testzugang aktivieren</p>
+          <p className="text-xs text-slate-600 mb-3">Im Testzugang erhalten Sie:</p>
+          <ul className="text-xs text-slate-600 space-y-1 mb-3">
+            <li>✓ Deutlich mehr Firmenkontakte pro Recherche</li>
+            <li>✓ Unbegrenzte KI-Analysen</li>
+            <li>✓ Automatische E-Mail-Vorlagen</li>
+          </ul>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <Button variant="outline" onClick={onBack} disabled={loading}>Zurück</Button>

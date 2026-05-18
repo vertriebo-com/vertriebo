@@ -574,7 +574,7 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 
 ## 13. ONBOARDING-/ACTIVATION-JOURNEY (2026-05-18)
 
-### Phase 1: LaunchStep Modernisierung — ABGESCHLOSSEN ✅
+### Phase 1: LaunchStep Modernisierung — ABGESCHLOSSEN ✅ (2026-05-18)
 
 **Ziel:** Onboarding-Launch auf stabilen async ResearchRun-Flow umstellen.
 
@@ -582,27 +582,49 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 - ✅ `LaunchStep.jsx` nutzt `startResearchRun` statt `generateLeads` (legacy)
 - ✅ Status-Polling via `getResearchRunStatus` (alle 2.5s, mit Cleanup)
 - ✅ Echter Fortschritt sichtbar (Progress-Bar, Live-Message, Leads-Counter)
-- ✅ Endzustände sauber behandelt: `completed`, `partial`, `failed`
+- ✅ Endzustände separat behandelt:
+  - `completed`: "Recherche abgeschlossen"
+  - `partial`: "Recherche teilweise abgeschlossen, X Firmenkontakte gefunden"
+  - `failed`: "Recherche konnte nicht abgeschlossen werden" + kundenfreundliche Alternative
 - ✅ Keine doppelte Verarbeitung (Lock-Logik respektiert)
 - ✅ Trial-Limits dynamisch aus `getDashboardData` (nicht hardcoded)
+  - `free_preview`: "Vorschau aktiv" (kein "14 Tage")
+  - `verified_trial`: "Testphase aktiv"
+  - `paid`: "Abo aktiv"
+- ✅ FIRST_VALUE_TARGET_COUNT dokumentiert:
+  - `free_preview`: max. 10 Leads (schneller First-Value, API-Kosten kontrollieren)
+  - `verified_trial`/`paid`: min(25, availableLimit)
 - ✅ Onboarding-Settings vor ResearchRun garantiert gespeichert
 - ✅ Customer-Friendly Zero-Lead-State (keine Admin-Diagnosen)
+- ✅ ResearchRun wird verarbeitet durch `ActiveResearchBanner` + `processResearchRun` (Lock-Logik)
 
 **Akzeptanzkriterien:**
 - ✅ launchStepUsesAsyncResearchRun
 - ✅ onboardingSettingsSavedBeforeResearch
 - ✅ launchStepShowsRealProgress
-- ✅ launchStepHandlesCompletedPartialFailed
+- ✅ launchStepHandlesCompletedPartialFailedSeparately
 - ✅ noGenerateLeadsLegacyInOnboardingLaunch
 - ✅ noDuplicateProcessingFromLaunchStep
 - ✅ noHardcodedTrialLimit
+- ✅ targetCountDocumentedOrDynamic
 - ✅ customerFriendlyZeroLeadState
+- ✅ researchRunActuallyProcessesInOnboarding
 - ✅ merklisteUpdated
 
 **Dateien geändert:**
-- `components/onboarding/LaunchStep.jsx` — Async ResearchRun + Polling + Cleanup
+- `components/onboarding/LaunchStep.jsx` — Async ResearchRun + Polling + Cleanup + Status-Differenzierung
 - `pages/Onboarding.jsx` — handleLaunch aktualisiert, orgId weitergeben
 - `docs/VERTRIEBO_MERKLISTE.md` — Dokumentation aktualisiert
+
+**Live-Test erforderlich:**
+- Neuer User durch Onboarding
+- Branche via IndustryAutocomplete
+- Zielkunden/Services automatisch übernommen
+- Launch startet async ResearchRun
+- Progress sichtbar
+- Bei Erfolg: Leads + nächste Aktion im Dashboard
+- Bei 0 Leads: klare Alternative
+- Keine doppelten Leads, keine doppelte Usage-Zählung
 
 **Nächste Phase:**
 - Phase 2: Dashboard Empty State + First-Value Guidance
