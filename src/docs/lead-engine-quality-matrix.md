@@ -2,7 +2,7 @@
 
 **Zweck:** Systematische Qualitätsprüfung aller Taxonomie-Profile mit `testLeadSearchEngine`.
 **Akzeptanzkriterien:** `quality_verdict: GOOD`, `avgScore ≥ 75`, `false_positive_estimate < 15%`, `target_customer_match_rate ≥ 40%`.
-**Stand:** 2026-05-18 — Batch 4 abgeschlossen: marketing_webdesign_werbung, personal_zeitarbeit, buchhaltung_steuernahe_dienste, industrieservice, fuhrparkservice_fahrzeugpflege. TAXONOMY_VERSION=v6-weighted-scoring-b4. 21/41 Profile validiert.
+**Stand:** 2026-05-18 — Batch 5 abgeschlossen: pflege_betreuung, schulungen_weiterbildung, dachdecker, geruestbau, trockenbau_innenausbau. TAXONOMY_VERSION=v6-weighted-scoring-b5. 26/41 Profile validiert.
 
 ---
 
@@ -63,15 +63,20 @@ POST testLeadSearchEngine
 | industrieservice | ✅ GOOD (95/56) Dortmund | ✅ GOOD (94/53) Koblenz | ✅ GOOD (94/48) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
 | fuhrparkservice_fahrzeugpflege | ✅ GOOD (97/60) Köln | ✅ GOOD (98/60) Bonn | ✅ GOOD (98/55) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
 
-### Batch 5+ — Ausstehend
+### Batch 5 — Pflege / Handwerk Bau (abgeschlossen 2026-05-18)
+
+| profile_id | Großstadt | Mittelstadt | Kleinstadt | Gesamt-Verdict | Gewichte |
+|---|---|---|---|---|---|
+| pflege_betreuung | ✅ GOOD (100/53) Köln | ✅ GOOD (100/45) Bonn | ✅ GOOD (99/47) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| schulungen_weiterbildung | ✅ GOOD (95/59) Düsseldorf | ✅ GOOD (96/59) Koblenz | ✅ GOOD (96/55) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| dachdecker | ✅ GOOD (95/54) Köln | ✅ GOOD (95/55) Dortmund | ✅ GOOD (95/51) Koblenz | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| geruestbau | ✅ GOOD (98/55) Düsseldorf | ✅ GOOD (98/56) Koblenz | ✅ GOOD (98/54) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| trockenbau_innenausbau | ✅ GOOD (95/58) Köln | ✅ GOOD (96/53) Bonn | ✅ GOOD (95/51) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+
+### Batch 6+ — Ausstehend
 
 | profile_id | Label | Status |
 |---|---|---|
-| pflege_betreuung | Pflege / Betreuung | ⏳ ausstehend |
-| schulungen_weiterbildung | Schulungen / Weiterbildung | ⏳ ausstehend |
-| dachdecker | Dachdecker | ⏳ ausstehend |
-| geruestbau | Gerüstbau | ⏳ ausstehend |
-| trockenbau_innenausbau | Trockenbau / Innenausbau | ⏳ ausstehend |
 | fliesenleger | Fliesenleger | ⏳ ausstehend |
 | bodenleger | Bodenleger | ⏳ ausstehend |
 | schluesseldienst_schliesanlagen | Schlüsseldienst / Schließanlagen | ⏳ ausstehend |
@@ -465,11 +470,11 @@ POST testLeadSearchEngine
 | buchhaltung_steuernahe_dienste | Buchhaltung / steuernahe Dienste | `production_ready` | ✅ GOOD (avgScore 97) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | industrieservice | Industrieservice | `production_ready` | ✅ GOOD (avgScore 94) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | fuhrparkservice_fahrzeugpflege | Fuhrparkservice / Fahrzeugpflege | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
-| pflege_betreuung | Pflege / Betreuung | `production_ready` | ⏳ Test ausstehend | — | — |
-| schulungen_weiterbildung | Schulungen / Weiterbildung | `production_ready` | ⏳ Test ausstehend | — | — |
-| dachdecker | Dachdecker | `production_ready` | ⏳ Test ausstehend | — | — |
-| geruestbau | Gerüstbau | `production_ready` | ⏳ Test ausstehend | — | — |
-| trockenbau_innenausbau | Trockenbau / Innenausbau | `production_ready` | ⏳ Test ausstehend | — | — |
+| pflege_betreuung | Pflege / Betreuung | `production_ready` | ✅ GOOD (avgScore 100🏆) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| schulungen_weiterbildung | Schulungen / Weiterbildung | `production_ready` | ✅ GOOD (avgScore 96) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| dachdecker | Dachdecker | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| geruestbau | Gerüstbau | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| trockenbau_innenausbau | Trockenbau / Innenausbau | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | fliesenleger | Fliesenleger | `production_ready` | ⏳ Test ausstehend | — | — |
 | bodenleger | Bodenleger | `production_ready` | ⏳ Test ausstehend | — | — |
 | schluesseldienst_schliesanlagen | Schlüsseldienst / Schließanlagen | `production_ready` | ⏳ Test ausstehend | — | — |
@@ -518,6 +523,7 @@ _Keine offenen Punkte für die 8 Kernprofile. Alle Tuning-Maßnahmen abgeschloss
 | 2026-05-17 | **24 Tests vollständig** — 8 Kernprofile × 3 Regionen — alle GOOD. Kritischer Befund: scoring_signal_weights fehlte bei maler_renovierung, shk, elektro_gebaeudetechnik |
 | 2026-05-17 | **Tuning abgeschlossen** — 3 Profile nachgepflegt: scoring_signal_weights (10 Gewichte), place_type_confidence=high, SEED aktualisiert, TAXONOMY_VERSION=v6-weighted-scoring |
 | 2026-05-18 | **Batch 1 finaler Abschluss** — maler_renovierung, shk, elektro_gebaeudetechnik: seed_reset + 9 Re-Tests bestätigt. scoring_signal_weights_count=10 in allen 3 Profilen verifiziert. Alle 24 Batch-1-Tests GOOD. |
+| 2026-05-18 | **Batch 5 abgeschlossen** — pflege_betreuung, schulungen_weiterbildung, dachdecker, geruestbau, trockenbau_innenausbau × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. pflege_betreuung avgScore=100. TAXONOMY_VERSION=v6-weighted-scoring-b5 |
 | 2026-05-18 | **Batch 4 abgeschlossen** — marketing_webdesign_werbung, personal_zeitarbeit, buchhaltung_steuernahe_dienste, industrieservice, fuhrparkservice_fahrzeugpflege × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. TAXONOMY_VERSION=v6-weighted-scoring-b4 |
 | 2026-05-18 | **Batch 3 abgeschlossen** — immobilien, lager_fulfillment, entruempelung, eventservice, gesundheit_medizin × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. gesundheit_medizin mit avgScore=100 bisher bester Score. TAXONOMY_VERSION=v6-weighted-scoring-b3 |
 | 2026-05-18 | **P0-Regel aktiviert** — Alle Profile müssen geprüft werden. Batch 2 gestartet: sicherheitsdienst, gartenbau, catering — 9 Tests, alle GOOD (avgScore 97–99). 12 Gewichte je Profil eingetragen. TAXONOMY_VERSION=v6-weighted-scoring-b2 |
