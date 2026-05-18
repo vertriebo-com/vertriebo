@@ -233,23 +233,26 @@ export default function Leads() {
   return (
     <div className="space-y-6">
       {/* Hero Zone - Klarer Fokus */}
-      <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm p-6 mb-6">
+      <div className="bg-gradient-to-r from-white to-blue-50/50 border border-slate-200 rounded-2xl shadow-sm p-6 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 mb-1">Leads</h1>
-            <p className="text-sm font-medium text-slate-700">
-              {companies.length} Firmenkontakte · {filtered.filter(c => c.status === "Rückruf").length > 0 && `${filtered.filter(c => c.status === "Rückruf").length} Rückrufe offen`}
+            <p className="text-sm font-semibold text-slate-700">
+              {companies.length} {companies.length === 1 ? 'Firmenkontakt' : 'Firmenkontakte'}
+              {filtered.filter(c => c.status === "Rückruf").length > 0 && (
+                <span className="ml-2 text-amber-700">· {filtered.filter(c => c.status === "Rückruf").length} Rückrufe offen</span>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button onClick={() => setShowAdd(true)} variant="outline" className="gap-2 bg-white border-[#E2E8F0] text-slate-700 hover:bg-slate-50">
-              <Plus className="w-4 h-4" /> Neuer Lead
-            </Button>
             {isAdmin && (
-              <Button onClick={() => setShowResearch(true)} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-sm">
+              <Button onClick={() => setShowResearch(true)} className="gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md">
                 <Sparkles className="w-4 h-4" /> Firmen recherchieren
               </Button>
             )}
+            <Button onClick={() => setShowAdd(true)} variant="outline" className="gap-2 bg-white border-slate-200 text-slate-700 hover:bg-slate-50">
+              <Plus className="w-4 h-4" /> Neuer Lead
+            </Button>
           </div>
         </div>
       </div>
@@ -350,18 +353,6 @@ export default function Leads() {
             {assignedFilter !== "Alle" && <button onClick={() => setAssignedFilter("Alle")} className="inline-flex items-center gap-1 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full hover:bg-blue-200"><span>Vertriebler: {assignedFilter}</span><X className="w-3 h-3"/></button>}
             {newRunFilter && <button onClick={() => setNewRunFilter(null)} className="inline-flex items-center gap-1 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full hover:bg-emerald-200"><span>Neue Leads</span><X className="w-3 h-3"/></button>}
             {search && <button onClick={() => setSearch("")} className="inline-flex items-center gap-1 text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-full hover:bg-slate-200"><span>Suche</span><X className="w-3 h-3"/></button>}
-          </div>
-        )}
-
-        {/* Active Filters */}
-        {(statusFilter || focusFilter || priorityFilter !== "Alle" || assignedFilter !== "Alle" || search || newRunFilter) && (
-          <div className="flex flex-wrap gap-2">
-            {statusFilter && <button onClick={() => setStatusFilter(null)} className="inline-flex items-center gap-1 text-xs font-medium bg-primary/10 text-primary border border-primary/20 px-2.5 py-1 rounded-full hover:bg-primary/20"><span>{statusFilter}</span><X className="w-3 h-3"/></button>}
-            {focusFilter && <button onClick={() => setFocusFilter(null)} className="inline-flex items-center gap-1 text-xs font-medium bg-muted text-muted-foreground border border-border px-2.5 py-1 rounded-full"><span>{focusFilter}</span><X className="w-3 h-3"/></button>}
-            {priorityFilter !== "Alle" && <button onClick={() => setPriorityFilter("Alle")} className="inline-flex items-center gap-1 text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full"><span>Priorität: {priorityFilter}</span><X className="w-3 h-3"/></button>}
-            {assignedFilter !== "Alle" && <button onClick={() => setAssignedFilter("Alle")} className="inline-flex items-center gap-1 text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full"><span>Vertriebler: {assignedFilter}</span><X className="w-3 h-3"/></button>}
-            {newRunFilter && <button onClick={() => setNewRunFilter(null)} className="inline-flex items-center gap-1 text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full"><span>Neue Leads aus letzter Recherche</span><X className="w-3 h-3"/></button>}
-            {search && <button onClick={() => setSearch("")} className="inline-flex items-center gap-1 text-xs font-medium bg-muted text-muted-foreground border border-border px-2.5 py-1 rounded-full"><span>Suche</span><X className="w-3 h-3"/></button>}
           </div>
         )}
       </div>
