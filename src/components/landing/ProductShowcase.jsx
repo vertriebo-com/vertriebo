@@ -48,7 +48,7 @@ export default function ProductShowcase() {
           {/* App Header */}
           <div style={{ background: "#0c1428", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <VertrieboLogo variant="light" size="sm" />
+              <VertrieboLogo variant="outline" size="sm" />
               <div>
                 <p style={{ fontSize: 13, fontWeight: 800, color: "white" }}>Dashboard</p>
               </div>

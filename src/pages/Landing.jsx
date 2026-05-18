@@ -439,7 +439,7 @@ export default function Landing() {
                 {/* Mini Sidebar */}
                 <div style={{ width: 64, background: "#080e1e", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 0", gap: 16 }}>
                   <div style={{ padding: "8px 4px" }}>
-                    <VertrieboLogo variant="light" size="sm" />
+                    <VertrieboLogo variant="outline" size="sm" />
                   </div>
                   {[1,2,3,4,5].map(i => (
                     <div key={i} style={{ width: 24, height: 24, background: i === 1 ? "rgba(37,99,235,0.15)" : "transparent", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: i === 1 ? "1px solid rgba(37,99,235,0.3)" : "none" }}>
@@ -453,7 +453,7 @@ export default function Landing() {
                   {/* App Header mit Logo */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <VertrieboLogo variant="light" size="sm" />
+                      <VertrieboLogo variant="outline" size="sm" />
                       <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(148,163,184,1)" }}>Dashboard</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
