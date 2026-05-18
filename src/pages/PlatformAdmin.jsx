@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import ResearchRunDiagnostics from '@/components/platform-admin/ResearchRunDiagnostics';
 import LeadScoringDiagnostics from '@/components/platform-admin/LeadScoringDiagnostics';
 import LeadEngineDryTest from '@/components/platform-admin/LeadEngineDryTest';
+import UsageBillingDiagnostics from '@/components/platform-admin/UsageBillingDiagnostics';
 import { FlaskConical, Activity, BarChart3, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -973,8 +974,8 @@ export default function PlatformAdmin() {
                 <TabsTrigger value="dry-test" className="gap-2 text-xs">
                   <FlaskConical className="w-3.5 h-3.5" /> Dry-Test
                 </TabsTrigger>
-                <TabsTrigger value="usage-billing" className="gap-2 text-xs text-slate-400" disabled>
-                  <BarChart3 className="w-3.5 h-3.5" /> Usage/Billing (bald)
+                <TabsTrigger value="usage-billing" className="gap-2 text-xs">
+                  <BarChart3 className="w-3.5 h-3.5" /> Usage/Billing
                 </TabsTrigger>
               </TabsList>
 
@@ -1001,6 +1002,16 @@ export default function PlatformAdmin() {
               <TabsContent value="dry-test">
                 <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
                   <LeadEngineDryTest userRole={currentUser?.role} />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="usage-billing">
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                  <UsageBillingDiagnostics
+                    userRole={currentUser?.role}
+                    userEmail={currentUser?.email}
+                    orgId={currentUser ? organizations.find(o => o.owner_email === currentUser.email)?.id : null}
+                  />
                 </div>
               </TabsContent>
             </Tabs>
