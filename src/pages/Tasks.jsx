@@ -144,7 +144,7 @@ export default function Tasks() {
                     {task.titel}
                   </p>
                   <PriorityBadge priority={task.prioritaet} />
-                  <span className="text-[9px] sm:text-[10px] font-medium bg-slate-100 text-slate-700 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded">{task.typ}</span>
+                  <span className="text-[9px] sm:text-[10px] font-bold bg-slate-100 text-slate-800 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded whitespace-nowrap">{task.typ}</span>
                 </div>
                 {task.company_name && (
                   <Link to={`/leads/${task.company_id}`} className="text-xs font-medium text-blue-600 hover:underline mt-1 block truncate">

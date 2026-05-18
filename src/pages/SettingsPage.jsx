@@ -132,7 +132,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Navigation Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mb-6 sm:mb-8 overflow-x-auto pb-2">
         {(isAdmin ? ADMIN_NAV_ITEMS : SALES_REP_NAV_ITEMS).map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -151,10 +151,10 @@ export default function SettingsPage() {
               }`}>
                 <Icon className="w-4 h-4" />
               </div>
-              <span className={`text-sm font-bold ${isActive ? "text-blue-700" : "text-slate-900"}`}>
+              <span className={`text-xs sm:text-sm font-bold ${isActive ? "text-blue-700" : "text-slate-900"}`}>
                 {item.label}
               </span>
-              <span className={`text-[11px] font-medium mt-0.5 line-clamp-2 ${isActive ? "text-blue-600" : "text-slate-600"}`}>
+              <span className={`text-[10px] sm:text-[11px] font-medium mt-0.5 line-clamp-2 ${isActive ? "text-blue-600" : "text-slate-600"}`}>
                 {item.description}
               </span>
             </button>
@@ -163,7 +163,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Content Area */}
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 pb-20">
         {/* Admin Content */}
         {activeTab === "company"   && isAdmin && (
           <>
