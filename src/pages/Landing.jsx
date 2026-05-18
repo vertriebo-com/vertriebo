@@ -128,25 +128,21 @@ const RevealOnScroll = ({ children, delay = 0 }) => {
   const ref = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
-    // Mobile fallback: show content immediately if IntersectionObserver fails
-    const timer = setTimeout(() => setIsVisible(true), 100);
+    // Mobile fallback: show content immediately
+    setIsVisible(true);
     
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) {
         setIsVisible(true);
         observer.disconnect();
-        clearTimeout(timer);
       }
-    });
+    }, { rootMargin: "50px" });
     
     if (ref.current) {
       observer.observe(ref.current);
     }
     
-    return () => {
-      observer.disconnect();
-      clearTimeout(timer);
-    };
+    return () => observer.disconnect();
   }, []);
   
   return (
@@ -154,9 +150,8 @@ const RevealOnScroll = ({ children, delay = 0 }) => {
       ref={ref}
       style={{
         opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateY(0)" : "translateY(30px)",
-        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
-        willChange: "opacity, transform"
+        transform: isVisible ? "translateY(0)" : "translateY(0)",
+        transition: `opacity 0.4s ease ${delay}ms`
       }}>
       
       {children}
@@ -227,15 +222,15 @@ export default function Landing() {
   return (
     <div style={{ background: "#020617", minHeight: "100vh", fontFamily: "'Inter', sans-serif", overflowX: "hidden", position: "relative" }}>
 
-      {/* NOISE TEXTURE OVERLAY - Reduced on mobile */}
-      <div style={{
-        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, opacity: isMobile ? 0.015 : 0.03,
+      {/* NOISE TEXTURE OVERLAY - Disabled on mobile for performance */}
+      {!isMobile && <div style={{
+        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, opacity: 0.03,
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
         mixBlendMode: "overlay"
-      }} />
+      }} />}
 
-      {/* FLOATING PARTICLES - Reduced count on mobile */}
-      {isMobile ? <Particles count={15} /> : <Particles />}
+      {/* FLOATING PARTICLES - Disabled on mobile for performance */}
+      {!isMobile && <Particles count={30} />}
       <style>{`
         @keyframes float {
           0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
@@ -270,17 +265,19 @@ export default function Landing() {
         }
       `}</style>
 
-      {/* GLOW ORBS - Animated (reduced on mobile) */}
-      <div className="glow-effect" style={{
-        position: "fixed", width: isMobile ? 300 : 600, height: isMobile ? 300 : 600, background: "rgba(37,99,235,0.08)", borderRadius: "50%",
-        filter: isMobile ? "blur(60px)" : "blur(100px)", top: isMobile ? -100 : -200, left: isMobile ? -100 : -200, pointerEvents: "none", zIndex: 0,
-        animation: "pulse-glow 8s ease-in-out infinite"
-      }} />
-      <div className="glow-effect" style={{
-        position: "fixed", width: isMobile ? 250 : 500, height: isMobile ? 250 : 500, background: "rgba(124,58,237,0.06)", borderRadius: "50%",
-        filter: isMobile ? "blur(60px)" : "blur(100px)", bottom: isMobile ? -80 : -150, right: isMobile ? -80 : -150, pointerEvents: "none", zIndex: 0,
-        animation: "pulse-glow 10s ease-in-out infinite reverse"
-      }} />
+      {/* GLOW ORBS - Disabled on mobile for performance */}
+      {!isMobile && <>
+        <div className="glow-effect" style={{
+          position: "fixed", width: 600, height: 600, background: "rgba(37,99,235,0.08)", borderRadius: "50%",
+          filter: "blur(100px)", top: -200, left: -200, pointerEvents: "none", zIndex: 0,
+          animation: "pulse-glow 8s ease-in-out infinite"
+        }} />
+        <div className="glow-effect" style={{
+          position: "fixed", width: 500, height: 500, background: "rgba(124,58,237,0.06)", borderRadius: "50%",
+          filter: "blur(100px)", bottom: -150, right: -150, pointerEvents: "none", zIndex: 0,
+          animation: "pulse-glow 10s ease-in-out infinite reverse"
+        }} />
+      </>}
 
       {/* NAVBAR - Premium Header with Mobile Safe Area */}
       <nav className="navbar-mobile" style={{
