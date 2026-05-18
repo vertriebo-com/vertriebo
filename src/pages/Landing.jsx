@@ -259,7 +259,6 @@ export default function Landing() {
         @media (max-width: 768px) {
           .feature-grid { grid-template-columns: 1fr !important; }
           .desktop-nav { display: none !important; }
-          .mobile-cta { display: none !important; }
         }
         @media (min-width: 769px) {
           .desktop-nav { display: flex !important; }
@@ -304,7 +303,7 @@ export default function Landing() {
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 20px", height: "60px", display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", boxSizing: "border-box" }}>
           {/* Logo Links - Groß und klar sichtbar */}
           <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0 }}>
-            <VertrieboLogo size="lg" className="" />
+            <VertrieboLogo size="lg" variant="light" />
           </a>
           
           {/* Center Navigation - Hidden on mobile, shown on desktop */}
@@ -337,13 +336,13 @@ export default function Landing() {
           
           {/* Right Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-            <button onClick={handleLogin} className="mobile-cta" style={{ color: "rgba(148,163,184,1)", fontSize: 14, padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
+            <button onClick={handleLogin} style={{ color: "rgba(148,163,184,1)", fontSize: 14, padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
             onMouseEnter={(e) => e.target.style.color = "white"}
             onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
               
               Login
             </button>
-            <button onClick={handleRegister} className="mobile-cta" style={{
+            <button onClick={handleRegister} style={{
               background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", fontWeight: 700, fontSize: 14,
               padding: "10px 22px", borderRadius: 10, border: "none", cursor: "pointer", fontFamily: "inherit",
               boxShadow: "0 0 30px rgba(37,99,235,0.4)",
