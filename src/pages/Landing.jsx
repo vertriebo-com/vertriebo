@@ -372,7 +372,7 @@ export default function Landing() {
             </p>
 
             {/* CTAs */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 32 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
               <button
                   onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
                   style={{
@@ -397,23 +397,33 @@ export default function Landing() {
               </a>
             </div>
 
-            {/* Trust Box */}
-            <div style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: 12, padding: 16, marginBottom: 24 }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "#93c5fd", marginBottom: 10 }}>Kostenlos starten:</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, color: "rgba(148,163,184,1)" }}>
-                <span>→ 10 Firmenkontakte ohne Kreditkarte testen</span>
-                <span>→ 14 Tage vollen Zugang mit Zahlungsart aktivieren</span>
-                <span>→ Danach monatlich kündbar</span>
+            {/* Trust Chips - Elegant & Clean */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
+                <Check size={12} color="#22c55e" strokeWidth={3} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#86efac" }}>10 Kontakte gratis</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.15)" }}>
+                <Check size={12} color="#60a5fa" strokeWidth={3} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#93c5fd" }}>Keine Kreditkarte</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.15)" }}>
+                <Check size={12} color="#a78bfa" strokeWidth={3} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#c4b5fd" }}>Monatlich kündbar</span>
               </div>
             </div>
 
-            {/* Trust Badges */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 16, fontSize: 13, color: "rgba(100,116,139,1)" }}>
-              {["14 Tage kostenlos testen", "Monatlich kündbar", "DSGVO-orientiert", "Für deutsche B2B-Dienstleister"].map((t) => null
-
-
-
-                )}
+            {/* Subtle Trust Line */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16, fontSize: 12, color: "rgba(100,116,139,1)", flexWrap: "wrap" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Shield size={12} color="rgba(148,163,184,0.5)" />
+                DSGVO-orientiert
+              </span>
+              <span style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(148,163,184,0.3)" }} />
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Check size={12} color="rgba(148,163,184,0.5)" />
+                Für deutsche B2B-Dienstleister
+              </span>
             </div>
           </div>
 
@@ -505,21 +515,34 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* MARQUEE */}
-      <div style={{ background: "#080e1e", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "14px 0", overflow: "hidden" }}>
-        <div style={{ display: "flex", animation: "marquee 25s linear infinite", width: "max-content" }}>
-          {[...Array(2)].map((_, di) =>
-          <div key={di} style={{ display: "flex", gap: 48, padding: "0 24px", alignItems: "center" }}>
-              {["⭐⭐⭐⭐⭐ \"3 Terminanfragen in der ersten Woche\"", "🔥 Gebäudereinigung · Sicherheit · IT · Handwerk · Logistik", "⭐⭐⭐⭐⭐ \"Endlich weiß mein Team, wen es anrufen soll\"", "📈 Mehr Struktur im Vertrieb", "🇩🇪 DSGVO-konform · Made for Germany", "⭐⭐⭐⭐⭐ \"Erste Leads nach 5 Minuten\""].map((t, i) =>
-            <span key={i} style={{ color: "rgba(71,85,105,1)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
-                  {t}
-                  {i < 5 && <span style={{ color: "rgba(37,99,235,0.4)", fontSize: 20, marginLeft: 48 }}>·</span>}
-                </span>
-            )}
+      {/* TRUST BAR - Clean & Structured */}
+      <section style={{ background: "#080e1e", borderTop: "1px solid rgba(255,255,255,0.05)", padding: "32px 24px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          {/* Trust Pillars */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 20, textAlign: "center" }}>
+            <div>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>🏢</div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 4 }}>40+ Branchen</p>
+              <p style={{ fontSize: 12, color: "rgba(148,163,184,1)" }}>Für lokale Dienstleister</p>
             </div>
-          )}
+            <div>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>⚡</div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 4 }}>In 5 Min. startklar</p>
+              <p style={{ fontSize: 12, color: "rgba(148,163,184,1)" }}>Erste Leads sofort</p>
+            </div>
+            <div>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>🛡️</div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 4 }}>DSGVO-orientiert</p>
+              <p style={{ fontSize: 12, color: "rgba(148,163,184,1)" }}>Made for Germany</p>
+            </div>
+            <div>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>📅</div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "white", marginBottom: 4 }}>Flexibel</p>
+              <p style={{ fontSize: 12, color: "rgba(148,163,184,1)" }}>Monatlich kündbar</p>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
 
       {/* FEATURES - Original Text */}
       <section id="features" style={{ padding: "96px 24px", background: "#020617" }}>
