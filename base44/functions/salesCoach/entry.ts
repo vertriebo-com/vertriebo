@@ -93,11 +93,24 @@ Deno.serve(async (req) => {
     const dateStr = now.toLocaleDateString('de-DE', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
     // ── 2. Alle Daten org-spezifisch laden ─────────────────────────────────
-    const [members, contactLogs, tasks] = await Promise.all([
+    const [members, contactLogs, tasks, settingsRecords, hotLeads] = await Promise.all([
       base44.asServiceRole.entities.OrganizationMember.filter({ organization_id, status: 'active' }),
       base44.asServiceRole.entities.ContactLog.filter({ organization_id }),
       base44.asServiceRole.entities.Task.filter({ organization_id }),
+      base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id }),
+      base44.asServiceRole.entities.Company.filter({ organization_id, lead_temperature: 'hot' }),
     ]);
+
+    // Org Settings Map
+    const settingsMap = {};
+    for (const r of settingsRecords) settingsMap[r.key] = r.value;
+    const orgServices = (settingsMap.services || settingsMap.dienstleistungen || '').split(',').map(s => s.trim()).filter(Boolean);
+    const orgTargetCustomers = (settingsMap.target_customer_types || settingsMap.zielkunden || '').split(',').map(s => s.trim()).filter(Boolean);
+    const industryName = settingsMap.industry_name || settingsMap.own_industry || '';
+
+    // Warme Leads zusätzlich laden
+    const warmLeads = await base44.asServiceRole.entities.Company.filter({ organization_id, lead_temperature: 'warm' });
+    const priorityLeads = [...hotLeads, ...warmLeads].filter(c => !c.is_blacklisted && !['Gewonnen','Verloren'].includes(c.status));
 
     // User-Objekte für full_name
     const memberEmails = members.map(m => m.user_email);
@@ -111,6 +124,71 @@ Deno.serve(async (req) => {
     weekStart.setDate(now.getDate() - now.getDay() + 1);
     weekStart.setHours(0,0,0,0);
 
+    // ── Branchenspezifische Tagesfokus-Analyse ──────────────────────────────
+    // Gruppiere Priority-Leads nach Zielkunden-Typ und Service-Kontext
+    const leadsByType = {};
+    for (const c of priorityLeads) {
+      const type = c.matched_target_customer_type || 'Weitere Leads';
+      if (!leadsByType[type]) leadsByType[type] = [];
+      leadsByType[type].push(c);
+    }
+    // Top-3 Zielkunden-Typen nach Anzahl heißer/warmer Leads
+    const topTypes = Object.entries(leadsByType)
+      .sort((a,b) => b[1].length - a[1].length)
+      .slice(0,3);
+
+    // Service-Kontext je Top-Typ ableiten
+    function getServiceFocusForType(leads) {
+      const ctxCounts = {};
+      for (const c of leads) {
+        const ctx = c.matched_service_context || '';
+        if (ctx) {
+          const first = ctx.split(',')[0].trim();
+          ctxCounts[first] = (ctxCounts[first]||0) + 1;
+        }
+      }
+      const sorted = Object.entries(ctxCounts).sort((a,b)=>b[1]-a[1]);
+      return sorted.slice(0,2).map(e=>e[0]).filter(Boolean);
+    }
+
+    // Tagesfokus-HTML-Block generieren
+    function buildDailyFocusHtml() {
+      // Mit Kontext
+      if (topTypes.length > 0 && (orgServices.length > 0 || topTypes[0][1].some(c=>c.matched_service_context))) {
+        const focusLines = topTypes.map(([type, leads]) => {
+          const services = getServiceFocusForType(leads);
+          const serviceHint = services.length > 0
+            ? services.join(' und ')
+            : (orgServices.slice(0,2).join(' und ') || 'passende Leistungen');
+          return `<div style="padding:8px 0;border-top:1px solid #dbeafe;font-size:13px;color:#1e3a5f;">
+            <span style="font-weight:700;">→ ${type}</span>
+            <span style="color:#475569;"> · ${leads.length} priorität Lead${leads.length>1?'s':''} · Einstieg über: <strong>${serviceHint}</strong></span>
+          </div>`;
+        }).join('');
+        const industryLine = industryName ? `<div style="font-size:12px;color:#64748b;margin-bottom:10px;">Branche: <strong>${industryName}</strong></div>` : '';
+        return `<div style="background:#eff6ff;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;">
+          <div style="font-size:14px;font-weight:700;color:#1e40af;margin-bottom:8px;">🎯 Dein Tagesfokus</div>
+          ${industryLine}
+          ${focusLines}
+        </div>`;
+      }
+      // Fallback mit org-Services
+      if (orgTargetCustomers.length > 0 || orgServices.length > 0) {
+        const tcLine = orgTargetCustomers.length > 0
+          ? `<div style="font-size:13px;color:#1e3a5f;padding:6px 0;">Zielgruppen heute: <strong>${orgTargetCustomers.slice(0,3).join(', ')}</strong></div>` : '';
+        const svcLine = orgServices.length > 0
+          ? `<div style="font-size:13px;color:#1e3a5f;padding:6px 0;">Leistungsfokus: <strong>${orgServices.slice(0,3).join(', ')}</strong></div>` : '';
+        return `<div style="background:#eff6ff;border-left:4px solid #2563eb;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;">
+          <div style="font-size:14px;font-weight:700;color:#1e40af;margin-bottom:8px;">🎯 Dein Tagesfokus</div>
+          ${tcLine}${svcLine}
+        </div>`;
+      }
+      // Generischer Fallback
+      return `<div style="background:#eff6ff;border-left:4px solid #0f4cb3;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;">
+        <div style="font-size:15px;font-weight:600;color:#1e40af;">💡 Heute 3 Leads kontaktieren und Ergebnis im CRM eintragen.</div>
+      </div>`;
+    }
+
     const motivations = [
       { emoji:"🔥", text:"Die besten Deals entstehen durch Konsequenz. Ein Anruf kann alles ändern!" },
       { emoji:"💪", text:"Jeder Kontakt bringt dich näher zum nächsten Abschluss. Fang jetzt an!" },
@@ -119,6 +197,7 @@ Deno.serve(async (req) => {
       { emoji:"⚡", text:"Ein kurzes Gespräch heute kann morgen ein unterschriebenes Angebot sein!" },
     ];
     const motivation = motivations[now.getDay() % motivations.length];
+    const dailyFocusHtml = buildDailyFocusHtml();
 
     const results = [];
 
@@ -137,6 +216,9 @@ Deno.serve(async (req) => {
       const openTasks = tasks.filter(t => !t.erledigt && t.assigned_to === user.email);
       const weekLogs = contactLogs.filter(log => log.user_email === user.email && new Date(log.created_date) >= weekStart);
 
+      const hotCount = hotLeads.filter(c=>!c.is_blacklisted && !['Gewonnen','Verloren'].includes(c.status)).length;
+      const warmCount = warmLeads.filter(c=>!c.is_blacklisted && !['Gewonnen','Verloren'].includes(c.status)).length;
+
       const emailBody = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f1f5f9;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 0;"><tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
@@ -145,33 +227,36 @@ Deno.serve(async (req) => {
   <div style="font-size:13px;color:rgba(255,255,255,0.75);margin-top:8px;">${dateStr}</div>
 </td></tr>
 <tr><td style="background:white;padding:28px 32px;border:1px solid #e2e8f0;border-top:none;">
-  <div style="background:#eff6ff;border-left:4px solid #0f4cb3;border-radius:0 8px 8px 0;padding:16px 20px;margin-bottom:24px;">
-    <div style="font-size:15px;font-weight:600;color:#1e40af;">${motivation.text}</div>
-  </div>
+  ${dailyFocusHtml}
   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;"><tr>
     <td align="center" style="padding:14px 8px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
       <div style="font-size:28px;font-weight:800;color:#0f4cb3;">${weekLogs.length}</div>
       <div style="font-size:11px;color:#64748b;margin-top:2px;">Kontakte diese Woche</div>
     </td>
-    <td width="12"></td>
+    <td width="10"></td>
     <td align="center" style="padding:14px 8px;background:#fff5f5;border-radius:8px;border:1px solid #fecaca;">
       <div style="font-size:28px;font-weight:800;color:#dc2626;">${openTasks.length}</div>
       <div style="font-size:11px;color:#dc2626;margin-top:2px;">Offene Aufgaben</div>
     </td>
-    <td width="12"></td>
+    <td width="10"></td>
+    <td align="center" style="padding:14px 8px;background:#fef9ec;border-radius:8px;border:1px solid #fde68a;">
+      <div style="font-size:28px;font-weight:800;color:#d97706;">${hotCount}</div>
+      <div style="font-size:11px;color:#d97706;margin-top:2px;">🔥 Heiße Leads</div>
+    </td>
+    <td width="10"></td>
     <td align="center" style="padding:14px 8px;background:#f0fdf4;border-radius:8px;border:1px solid #bbf7d0;">
-      <div style="font-size:28px;font-weight:800;color:#16a34a;">0</div>
-      <div style="font-size:11px;color:#16a34a;margin-top:2px;">Heute erfasst</div>
+      <div style="font-size:28px;font-weight:800;color:#16a34a;">${warmCount}</div>
+      <div style="font-size:11px;color:#16a34a;margin-top:2px;">Warme Leads</div>
     </td>
   </tr></table>
-  <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">Öffne das CRM, ruf die nächste Firma an und trag das Ergebnis ein – es dauert nur 2 Minuten!</p>
+  <p style="font-size:14px;color:#4b5563;margin-bottom:20px;">${motivation.text}</p>
   ${openTasks.length > 0 ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px 16px;margin-top:16px;">
     <div style="font-size:13px;font-weight:600;color:#92400e;margin-bottom:6px;">⚠️ Du hast ${openTasks.length} offene Aufgabe${openTasks.length>1?'n':''}</div>
     ${openTasks.slice(0,3).map(t => `<div style="font-size:12px;color:#6b7280;padding:4px 0;border-top:1px solid #fde68a;">📋 ${t.titel}${t.company_name?' · '+t.company_name:''}</div>`).join('')}
   </div>` : ''}
 </td></tr>
 <tr><td style="background:#1e293b;border-radius:0 0 12px 12px;padding:20px 32px;">
-  <div style="font-size:12px;color:#94a3b8;">Viele Erfolge heute! 💼 · Huwa Vertrieb-Team</div>
+  <div style="font-size:12px;color:#94a3b8;">Viele Erfolge heute! 💼 · Vertriebo</div>
 </td></tr>
 </table></td></tr></table></body></html>`;
 

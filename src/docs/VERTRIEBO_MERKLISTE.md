@@ -475,8 +475,14 @@ Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 - ✅ followUpAgent: Task-Titel und -Beschreibungen mit matched_service_context, matched_target_customer_type, relevance_reason und orgSettings.services angereichert
 - Akzeptanzkriterien: followUpTasksUseMatchedServiceContext ✅ | followUpTasksUseTargetCustomerType ✅ | followUpDescriptionsExplainLeadFit ✅ | followUpFallbackSafeWhenContextMissing ✅ | noGenericFollowUpWhenContextExists ✅ | noBillingOrResearchSideEffects ✅
 
-**Offen (P2):**
-- salesCoach: Tages-Reminder branchenspezifisch
+**P2 ABGESCHLOSSEN (2026-05-18):**
+- ✅ salesCoach: Tages-Reminder branchenspezifisch — Tagesfokus-Block mit Zielkunden-Typen, Service-Kontext je Lead-Typ und org-weiten Leistungen/Zielgruppen
+- Akzeptanzkriterien: salesCoachUsesOrgServices ✅ | salesCoachUsesTargetCustomers ✅ | salesCoachUsesMatchedLeadContext ✅ | salesCoachDailyReminderIsIndustrySpecific ✅ | salesCoachFallbackSafeWhenContextMissing ✅ | noGenericMotivationWhenContextExists ✅ | noBillingOrResearchSideEffects ✅
+- Live-Test: org=6a042bdb22ac907a26c5affe, reminders_sent=1, Tagesfokus mit dienstleistungen+zielkunden-Fallback gerendert ✅
+- Bugfix: settingsMap-Bug (undefined reference) behoben ✅
+
+**Offen (P3):**
+- Kein weiterer offener Vertriebsprozess-Block bekannt
 
 ### Priorität 2: Produktblock — E-Mail / KI-Skripte / Follow-ups
 Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_customer_types, matched_target_customer_type aus Company):
