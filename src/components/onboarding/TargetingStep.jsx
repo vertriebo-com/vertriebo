@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, X } from "lucide-react";
-import { base44 } from "@/api/base44Client";
-import { getIndustryIdByLabel } from "@/utils/industryTargetPresets";
+import { Loader2 } from "lucide-react";
 import { useTaxonomy } from "@/hooks/useTaxonomy";
 import { SERVICES } from "@/utils/onboardingConfig";
 
@@ -18,11 +16,16 @@ export default function TargetingStep({ onBack, onNext, loading, industry, initi
   const [customServiceInput, setCustomServiceInput] = useState("");
 
   // Auto-populate from taxonomy based on industry (DB-Quelle via useTaxonomy)
+  // Bevorzuge canonical industry_id direkt vom Profil-Objekt, dann Fallback auf Label-Lookup
   useEffect(() => {
     if (industry) {
-      const industryId = getIndustryIdByLabel(industry.name);
-      const preset = getPreset(industryId) || getPreset(industry.name);
-      
+      // industry kann entweder das neue { id, label, profile } Objekt sein
+      // oder das alte { name, industry_id } Format aus Onboarding
+      const canonicalId = industry.industry_id || industry.id;
+      const canonicalLabel = industry.name || industry.label;
+      // Vollständiges Profil direkt vom Autocomplete → kein weiterer Lookup nötig
+      const preset = industry.profile || getPreset(canonicalId) || getPreset(canonicalLabel);
+
       if (preset?.targetCustomerTypes) {
         setSuggestedTargets(preset.targetCustomerTypes);
         // Nur vorausfüllen wenn noch keine Auswahl getroffen
@@ -30,7 +33,7 @@ export default function TargetingStep({ onBack, onNext, loading, industry, initi
           setTargetCustomers(preset.targetCustomerTypes);
         }
       }
-      
+
       if (preset?.ownServices) {
         setSuggestedServices(preset.ownServices);
       } else {

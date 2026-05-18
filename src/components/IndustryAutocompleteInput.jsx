@@ -80,6 +80,8 @@ export default function IndustryAutocompleteInput({
   placeholder = "Branche suchen, z.B. Gebäudereinigung…",
   showStatus = false,
   className = "",
+  // Optional: Callback wenn "Andere Branche" gewählt — für persistentes Backend-Tracking
+  onFallbackSelected = null,
 }) {
   const { profiles, loading: taxonomyLoading } = useTaxonomy();
   const [inputValue, setInputValue] = useState(value?.label || "");
@@ -161,7 +163,7 @@ export default function IndustryAutocompleteInput({
   const handleOtherIndustry = () => {
     setIsOpen(false);
     const fallbackLabel = inputValue.trim();
-    // Analytics-Tracking (Frontend)
+    // Analytics-Tracking (Frontend, lightweight)
     base44.analytics.track({
       eventName: "industry_autocomplete_no_match",
       properties: {
@@ -169,13 +171,18 @@ export default function IndustryAutocompleteInput({
         fallback_profile_used: "fallback_lokaler_dienstleister",
       },
     });
-    onChange({
+    const result = {
       id: "fallback_lokaler_dienstleister",
       label: fallbackLabel || "Andere Branche",
       isFallback: true,
       fallbackLabel,
       profile: null,
-    });
+    };
+    onChange(result);
+    // Persistentes Backend-Tracking: Elternkomponente (Onboarding/Settings) ist verantwortlich
+    if (onFallbackSelected) {
+      onFallbackSelected({ unmatchedLabel: fallbackLabel, fallbackProfile: "fallback_lokaler_dienstleister" });
+    }
   };
 
   const isConfirmed = !!(value?.id && value.label === inputValue);

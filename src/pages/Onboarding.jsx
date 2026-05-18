@@ -75,6 +75,10 @@ export default function Onboarding() {
       const cityLng = loc.lng || null;
       const cityPlaceId = loc.place_id || null;
 
+      // selectedIndustry: normalisiertes Objekt mit canonical industry_id + Profil
+      const industryName = data.selectedIndustry.name || data.selectedIndustry.label || "";
+      const industryCanonicalId = data.selectedIndustry.industry_id || data.selectedIndustry.id || industryName;
+
       let currentOrg = org;
       if (!currentOrg) {
         currentOrg = await base44.entities.Organization.create({
@@ -84,7 +88,7 @@ export default function Onboarding() {
           billing_status: "preview",
           trial_stage: "free_preview",
           onboarding_done: false,
-          industry: data.selectedIndustry.name,
+          industry: industryName,
           service_area_city: cityName,
           service_area_radius_km: data.radius,
         });
@@ -99,7 +103,7 @@ export default function Onboarding() {
       } else {
         await base44.entities.Organization.update(currentOrg.id, {
           name: data.firmenname.trim(),
-          industry: data.selectedIndustry.name,
+          industry: industryName,
           service_area_city: cityName,
           service_area_radius_km: data.radius,
         });
@@ -108,14 +112,14 @@ export default function Onboarding() {
       // Settings: Branche (canonical + legacy) + Ortsdaten
       const isFallback = data.selectedIndustry.isFallback || false;
       const settingsToSave = [
-        { key: "industry_name",          value: data.selectedIndustry.name },
-        { key: "industry_id",            value: data.selectedIndustry.industry_id || data.selectedIndustry.name },
-        { key: "own_industry",           value: data.selectedIndustry.name },
-        // Fallback-Tracking
+        { key: "industry_name",          value: industryName },
+        { key: "industry_id",            value: industryCanonicalId },
+        { key: "own_industry",           value: industryName },
+        // Fallback-Tracking: persistent in OrganizationSettings auswertbar
         ...(isFallback ? [
           { key: "custom_industry_requested", value: "true" },
-          { key: "custom_industry_label",     value: data.selectedIndustry.fallbackLabel || data.selectedIndustry.name },
-          { key: "fallback_profile_used",     value: data.selectedIndustry.industry_id || "fallback_lokaler_dienstleister" },
+          { key: "custom_industry_label",     value: data.selectedIndustry.fallbackLabel || industryName },
+          { key: "fallback_profile_used",     value: industryCanonicalId || "fallback_lokaler_dienstleister" },
         ] : []),
         { key: "lead_plz_city",          value: cityName },
         { key: "lead_radius_km",         value: String(data.radius) },
@@ -269,6 +273,7 @@ export default function Onboarding() {
             onBack={() => setCurrentStep(0)}
             onNext={handleTargetingNext}
             loading={saving}
+            // Vollständiges Industrie-Objekt mit Profil weitergeben für direkten Preset-Zugriff
             industry={selectedIndustry}
             initialData={{ targetCustomers, excluded, services }}
           />

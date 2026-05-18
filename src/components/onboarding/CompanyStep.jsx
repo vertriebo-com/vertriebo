@@ -30,12 +30,17 @@ export default function CompanyStep({ onNext, loading, initialData }) {
       alert("Bitte geben Sie Ihren Standort ein und wählen Sie ihn aus der Liste aus.");
       return;
     }
-    // Mapping ins alte Format für Kompatibilität mit Onboarding-Flow
+    // Normalisiertes Industrie-Objekt — vollständiges Profil wird mitgegeben
+    // damit TargetingStep direkt auf Preset zugreifen kann ohne weiteren DB-Lookup
     const finalIndustry = {
       name: selectedIndustry.label,
+      label: selectedIndustry.label,
+      id: selectedIndustry.id,
       industry_id: selectedIndustry.id,
       isFallback: selectedIndustry.isFallback || false,
       fallbackLabel: selectedIndustry.fallbackLabel || undefined,
+      // Vollständiges Profil für Autofill in TargetingStep
+      profile: selectedIndustry.profile || null,
     };
     onNext({
       firmenname,
@@ -72,6 +77,10 @@ export default function CompanyStep({ onNext, loading, initialData }) {
           value={selectedIndustry}
           onChange={setSelectedIndustry}
           placeholder="Branche suchen, z.B. Gebäudereinigung…"
+          onFallbackSelected={(info) => {
+            // Tracking wird beim handleNext persistent gespeichert (via selectedIndustry.isFallback)
+            // Kein separater API-Call hier nötig — Onboarding-Flow handled das beim Weiterklicken
+          }}
         />
         {selectedIndustry?.id && !selectedIndustry.isFallback && (
           <p className="text-[11px] text-green-700 mt-1 font-medium">
