@@ -250,9 +250,9 @@ export default function Landing() {
         transition: "all 0.4s"
       }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", height: 70, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          {/* Logo Links */}
+          {/* Logo Links - Groß und klar sichtbar */}
           <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0 }}>
-            <VertrieboLogo size="md" className="h-10 w-auto" />
+            <VertrieboLogo size="lg" className="" />
           </a>
           
           {/* Center Navigation */}
