@@ -572,7 +572,44 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 
 ---
 
-## 13. TAXONOMIE-ERWEITERUNGS-BACKLOG
+## 13. ONBOARDING-/ACTIVATION-JOURNEY (2026-05-18)
+
+### Phase 1: LaunchStep Modernisierung — ABGESCHLOSSEN ✅
+
+**Ziel:** Onboarding-Launch auf stabilen async ResearchRun-Flow umstellen.
+
+**Umsetzung:**
+- ✅ `LaunchStep.jsx` nutzt `startResearchRun` statt `generateLeads` (legacy)
+- ✅ Status-Polling via `getResearchRunStatus` (alle 2.5s, mit Cleanup)
+- ✅ Echter Fortschritt sichtbar (Progress-Bar, Live-Message, Leads-Counter)
+- ✅ Endzustände sauber behandelt: `completed`, `partial`, `failed`
+- ✅ Keine doppelte Verarbeitung (Lock-Logik respektiert)
+- ✅ Trial-Limits dynamisch aus `getDashboardData` (nicht hardcoded)
+- ✅ Onboarding-Settings vor ResearchRun garantiert gespeichert
+- ✅ Customer-Friendly Zero-Lead-State (keine Admin-Diagnosen)
+
+**Akzeptanzkriterien:**
+- ✅ launchStepUsesAsyncResearchRun
+- ✅ onboardingSettingsSavedBeforeResearch
+- ✅ launchStepShowsRealProgress
+- ✅ launchStepHandlesCompletedPartialFailed
+- ✅ noGenerateLeadsLegacyInOnboardingLaunch
+- ✅ noDuplicateProcessingFromLaunchStep
+- ✅ noHardcodedTrialLimit
+- ✅ customerFriendlyZeroLeadState
+- ✅ merklisteUpdated
+
+**Dateien geändert:**
+- `components/onboarding/LaunchStep.jsx` — Async ResearchRun + Polling + Cleanup
+- `pages/Onboarding.jsx` — handleLaunch aktualisiert, orgId weitergeben
+- `docs/VERTRIEBO_MERKLISTE.md` — Dokumentation aktualisiert
+
+**Nächste Phase:**
+- Phase 2: Dashboard Empty State + First-Value Guidance
+
+---
+
+## 14. TAXONOMIE-ERWEITERUNGS-BACKLOG
 
 ### Profil-Kategorien
 

@@ -191,7 +191,14 @@ export default function Onboarding() {
   };
 
   // ── Step 3: Launch ──────────────────────────────────────────
-  const handleLaunch = async () => {
+  const handleLaunch = async (researchResult) => {
+    // researchResult comes from LaunchStep after research completes
+    if (researchResult?.error) {
+      toast.error("Recherche fehlgeschlagen: " + researchResult.error);
+      navigate("/dashboard");
+      return;
+    }
+
     setSaving(true);
     try {
       // Mark onboarding as done
@@ -200,22 +207,20 @@ export default function Onboarding() {
         onboarding_completed_at: new Date().toISOString(),
       });
 
-      // Start first research run (silent fail if it doesn't work)
-      try {
-        await base44.functions.invoke("generateLeads", {
-          organization_id: org.id,
-          target_count: 10,
-        });
-        toast.success("10 Firmenkontakte gefunden!");
-      } catch (e) {
-        console.error("First lead generation failed:", e.message);
-        // Continue anyway — user will see dashboard
+      // Show success message based on results
+      const leadsFound = researchResult?.leads_saved || 0;
+      if (leadsFound > 0) {
+        toast.success(`${leadsFound} Firmenkontakte gefunden!`);
+      } else {
+        toast.info('Keine passenden Firmen gefunden - bitte Suchgebiet anpassen');
       }
 
-      // Navigate to leads (not dashboard)
-      navigate("/leads");
+      // Navigate to dashboard (shows leads + next actions)
+      navigate("/dashboard");
     } catch (e) {
       toast.error("Fehler: " + e.message);
+      navigate("/dashboard");
+    } finally {
       setSaving(false);
     }
   };
@@ -286,6 +291,7 @@ export default function Onboarding() {
             onLaunch={handleLaunch}
             loading={saving}
             organization={{ name: firmenname, industry: selectedIndustry?.name }}
+            orgId={org?.id}
           />
         )}
       </div>

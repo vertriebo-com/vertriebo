@@ -1,40 +1,160 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Zap, CheckCircle2, ArrowRight } from "lucide-react";
+import { Loader2, Zap, CheckCircle2 } from "lucide-react";
+import { base44 } from "@/api/base44Client";
 
-export default function LaunchStep({ onBack, onLaunch, loading, organization }) {
+export default function LaunchStep({ onBack, onLaunch, loading, organization, orgId }) {
   const [isSearching, setIsSearching] = useState(false);
+  const [researchRunId, setResearchRunId] = useState(null);
+  const [progress, setProgress] = useState(0);
+  const [message, setMessage] = useState("Starte Recherche...");
+  const [leadsFound, setLeadsFound] = useState(0);
+  const [isDone, setIsDone] = useState(false);
+  const [availableLimit, setAvailableLimit] = useState(null);
+
+  // Load available trial/plan limit on mount
+  useEffect(() => {
+    const loadLimit = async () => {
+      try {
+        const dashboardData = await base44.functions.invoke('getDashboardData', {});
+        const maxContacts = dashboardData?.meta?.maxContacts || 300;
+        const usedContacts = dashboardData?.meta?.currentUsage?.leads_created || 0;
+        const available = maxContacts === -1 ? 'unbegrenzt' : Math.max(0, maxContacts - usedContacts);
+        setAvailableLimit(available);
+      } catch (e) {
+        console.warn('[LaunchStep] Limit load failed:', e.message);
+      }
+    };
+    loadLimit();
+  }, []);
+
+  // Polling for research run status
+  useEffect(() => {
+    if (!researchRunId || isDone) return;
+
+    let polling = true;
+    const pollStatus = async () => {
+      while (polling && !isDone) {
+        try {
+          const status = await base44.functions.invoke('getResearchRunStatus', {
+            research_run_id: researchRunId,
+          });
+          
+          const data = status.data;
+          if (data) {
+            setProgress(data.progress_percent || 0);
+            setMessage(data.current_step || 'Recherche läuft...');
+            setLeadsFound(data.leads_saved || 0);
+
+            // Check if done
+            if (data.done || ['completed', 'partial', 'failed'].includes(data.status)) {
+              setIsDone(true);
+              polling = false;
+              // Wait a bit then call onLaunchComplete
+              setTimeout(() => {
+                onLaunch(data);
+              }, 1000);
+            }
+          }
+        } catch (e) {
+          console.warn('[LaunchStep] Polling error:', e.message);
+        }
+        await new Promise(r => setTimeout(r, 2500));
+      }
+    };
+    pollStatus();
+
+    return () => { polling = false; }; // Cleanup
+  }, [researchRunId, isDone, onLaunch]);
 
   const handleClick = async () => {
     setIsSearching(true);
-    await onLaunch();
+    try {
+      // Start research run (async, queued status)
+      const run = await base44.functions.invoke('startResearchRun', {
+        organization_id: orgId,
+        target_count: typeof availableLimit === 'number' ? Math.min(10, availableLimit) : 10,
+      });
+      
+      if (run.data?.research_run_id) {
+        setResearchRunId(run.data.research_run_id);
+        setMessage('Recherche wird vorbereitet...');
+      } else {
+        throw new Error('Kein ResearchRun erstellt');
+      }
+    } catch (e) {
+      console.error('[LaunchStep] Start error:', e.message);
+      setIsSearching(false);
+      onLaunch({ error: e.message });
+    }
   };
 
-  if (isSearching) {
+  if (isSearching && researchRunId) {
     return (
-      <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-6">
-        <div className="animate-spin w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
+      <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center space-y-6">
+        {/* Progress Spinner or Check */}
+        {isDone ? (
+          <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+            <CheckCircle2 className="w-10 h-10 text-green-600" />
+          </div>
+        ) : (
+          <div className="animate-spin w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full mx-auto" />
+        )}
+
+        {/* Title */}
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">Wir suchen passende Unternehmen für Sie...</h2>
-          <p className="text-sm font-medium text-slate-600">Das dauert etwa 30–60 Sekunden</p>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">
+            {isDone ? 'Recherche abgeschlossen!' : 'Wir suchen passende Unternehmen...'}
+          </h2>
+          <p className="text-sm font-medium text-slate-600">
+            {isDone ? 'Gleich gehts weiter zu Ihren Leads' : 'Das dauert etwa 30–60 Sekunden'}
+          </p>
         </div>
 
-        <div className="space-y-2 text-sm text-slate-700">
-          <div className="flex items-center gap-2 justify-center">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            Suchgebiet wird analysiert
+        {/* Progress Bar */}
+        {!isDone && (
+          <div className="w-full max-w-md mx-auto">
+            <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-blue-600 transition-all duration-500"
+                style={{ width: `${Math.max(5, progress)}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-600 mt-2 font-medium">{Math.round(progress)}% abgeschlossen</p>
           </div>
-          <div className="flex items-center gap-2 justify-center">
-            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            Unternehmen werden bewertet
-          </div>
-          <div className="flex items-center gap-2 justify-center">
-            <span className="w-2 h-2 rounded-full bg-slate-300" />
-            Duplikate werden gefiltert
-          </div>
+        )}
+
+        {/* Live Status */}
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <p className="text-sm font-semibold text-blue-900 mb-1">{message}</p>
+          {leadsFound > 0 && (
+            <p className="text-xs text-blue-700">
+              {leadsFound} {leadsFound === 1 ? 'Firmenkontakt' : 'Firmenkontakte'} gefunden
+            </p>
+          )}
         </div>
 
-        <p className="text-xs text-slate-500 mt-6">Bitte nicht schließen...</p>
+        {/* Steps */}
+        {!isDone && (
+          <div className="space-y-2 text-sm text-slate-700">
+            <div className="flex items-center gap-2 justify-center">
+              <span className={`w-2 h-2 rounded-full ${progress > 10 ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`} />
+              Suchgebiet wird analysiert
+            </div>
+            <div className="flex items-center gap-2 justify-center">
+              <span className={`w-2 h-2 rounded-full ${progress > 40 ? 'bg-green-500' : 'bg-slate-300'}`} />
+              Unternehmen werden bewertet
+            </div>
+            <div className="flex items-center gap-2 justify-center">
+              <span className={`w-2 h-2 rounded-full ${progress > 80 ? 'bg-green-500' : 'bg-slate-300'}`} />
+              Duplikate werden gefiltert
+            </div>
+          </div>
+        )}
+
+        {isDone && (
+          <p className="text-xs text-slate-500">Weiterleitung erfolgt automatisch...</p>
+        )}
       </div>
     );
   }
@@ -52,7 +172,13 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization }) 
         </div>
 
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-2">
-          <p className="font-semibold text-blue-900">Bis zu 10 kostenlose Firmenkontakte</p>
+          <p className="font-semibold text-blue-900">
+            {typeof availableLimit === 'number' 
+              ? `${availableLimit} Firmenkontakte verfügbar`
+              : availableLimit === 'unbegrenzt'
+              ? 'Unbegrenzte Firmenkontakte'
+              : 'Firmenkontakte verfügbar'}
+          </p>
           <p className="text-sm text-blue-800">Wir durchsuchen Ihr Gebiet und filtern automatisch passende Unternehmen aus.</p>
         </div>
 
