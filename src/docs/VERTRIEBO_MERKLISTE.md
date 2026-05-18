@@ -307,9 +307,10 @@ POST testLeadSearchEngine
 batch1FinalAbschluss                      ✅ 24/24 Tests GOOD, seed_reset, Re-Tests bestätigt
 batch2Abgeschlossen                       ✅ 9/9 Tests GOOD (sicherheitsdienst, gartenbau, catering)
 batch3Abgeschlossen                       ✅ 15/15 Tests GOOD (immobilien, lager, entruempelung, event, gesundheit)
+batch4Abgeschlossen                       ✅ 15/15 Tests GOOD (marketing, personal, buchhaltung, industrie, fuhrpark)
 weightedSignalsSeedSafe                   ✅ Gewichte NUR in TAXONOMY_SEED gepflegt
-taxonomyVersionV6WeightedScoringB3        ✅ aktiv, seed_reset ausgeführt
-allExistingProfilesQualityReviewed        ⏳ 16/41 validiert — Batch 4+ ausstehend
+taxonomyVersionV6WeightedScoringB4        ✅ aktiv, seed_reset ausgeführt
+allExistingProfilesQualityReviewed        ⏳ 21/41 validiert — Batch 5+ ausstehend
 readyForNextProductIntegrationBlock       ❌ BLOCKED bis allExistingProfilesQualityReviewed
 ```
 
@@ -409,6 +410,7 @@ readyForNextProductIntegrationBlock       ❌ BLOCKED bis allExistingProfilesQua
 | **quality-matrix-b1-final** | **2026-05-18** | **Batch 1 finaler Abschluss: seed_reset + 9 Re-Tests. scoring_signal_weights_count=10 in maler/shk/elektro bestätigt. Alle 24 Tests weiterhin GOOD.** | **46** |
 | **quality-matrix-b2** | **2026-05-18** | **Batch 2: sicherheitsdienst, gartenbau, catering × 3 Regionen = 9 Tests, alle GOOD (avgScore 97–99). 12 Gewichte je Profil. TAXONOMY_VERSION=v6-weighted-scoring-b2** | **46** |
 | **quality-matrix-b3** | **2026-05-18** | **Batch 3: immobilien, lager_fulfillment, entruempelung, eventservice, gesundheit_medizin × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. gesundheit_medizin avgScore=100. TAXONOMY_VERSION=v6-weighted-scoring-b3** | **46** |
+| **quality-matrix-b4** | **2026-05-18** | **Batch 4: marketing_webdesign_werbung, personal_zeitarbeit, buchhaltung_steuernahe_dienste, industrieservice, fuhrparkservice_fahrzeugpflege × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. TAXONOMY_VERSION=v6-weighted-scoring-b4** | **46** |
 
 ---
 
@@ -453,7 +455,8 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 | **Batch 1** (8 auditiert) | gebaeudereinigung, facility_service, it_service, spedition_logistik, handwerk, maler_renovierung, shk, elektro_gebaeudetechnik | ✅ v6 gewichtet, 24 Tests GOOD, Re-Tests bestätigt |
 | **Batch 2** (3 auditiert) | sicherheitsdienst, gartenbau, catering | ✅ v6 gewichtet, 9 Tests GOOD, 12 Gewichte aktiv |
 | **Batch 3** (5 auditiert) | immobilien, lager_fulfillment, entruempelung, eventservice, gesundheit_medizin | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
-| **Core Verticals** (ausstehend) | marketing_webdesign_werbung … messebau | ⚠️ Qualitätsaudit Batch 4+ |
+| **Batch 4** (5 auditiert) | marketing_webdesign_werbung, personal_zeitarbeit, buchhaltung_steuernahe_dienste, industrieservice, fuhrparkservice_fahrzeugpflege | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
+| **Core Verticals** (ausstehend) | pflege_betreuung … messebau | ⚠️ Qualitätsaudit Batch 5+ |
 | **Erweiterte Dienstleister** (18) | dachdecker … messebau | ⚠️ Qualitätsaudit ausstehend |
 | **Fallback-Profile** (5) | fallback_* | ✅ bewusst generisch |
 
