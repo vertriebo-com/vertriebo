@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Check, Zap, ArrowRight, ChevronDown, Star, MapPin, Target, Phone, Mail, Users, TrendingUp, Shield, Brain, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import VertrieboLogo from "@/components/VertrieboLogo";
 import AgencyDemoModal from "@/components/AgencyDemoModal";
 import HowItWorks from "@/components/landing/HowItWorks";
 import TargetIndustriesCompact from "@/components/landing/TargetIndustriesCompact";
@@ -152,6 +153,13 @@ export default function Landing() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   const handleLogin = () => base44.auth.redirectToLogin(window.location.origin + "/dashboard");
   const handleRegister = () => base44.auth.redirectToLogin(window.location.origin + "/onboarding");
 
@@ -233,31 +241,65 @@ export default function Landing() {
         animation: "pulse-glow 10s ease-in-out infinite reverse"
       }} />
 
-      {/* NAVBAR */}
+      {/* NAVBAR - Premium Header */}
       <nav style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
-        background: scrolled ? "rgba(2,6,23,0.92)" : "transparent",
+        background: scrolled ? "rgba(2,6,23,0.95)" : "transparent",
         backdropFilter: scrolled ? "blur(20px)" : "none",
         borderBottom: scrolled ? "1px solid rgba(255,255,255,0.08)" : "none",
         transition: "all 0.4s"
       }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <a href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-            <div style={{ width: 32, height: 32, background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ color: "white", fontWeight: 900, fontSize: 14 }}>V</span>
-            </div>
-            <span style={{ color: "white", fontWeight: 900, fontSize: 18, letterSpacing: -0.5 }}>VERTRIEBO</span>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", height: 70, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {/* Logo Links */}
+          <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0 }}>
+            <VertrieboLogo size="md" className="h-10 w-auto" />
           </a>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={handleLogin} style={{ color: "rgba(148,163,184,1)", fontSize: 14, padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit" }}>
+          
+          {/* Center Navigation */}
+          <div style={{ display: "flex", alignItems: "center", gap: 40, flex: 1, justifyContent: "center", marginLeft: 40 }}>
+            <button 
+              onClick={() => scrollToSection("how-it-works")}
+              style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
+              onMouseEnter={(e) => e.target.style.color = "white"}
+              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}
+            >
+              Wie es funktioniert
+            </button>
+            <button 
+              onClick={() => scrollToSection("pricing")}
+              style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
+              onMouseEnter={(e) => e.target.style.color = "white"}
+              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}
+            >
+              Preise
+            </button>
+            <button 
+              onClick={() => scrollToSection("faq")}
+              style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
+              onMouseEnter={(e) => e.target.style.color = "white"}
+              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}
+            >
+              FAQ
+            </button>
+          </div>
+          
+          {/* Right Actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+            <button onClick={handleLogin} style={{ color: "rgba(148,163,184,1)", fontSize: 14, padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
+              onMouseEnter={(e) => e.target.style.color = "white"}
+              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}
+            >
               Login
             </button>
             <button onClick={handleRegister} style={{
               background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", fontWeight: 700, fontSize: 14,
-              padding: "9px 20px", borderRadius: 10, border: "none", cursor: "pointer", fontFamily: "inherit",
+              padding: "10px 22px", borderRadius: 10, border: "none", cursor: "pointer", fontFamily: "inherit",
               boxShadow: "0 0 30px rgba(37,99,235,0.4)",
               transition: "all 0.3s"
-            }}>
+            }}
+              onMouseEnter={(e) => e.target.style.boxShadow = "0 0 40px rgba(37,99,235,0.6)"}
+              onMouseLeave={(e) => e.target.style.boxShadow = "0 0 30px rgba(37,99,235,0.4)"}
+            >
               🚀 14 Tage testen
             </button>
           </div>
@@ -529,7 +571,9 @@ export default function Landing() {
       </section>
 
       {/* HOW IT WORKS - Original Component */}
-      <HowItWorks />
+      <section id="how-it-works">
+        <HowItWorks />
+      </section>
 
       {/* PRODUCT SHOWCASE - Original Component */}
       <ProductShowcase />
@@ -623,7 +667,9 @@ export default function Landing() {
           </div>
 
           <RevealOnScroll delay={200}>
-            <PricingFAQ />
+           <section id="faq">
+             <PricingFAQ />
+           </section>
           </RevealOnScroll>
 
           <p style={{ textAlign: "center", color: "rgba(71,85,105,1)", fontSize: 13, marginTop: 28 }}>
