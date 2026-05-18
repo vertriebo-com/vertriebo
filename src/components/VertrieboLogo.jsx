@@ -9,7 +9,7 @@ export default function VertrieboLogo({ size = "default", variant = "dark", clas
 
   const logos = {
     dark: "https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/76f46b4fa_ChatGPTImage18Mai202615_39_07.png",
-    light: "https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/e7888177c_ChatGPTImage18Mai202615_41_39.png",
+    light: "https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/d33883a39_1.png",
     outline: "https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/866461c50_ChatGPTImage18Mai202615_39_07.png"
   };
 
