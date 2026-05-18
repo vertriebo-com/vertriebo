@@ -574,7 +574,70 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 
 ## 13. ONBOARDING-/ACTIVATION-JOURNEY (2026-05-18)
 
-### Phase 1: LaunchStep Modernisierung — ABGESCHLOSSEN ✅ (2026-05-18)
+### Phase 1: LaunchStep Modernisierung — ABGESCHLOSSEN ✅ (2026-05-18, Hotfix: processResearchRun-Kick)
+
+**Bugfix (Live-Befund):** LaunchStep hing bei 0% weil ActiveResearchBanner im Onboarding nicht gemountet ist.
+
+**Fix:** LaunchStep ruft jetzt selbst `processResearchRun` auf (lock-sicher, nur einmal bei progress < 5%).
+
+**Ziel:** Onboarding-Launch auf stabilen async ResearchRun-Flow umstellen.
+
+**Umsetzung:**
+- ✅ `LaunchStep.jsx` nutzt `startResearchRun` statt `generateLeads` (legacy)
+- ✅ Status-Polling via `getResearchRunStatus` (alle 2.5s, mit Cleanup)
+- ✅ **LaunchStep ruft `processResearchRun` selbst auf** (da Banner im Onboarding nicht aktiv)
+- ✅ Lock-Logik respektiert (`already_processing` wird behandelt)
+- ✅ Echter Fortschritt sichtbar (Progress-Bar, Live-Message, Leads-Counter)
+- ✅ Endzustände separat behandelt:
+  - `completed`: "Recherche abgeschlossen"
+  - `partial`: "Recherche teilweise abgeschlossen, X Firmenkontakte gefunden"
+  - `failed`: "Recherche konnte nicht abgeschlossen werden" + kundenfreundliche Alternative
+- ✅ Keine doppelte Verarbeitung (Lock-Logik respektiert)
+- ✅ Trial-Limits dynamisch aus `getDashboardData` (nicht hardcoded)
+  - `free_preview`: "Vorschau aktiv" (kein "14 Tage")
+  - `verified_trial`: "Testphase aktiv"
+  - `paid`: "Abo aktiv"
+- ✅ FIRST_VALUE_TARGET_COUNT dokumentiert:
+  - `free_preview`: max. 10 Leads (schneller First-Value, API-Kosten kontrollieren)
+  - `verified_trial`/`paid`: min(25, availableLimit)
+- ✅ Onboarding-Settings vor ResearchRun garantiert gespeichert
+- ✅ Customer-Friendly Zero-Lead-State (keine Admin-Diagnosen)
+- ✅ ResearchRun wird verarbeitet (durch LaunchStep + ActiveResearchBanner als Fallback)
+
+**Akzeptanzkriterien:**
+- ✅ launchStepUsesAsyncResearchRun
+- ✅ onboardingSettingsSavedBeforeResearch
+- ✅ launchStepShowsRealProgress
+- ✅ launchStepHandlesCompletedPartialFailedSeparately
+- ✅ noGenerateLeadsLegacyInOnboardingLaunch
+- ✅ noDuplicateProcessingFromLaunchStep
+- ✅ noHardcodedTrialLimit
+- ✅ targetCountDocumentedOrDynamic
+- ✅ customerFriendlyZeroLeadState
+- ✅ researchRunActuallyProcessesInOnboarding
+- ✅ **onboardingLaunchDoesNotHangAtZeroPercent** (Hotfix verifiziert)
+- ✅ **researchRunCreatedAndProcessedFromLaunchStep**
+- ✅ **launchStepDoesNotDependOnActiveResearchBannerBeingMounted**
+- ✅ **processResearchRunKickIsLockSafe**
+- ✅ merklisteUpdated
+
+**Dateien geändert:**
+- `components/onboarding/LaunchStep.jsx` — Async ResearchRun + Polling + Cleanup + Status-Differenzierung + **processResearchRun-Kick**
+- `pages/Onboarding.jsx` — handleLaunch aktualisiert, orgId weitergeben
+- `docs/VERTRIEBO_MERKLISTE.md` — Dokumentation aktualisiert + Hotfix
+
+**Live-Test:**
+- ✅ Neuer User durch Onboarding
+- ✅ Branche via IndustryAutocomplete
+- ✅ Zielkunden/Services automatisch übernommen
+- ✅ Launch startet async ResearchRun
+- ✅ Progress sichtbar (hängt nicht bei 0%)
+- ✅ Bei Erfolg: Leads + nächste Aktion im Dashboard
+- ✅ Bei 0 Leads: klare Alternative
+- ✅ Keine doppelten Leads, keine doppelte Usage-Zählung
+
+**Nächste Phase:**
+- Phase 2: Dashboard Empty State + First-Value Guidance
 
 **Ziel:** Onboarding-Launch auf stabilen async ResearchRun-Flow umstellen.
 

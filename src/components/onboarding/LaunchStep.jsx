@@ -40,16 +40,20 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
     loadLimit();
   }, []);
 
-  // Polling for research run status
+  // Polling + Processing for research run
+  // LaunchStep muss SELBST processResearchRun aufrufen da ActiveResearchBanner im Onboarding nicht gemountet ist
   useEffect(() => {
     if (!researchRunId || isDone) return;
 
     let polling = true;
-    const pollStatus = async () => {
+    let processingAttempted = false;
+    const pollAndProcess = async () => {
       while (polling && !isDone) {
         try {
+          // 1. Status holen
           const status = await base44.functions.invoke('getResearchRunStatus', {
             research_run_id: researchRunId,
+            organization_id: orgId,
           });
           
           const data = status.data;
@@ -63,10 +67,44 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
             if (data.done || ['completed', 'partial', 'failed'].includes(data.status)) {
               setIsDone(true);
               polling = false;
-              // Wait a bit then call onLaunchComplete
               setTimeout(() => {
                 onLaunch(data);
               }, 1000);
+              return;
+            }
+
+            // 2. Wenn queued/running ohne Fortschritt → processResearchRun anstossen (lock-sicher)
+            // Nur einmal versuchen, dann weiter pollen
+            if ((data.status === 'queued' || data.status === 'running') && 
+                data.progress_percent < 5 && 
+                !processingAttempted) {
+              
+              processingAttempted = true;
+              try {
+                console.info('[LaunchStep] Triggering processResearchRun for onboarding run:', researchRunId);
+                const processRes = await base44.functions.invoke('processResearchRun', {
+                  research_run_id: researchRunId,
+                  organization_id: orgId,
+                });
+                
+                if (processRes?.data?.already_processing) {
+                  console.info('[LaunchStep] Run already being processed by another worker');
+                } else if (processRes?.data?.done) {
+                  // Sofort fertig nach Processing
+                  setProgress(100);
+                  setLeadsFound(processRes.data.leads_saved || 0);
+                  setRunStatus(processRes.data.status);
+                  setIsDone(true);
+                  polling = false;
+                  setTimeout(() => {
+                    onLaunch(processRes.data);
+                  }, 1000);
+                  return;
+                }
+              } catch (processErr) {
+                console.warn('[LaunchStep] processResearchRun error:', processErr?.message);
+                // Weiter pollen, vielleicht übernimmt Banner später
+              }
             }
           }
         } catch (e) {
@@ -75,10 +113,10 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
         await new Promise(r => setTimeout(r, 2500));
       }
     };
-    pollStatus();
+    pollAndProcess();
 
     return () => { polling = false; }; // Cleanup
-  }, [researchRunId, isDone, onLaunch]);
+  }, [researchRunId, orgId, isDone, onLaunch]);
 
   const handleClick = async () => {
     setIsSearching(true);
