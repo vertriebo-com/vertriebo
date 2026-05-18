@@ -73,14 +73,14 @@ export default function Layout() {
         />
       )}
 
-      {/* Sidebar - Premium Dark */}
+      {/* Sidebar - Clean Light CRM */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-slate-900 to-slate-950 text-white flex flex-col transition-transform duration-300 ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-[#E2E8F0] flex flex-col transition-transform duration-300 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Logo */}
-        <div className="px-4 py-5 border-b border-slate-800">
+        <div className="px-4 py-5 border-b border-[#E2E8F0]">
           <Link to="/dashboard" className="flex items-center">
             <VertrieboLogo size="lg" className="h-12 w-auto" />
           </Link>
@@ -96,35 +96,35 @@ export default function Layout() {
                 key={item.path}
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-sm"
-                    : "text-slate-400 hover:bg-slate-800/50 hover:text-white"
+                    ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? "text-blue-400" : ""}`} />
+                <Icon className={`w-4 h-4 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
                 <span className="flex-1">{item.label}</span>
-                {isActive && <ChevronRight className="w-3.5 h-3.5 text-blue-400" />}
+                {isActive && <ChevronRight className="w-3.5 h-3.5 text-blue-600" />}
               </Link>
             );
           })}
         </nav>
 
         {/* User */}
-        <div className="p-3 border-t border-slate-800">
+        <div className="p-3 border-t border-[#E2E8F0]">
           {user && (
-            <div className="bg-slate-800/50 rounded-xl p-3 border border-slate-700">
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center text-sm font-bold text-blue-400 border border-blue-500/30">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center text-sm font-bold text-blue-600 border border-blue-200">
                   {user.full_name?.charAt(0) || "U"}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{user.full_name || "Benutzer"}</p>
-                  <p className="text-[10px] text-slate-400 font-medium capitalize">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{user.full_name || "Benutzer"}</p>
+                  <p className="text-[10px] font-medium text-slate-600 capitalize">
                     {orgRole === "organization_admin" ? "Admin" : orgRole === "sales_rep" ? "Vertriebler" : user.role || "Vertriebler"}
                   </p>
                 </div>
-                <button onClick={handleLogout} className="text-slate-500 hover:text-white transition-colors p-1.5 hover:bg-slate-700/50 rounded-lg">
+                <button onClick={handleLogout} className="text-slate-400 hover:text-slate-600 transition-colors p-1.5 hover:bg-slate-200/50 rounded-lg">
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>
@@ -133,7 +133,7 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main Content - Light Mode */}
+      {/* Main Content - Clean Light Background */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#F6F8FB]">
         {/* App Header - Zentrale Header-Komponente */}
         <AppHeader />
