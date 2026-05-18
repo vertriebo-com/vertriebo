@@ -4,8 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Search, Filter, ChevronDown, Building2, Shield, AlertTriangle,
   Clock, DollarSign, BarChart3, Plus, MoreVertical, Eye, Lock, Unlock,
-  FileText, Zap, Wrench, CheckCircle2, AlertCircle
+  FileText, Zap, Wrench, CheckCircle2, AlertCircle, Activity
 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import ResearchRunDiagnostics from '@/components/platform-admin/ResearchRunDiagnostics';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -246,11 +248,17 @@ export default function PlatformAdmin() {
     };
   };
 
+  // Aktuellen User aus Auth laden (für Diagnose-Tab Zugriffskontrolle)
+  const [currentUser, setCurrentUser] = useState(null);
+  useEffect(() => {
+    base44.auth.me().then(u => setCurrentUser(u)).catch(() => {});
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-         <div className="mb-8">
+         <div className="mb-6">
            <div className="flex items-center gap-3 mb-2">
              <Shield className="w-8 h-8 text-slate-900" />
              <h1 className="text-3xl font-bold text-slate-900">Platform Admin Center</h1>
@@ -258,6 +266,17 @@ export default function PlatformAdmin() {
            <p className="text-sm text-slate-600">Verwaltung aller Organisationen und Agenturen</p>
          </div>
 
+        <Tabs defaultValue="orgs" className="space-y-6">
+          <TabsList className="bg-white border border-slate-200 p-1 h-auto gap-1">
+            <TabsTrigger value="orgs" className="gap-2 text-sm">
+              <Building2 className="w-4 h-4" /> Organisationen
+            </TabsTrigger>
+            <TabsTrigger value="diagnostics" className="gap-2 text-sm">
+              <Activity className="w-4 h-4" /> Diagnose & Monitoring
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="orgs">
          {/* System Control Button */}
         <div className="mb-6">
           <Button
@@ -937,6 +956,19 @@ export default function PlatformAdmin() {
             </DialogContent>
           </Dialog>
         )}
+          </TabsContent>
+
+          <TabsContent value="diagnostics">
+            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+              <ResearchRunDiagnostics
+                userRole={currentUser?.role}
+                userEmail={currentUser?.email}
+                orgId={currentUser ? organizations.find(o => o.owner_email === currentUser.email)?.id : null}
+              />
+            </div>
+          </TabsContent>
+
+        </Tabs>
       </div>
     </div>
   );

@@ -492,7 +492,38 @@ Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 - Dauerregel: Services, Zielkunden, Branchenlogik aus Settings müssen echte Wirkung in allen 7 Modulen haben — keine generischen Texte wenn Kontext vorhanden
 
 **Nächste offene Kernblöcke (nach Priorisierung):**
-- Produktblock ausstehend — Entscheidung per Chat vor Start
+- ✅ Phase 1 Admin-/Owner-Diagnosecenter: ResearchRunDiagnostics — ABGESCHLOSSEN 2026-05-18
+- Ausstehend: Phase 2 LeadScoringDiagnostics, Phase 3 Dry-Test-Center, Phase 4 Usage/Billing-Diagnose
+
+### ✅ Phase 1 Admin-/Owner-Diagnosecenter: ResearchRunDiagnostics (2026-05-18)
+
+**Implementiert:**
+- `components/platform-admin/ResearchRunDiagnostics.jsx` — direkte Entity-Abfrage, keine Dummy-Werte
+- Neuer Tab "Diagnose & Monitoring" in `pages/PlatformAdmin.jsx`
+- Platform Admin sieht alle Runs, Org Admin nur eigene Org — serverseitig erzwungen via `organization_id`-Filter
+- Filter: nach Org, nach Status (queued/running/completed/partial/failed), Freitext-Suche
+- Status-Badges mit Icons (inkl. Lock-Anzeige für aktive Verarbeitungs-Locks)
+- Detailansicht (Accordion): Kennzahlen, Taxonomie, Zeitverlauf, Stopp-Gründe, Suchzentren, Suchanfragen
+- JSON-Felder (search_queries_used, search_centers_used) robust geparst mit Fallback-Anzeige bei ungültigem JSON
+- Laufzeit berechnet aus started_at/finished_at, Fallback-Kennzeichnung wenn nur geschätzt
+- Worker-Versuche und Lock-Status sichtbar
+
+**Akzeptanzkriterien:**
+- ✅ platformAdminHasDiagnosticsTab
+- ✅ researchRunDiagnosticsUsesRealData
+- ✅ orgNamesResolved
+- ✅ adminCanFilterByOrgAndStatus
+- ✅ adminCanOpenRunDetail
+- ✅ roleAccessIsRespected
+- ✅ noDummyDiagnostics
+- ✅ merklisteUpdated
+
+**Offen (nächste Phasen):**
+- Phase 2: LeadScoringDiagnostics (Company Entity, engine_analysis_json)
+- Phase 3: Dry-Test-Center (testLeadSearchEngine UI)
+- Phase 4: Usage/Billing-Diagnose (UsageLog Entity)
+
+---
 
 ### Priorität 2: Produktblock — E-Mail / KI-Skripte / Follow-ups
 Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_customer_types, matched_target_customer_type aus Company):
