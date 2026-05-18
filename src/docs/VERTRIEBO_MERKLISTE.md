@@ -1,5 +1,5 @@
 # VERTRIEBO ARCHITEKTUR-MERKLISTE
-## Stand: 2026-05-17 | v6-weighted-scoring — ENGINE QUALITÄTSPHASE
+## Stand: 2026-05-18 | v6-weighted-scoring — ENGINE VALIDIERT, BEREIT FÜR PRODUKTBLOCK
 
 > **PFLICHTREGEL: Nicht "akzeptabel" — produktionsreif, kundenreif, robust.**
 > Jede Entscheidung muss diese Standards erfüllen. Keine Dummy-Logik, keine doppelte Wahrheit, keine technischen Schulden an der Kernfunktion.
@@ -273,6 +273,23 @@ POST testLeadSearchEngine
 
 **REGEL: Keine weiteren Profile hinzufügen bis die 8 Kernprofile in echten Runs bestätigt sind.**
 
+### Validierter Endstatus (2026-05-18)
+
+```
+coreProfileQualityMatrixCompleted         ✅ 24/24 Tests GOOD
+weightedSignalsSeedSafe                   ✅ Gewichte nur in TAXONOMY_SEED gepflegt
+taxonomyVersionV6WeightedScoring          ✅ aktiv, seed_reset ausgeführt
+leadEngineCoreProfilesValidated           ✅ alle 8 Profile production_ready
+merklisteUpdated                          ✅ dieser Block
+readyForNextProductIntegrationBlock       ✅ E-Mail-Vorlagen / KI-Skripte / Follow-ups
+```
+
+### Nächste fachliche Prüfung (empfohlen vor Produktblock)
+- Top-Leads je Profil manuell sichten: Passen die konkreten Firmennamen fachlich?
+- Stichprobe: gebaeudereinigung → sind wirklich Hausverwaltungen / Pflegeheime oben?
+- Stichprobe: it_service → sind wirklich Arztpraxen / Steuerberater oben (keine IT-Firmen)?
+- Bei Abweichung: scoring_signal_weights nachjustieren (nur in TAXONOMY_SEED!)
+
 ### Kritischer Befund + Fix (2026-05-17)
 - `maler_renovierung`, `shk`, `elektro_gebaeudetechnik` hatten `scoring_signal_weights = {}` (leer) im SEED
 - Fix: Gewichte in TAXONOMY_SEED eingetragen, TAXONOMY_VERSION auf `v6-weighted-scoring` erhöht, seed_reset ausgeführt
@@ -378,18 +395,20 @@ Alle Akzeptanz-Kriterien erfüllt:
 Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 ```
 
-### Priorität 2: Architektur-Bereiche prüfen (nach Qualitätstest)
-- Onboarding: useTaxonomy korrekt geladen?
-- Settings: alle canonical keys?
-- ResearchDialog: Polling stabil?
-- LeadDetail/EngineBox: engine_analysis_json korrekt angezeigt?
-- Dashboard: getDashboardData korrekt?
-- Billing/Usage: Limits korrekt enforced?
-- PlatformAdmin/Diagnose: testLeadSearchEngine-Ergebnisse sichtbar?
+### Priorität 2: Produktblock — E-Mail / KI-Skripte / Follow-ups
+Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_customer_types, matched_target_customer_type aus Company):
+- `sendBrevoEmail` / `sendSmtpEmail`: E-Mail-Vorlagen müssen `services` + `zielkunden` aus Org-Settings nutzen
+- `salesCoach`: Anrufskript muss `matched_target_customer_type` und `branche` der Lead-Company einbinden
+- Follow-up-Logik: `followUpAgent` muss `lead_temperature` + `last_contact_summary` berücksichtigen
+- **Keine generischen Templates** — der spezifische Dienstleistungskontext muss sichtbar sein
 
-### Priorität 3: Restliche 41 Profile (erst nach Qualitätstest)
+### Priorität 3: Fachliche Top-Lead-Sichtung
+- Je 1 Profil manuell prüfen: Top-5-Leads fachlich passend?
+- Ergebnis dokumentieren in `docs/lead-engine-quality-matrix.md`
+
+### Priorität 4: Restliche 38 Profile (erst nach P2+P3)
 - Qualitätsschwelle: profile_quality_score >= 75
-- Jedes Profil muss Live-Test in mindestens 1 Stadt bestehen
+- Jedes Profil muss Live-Test in mindestens 1 Stadt bestehen (testLeadSearchEngine)
 
 ---
 
@@ -399,8 +418,8 @@ Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 
 | Kategorie | IDs | Status |
 |---|---|---|
-| **Core Verticals** (5 auditiert) | gebaeudereinigung, facility_service, it_service, spedition_logistik, handwerk | ✅ v6 gewichtet |
-| **Core Verticals** (18 weitere) | sicherheitsdienst … schulungen_weiterbildung | ⚠️ Qualitätsaudit ausstehend |
+| **Core Verticals** (8 auditiert) | gebaeudereinigung, facility_service, it_service, spedition_logistik, handwerk, maler_renovierung, shk, elektro_gebaeudetechnik | ✅ v6 gewichtet, 24 Tests GOOD |
+| **Core Verticals** (15 weitere) | sicherheitsdienst … schulungen_weiterbildung | ⚠️ Qualitätsaudit ausstehend |
 | **Erweiterte Dienstleister** (18) | dachdecker … messebau | ⚠️ Qualitätsaudit ausstehend |
 | **Fallback-Profile** (5) | fallback_* | ✅ bewusst generisch |
 
