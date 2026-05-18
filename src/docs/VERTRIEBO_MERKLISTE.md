@@ -870,9 +870,79 @@ LEGACY: utils/leadSearchTaxonomy.js
 - ✅ ownIndustrySavedForCompatibility
 - ✅ merklisteUpdated
 
-### Offene Punkte Phase 2
+### Offene Punkte Phase 2 (nach Phase-2-Abschluss geschlossen)
 
-- `runUnifiedResearch` PlatformConfig-Fix (Kill-Switch für Google Places greift nicht)
-- `StartLeadsStep.jsx` Migration auf startResearchRun oder entfernen
-- `generateLeads` finales Deprecation nach Automations-Audit
-- `leadSearchEngine.js` Import-Audit
+- ~~`runUnifiedResearch` PlatformConfig-Fix~~ → Runtime-Guard schlägt vor PlatformConfig-Check an
+- ~~`generateLeads` finales Deprecation~~ → Runtime-Guard verhindert User-Aufrufe (410 Gone)
+- `StartLeadsStep.jsx` Migration auf startResearchRun oder entfernen (niedrige Prio)
+- `leadSearchEngine.js` Import-Audit (niedrige Prio)
+
+---
+
+## 16. PRODUCTION READINESS AUDIT — Phase 2 (2026-05-18)
+
+### Rolllen- und Rechteaudit abgeschlossen ✅
+
+#### Rollen-Überblick
+
+| Rolle | Wert im User.role | Zugang |
+|---|---|---|
+| Platform Admin | `admin`, `platform_owner`, `platform_admin` | Alles inkl. PlatformAdmin-Seite, alle Orgs, Diagnose |
+| Support Agent | `support_agent`, `readonly_support` | PlatformAdmin-Zugang (via OnboardingGuard) |
+| Org Admin | `organization_admin` (via OrganizationMember) | Alle Settings, Billing, Team, Leads, Tasks |
+| Sales Rep | `sales_rep` (via OrganizationMember) | Nur Leads lesen/bearbeiten, Tasks, eigenes Profil |
+
+#### Guards — Vollständige Übersicht
+
+| Schutzschicht | Implementiert | Status |
+|---|---|---|
+| **Frontend Route Guard** (`PlatformRouteGuard`) | `/platform/admin` → nur `admin/platform_owner/platform_admin` | ✅ OK |
+| **Frontend OnboardingGuard** | Redirectet Platform-Admins zu `/platform/admin`, normale User zu `/onboarding` | ✅ OK |
+| **Backend `getPlatformAdminData`** | `admin/platform_owner/platform_admin` only → 403 | ✅ OK |
+| **Backend `platformAdmin`** | `admin/platform_owner/platform_admin` only → 403 | ✅ OK |
+| **Backend `updateSystemConfig`** | `admin/platform_admin/platform_owner` only → 403 | ✅ OK |
+| **Backend `checkAccess` (lib)** | Vollständiges Rollen+Billing-Matrix-System | ✅ OK |
+| **Backend `startResearchRun`** | PlatformConfig Kill-Switch + Billing-Check + Suspension-Check | ✅ OK |
+| **Backend `startResearchRun`** | Direkte User-Auth-Prüfung | ✅ OK |
+| **Frontend `SettingsPage`** | Admin-Nav vs. Sales-Rep-Nav je nach Rolle | ✅ OK |
+| **Frontend Admin-Tabs** | `isAdmin`-Guard vor jedem Content-Block | ✅ OK |
+
+#### Deprecated Functions — Runtime Guards hinzugefügt ✅
+
+| Funktion | Guard | Verhalten |
+|---|---|---|
+| `generateLeads` | ✅ **NEU** Phase-2-Guard | Lehnt normale User-Aufrufe mit HTTP 410 ab; erlaubt nur `platform_admin` + interne Calls (`skip_usage_log=true`) + Test-Calls (`_internal_test=true`) |
+| `runUnifiedResearch` | ✅ **NEU** Phase-2-Guard | Lehnt alle Nicht-Platform-Admin-Aufrufe mit HTTP 410 ab |
+
+#### Befund: PlatformConfig Kill-Switch
+
+| Funktion | Kill-Switch | Status |
+|---|---|---|
+| `startResearchRun` | ✅ Prüft `PlatformConfig.google_places_api_enabled` | OK |
+| `processResearchRun` | Muss geprüft werden (Phase 3) | Offen |
+| `generateLeads` | ✅ Prüft Kill-Switch | Deprecated + Guard |
+| `runUnifiedResearch` | ❌ Kein Kill-Switch | Deprecated + Guard (kein Kundenflow) |
+
+#### Befund: checkAccess-Lib
+
+`checkAccess` (functions/checkAccess) ist die zentrale Auth-Library:
+- Auth → Organization → Membership → Action-Whitelist → Billing-Matrix → Plan-Limits
+- Wird von `generateLeads` verwendet (inline-Copy in generateLeads, nicht importiert — kein Local-Import möglich)
+- Wird von `startResearchRun` **nicht** verwendet (eigene Auth-Logik) — akzeptabel, da simpler und korrekt
+- Billing-Matrix: preview/active/trialing = full; past_due/incomplete = degraded; unpaid/canceled = blocked
+
+### Akzeptanzkriterien Phase 2 ✅
+
+- ✅ roleAccessAuditCompleted
+- ✅ platformAdminAccessVerified (Frontend RouteGuard + Backend 403)
+- ✅ orgAdminScopeVerified (checkAccess-Lib + SettingsPage-Guard)
+- ✅ normalUserRestrictedFromAdminDiagnostics (getPlatformAdminData/platformAdmin Backend-Guards)
+- ✅ platformConfigGuardsVerified (startResearchRun prüft Kill-Switch)
+- ✅ deprecatedResearchFunctionsNotUserCallable (generateLeads + runUnifiedResearch haben Runtime-Guard 410)
+- ✅ merklisteUpdated
+
+### Offene Punkte Phase 3
+
+- `processResearchRun` Kill-Switch-Check ergänzen (PlatformConfig sollte auch dort geprüft werden)
+- `checkAccess`-Lib in `startResearchRun` integrieren (aktuell duplizierte Auth-Logik — niedrige Prio)
+- `StartLeadsStep.jsx` migrieren oder entfernen

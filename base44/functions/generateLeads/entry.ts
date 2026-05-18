@@ -908,6 +908,29 @@ Deno.serve(async (req) => {
 
     if (!organization_id) return Response.json({ error: 'organization_id fehlt', success: false }, { status: 400 });
 
+    // ── DEPRECATED RUNTIME GUARD ─────────────────────────────────────────────
+    // generateLeads ist deprecated (Phase 1 Audit 2026-05-18).
+    // Diese Funktion darf NUR noch von internen Service-Calls oder Platform-Admins genutzt werden.
+    // Im aktiven Kundenflow MUSS startResearchRun + processResearchRun verwendet werden.
+    // Direkte Frontend-Aufrufe von normalen Usern werden hier abgelehnt.
+    {
+      const _guardBase44 = createClientFromRequest(req);
+      let _guardUser = null;
+      try { _guardUser = await _guardBase44.auth.me(); } catch {}
+      const _isPlatformLevel = _guardUser && ['admin', 'platform_owner', 'platform_admin'].includes(_guardUser.role);
+      const _isInternalCall = body.skip_usage_log === true; // Nur runUnifiedResearch setzt skip_usage_log=true
+      const _isTestCall = body._internal_test === true;
+      if (!_isPlatformLevel && !_isInternalCall && !_isTestCall) {
+        console.warn(`[generateLeads] DEPRECATED GUARD: Direct call from user=${_guardUser?.email} role=${_guardUser?.role} — rejected. Use startResearchRun instead.`);
+        return Response.json({
+          error: 'deprecated_function',
+          message: 'Diese Funktion ist nicht mehr aktiv. Bitte nutzen Sie den aktuellen Recherche-Flow.',
+          success: false,
+        }, { status: 410 }); // 410 Gone
+      }
+      console.info(`[generateLeads] DEPRECATED but allowed: isPlatform=${_isPlatformLevel} isInternal=${_isInternalCall} user=${_guardUser?.email}`);
+    }
+
     const access = await checkAccess(req, { organization_id, action: 'generate_leads' });
     if (!access.allowed) return Response.json({ error: access.message, success: false, reason: access.reason }, { status: 403 });
     if (!GOOGLE_PLACES_API_KEY) return Response.json({ error: 'GOOGLE_PLACES_API_KEY nicht konfiguriert', success: false }, { status: 500 });

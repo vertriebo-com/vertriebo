@@ -55,6 +55,24 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { organization_id } = body;
 
+    // ── DEPRECATED RUNTIME GUARD ─────────────────────────────────────────────
+    // runUnifiedResearch ist deprecated (Phase 1 Audit 2026-05-18).
+    // Diese Funktion hat keinen PlatformConfig-Kill-Switch.
+    // Nur Platform-Admins dürfen diese Funktion noch aufrufen.
+    // Im aktiven Kundenflow MUSS startResearchRun + processResearchRun verwendet werden.
+    {
+      const _isPlatformLevel = user && ['admin', 'platform_owner', 'platform_admin'].includes(user.role);
+      if (!_isPlatformLevel) {
+        console.warn(`[runUnifiedResearch] DEPRECATED GUARD: Call from user=${user?.email} role=${user?.role} — rejected.`);
+        return Response.json({
+          error: 'deprecated_function',
+          message: 'Diese Funktion ist nicht mehr aktiv. Bitte nutzen Sie den aktuellen Recherche-Flow.',
+          success: false,
+        }, { status: 410 }); // 410 Gone
+      }
+      console.info(`[runUnifiedResearch] DEPRECATED but allowed for platform admin: user=${user?.email}`);
+    }
+
     if (!organization_id) {
       return Response.json(
         { error: 'organization_id fehlt', success: false },
