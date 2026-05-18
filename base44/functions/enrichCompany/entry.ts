@@ -32,6 +32,15 @@ async function checkAccess(req, { organization_id, action, check_limit=null, cur
   const organization = orgs[0]||null;
   if (!organization) return _deny('organization_not_found','Organisation nicht gefunden.');
   if (organization.platform_status==='suspended') return _deny('organization_suspended',`Organisation gesperrt: ${organization.suspended_reason||'kein Grund'}.`, {user,organization,member:null,role:null});
+
+  // Owner der Organisation darf immer alles
+  if (organization.owner_email === user.email) {
+    const [subs, plans] = await Promise.all([b44.asServiceRole.entities.Subscription.filter({organization_id}), organization.plan_id ? b44.asServiceRole.entities.Plan.filter({id:organization.plan_id}) : Promise.resolve([])]);
+    const subscription=subs[0]||null, plan=plans[0]||null;
+    const limits = plan ? { max_users:plan.max_users, max_leads_per_month:plan.max_leads_per_month, max_ai_scorings_per_month:plan.max_ai_scorings_per_month, max_emails_per_month:plan.max_emails_per_month, max_lead_generations_per_month:plan.max_lead_generations_per_month } : null;
+    return _allow({ reason:'org_owner', user, organization, member:null, role:'organization_admin', plan, subscription, limits });
+  }
+
   const member = members[0]||null;
   if (!member) return _deny('not_a_member','Kein Mitglied dieser Organisation.');
   if (member.status!=='active') return _deny('member_inactive',`Mitglied-Status: "${member.status}".`);
