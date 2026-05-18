@@ -18,12 +18,11 @@ import OutcomeFeedback from "../components/lead-detail/OutcomeFeedback";
 import { toast } from "sonner";
 import moment from "moment";
 import { useRef } from "react";
+import { isHotLead, isWarmLead } from "@/utils/leadTemperature";
 
 function temperatureBadge(company) {
-  const t = company.lead_temperature;
-  const s = company.priority_score || 0;
-  if (t === 'hot' || s >= 60) return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">🔥 Heiß</span>;
-  if (t === 'warm' || s >= 30) return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">⚡ Warm</span>;
+  if (isHotLead(company)) return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 border border-orange-200">🔥 Heiß</span>;
+  if (isWarmLead(company)) return <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">⚡ Warm</span>;
   return null;
 }
 
@@ -234,7 +233,7 @@ export default function LeadDetail() {
       {/* ═══ LEAD HERO HEADER ═══ */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         {/* Farbstreifen oben */}
-        <div className={`h-1 w-full ${company.is_hot || (company.priority_score || 0) >= 60 ? "bg-gradient-to-r from-orange-400 to-red-500" : "bg-gradient-to-r from-blue-500 to-violet-500"}`} />
+        <div className={`h-1 w-full ${isHotLead(company) ? "bg-gradient-to-r from-orange-400 to-red-500" : "bg-gradient-to-r from-blue-500 to-violet-500"}`} />
 
         <div className="p-4 sm:p-5">
           {/* Zurück + Titel */}
@@ -248,11 +247,11 @@ export default function LeadDetail() {
             {/* Firma Name + Meta */}
             <div className="flex items-start gap-3">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                company.is_hot || (company.priority_score || 0) >= 60
+                isHotLead(company)
                   ? "bg-orange-100 border-2 border-orange-200"
                   : "bg-blue-100 border-2 border-blue-200"
               }`}>
-                {company.is_hot || (company.priority_score || 0) >= 60
+                {isHotLead(company)
                   ? <Flame className="w-6 h-6 text-orange-600" />
                   : <Building2 className="w-6 h-6 text-blue-600" />
                 }

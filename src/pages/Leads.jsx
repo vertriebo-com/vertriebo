@@ -19,6 +19,7 @@ import LearnedIntelligencePanel from "../components/settings/LearnedIntelligence
 import PrimaryActionCard from "../components/leads/PrimaryActionCard";
 import CompactStats from "../components/leads/CompactStats";
 import moment from "moment";
+import { isHotLead } from "@/utils/leadTemperature";
 
 export default function Leads() {
   const navigate = useNavigate();
@@ -130,8 +131,8 @@ export default function Leads() {
       case "created": return sorted.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
       case "last_contact": return sorted.sort((a, b) => new Date(b.last_contact_date || 0) - new Date(a.last_contact_date || 0));
       default: return sorted.sort((a, b) => {
-        if (a.is_hot && !b.is_hot) return -1;
-        if (!a.is_hot && b.is_hot) return 1;
+        if (isHotLead(a) && !isHotLead(b)) return -1;
+        if (!isHotLead(a) && isHotLead(b)) return 1;
         const statusPrio = { "Rückruf": 0, "Termin": 1, "Angebot": 2, "Kontakt": 3, "Neu": 4, "Gewonnen": 5, "Verloren": 6 };
         return (statusPrio[a.status] ?? 9) - (statusPrio[b.status] ?? 9);
       });
@@ -158,7 +159,7 @@ export default function Leads() {
         const weekAgo = moment().subtract(7, "days").toISOString();
         if (focusFilter === "call_today" && !(c.last_contact_date && c.last_contact_date.startsWith(today))) return false;
         if (focusFilter === "callback_open" && c.status !== "Rückruf") return false;
-        if (focusFilter === "hot_leads" && !c.is_hot) return false;
+        if (focusFilter === "hot_leads" && !isHotLead(c)) return false;
         if (focusFilter === "new_this_week" && !(c.created_date && c.created_date >= weekAgo)) return false;
         
         if (search) {

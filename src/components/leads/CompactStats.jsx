@@ -1,5 +1,6 @@
 import { Building2, Flame, Phone, Clock } from "lucide-react";
 import moment from "moment";
+import { isHotLead } from "@/utils/leadTemperature";
 
 /**
  * CompactStats - echte KPIs, keine fake Werte
@@ -8,10 +9,8 @@ import moment from "moment";
 export default function CompactStats({ companies, tasks = [] }) {
   const total = companies.length;
   
-  // Vielversprechend: Score >= 60 ODER lead_temperature = hot
-  const vielversprechend = companies.filter(c =>
-    (c.priority_score || 0) >= 60 || c.lead_temperature === 'hot'
-  ).length;
+  // Vielversprechend: KANONISCHE LOGIK - isHotLead
+  const vielversprechend = companies.filter(c => isHotLead(c)).length;
   
   // In Bearbeitung: aktiver Kontakt laut Status
   const inBearbeitung = companies.filter(c =>

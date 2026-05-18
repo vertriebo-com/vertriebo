@@ -88,8 +88,15 @@ Deno.serve(async (req) => {
       return new Date(t.faellig_am) < todayStart;
     });
 
+    // KANONISCHE LOGIK: lead_temperature primär, fallback priority_score >= 60
     const hotLeads = companies
-      .filter(c => c.is_hot || c.priority_score > 70)
+      .filter(c => {
+        const temp = c.lead_temperature;
+        if (temp && ['hot', 'warm', 'cold'].includes(temp)) return temp === 'hot';
+        const score = c.priority_score || c.lead_temperature_score || 0;
+        if (score >= 60) return true;
+        return c.is_hot === true; // Legacy-Fallback
+      })
       .slice(0, 5);
 
     const recentActivities = companies.slice(0, 5);
@@ -166,8 +173,9 @@ Deno.serve(async (req) => {
       const tempScore = company.lead_temperature_score || 0;
       const hasContact = !!(company.telefon || company.email);
 
-      // Heiße Leads ohne Task
-      if ((company.is_hot || leadTemp === 'hot') && !companiesWithTasks.has(company.id)) {
+      // Heiße Leads ohne Task - KANONISCHE LOGIK
+      const isHot = leadTemp === 'hot' || (leadTemp === 'unknown' && tempScore >= 60) || (company.is_hot === true && leadTemp !== 'cold');
+      if (isHot && !companiesWithTasks.has(company.id)) {
         const action = nbaTitle || (company.telefon ? 'Anrufen' : company.email ? 'E-Mail senden' : 'Recherchieren');
         companyActionItems.push({
           type: 'hot_lead',

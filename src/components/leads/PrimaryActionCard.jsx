@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Flame, Building2, Phone, Mail, PhoneCall, Target, ArrowRight, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isHotLead, getTemperatureScore } from "@/utils/leadTemperature";
 
 /**
  * PrimaryActionCard - Kompakter Top-Lead mit Action-First
@@ -8,8 +9,8 @@ import { Button } from "@/components/ui/button";
 export default function PrimaryActionCard({ company, onAnalyze }) {
   if (!company) return null;
 
-  const isHot = (company.priority_score || 0) >= 60 || company.lead_temperature === 'hot';
-  const score = company.priority_score || company.lead_temperature_score || company.relevance_score || 0;
+  const isHot = isHotLead(company);
+  const score = getTemperatureScore(company);
   const showScore = score > 0;
 
   const formatRelevance = (text) => {

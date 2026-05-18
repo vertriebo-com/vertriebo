@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { getLeadTemperature, isHotLead, isWarmLead } from "@/utils/leadTemperature";
 
 function safeParseJSON(value) {
   if (!value) return null;
@@ -22,13 +23,7 @@ function safeParseArray(value) {
   try { const p = JSON.parse(value); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
-function normalizeTemperature(value) {
-  const raw = String(value || '').toLowerCase();
-  if (raw.includes('hot')) return 'hot';
-  if (raw.includes('warm')) return 'warm';
-  if (raw.includes('cold') || raw.includes('kalt')) return 'cold';
-  return 'unknown';
-}
+
 
 function extractSignals(json) {
   const signals = json?.signals || json?.signal_groups || {};
@@ -95,9 +90,12 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
 
   const signals = engineJson ? extractSignals(engineJson) : {};
 
+  // KANONISCHE TEMPERATUR nutzen
+  const canonicalTemp = getLeadTemperature(company);
+  
   const analysis = engineJson ? {
-    temperature: normalizeTemperature(engineJson.temperature),
-    score: engineJson.vertriebo_score || 0,
+    temperature: canonicalTemp,
+    score: engineJson.vertriebo_score || company.lead_temperature_score || 0,
     summary: cleanText(engineJson.summary || ""),
     reason: cleanText(engineJson.reason || ""),
     nextBestAction: engineJson.next_best_action || {},
@@ -110,8 +108,8 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
     riskSignals: (signals.risk || []).slice(0, 3),
     missingData: (signals.missing_data || []).slice(0, 3),
   } : {
-    temperature: normalizeTemperature(company?.lead_temperature),
-    score: company?.lead_temperature_score || 0,
+    temperature: canonicalTemp,
+    score: company?.lead_temperature_score || company.priority_score || 0,
     summary: "",
     reason: cleanText(company?.lead_temperature_reason || ""),
     nextBestAction: {},

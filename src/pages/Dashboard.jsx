@@ -2,7 +2,7 @@ import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import TrialStatusBanner from "@/components/TrialStatusBanner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import {
   Building2,
@@ -14,7 +14,8 @@ import {
   Calendar,
   Star,
   Zap,
-  Activity
+  Activity,
+  RefreshCw
 } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
@@ -79,8 +80,10 @@ export default function Dashboard() {
     return () => window.removeEventListener('checkout-success', handleCheckoutSuccess);
   }, [orgData?.id]);
 
+  const queryClient = useQueryClient();
+
   // OPTIMIERT: Single API-Call für alle Dashboard-Daten
-  const { data: dashboardData, isLoading, error } = useQuery({
+  const { data: dashboardData, isLoading, error, refetch } = useQuery({
     queryKey: ["dashboard-data", orgData?.id],
     queryFn: async () => {
       if (!orgData?.id) throw new Error('No organization');
@@ -88,9 +91,19 @@ export default function Dashboard() {
       return response.data;
     },
     enabled: !!orgData?.id,
-    staleTime: 30_000, // 30 Sekunden Cache
+    staleTime: 10_000, // 10 Sekunden Cache für frischere Daten
     placeholderData: null,
   });
+
+  // Auto-Refresh beim Fokus (wenn User zurück zum Dashboard kommt)
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('[Dashboard] Window focus - refetching data');
+      refetch();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [refetch]);
 
   // Daten aus aggregiertem Response extrahieren
   const user = dashboardData?.user || userData;
@@ -294,6 +307,13 @@ export default function Dashboard() {
               <Zap className="w-4 h-4 text-amber-600" />
               <h2 className="text-sm font-semibold text-slate-900">Heute wichtig</h2>
             </div>
+            <button
+              onClick={() => refetch()}
+              className="text-xs font-medium text-slate-500 hover:text-blue-600 flex items-center gap-1"
+              title="Daten aktualisieren"
+            >
+              <RefreshCw className="w-3 h-3" /> Aktualisieren
+            </button>
           </div>
           <div className="p-5">
             {loading ? (
@@ -348,11 +368,7 @@ export default function Dashboard() {
               hotLeads.map(company => (
                 <Link key={company.id} to={`/leads/${company.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors">
                   <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-400/20 to-red-500/20 border border-orange-400/30 flex items-center justify-center shrink-0">
-                    {company.is_hot ? (
-                      <Star className="w-4 h-4 text-orange-600" />
-                    ) : (
-                      <Building2 className="w-4 h-4 text-blue-600" />
-                    )}
+                    <Star className="w-4 h-4 text-orange-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-900 truncate">{company.name}</p>

@@ -3,6 +3,7 @@ import { Building2, Flame, Phone, Mail, MapPin, User, Calendar, MoreHorizontal, 
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
+import { isHotLead, isWarmLead, getLeadTemperature } from "@/utils/leadTemperature";
 
 const QUICK_LOG_ACTIONS = [
   { label: "📞 Nicht erreicht", ergebnis: "Nicht erreicht", status: "Rückruf", color: "hover:bg-red-50 text-red-700" },
@@ -23,17 +24,14 @@ function statusColor(status) {
   return "bg-blue-50 text-blue-700 border-blue-200";
 }
 
-function temperatureLabel(score, temperature) {
-  if (temperature === 'hot' || score >= 60) return { label: "Heiß", cls: "text-orange-700 bg-orange-50 border-orange-200 font-bold" };
-  if (temperature === 'warm' || score >= 30) return { label: "Warm", cls: "text-amber-700 bg-amber-50 border-amber-200" };
-  return null; // Kalt nicht anzeigen – wenig Mehrwert
-}
-
 export default function LeadRow({ company, isAdmin, onLogged }) {
   const [showActions, setShowActions] = useState(false);
 
-  const score = company.priority_score || 0;
-  const temp = temperatureLabel(score, company.lead_temperature);
+  const temp = isHotLead(company) 
+    ? { label: "Heiß", cls: "text-orange-700 bg-orange-50 border-orange-200 font-bold" }
+    : isWarmLead(company)
+      ? { label: "Warm", cls: "text-amber-700 bg-amber-50 border-amber-200" }
+      : null;
 
   const handleQuickLog = async (action) => {
     const me = await base44.auth.me();
@@ -60,9 +58,9 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
       <div className="lg:hidden p-3.5">
         <div className="flex items-start gap-3">
           <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-            company.is_hot ? "bg-orange-100 border border-orange-300" : "bg-blue-100 border border-blue-200"
+            isHotLead(company) ? "bg-orange-100 border border-orange-300" : "bg-blue-100 border border-blue-200"
           }`}>
-            {company.is_hot ? <Flame className="w-5 h-5 text-orange-600" /> : <Building2 className="w-5 h-5 text-blue-600" />}
+            {isHotLead(company) ? <Flame className="w-5 h-5 text-orange-600" /> : <Building2 className="w-5 h-5 text-blue-600" />}
           </div>
           <div className="flex-1 min-w-0">
             <Link to={`/leads/${company.id}`} className="text-base font-bold text-slate-900 hover:text-blue-600 transition-colors block truncate">
@@ -108,9 +106,9 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
       <div className="hidden lg:flex items-center gap-4 px-4 py-3">
         {/* Icon */}
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-          company.is_hot ? "bg-orange-100 border border-orange-300" : "bg-blue-100 border border-blue-200"
+          isHotLead(company) ? "bg-orange-100 border border-orange-300" : "bg-blue-100 border border-blue-200"
         }`}>
-          {company.is_hot ? <Flame className="w-5 h-5 text-orange-600" /> : <Building2 className="w-5 h-5 text-blue-600" />}
+          {isHotLead(company) ? <Flame className="w-5 h-5 text-orange-600" /> : <Building2 className="w-5 h-5 text-blue-600" />}
         </div>
 
         {/* Company Info */}
