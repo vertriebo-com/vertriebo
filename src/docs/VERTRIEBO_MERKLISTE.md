@@ -1117,7 +1117,137 @@ Das System ist produktionsreif in Bezug auf:
 - Restliche Profile validieren (Batch 8+) — nach Priorisierung
 - Product Integration Block (E-Mail / KI-Skripte mit echten Daten) — bereits umgesetzt in Phase 2
 
-**Nächster Block:** Priorisierung offen (Product Features vs. Quality vs. Growth)
+**Nächster Block:** Priorisierung offen (Design/UX, Product Features, Growth, oder Quality)
+
+---
+
+## 21. PRODUCTION READINESS AUDIT — Phase 6 (2026-05-18)
+
+### Abschluss- und Gesamtaudit — ABGESCHLOSSEN ✅
+
+#### Finale Bewertung aller Phasen
+
+**Legacy Research Flow bereinigt/deprecated:**
+- ✅ `generateLeads` mit HTTP 410-Guard (nur Platform-Admin + interne Calls)
+- ✅ `runUnifiedResearch` mit HTTP 410-Guard (nur Platform-Admin)
+- ✅ Kanonischer Flow: `startResearchRun → processResearchRun → getResearchRunStatus`
+- ✅ DB-Taxonomie als einzige Wahrheitsquelle
+
+**Canonical Settings Keys dokumentiert:**
+- ✅ OrganizationSettings: `industry_id`, `industry_name`, `services`, `target_customer_types`, `excluded_customer_types`, `service_area_*`
+- ✅ Legacy-Aliases parallel geschrieben (`own_industry`, `dienstleistungen`, `zielkunden`)
+- ✅ CompanySettings + startResearchRun nutzen canonical Keys
+
+**Rollen-/Zugriffs-Audit abgeschlossen:**
+- ✅ Platform-Admin (`admin/platform_owner/platform_admin`) → volle Diagnose
+- ✅ Org-Admin (`organization_admin`) → alle Settings, Billing, Team
+- ✅ Normal User (`sales_rep`) → nur Leads lesen/bearbeiten, eigenes Profil
+- ✅ Billing-Matrix: preview/trialing = full, past_due = degraded, unpaid = blocked
+
+**Usage-Counting verifiziert:**
+- ✅ processResearchRun schreibt UsageLog NUR bei echten Companies
+- ✅ testLeadSearchEngine schreibt KEIN UsageLog (dry_run=true)
+- ✅ disabled/failed Runs schreiben KEIN UsageLog
+- ✅ runUnifiedResearch schreibt UsageLog mit Google API-Counters
+
+**Keine bekannten Duplicate-Core-Logic-Probleme:**
+- ✅ processResearchRun liest Taxonomie aus search_plan_json
+- ✅ startResearchRun bettet Taxonomie-Profil ein
+- ✅ getTaxonomy ist einzige Quelle für Taxonomie-Daten
+- ✅ checkAccess-Lib wird von generateLeads verwendet (inline-Copy akzeptabel)
+
+**Kein Dummy- oder Dead-End-Kundenflow:**
+- ✅ LaunchStep: Immer kundenfreundliche Meldung + Navigation
+- ✅ Leads: Zero/Failed States mit konkreten Alternativen
+- ✅ Dashboard: "Alles erledigt!" statt leerem Dead-End
+- ✅ TrialStatusBanner: Immer CTA verfügbar
+
+**Verbleibende Risiken dokumentiert:**
+- ✅ Backfill google_place_id für Companies vor v5 (mittlere Prio)
+- ✅ Backfill engine_analysis_json für Companies vor v6 (optional)
+- ✅ Restliche Profile validieren (Batch 8+, 25 Profile)
+- ✅ UsageLog research_run_id-Referenz (niedrige Prio)
+
+### Finale Akzeptanzkriterien Phase 6 ✅
+
+- ✅ productionReadinessAuditCompleted
+- ✅ legacyPathsIdentifiedOrRemoved
+- ✅ canonicalSettingsKeysDocumented
+- ✅ roleAccessAuditCompleted
+- ✅ usageCountingVerified
+- ✅ noKnownDuplicateCoreLogic
+- ✅ noDummyOrDeadEndCustomerFlow
+- ✅ remainingRisksDocumented
+- ✅ readyForDesignUxFinishBlock
+- ✅ merklisteFinalized
+
+### Dokumentation erstellt
+- ✅ docs/PHASE6_FINAL_AUDIT_SUMMARY.md (dieses Dokument)
+
+---
+
+## 22. PRODUCTION READINESS — GESAMTSTATUS (FINAL, 2026-05-18)
+
+### ✅ ALLE 6 PHASEN ABGESCHLOSSEN
+
+| Block | Phasen | Status | Dokumentation |
+|---|---|---|---|
+| **Research Flow** | Phase 1 | ✅ ABGESCHLOSSEN | VERTRIEBO_MERKLISTE.md §15 |
+| **Security/Guards** | Phase 2 + Phase 3 | ✅ ABGESCHLOSSEN | VERTRIEBO_MERKLISTE.md §16-17 |
+| **Data Consistency** | Phase 4 | ✅ ABGESCHLOSSEN | VERTRIEBO_MERKLISTE.md §18 + docs/PHASE4_ENTITY_SETTINGS_AUDIT.md |
+| **Customer Experience** | Phase 5 | ✅ ABGESCHLOSSEN | docs/PHASE5_CUSTOMER_FLOW_AUDIT.md |
+| **Final Audit** | Phase 6 | ✅ ABGESCHLOSSEN | docs/PHASE6_FINAL_AUDIT_SUMMARY.md |
+
+### ✅ PRODUKTIONSREIF — BEREIT FÜR NÄCHSTEN BLOCK
+
+Das Vertriebo-System erfüllt alle Anforderungen für den Produktivbetrieb:
+
+- ✅ **Funktional**: Kanonischer Research-Flow, DB-Taxonomie, Kill-Switch-gesichert
+- ✅ **Sicherheit**: Rollenbasierte Zugriffskontrolle, Admin-only Diagnose
+- ✅ **Datenkonsistenz**: Canonical Felder, Backfill-Bedarf dokumentiert
+- ✅ **Kundenerfahrung**: Keine Debug-Begriffe, keine Dead-Ends, handlungsorientiert
+- ✅ **Dokumentation**: Vollständig (VERTRIEBO_MERKLISTE.md + 3 Audit-Dokumente)
+
+### Offene Punkte (niedrige Prio, kann parallel laufen)
+
+| Priorität | Thema | Aufwand | Empfehlung |
+|---|---|---|---|
+| **MITTEL** | Company google_place_id Backfill | 2-4h | `matchExternalSourceWithGooglePlaces` im Batch |
+| **NIEDRIG** | Company engine_analysis_json Backfill | 1-2h | `analyzeLeadEngine` für alte Companies (optional) |
+| **NIEDRIG** | OrganizationSettings Canonical Sync | 1-2h | Backfill-Skript für `services`/`target_customer_types` |
+| **NIEDRIG** | Restliche Profile validieren (Batch 8+) | 4-8h | 25 Profile × 3 Regionen = 75 Tests |
+
+### Nächster Block — Priorisierung offen
+
+**Option A: Design/UX-Finish**
+- Landing-Page Modernisierung
+- Dashboard-Layout-Optimierung
+- Mobile-Responsiveness-Verbesserung
+- Micro-Interactions + Animationen
+
+**Option B: Product Features**
+- Advanced Reporting (Pipeline-Analyse, Conversion-Rates)
+- Team-Goals + Performance-Tracking
+- Email-Template-Editor (UI für Custom Templates)
+- Task-Management-Erweiterung (wiederkehrende Tasks)
+
+**Option C: Growth/Integration**
+- Brevo-Integration für automatisierte E-Mail-Kampagnen
+- Calendly-Integration für Terminbuchung
+- Zapier-Connector für externe Tools
+- WhatsApp/Telegram-Agent für Lead-Nurturing
+
+**Option D: Quality/Scale**
+- Backfill-Umsetzung (google_place_id, engine_analysis_json)
+- Restliche Profile validieren (Batch 8+)
+- Performance-Optimierung (Caching, Query-Optimierung)
+- Monitoring/Alerting (Error-Tracking, Usage-Monitoring)
+
+---
+
+**Datum:** 2026-05-18  
+**Status:** ✅ PRODUCTION READINESS COMPLETED  
+**Nächster Block:** Priorisierung offen (Design/UX, Product Features, Growth, oder Quality)
 
 ---
 
