@@ -2,7 +2,7 @@
 
 **Zweck:** Systematische Qualitätsprüfung aller Taxonomie-Profile mit `testLeadSearchEngine`.
 **Akzeptanzkriterien:** `quality_verdict: GOOD`, `avgScore ≥ 75`, `false_positive_estimate < 15%`, `target_customer_match_rate ≥ 40%`.
-**Stand:** 2026-05-18 — Batch 5 abgeschlossen: pflege_betreuung, schulungen_weiterbildung, dachdecker, geruestbau, trockenbau_innenausbau. TAXONOMY_VERSION=v6-weighted-scoring-b5. 26/41 Profile validiert.
+**Stand:** 2026-05-18 — Batch 6 abgeschlossen: fliesenleger, bodenleger, schluesseldienst_schliesanlagen, schaedlingsbekaempfung, brandschutzservice. TAXONOMY_VERSION=v6-weighted-scoring-b6. 31/41 Profile validiert.
 
 ---
 
@@ -73,15 +73,20 @@ POST testLeadSearchEngine
 | geruestbau | ✅ GOOD (98/55) Düsseldorf | ✅ GOOD (98/56) Koblenz | ✅ GOOD (98/54) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
 | trockenbau_innenausbau | ✅ GOOD (95/58) Köln | ✅ GOOD (96/53) Bonn | ✅ GOOD (95/51) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
 
-### Batch 6+ — Ausstehend
+### Batch 6 — Handwerk & Sicherheit (abgeschlossen 2026-05-18)
+
+| profile_id | Großstadt | Mittelstadt | Kleinstadt | Gesamt-Verdict | Gewichte |
+|---|---|---|---|---|---|
+| fliesenleger | ✅ GOOD (98/58) Köln | ✅ GOOD (97/58) Dortmund | ✅ GOOD (97/57) Koblenz | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| bodenleger | ✅ GOOD (96/56) Bonn | ✅ GOOD (95/58) Köln | ✅ GOOD (94/53) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| schluesseldienst_schliesanlagen | ✅ GOOD (97/54) Köln | ✅ GOOD (96/50) Bonn | ✅ GOOD (96/46) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| schaedlingsbekaempfung | ✅ GOOD (99/58) Köln | ✅ GOOD (98/60) Düsseldorf | ✅ GOOD (98/56) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| brandschutzservice | ✅ GOOD (96/58) Köln | ✅ GOOD (96/59) Dortmund | ✅ GOOD (95/58) Koblenz | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+
+### Batch 7+ — Ausstehend
 
 | profile_id | Label | Status |
 |---|---|---|
-| fliesenleger | Fliesenleger | ⏳ ausstehend |
-| bodenleger | Bodenleger | ⏳ ausstehend |
-| schluesseldienst_schliesanlagen | Schlüsseldienst / Schließanlagen | ⏳ ausstehend |
-| schaedlingsbekaempfung | Schädlingsbekämpfung | ⏳ ausstehend |
-| brandschutzservice | Brandschutzservice | ⏳ ausstehend |
 | aufzugservice | Aufzugservice | ⏳ ausstehend |
 | tor_tuertechnik | Tor- und Türtechnik | ⏳ ausstehend |
 | photovoltaik_service | Photovoltaik-Service | ⏳ ausstehend |
@@ -475,11 +480,11 @@ POST testLeadSearchEngine
 | dachdecker | Dachdecker | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | geruestbau | Gerüstbau | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | trockenbau_innenausbau | Trockenbau / Innenausbau | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 12 Gewichte aktiv | 2026-05-18 |
-| fliesenleger | Fliesenleger | `production_ready` | ⏳ Test ausstehend | — | — |
-| bodenleger | Bodenleger | `production_ready` | ⏳ Test ausstehend | — | — |
-| schluesseldienst_schliesanlagen | Schlüsseldienst / Schließanlagen | `production_ready` | ⏳ Test ausstehend | — | — |
-| schaedlingsbekaempfung | Schädlingsbekämpfung | `production_ready` | ⏳ Test ausstehend | — | — |
-| brandschutzservice | Brandschutzservice | `production_ready` | ⏳ Test ausstehend | — | — |
+| fliesenleger | Fliesenleger | `production_ready` | ✅ GOOD (avgScore 97) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| bodenleger | Bodenleger | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| schluesseldienst_schliesanlagen | Schlüsseldienst / Schließanlagen | `production_ready` | ✅ GOOD (avgScore 97) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| schaedlingsbekaempfung | Schädlingsbekämpfung | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| brandschutzservice | Brandschutzservice | `production_ready` | ✅ GOOD (avgScore 96) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | aufzugservice | Aufzugservice | `production_ready` | ⏳ Test ausstehend | — | — |
 | tor_tuertechnik | Tor- und Türtechnik | `production_ready` | ⏳ Test ausstehend | — | — |
 | photovoltaik_service | Photovoltaik-Service | `production_ready` | ⏳ Test ausstehend | — | — |
@@ -524,6 +529,7 @@ _Keine offenen Punkte für die 8 Kernprofile. Alle Tuning-Maßnahmen abgeschloss
 | 2026-05-17 | **Tuning abgeschlossen** — 3 Profile nachgepflegt: scoring_signal_weights (10 Gewichte), place_type_confidence=high, SEED aktualisiert, TAXONOMY_VERSION=v6-weighted-scoring |
 | 2026-05-18 | **Batch 1 finaler Abschluss** — maler_renovierung, shk, elektro_gebaeudetechnik: seed_reset + 9 Re-Tests bestätigt. scoring_signal_weights_count=10 in allen 3 Profilen verifiziert. Alle 24 Batch-1-Tests GOOD. |
 | 2026-05-18 | **Batch 5 abgeschlossen** — pflege_betreuung, schulungen_weiterbildung, dachdecker, geruestbau, trockenbau_innenausbau × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. pflege_betreuung avgScore=100. TAXONOMY_VERSION=v6-weighted-scoring-b5 |
+| 2026-05-18 | **Batch 6 abgeschlossen** — fliesenleger, bodenleger, schluesseldienst_schliesanlagen, schaedlingsbekaempfung, brandschutzservice × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. schaedlingsbekaempfung avgScore=98-99 (bester Score Batch 6). place_type_confidence=high für fliesenleger, schluesseldienst, schaedlingsbekaempfung, brandschutzservice. TAXONOMY_VERSION=v6-weighted-scoring-b6. 31/41 Profile validiert. |
 | 2026-05-18 | **Batch 4 abgeschlossen** — marketing_webdesign_werbung, personal_zeitarbeit, buchhaltung_steuernahe_dienste, industrieservice, fuhrparkservice_fahrzeugpflege × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. TAXONOMY_VERSION=v6-weighted-scoring-b4 |
 | 2026-05-18 | **Batch 3 abgeschlossen** — immobilien, lager_fulfillment, entruempelung, eventservice, gesundheit_medizin × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. gesundheit_medizin mit avgScore=100 bisher bester Score. TAXONOMY_VERSION=v6-weighted-scoring-b3 |
 | 2026-05-18 | **P0-Regel aktiviert** — Alle Profile müssen geprüft werden. Batch 2 gestartet: sicherheitsdienst, gartenbau, catering — 9 Tests, alle GOOD (avgScore 97–99). 12 Gewichte je Profil eingetragen. TAXONOMY_VERSION=v6-weighted-scoring-b2 |

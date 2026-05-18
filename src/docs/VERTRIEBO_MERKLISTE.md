@@ -1,5 +1,5 @@
 # VERTRIEBO ARCHITEKTUR-MERKLISTE
-## Stand: 2026-05-18 | v6-weighted-scoring — ENGINE VALIDIERT, BEREIT FÜR PRODUKTBLOCK
+## Stand: 2026-05-18 | v6-weighted-scoring-b6 — 31/41 Profile validiert
 
 > **PFLICHTREGEL: Nicht "akzeptabel" — produktionsreif, kundenreif, robust.**
 > Jede Entscheidung muss diese Standards erfüllen. Keine Dummy-Logik, keine doppelte Wahrheit, keine technischen Schulden an der Kernfunktion.
@@ -309,9 +309,10 @@ batch2Abgeschlossen                       ✅ 9/9 Tests GOOD (sicherheitsdienst,
 batch3Abgeschlossen                       ✅ 15/15 Tests GOOD (immobilien, lager, entruempelung, event, gesundheit)
 batch4Abgeschlossen                       ✅ 15/15 Tests GOOD (marketing, personal, buchhaltung, industrie, fuhrpark)
 batch5Abgeschlossen                       ✅ 15/15 Tests GOOD (pflege, schulungen, dachdecker, geruestbau, trockenbau)
+batch6Abgeschlossen                       ✅ 15/15 Tests GOOD (fliesenleger, bodenleger, schluesseldienst, schaedlingsbekaempfung, brandschutz)
 weightedSignalsSeedSafe                   ✅ Gewichte NUR in TAXONOMY_SEED gepflegt
-taxonomyVersionV6WeightedScoringB5        ✅ aktiv, seed_reset ausgeführt
-allExistingProfilesQualityReviewed        ⏳ 26/41 validiert — Batch 6+ ausstehend
+taxonomyVersionV6WeightedScoringB6        ✅ aktiv, seed_reset ausgeführt
+allExistingProfilesQualityReviewed        ⏳ 31/41 validiert — Batch 7+ ausstehend
 readyForNextProductIntegrationBlock       ❌ BLOCKED bis allExistingProfilesQualityReviewed
 ```
 
@@ -413,6 +414,7 @@ readyForNextProductIntegrationBlock       ❌ BLOCKED bis allExistingProfilesQua
 | **quality-matrix-b3** | **2026-05-18** | **Batch 3: immobilien, lager_fulfillment, entruempelung, eventservice, gesundheit_medizin × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. gesundheit_medizin avgScore=100. TAXONOMY_VERSION=v6-weighted-scoring-b3** | **46** |
 | **quality-matrix-b4** | **2026-05-18** | **Batch 4: marketing_webdesign_werbung, personal_zeitarbeit, buchhaltung_steuernahe_dienste, industrieservice, fuhrparkservice_fahrzeugpflege × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. TAXONOMY_VERSION=v6-weighted-scoring-b4** | **46** |
 | **quality-matrix-b5** | **2026-05-18** | **Batch 5: pflege_betreuung, schulungen_weiterbildung, dachdecker, geruestbau, trockenbau_innenausbau × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. pflege_betreuung avgScore=100. TAXONOMY_VERSION=v6-weighted-scoring-b5** | **46** |
+| **quality-matrix-b6** | **2026-05-18** | **Batch 6: fliesenleger, bodenleger, schluesseldienst_schliesanlagen, schaedlingsbekaempfung, brandschutzservice × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. schaedlingsbekaempfung avgScore=98-99 (bester Batch-6-Score). place_type=high für 4/5 Profile. TAXONOMY_VERSION=v6-weighted-scoring-b6. 31/41 Profile validiert.** | **46** |
 
 ---
 
@@ -459,8 +461,9 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 | **Batch 3** (5 auditiert) | immobilien, lager_fulfillment, entruempelung, eventservice, gesundheit_medizin | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
 | **Batch 4** (5 auditiert) | marketing_webdesign_werbung, personal_zeitarbeit, buchhaltung_steuernahe_dienste, industrieservice, fuhrparkservice_fahrzeugpflege | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
 | **Batch 5** (5 auditiert) | pflege_betreuung, schulungen_weiterbildung, dachdecker, geruestbau, trockenbau_innenausbau | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
-| **Core Verticals** (ausstehend) | fliesenleger … messebau | ⚠️ Qualitätsaudit Batch 6+ |
-| **Erweiterte Dienstleister** (18) | dachdecker … messebau | ⚠️ Qualitätsaudit ausstehend |
+| **Batch 6** (5 auditiert) | fliesenleger, bodenleger, schluesseldienst_schliesanlagen, schaedlingsbekaempfung, brandschutzservice | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
+| **Core Verticals** (ausstehend) | aufzugservice … messebau (10 Profile) | ⚠️ Qualitätsaudit Batch 7+ |
+| **Erweiterte Dienstleister** | tor_tuertechnik, photovoltaik_service, umzugsunternehmen, druckerei, aktenvernichtung, energieberatung, arbeitsschutz, datenschutz, messebau, aufzugservice | ⚠️ Qualitätsaudit ausstehend |
 | **Fallback-Profile** (5) | fallback_* | ✅ bewusst generisch |
 
 ### Nächste Profile (Backlog, ERST nach Qualitätstest)
