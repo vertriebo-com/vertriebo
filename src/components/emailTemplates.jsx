@@ -32,7 +32,20 @@ export const CTA_BUTTON = (label = "Jetzt kostenlos anfragen", telefon = "") => 
   <div style="margin-top:8px;font-size:11px;color:#9ca3af;">Unverbindlich · Kostenlos · Innerhalb von 24h</div>
 </div>`;
 
-// ─── Static fallback TEMPLATES (generic, no org branding) ─────────────────────
+// ─── Context helpers for industry-specific fallback templates ─────────────────
+// c = company object, extra = { notiz, datum, uhrzeit, orgSettings? }
+function getOrgServices(extra) {
+  const s = extra?.orgSettings?.services || extra?.orgSettings?.dienstleistungen || '';
+  return s ? s.split(',')[0].trim() : null;
+}
+function getLeadType(c) {
+  return c?.matched_target_customer_type || c?.branche || null;
+}
+function getServiceContext(c) {
+  return c?.matched_service_context || null;
+}
+
+// ─── Static fallback TEMPLATES (industry-aware) ───────────────────────────────
 // These are used when an org has no EmailTemplate records yet.
 export const TEMPLATES = [
   {
@@ -40,30 +53,45 @@ export const TEMPLATES = [
     label: "👋 Erstansprache",
     description: "Erste Kontaktaufnahme per E-Mail",
     betreff: (c) => `Kurze Vorstellung – ${c?.name || "Ihr Unternehmen"}`,
-    body: (c, extra) => `
+    body: (c, extra) => {
+      const service = getOrgServices(extra);
+      const leadType = getLeadType(c);
+      const serviceCtx = getServiceContext(c);
+      const serviceText = serviceCtx || service;
+      const intro = serviceText && leadType
+        ? `ich möchte mich kurz vorstellen – wir unterstützen <strong>${leadType}</strong> speziell beim Thema <strong>${serviceText}</strong> und fragen, ob das für Sie relevant sein könnte.`
+        : serviceText
+        ? `ich möchte mich kurz vorstellen und fragen, ob unser Angebot im Bereich <strong>${serviceText}</strong> für Sie passt.`
+        : `ich möchte mich kurz bei Ihnen vorstellen und fragen, ob wir für Sie eine passende Dienstleistung anbieten können.`;
+      return `
 <p style="margin:0 0 18px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte${c?.ansprechpartner ? " " + c.ansprechpartner : " Damen und Herren"},</p>
-<p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.8;">
-  ich möchte mich kurz bei Ihnen vorstellen und fragen, ob wir für Sie eine passende Dienstleistung anbieten können.
-</p>
+<p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.8;">${intro}</p>
 <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.8;">
   Gerne erstellen wir Ihnen ein <strong>kostenloses, unverbindliches Angebot</strong>.
 </p>
-${extra?.notiz ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin:0 0 20px;font-size:13px;color:#374151;"><strong>📌 Hinweis:</strong> ${extra.notiz}</div>` : ""}`,
+${extra?.notiz ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin:0 0 20px;font-size:13px;color:#374151;"><strong>📌 Hinweis:</strong> ${extra.notiz}</div>` : ""}`;
+    },
   },
   {
     id: "nachfassen",
     label: "🔄 Nachfassen",
     description: "Freundlich nach letztem Kontakt nachfassen",
     betreff: (c) => `Kurze Nachfrage – ${c?.name || ""}`,
-    body: (c, extra) => `
+    body: (c, extra) => {
+      const service = getOrgServices(extra);
+      const serviceCtx = getServiceContext(c);
+      const topic = serviceCtx || service;
+      const topicText = topic ? ` zu unserem Angebot im Bereich <strong>${topic}</strong>` : " über unser Angebot";
+      return `
 <p style="margin:0 0 18px;font-size:15px;font-weight:700;color:#111827;">Sehr geehrte${c?.ansprechpartner ? " " + c.ansprechpartner : " Damen und Herren"},</p>
 <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.8;">
-  ich melde mich kurz nach unserem letzten Kontakt. Hatten Sie Gelegenheit, über unser Angebot nachzudenken?
+  ich melde mich kurz nach unserem letzten Kontakt. Hatten Sie Gelegenheit, nachzudenken${topicText}?
 </p>
 <p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.8;">
   Bei Fragen stehe ich Ihnen gerne zur Verfügung.
 </p>
-${extra?.notiz ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin:0 0 20px;font-size:13px;color:#374151;"><strong>📌 Notiz:</strong> ${extra.notiz}</div>` : ""}`,
+${extra?.notiz ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px 18px;margin:0 0 20px;font-size:13px;color:#374151;"><strong>📌 Notiz:</strong> ${extra.notiz}</div>` : ""}`;
+    },
   },
   {
     id: "termin",

@@ -405,31 +405,69 @@ function buildNextBestAction(context, temperature, urgencyScore, contactabilityS
   return { type: "wait", title: "Beobachten und bei Gelegenheit kontaktieren", reason: "Noch nicht genug Informationen für einen gezielten nächsten Schritt.", due: null };
 }
 
-function buildOutreachAngle(context) {
+function buildOutreachAngle(context, orgSettings) {
+  const services = orgSettings?.services;
+  const serviceContext = context.matchedServiceContext || context.matchedTargetCustomerType;
+  const leadType = context.matchedTargetCustomerType || context.branche || 'Unternehmen dieser Art';
+
   if (context.logs.length > 0 && context.hasSuccessfulContact) {
     const days = context.daysSinceLastContact || 1;
-    return `Anknüpfen an bisherigen Kontakt (vor ${days} Tag${days !== 1 ? 'en' : ''}): Vorheriges Gespräch kurz referenzieren und fragen, ob sich etwas verändert hat. Keine Produktpräsentation – erst Bedarf und Zeitplan klären.`;
+    const serviceHint = services ? ` mit dem Thema ${services.split(',')[0].trim()}` : '';
+    return `Anknüpfen an bisherigen Kontakt (vor ${days} Tag${days !== 1 ? 'en' : ''}): Vorheriges Gespräch kurz referenzieren und fragen, ob sich${serviceHint} etwas verändert hat. Keine Produktpräsentation – erst Bedarf und Zeitplan klären.`;
   }
-  if (!context.hasAnyContact && context.matchedTargetCustomerType) {
-    return `Branchenspezifischer Einstieg: Kurz erklären, dass man speziell mit ${context.branche || 'Unternehmen dieser Art'} in der Region arbeitet. Ziel des ersten Gesprächs: Ansprechpartner und aktuellen Bedarf klären – kein Verkaufsversuch im Erstkontakt.`;
+  if (!context.hasAnyContact && serviceContext) {
+    const serviceDesc = services ? `mit ${services.split(',')[0].trim()}` : 'mit unseren Leistungen';
+    return `Branchenspezifischer Einstieg: Kurz erklären, dass man speziell ${leadType} in der Region ${serviceDesc} unterstützt. Ziel des ersten Gesprächs: Ansprechpartner und aktuellen Bedarf klären – kein Verkaufsversuch im Erstkontakt.`;
   }
-  if (context.hasOnlyFailedContact) return `Anderer Kanal oder Uhrzeit versuchen. Kurze, sachliche Nachricht: Wer ist zuständig für externe Dienstleistungen? Kein Druck – nur Ansprechpartner ermitteln.`;
-  return `Direkter, sachlicher Einstieg: Klären, wer intern für externe Dienstleister zuständig ist. Kurz und respektvoll – Ziel ist der richtige Ansprechpartner, nicht der sofortige Abschluss.`;
+  if (context.hasOnlyFailedContact) {
+    const serviceDesc = services ? `für ${services.split(',')[0].trim()}` : 'für externe Leistungen';
+    return `Anderer Kanal oder Uhrzeit versuchen. Kurze, sachliche Nachricht: Wer ist zuständig ${serviceDesc}? Kein Druck – nur Ansprechpartner ermitteln.`;
+  }
+  const serviceDesc = services ? `für ${services.split(',').slice(0,2).join(', ')}` : 'für externe Dienstleistungen';
+  return `Direkter, sachlicher Einstieg: Klären, wer intern ${serviceDesc} zuständig ist. Kurz und respektvoll – Ziel ist der richtige Ansprechpartner, nicht der sofortige Abschluss.`;
 }
 
-function buildSuggestedOpening(context) {
-  if (context.logs.length > 0 && context.hasSuccessfulContact) return `Guten Tag, wir hatten uns vor einiger Zeit kurz gesprochen. Ich wollte kurz nachfragen, ob sich bei Ihnen etwas verändert hat – speziell beim Thema externe Dienstleistungen.`;
-  if (context.matchedTargetCustomerType && context.hasPhone) return `Guten Tag, ich wollte kurz klären, wer bei Ihnen Ansprechpartner für externe Dienstleister ist – geht nur um einen kurzen Abgleich, ob unser Angebot für Sie passen könnte.`;
-  if (context.hasOnlyFailedContact) return `Guten Tag, ich hatte es schon einmal versucht – vielleicht war der Zeitpunkt ungünstig. Kurze Frage: Wer ist bei Ihnen zuständig für externe Service-Anfragen?`;
-  return `Guten Tag, kurze Frage: Wer ist bei Ihnen der richtige Ansprechpartner für externe Dienstleistungen? Ich wollte kurz klären, ob unser Angebot für Sie relevant sein könnte.`;
+function buildSuggestedOpening(context, orgSettings) {
+  const services = orgSettings?.services;
+  const firstService = services ? services.split(',')[0].trim() : null;
+  const leadType = context.matchedTargetCustomerType || context.branche || null;
+
+  if (context.logs.length > 0 && context.hasSuccessfulContact) {
+    const topic = firstService ? ` – speziell beim Thema ${firstService}` : '';
+    return `Guten Tag, wir hatten uns vor einiger Zeit kurz gesprochen. Ich wollte kurz nachfragen, ob sich bei Ihnen etwas verändert hat${topic}.`;
+  }
+  if (context.matchedTargetCustomerType && context.hasPhone && firstService) {
+    return `Guten Tag, ich wollte kurz klären, wer bei Ihnen Ansprechpartner für ${firstService} ist – geht nur um einen kurzen Abgleich, ob unser Angebot für ${leadType || 'Sie'} passen könnte.`;
+  }
+  if (context.matchedTargetCustomerType && context.hasPhone) {
+    return `Guten Tag, ich wollte kurz klären, wer bei Ihnen Ansprechpartner für externe Dienstleister ist – geht nur um einen kurzen Abgleich, ob unser Angebot für ${leadType} passen könnte.`;
+  }
+  if (context.hasOnlyFailedContact) {
+    const topic = firstService ? ` für ${firstService}` : ' für externe Service-Anfragen';
+    return `Guten Tag, ich hatte es schon einmal versucht – vielleicht war der Zeitpunkt ungünstig. Kurze Frage: Wer ist bei Ihnen zuständig${topic}?`;
+  }
+  const topic = firstService ? ` für ${firstService}` : ' für externe Dienstleistungen';
+  return `Guten Tag, kurze Frage: Wer ist bei Ihnen der richtige Ansprechpartner${topic}? Ich wollte kurz klären, ob unser Angebot für Sie relevant sein könnte.`;
 }
 
-function buildQualificationQuestions(context) {
+function buildQualificationQuestions(context, orgSettings) {
+  const services = orgSettings?.services;
+  const firstService = services ? services.split(',')[0].trim() : 'externe Dienstleistungen';
+  const leadType = context.matchedTargetCustomerType || context.branche || 'Ihr Unternehmen';
+  const serviceContext = context.matchedServiceContext;
+
   const questions = [];
-  if (!context.hasContactPerson) questions.push("Wer ist Ansprechpartner/Entscheider für externe Dienstleistungen?");
-  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("bedarf"))) questions.push(`Welche Herausforderungen hat Ihr Unternehmen aktuell beim Thema externe Dienstleistungen?`);
-  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("entscheid"))) questions.push("Wie läuft der Entscheidungsprozess ab? Wer ist beteiligt?");
-  questions.push("Welches Budget steht für diese Initiative zur Verfügung?");
+  if (!context.hasContactPerson) {
+    questions.push(`Wer ist Ansprechpartner/Entscheider für ${firstService} bei Ihnen?`);
+  }
+  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("bedarf"))) {
+    const contextLabel = serviceContext || firstService;
+    questions.push(`Welchen aktuellen Bedarf hat ${leadType} beim Thema ${contextLabel}?`);
+  }
+  if (!context.logs.some(l => l.notiz && l.notiz.toLowerCase().includes("entscheid"))) {
+    questions.push("Wie läuft der Entscheidungsprozess ab? Wer ist beteiligt?");
+  }
+  questions.push(`Haben Sie bereits einen Dienstleister für ${firstService}, oder suchen Sie gerade?`);
   return questions;
 }
 
@@ -456,8 +494,10 @@ function buildRecommendedStatus(temperature, urgencyScore, context) {
 // SHARED: analyzeContext + persistAnalysis
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function analyzeContext(company, contactLogs, tasks) {
+function analyzeContext(company, contactLogs, tasks, orgSettings = {}) {
   const context = buildLeadContext(company, contactLogs, tasks);
+  // Enrich context with matched service context from company
+  context.matchedServiceContext = company.matched_service_context || null;
 
   const fitSignals = detectFitSignals(context);
   const contactabilitySignals = detectContactabilitySignals(context);
@@ -478,9 +518,9 @@ function analyzeContext(company, contactLogs, tasks) {
   const summary = buildSummary(temperature, context, fitScore, contactabilityScore, urgencyScore, missingData);
   const reason = buildReason(temperature, context, fitScore, contactabilityScore, engagementScore, missingData, riskSignals);
   const nextBestAction = buildNextBestAction(context, temperature, urgencyScore, contactabilityScore, missingData);
-  const outreachAngle = buildOutreachAngle(context);
-  const suggestedOpening = buildSuggestedOpening(context);
-  const qualificationQuestions = buildQualificationQuestions(context);
+  const outreachAngle = buildOutreachAngle(context, orgSettings);
+  const suggestedOpening = buildSuggestedOpening(context, orgSettings);
+  const qualificationQuestions = buildQualificationQuestions(context, orgSettings);
   const objectionsToExpect = buildObjectionsToExpect(context);
   const recommendedStatus = buildRecommendedStatus(temperature, urgencyScore, context);
 
@@ -518,6 +558,26 @@ function analyzeContext(company, contactLogs, tasks) {
     },
     engine_version: "vertriebo-engine-phase1"
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ORG SETTINGS LOADER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function loadOrgSettings(base44, organizationId) {
+  try {
+    const records = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id: organizationId });
+    const map = {};
+    for (const r of records) map[r.key] = r.value;
+    return {
+      services: map.services || map.dienstleistungen || '',
+      targetCustomerTypes: map.target_customer_types || map.zielkunden || '',
+      industryName: map.industry_name || map.own_industry || '',
+      companyName: map.company_name || '',
+    };
+  } catch {
+    return { services: '', targetCustomerTypes: '', industryName: '', companyName: '' };
+  }
 }
 
 async function persistAnalysis(base44, companyId, analysis) {
@@ -659,12 +719,13 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Kein Zugriff: Dieser Lead ist einem anderen Vertriebler zugewiesen.' }, { status: 403 });
       }
 
-      const [contactLogs, tasks] = await Promise.all([
+      const [contactLogs, tasks, orgSettings] = await Promise.all([
         base44.asServiceRole.entities.ContactLog.filter({ company_id, organization_id: organizationId }),
-        base44.asServiceRole.entities.Task.filter({ company_id, organization_id: organizationId })
+        base44.asServiceRole.entities.Task.filter({ company_id, organization_id: organizationId }),
+        loadOrgSettings(base44, organizationId),
       ]);
 
-      const analysis = analyzeContext(company, contactLogs, tasks);
+      const analysis = analyzeContext(company, contactLogs, tasks, orgSettings);
       await persistAnalysis(base44, company_id, analysis);
       await incrementUsageLog(base44, organizationId, 1);
 
@@ -705,6 +766,9 @@ Deno.serve(async (req) => {
       const results = [];
       let analyzedCount = 0;
 
+      // Org settings einmal laden für den gesamten Batch
+      const orgSettingsBatch = await loadOrgSettings(base44, organizationId);
+
       for (const company of sorted) {
         try {
           const [contactLogs, tasks] = await Promise.all([
@@ -712,7 +776,7 @@ Deno.serve(async (req) => {
             base44.asServiceRole.entities.Task.filter({ company_id: company.id, organization_id: organizationId })
           ]);
 
-          const analysis = analyzeContext(company, contactLogs, tasks);
+          const analysis = analyzeContext(company, contactLogs, tasks, orgSettingsBatch);
           await persistAnalysis(base44, company.id, analysis);
           results.push({ company_id: company.id, result: analysis });
           analyzedCount++;

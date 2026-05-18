@@ -23,18 +23,18 @@ function stripHtml(html) {
 }
 
 // ─── Email Editor ─────────────────────────────────────────────────────────────
-function EmailEditor({ tpl, company, orgId, fromName, onBack, onDone }) {
+function EmailEditor({ tpl, company, orgId, fromName, orgSettings, onBack, onDone }) {
   const [datum, setDatum] = useState("");
   const [uhrzeit, setUhrzeit] = useState("");
   const [notiz, setNotiz] = useState("");
   const [betreff, setBetreff] = useState(tpl.betreff(company));
-  const [bodyHtml, setBodyHtml] = useState(() => tpl.body(company, {}));
-  const [bodyPlain, setBodyPlain] = useState(() => stripHtml(tpl.body(company, {})));
+  const [bodyHtml, setBodyHtml] = useState(() => tpl.body(company, { orgSettings }));
+  const [bodyPlain, setBodyPlain] = useState(() => stripHtml(tpl.body(company, { orgSettings })));
   const [copied, setCopied] = useState(false);
   const [documenting, setDocumenting] = useState(false);
 
   useEffect(() => {
-    const html = tpl.body(company, { datum, uhrzeit, notiz });
+    const html = tpl.body(company, { datum, uhrzeit, notiz, orgSettings });
     setBodyHtml(html);
     setBodyPlain(stripHtml(html));
   }, [datum, uhrzeit, notiz]);
@@ -234,6 +234,7 @@ export default function SendEmailDialog({ company }) {
   const [orgId, setOrgId] = useState(null);
   const [orgLoaded, setOrgLoaded] = useState(false);
   const [runtimeTemplates, setRuntimeTemplates] = useState(TEMPLATES);
+  const [orgSettings, setOrgSettings] = useState(null);
   const hasEmail = !!company?.email;
 
   useEffect(() => {
@@ -261,6 +262,11 @@ export default function SendEmailDialog({ company }) {
         const map = {};
         settings.forEach(s => { map[s.key] = s.value; });
         setFromName(map.email_from_name || map.company_name || org.name || null);
+        setOrgSettings({
+          services: map.services || map.dienstleistungen || '',
+          targetCustomerTypes: map.target_customer_types || map.zielkunden || '',
+          industryName: map.industry_name || '',
+        });
 
         // Canonical Keys bevorzugen, Legacy-Fallbacks für Rückwärtskompatibilität
         const sig = map.organization_email_signature || buildSignature({
@@ -324,6 +330,7 @@ export default function SendEmailDialog({ company }) {
                   company={company}
                   orgId={orgId}
                   fromName={fromName}
+                  orgSettings={orgSettings}
                   onBack={() => setSelectedTemplate(null)}
                   onDone={handleClose}
                 />

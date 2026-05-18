@@ -102,6 +102,24 @@ Deno.serve(async (req) => {
     const orgTargetCustomers = settingsMap.target_customer_types || settingsMap.zielkunden || '';
     const orgIndustry = settingsMap.industry_name || '';
 
+    // Lead-Diagnostics aus engine_analysis_json komprimiert extrahieren
+    let engineDiagnostics = '';
+    if (company.engine_analysis_json) {
+      try {
+        const ea = JSON.parse(company.engine_analysis_json);
+        const parts = [];
+        if (ea.summary) parts.push(`Kurzfazit: ${ea.summary}`);
+        if (ea.outreach_angle) parts.push(`Ansprache-Winkel: ${ea.outreach_angle}`);
+        if (ea.signals?.fit?.filter(s => s.present).length > 0) {
+          parts.push(`Fit-Signale: ${ea.signals.fit.filter(s => s.present).map(s => s.reason).join(', ')}`);
+        }
+        engineDiagnostics = parts.join(' | ');
+      } catch (_) {}
+    }
+
+    const matchedServiceContext = company.matched_service_context || '';
+    const relevanceReason = company.relevance_reason || '';
+
     const hasPhone = !!company.telefon;
     const hasEmail = !!company.email;
     const hasWebsite = !!company.website;
@@ -138,7 +156,9 @@ LEAD-DATEN:
 - Ansprechpartner: ${hasAnsprechpartner ? company.ansprechpartner : 'unbekannt'}
 - Priorität-Score: ${company.priority_score || 0}
 - Zielgruppen-Match: ${company.matched_target_customer_type || '–'}
-- Relevanz-Begründung: ${company.relevance_reason || '–'}
+- Service-Kontext (warum dieser Lead passt): ${matchedServiceContext || '–'}
+- Relevanz-Begründung (aus Scoring): ${relevanceReason || '–'}
+- Engine-Diagnostics: ${engineDiagnostics || '–'}
 - Notizen: ${company.notizen || 'keine'}
 
 KONTAKTHISTORIE (letzte 5):
@@ -148,6 +168,8 @@ AUFGABEN:
 - Offene Aufgaben: ${openTasks.length}
 - Überfällige Aufgaben: ${overdueTasks.length}
 - Rückruf geplant: ${callbackTask ? 'Ja – ' + (callbackTask.faellig_am ? new Date(callbackTask.faellig_am).toLocaleDateString('de-DE') : 'Datum offen') : 'Nein'}
+
+WICHTIG: Die Empfehlung muss konkret auf die Kombination aus unseren Leistungen (${orgServices || 'nicht angegeben'}) und dem Lead-Typ (${company.matched_target_customer_type || company.branche || 'unbekannt'}) eingehen. Wenn Service-Kontext vorhanden ist: "${matchedServiceContext || 'n/a'}" – dann muss der suggested_message diesen Kontext nutzen. Keine generischen Formulierungen, wenn Branchendaten vorhanden sind.
 
 Antworte EXAKT mit diesem JSON-Format (kein Markdown):
 {

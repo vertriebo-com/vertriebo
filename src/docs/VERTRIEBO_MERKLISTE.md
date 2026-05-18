@@ -316,6 +316,7 @@ weightedSignalsSeedSafe                   ✅ Gewichte NUR in TAXONOMY_SEED gepf
 taxonomyVersionV6WeightedScoringB7b       ✅ aktiv, seed_reset ausgeführt
 allExistingProfilesQualityReviewed        ✅ 41/41 VOLLSTÄNDIG VALIDIERT — Branchenprofil-Qualitätsblock abgeschlossen
 readyForNextProductIntegrationBlock       ✅ FREIGEGEBEN
+branchenspezifischerVertriebsprozessP0    ✅ Abgeschlossen 2026-05-18
 readyForNextProductIntegrationBlock       ❌ BLOCKED bis allExistingProfilesQualityReviewed
 ```
 
@@ -435,6 +436,44 @@ Alle Akzeptanz-Kriterien erfüllt:
 
 Testergebnis: 24/24 Tests GOOD. 3 Profile nachgepflegt (maler/shk/elektro).
 ```
+
+### ✅ P0 ABGESCHLOSSEN: Branchenspezifischer Vertriebsprozess (2026-05-18)
+
+**`analyzeLeadEngine`:**
+- `loadOrgSettings()` lädt `services`, `target_customer_types`, `industry_name` aus OrganizationSettings
+- `buildOutreachAngle(context, orgSettings)` → nutzt echte Leistungen statt "externe Dienstleistungen"
+- `buildSuggestedOpening(context, orgSettings)` → nutzt `firstService` + `matched_target_customer_type`
+- `buildQualificationQuestions(context, orgSettings)` → branchenspezifische Fragen mit echten Leistungen
+- `analyzeContext()` nimmt `matched_service_context` aus Company und gibt es an Builder durch
+- Im `latest`-Modus: Org-Settings einmal für den ganzen Batch geladen (effizient)
+
+**`getKiRecommendation`:**
+- `matched_service_context` wird extrahiert und an LLM-Kontext übergeben
+- `engine_analysis_json` wird komprimiert (summary, outreach_angle, fit-signals) an LLM übergeben
+- `relevance_reason` (aus Scoring-Engine) wird an LLM übergeben
+- LLM-Prompt enthält explizite Regel: keine generischen Formulierungen wenn Branchendaten vorhanden
+
+**`emailTemplates.js`:**
+- Statische Fallbacks nutzen `orgSettings.services`, `matched_target_customer_type`, `matched_service_context`
+- Erstansprache: Intro-Text wechselt je nach vorhandenem Kontext (service + leadType → konkret, sonst generisch)
+- Nachfassen: `topic` aus `matched_service_context` oder `services` statt fixem Text
+- `SendEmailDialog` lädt und übergibt `orgSettings` an alle Template-`body()`-Aufrufe
+
+**Akzeptanzkriterien erfüllt:**
+- ✅ analyzeLeadEngineLoadsOrganizationSettings
+- ✅ outreachAngleUsesMatchedServiceContext
+- ✅ suggestedOpeningUsesOrgServices
+- ✅ qualificationQuestionsAreIndustrySpecific
+- ✅ noGenericExternalServicesPlaceholderWhenServicesExist
+- ✅ getKiRecommendationUsesMatchedServiceContext
+- ✅ getKiRecommendationUsesEngineAnalysisJson
+- ✅ fallbackEmailTemplatesUseServices
+- ✅ fallbackEmailTemplatesUseMatchedTargetCustomerType
+- ✅ fallbackEmailTemplatesUseMatchedServiceContext
+
+**Offen (P1/P2):**
+- followUpAgent: Task-Titel mit matched_service_context anreichern
+- salesCoach: Tages-Reminder branchenspezifisch
 
 ### Priorität 2: Produktblock — E-Mail / KI-Skripte / Follow-ups
 Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_customer_types, matched_target_customer_type aus Company):
