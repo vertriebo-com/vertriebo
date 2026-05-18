@@ -85,31 +85,31 @@ const ACCENT_COLORS = {
 };
 
 
-// Stable Particles Component - Larger and faster movement
-const Particles = () => {
+// Stable Particles Component - Mobile Optimized
+const Particles = ({ count = 30 }) => {
   const particles = useMemo(() => {
-    return Array.from({ length: 30 }, (_, i) => ({
+    return Array.from({ length: count }, (_, i) => ({
       id: i,
       left: Math.random() * 100,
       top: Math.random() * 100,
-      size: 4 + Math.random() * 5,
-      opacity: 0.3 + Math.random() * 0.4,
-      duration: 8 + Math.random() * 10,
-      delay: Math.random() * 5
+      size: 3 + Math.random() * 4,
+      opacity: 0.2 + Math.random() * 0.3,
+      duration: 10 + Math.random() * 12,
+      delay: Math.random() * 3
     }));
-  }, []);
+  }, [count]);
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, overflow: "hidden" }}>
       {particles.map((p) =>
-      <div key={p.id} style={{
+      <div key={p.id} className="particle" style={{
         position: "absolute", width: p.size, height: p.size,
         background: `radial-gradient(circle, rgba(96,165,250,${p.opacity}) 0%, rgba(139,92,246,${p.opacity * 0.5}) 100%)`,
         borderRadius: "50%",
         left: `${p.left}%`, top: `${p.top}%`,
         animation: `float ${p.duration}s ease-in-out infinite`,
         animationDelay: `${p.delay}s`,
-        filter: "blur(2px)",
-        boxShadow: `0 0 ${p.size * 3}px rgba(96,165,250,${p.opacity})`
+        filter: "blur(1px)",
+        boxShadow: `0 0 ${p.size * 2}px rgba(96,165,250,${p.opacity})`
       }} />
       )}
     </div>);
@@ -123,24 +123,39 @@ const INDUSTRIES = [
 { icon: "⚙️", name: "Industrieservice" }, { icon: "🧹", name: "Maler / Renovierung" }, { icon: "💰", name: "Buchhaltung" }, { icon: "🏥", name: "Gesundheit / Pflege" }];
 
 
-// Reveal Animation Component
+// Reveal Animation Component - Mobile Optimized with Fallback
 const RevealOnScroll = ({ children, delay = 0 }) => {
   const ref = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
+    // Mobile fallback: show content immediately if IntersectionObserver fails
+    const timer = setTimeout(() => setIsVisible(true), 100);
+    
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {setIsVisible(true);observer.disconnect();}
-    }, { threshold: 0.1 });
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
+      if (entry.isIntersecting) {
+        setIsVisible(true);
+        observer.disconnect();
+        clearTimeout(timer);
+      }
+    });
+    
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+    
+    return () => {
+      observer.disconnect();
+      clearTimeout(timer);
+    };
   }, []);
+  
   return (
     <div
       ref={ref}
       style={{
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? "translateY(0)" : "translateY(30px)",
-        transition: `opacity 0.8s ease ${delay}ms, transform 0.8s ease ${delay}ms`,
+        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
         willChange: "opacity, transform"
       }}>
       
@@ -154,6 +169,15 @@ export default function Landing() {
   const [showAgencyModal, setShowAgencyModal] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
   const [scrolled, setScrolled] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Detect mobile for optimizations
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -203,15 +227,15 @@ export default function Landing() {
   return (
     <div style={{ background: "#020617", minHeight: "100vh", fontFamily: "'Inter', sans-serif", overflowX: "hidden", position: "relative" }}>
 
-      {/* NOISE TEXTURE OVERLAY */}
+      {/* NOISE TEXTURE OVERLAY - Reduced on mobile */}
       <div style={{
-        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, opacity: 0.03,
+        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, opacity: isMobile ? 0.015 : 0.03,
         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
         mixBlendMode: "overlay"
       }} />
 
-      {/* FLOATING PARTICLES */}
-      <Particles />
+      {/* FLOATING PARTICLES - Reduced count on mobile */}
+      {isMobile ? <Particles count={15} /> : <Particles />}
       <style>{`
         @keyframes float {
           0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.3; }
@@ -227,54 +251,55 @@ export default function Landing() {
           0% { background-position: 200% center; }
           100% { background-position: -200% center; }
         }
-        @keyframes shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
         @keyframes pulse-glow {
           0%, 100% { opacity: 0.4; transform: scale(1); }
           50% { opacity: 0.7; transform: scale(1.1); }
         }
-        @keyframes marquee {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
-        }
+        /* Mobile Optimizations */
         @media (max-width: 768px) {
           .feature-grid { grid-template-columns: 1fr !important; }
+          .navbar-mobile { padding-top: env(safe-area-inset-top, 0px); }
         }
         @media (min-width: 769px) and (max-width: 1024px) {
           .feature-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
+        /* Reduce blur on mobile for performance */
+        @media (max-width: 768px) {
+          .glow-effect { filter: blur(60px) !important; }
+          .particle { filter: blur(1px) !important; }
+        }
       `}</style>
 
-      {/* GLOW ORBS - Animated */}
-      <div style={{
-        position: "fixed", width: 600, height: 600, background: "rgba(37,99,235,0.12)", borderRadius: "50%",
-        filter: "blur(100px)", top: -200, left: -200, pointerEvents: "none", zIndex: 0,
+      {/* GLOW ORBS - Animated (reduced on mobile) */}
+      <div className="glow-effect" style={{
+        position: "fixed", width: isMobile ? 300 : 600, height: isMobile ? 300 : 600, background: "rgba(37,99,235,0.08)", borderRadius: "50%",
+        filter: isMobile ? "blur(60px)" : "blur(100px)", top: isMobile ? -100 : -200, left: isMobile ? -100 : -200, pointerEvents: "none", zIndex: 0,
         animation: "pulse-glow 8s ease-in-out infinite"
       }} />
-      <div style={{
-        position: "fixed", width: 500, height: 500, background: "rgba(124,58,237,0.1)", borderRadius: "50%",
-        filter: "blur(100px)", bottom: -150, right: -150, pointerEvents: "none", zIndex: 0,
+      <div className="glow-effect" style={{
+        position: "fixed", width: isMobile ? 250 : 500, height: isMobile ? 250 : 500, background: "rgba(124,58,237,0.06)", borderRadius: "50%",
+        filter: isMobile ? "blur(60px)" : "blur(100px)", bottom: isMobile ? -80 : -150, right: isMobile ? -80 : -150, pointerEvents: "none", zIndex: 0,
         animation: "pulse-glow 10s ease-in-out infinite reverse"
       }} />
 
-      {/* NAVBAR - Premium Header */}
-      <nav style={{
+      {/* NAVBAR - Premium Header with Mobile Safe Area */}
+      <nav className="navbar-mobile" style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
-        background: scrolled ? "rgba(2,6,23,0.95)" : "transparent",
-        backdropFilter: scrolled ? "blur(20px)" : "none",
-        borderBottom: scrolled ? "1px solid rgba(255,255,255,0.08)" : "none",
-        transition: "all 0.4s"
+        background: scrolled || isMobile ? "rgba(2,6,23,0.98)" : "transparent",
+        backdropFilter: scrolled || isMobile ? "blur(20px)" : "none",
+        borderBottom: scrolled || isMobile ? "1px solid rgba(255,255,255,0.08)" : "none",
+        transition: "all 0.3s",
+        paddingTop: isMobile ? "env(safe-area-inset-top, 0px)" : "0",
+        minHeight: isMobile ? 70 : 70
       }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", height: 70, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0 24px", height: 70, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {/* Logo Links - Groß und klar sichtbar */}
           <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0 }}>
             <VertrieboLogo size="lg" className="" />
           </a>
           
-          {/* Center Navigation */}
-          <div style={{ display: "flex", alignItems: "center", gap: 40, flex: 1, justifyContent: "center", marginLeft: 40 }}>
+          {/* Center Navigation - Hidden on mobile, shown on desktop */}
+          <div style={{ display: isMobile ? "none" : "flex", alignItems: "center", gap: 40, flex: 1, justifyContent: "center", marginLeft: 40 }}>
             <button
               onClick={() => scrollToSection("how-it-works")}
               style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
