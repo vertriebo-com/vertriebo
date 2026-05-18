@@ -2,7 +2,7 @@
 
 **Zweck:** Systematische Qualitätsprüfung aller Taxonomie-Profile mit `testLeadSearchEngine`.
 **Akzeptanzkriterien:** `quality_verdict: GOOD`, `avgScore ≥ 75`, `false_positive_estimate < 15%`, `target_customer_match_rate ≥ 40%`.
-**Stand:** 2026-05-17 — 8 Kernprofile × 3 Regionen = 24 Tests vollständig durchgeführt.
+**Stand:** 2026-05-18 — Batch 2 läuft: sicherheitsdienst, gartenbau, catering getestet und nachgepflegt. TAXONOMY_VERSION=v6-weighted-scoring-b2
 
 ---
 
@@ -20,18 +20,64 @@ POST testLeadSearchEngine
 
 ---
 
-## GESAMTÜBERSICHT (Alle 24 Tests)
+## GESAMTÜBERSICHT (Laufende Testmatrix — P0 Regel: Alle Profile)
 
-| profile_id | Großstadt | Mittelstadt | Kleinstadt | Gesamt-Verdict | Scoring-Anmerkung |
+### Batch 1 — Kernprofile (abgeschlossen 2026-05-17)
+
+| profile_id | Großstadt | Mittelstadt | Kleinstadt | Gesamt-Verdict | Gewichte |
 |---|---|---|---|---|---|
-| gebaeudereinigung | ✅ GOOD (96/60) | ✅ GOOD (97/44) | ✅ GOOD (97/44) | **✅ PRODUCTION READY** | Stärkstes Profil: Gewichte vollständig, v6-Signale aktiv |
-| facility_service | ✅ GOOD (96/52) | ✅ GOOD (95/44) | ✅ GOOD (96/41) | **✅ PRODUCTION READY** | Stabiles Profil, gleiche TC-Strategie wie Gebäudereinigung |
-| it_service | ✅ GOOD (98/60) | ✅ GOOD (98/60) | ✅ GOOD (98/60) | **✅ PRODUCTION READY** | Höchste Abdeckung (100%), Arztpraxen/Kanzleien korrekt erkannt |
-| spedition_logistik | ✅ GOOD (96/53) | ✅ GOOD (95/53) | ✅ GOOD (95/48) | **✅ PRODUCTION READY** | mixed-Strategie aktiv, Großhandel/Produktion korrekt |
-| handwerk | ✅ GOOD (97/52) | ✅ GOOD (97/50) | ✅ GOOD (96/47) | **✅ PRODUCTION READY** | Hausverwaltungen dominant, Bauunternehmen gut erkannt |
-| maler_renovierung | ✅ GOOD (97/56) | ✅ GOOD (97/53) | ✅ GOOD (97/48) | **⚠️ GOOD aber Tuning nötig** | scoring_signal_weights_count=0 → keine v6-Gewichte |
-| shk | ✅ GOOD (95/57) | ✅ GOOD (95/55) | ✅ GOOD (95/54) | **⚠️ GOOD aber Tuning nötig** | scoring_signal_weights_count=0 → keine v6-Gewichte |
-| elektro_gebaeudetechnik | ✅ GOOD (—/56) | ✅ GOOD (—/50) | ✅ GOOD (—/47) | **⚠️ GOOD aber Tuning nötig** | scoring_signal_weights_count=0 → keine v6-Gewichte |
+| gebaeudereinigung | ✅ GOOD (98/46) Köln | ✅ GOOD (97/44) Koblenz | ✅ GOOD (97/44) Neuwied | **✅ PRODUCTION READY** | ✅ 15 aktiv |
+| facility_service | ✅ GOOD (96/52) Düsseldorf | ✅ GOOD (95/44) Bonn | ✅ GOOD (96/41) Neuwied | **✅ PRODUCTION READY** | ✅ 15 aktiv |
+| it_service | ✅ GOOD (98/60) Köln | ✅ GOOD (98/60) Bonn | ✅ GOOD (98/60) Bendorf | **✅ PRODUCTION READY** | ✅ 16 aktiv |
+| spedition_logistik | ✅ GOOD (96/53) Dortmund | ✅ GOOD (95/53) Koblenz | ✅ GOOD (95/48) Neuwied | **✅ PRODUCTION READY** | ✅ 16 aktiv |
+| handwerk | ✅ GOOD (97/52) Köln | ✅ GOOD (97/50) Bonn | ✅ GOOD (96/47) Neuwied | **✅ PRODUCTION READY** | ✅ 13 aktiv |
+| maler_renovierung | ✅ GOOD (97/56) Düsseldorf | ✅ GOOD (97/53) Koblenz | ✅ GOOD (97/48) Neuwied | **✅ PRODUCTION READY** | ✅ 10 aktiv |
+| shk | ✅ GOOD (95/57) Köln | ✅ GOOD (95/55) Bonn | ✅ GOOD (95/54) Neuwied | **✅ PRODUCTION READY** | ✅ 10 aktiv |
+| elektro_gebaeudetechnik | ✅ GOOD (95/56) Köln | ✅ GOOD (96/50) Bonn | ✅ GOOD (95/47) Neuwied | **✅ PRODUCTION READY** | ✅ 10 aktiv |
+
+### Batch 2 — Gebäude/Event/Gastronomie (abgeschlossen 2026-05-18)
+
+| profile_id | Großstadt | Mittelstadt | Kleinstadt | Gesamt-Verdict | Gewichte |
+|---|---|---|---|---|---|
+| sicherheitsdienst | ✅ GOOD (98/56) Köln | ✅ GOOD (98/55) Koblenz | ✅ GOOD (97/51) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| gartenbau | ✅ GOOD (98/43) Köln | ✅ GOOD (98/47) Koblenz | ✅ GOOD (97/43) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| catering | ✅ GOOD (99/51) Köln | ✅ GOOD (98/44) Bonn | ✅ GOOD (99/37) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+
+### Batch 3+ — Ausstehend
+
+| profile_id | Label | Status |
+|---|---|---|
+| immobilien | Immobilien | ⏳ ausstehend |
+| lager_fulfillment | Lager / Fulfillment | ⏳ ausstehend |
+| entruempelung | Entrümpelung | ⏳ ausstehend |
+| eventservice | Eventservice | ⏳ ausstehend |
+| gesundheit_medizin | Gesundheit / Medizin | ⏳ ausstehend |
+| marketing_webdesign_werbung | Marketing / Webdesign / Werbung | ⏳ ausstehend |
+| personal_zeitarbeit | Personal / Zeitarbeit | ⏳ ausstehend |
+| buchhaltung_steuernahe_dienste | Buchhaltung / steuernahe Dienste | ⏳ ausstehend |
+| industrieservice | Industrieservice | ⏳ ausstehend |
+| fuhrparkservice_fahrzeugpflege | Fuhrparkservice / Fahrzeugpflege | ⏳ ausstehend |
+| pflege_betreuung | Pflege / Betreuung | ⏳ ausstehend |
+| schulungen_weiterbildung | Schulungen / Weiterbildung | ⏳ ausstehend |
+| dachdecker | Dachdecker | ⏳ ausstehend |
+| geruestbau | Gerüstbau | ⏳ ausstehend |
+| trockenbau_innenausbau | Trockenbau / Innenausbau | ⏳ ausstehend |
+| fliesenleger | Fliesenleger | ⏳ ausstehend |
+| bodenleger | Bodenleger | ⏳ ausstehend |
+| schluesseldienst_schliesanlagen | Schlüsseldienst / Schließanlagen | ⏳ ausstehend |
+| schaedlingsbekaempfung | Schädlingsbekämpfung | ⏳ ausstehend |
+| brandschutzservice | Brandschutzservice | ⏳ ausstehend |
+| aufzugservice | Aufzugservice | ⏳ ausstehend |
+| tor_tuertechnik | Tor- und Türtechnik | ⏳ ausstehend |
+| photovoltaik_service | Photovoltaik-Service | ⏳ ausstehend |
+| umzugsunternehmen | Umzugsunternehmen | ⏳ ausstehend |
+| druckerei_werbetechnik | Druckerei / Werbetechnik | ⏳ ausstehend |
+| aktenvernichtung_dokumentenmanagement | Aktenvernichtung / Dokumentenmanagement | ⏳ ausstehend |
+| energieberatung | Energieberatung | ⏳ ausstehend |
+| arbeitsschutz_arbeitssicherheit | Arbeitsschutz / Arbeitssicherheit | ⏳ ausstehend |
+| datenschutz_compliance | Datenschutz / Compliance | ⏳ ausstehend |
+| messebau | Messebau | ⏳ ausstehend |
+| fallback_* (5) | Fallback-Profile | bewusst generisch, kein Test geplant |
 
 ---
 
@@ -270,6 +316,95 @@ POST testLeadSearchEngine
 
 ---
 
+---
+
+## BATCH 2 DETAILERGEBNISSE — Sicherheitsdienst, Gartenbau, Catering (2026-05-18)
+
+---
+
+### 9. Sicherheitsdienst (`sicherheitsdienst`)
+
+| Parameter | Großstadt (Köln, r=25) | Mittelstadt (Koblenz, r=20) | Kleinstadt (Neuwied, r=15) |
+|---|---|---|---|
+| `raw_hits` | 60 | 60 | 60 |
+| `saved_count` | 56 | 55 | 51 |
+| `no_match_count` | 1 | 0 | 0 |
+| `bad_fit_count` | 0 | 0 | 0 |
+| `avgScore` | **98** | **98** | **97** |
+| `quality_verdict` | **GOOD** | **GOOD** | **GOOD** |
+| `search_strategy` | target_customer_search | target_customer_search | target_customer_search |
+| `place_type_confidence` | high (nach Tuning) | high | high |
+| `scoring_signal_weights_count` | **12 (nach Tuning)** | 12 | 12 |
+| Queries | Bauunternehmen, Logistikzentrum, Industrieunternehmen, Hotel, Tagungshotel, Eventlocation | ← | ← |
+
+**Top-Leads Bewertung:**
+- ✅ Bauunternehmen Köln HR GmbH — Baustelle = korrekt für Security-Dienst
+- ✅ SKC Bauunternehmen (Koblenz) — Generalunternehmer, Baustelle = Security-Zielkunde
+- ✅ Hotels und Eventlocations korrekt als Zielkunden erkannt ✅
+- Keine Security-Firmen als Konkurrenten in Top-Leads sichtbar ✅
+
+**Fachliche Bewertung:** Queries treffen korrekte Zielgruppen (Baustellen, Logistik, Industrie, Hotels). Bauunternehmen als Top-Zielkunde für Baustellenbewachung fachlich korrekt. place_type_confidence auf `high` angehoben — Event-Venues und Hotels sind gut erkennbare Place Types.
+
+**Tuning:** 12 scoring_signal_weights eingetragen, bad_fit_signal_weights verschärft, place_type_confidence=high. ✅ Status: `production_ready`
+
+---
+
+### 10. Gartenbau (`gartenbau`)
+
+| Parameter | Großstadt (Köln, r=25) | Mittelstadt (Koblenz, r=20) | Kleinstadt (Neuwied, r=15) |
+|---|---|---|---|
+| `raw_hits` | 51 | 60 | 60 |
+| `saved_count` | 43 | 47 | 43 |
+| `no_match_count` | 0 | 0 | 0 |
+| `bad_fit_count` | 0 | 0 | 0 |
+| `avgScore` | **98** | **98** | **97** |
+| `quality_verdict` | **GOOD** | **GOOD** | **GOOD** |
+| `search_strategy` | target_customer_search | target_customer_search | target_customer_search |
+| `place_type_confidence` | high (nach Tuning) | high | high |
+| `scoring_signal_weights_count` | **12 (nach Tuning)** | 12 | 12 |
+| Queries | Hausverwaltung, Immobilienverwaltung, Hotel, Tagungshotel, Pflegeheim, Gewerbepark | ← | ← |
+
+**Top-Leads Bewertung:**
+- ✅ Justen & Geller Immobilienverwaltung (Köln) — Großobjekte mit Außenanlagen = perfekter Zielkunde
+- ✅ HRM Hausverwaltung (Koblenz) — Wohnanlagen = Grünpflege-Zielkunde
+- ✅ HRM Hausverwaltung (Neuwied) — Score 100, korrekt ✅
+- Hotels und Pflegeheime als Außenanlagen-Abnehmer fachlich korrekt ✅
+- **Anmerkung:** raw_hits=51 in Köln (statt 60) — Gewerbepark-Queries liefern weniger Hits → akzeptabel
+
+**Fachliche Bewertung:** Profil findet korrekt gewerbliche Auftraggeber für Gartenpflege. Keine Privatgärten in Top-Leads. Hausverwaltungen als primäre Zielgruppe ideal positioniert. Leicht niedrigere saved_count (43) durch spezifischere Queries kompensiert durch höhere Qualität.
+
+**Tuning:** 12 scoring_signal_weights eingetragen (Hausverwaltung +28, Immobilienverwaltung +25), bad_fit_signal_weights, place_type_confidence=high. ✅ Status: `production_ready`
+
+---
+
+### 11. Catering (`catering`)
+
+| Parameter | Großstadt (Köln, r=25) | Mittelstadt (Bonn, r=20) | Kleinstadt (Neuwied, r=15) |
+|---|---|---|---|
+| `raw_hits` | 60 | 60 | 60 |
+| `saved_count` | 51 | 44 | 37 |
+| `no_match_count` | 2 | 1 | 1 |
+| `bad_fit_count` | 0 | 0 | 0 |
+| `avgScore` | **99** | **98** | **99** |
+| `quality_verdict` | **GOOD** | **GOOD** | **GOOD** |
+| `search_strategy` | target_customer_search | target_customer_search | target_customer_search |
+| `place_type_confidence` | high (nach Tuning) | high | high |
+| `scoring_signal_weights_count` | **12 (nach Tuning)** | 12 | 12 |
+| Queries | Eventlocation, Tagungshotel, Kongresszentrum, Seminarzentrum, Bürogebäude, Schule | ← | ← |
+
+**Top-Leads Bewertung:**
+- ✅ 1460 Veranstaltungsraum Köln — Eventlocation, score 100 — Catering-Zielkunde
+- ✅ eventmanufaktur Bonn — Eventlocation — korrekt
+- ✅ X-Luxury Eventlocation Neuwied — lokale Eventlocation — korrekt ✅
+- Tagungshotels und Kongresszentren korrekt als Zielkunden ✅
+- **Höchster avgScore (99)** aller bisher getesteten Profile
+
+**Fachliche Bewertung:** Bestes avgScore-Profil in Batch 2. Eventlocations und Tagungshotels als primäre Queries sind ideal für Business-Catering. Schulen und Kitas für Schulverpflegung korrekt ergänzt. Keine Privatfeiern in Top-Leads. 2 no_match in Köln akzeptabel.
+
+**Tuning:** 12 scoring_signal_weights eingetragen (Eventlocation +28, Tagungshotel +26), bad_fit_signal_weights, place_type_confidence=high. ✅ Status: `production_ready`
+
+---
+
 ## TUNING ABGESCHLOSSEN: scoring_signal_weights für alle 3 Profile nachgepflegt
 
 **Durchgeführt am:** 2026-05-17
@@ -307,9 +442,44 @@ POST testLeadSearchEngine
 | maler_renovierung | Maler / Renovierung | `production_ready` | ✅ GOOD (avgScore 96) | ✅ 10 Gewichte aktiv | 2026-05-17 |
 | shk | SHK / Sanitär / Heizung / Klima | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 10 Gewichte aktiv | 2026-05-17 |
 | elektro_gebaeudetechnik | Elektro / Gebäudetechnik | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 10 Gewichte aktiv | 2026-05-17 |
-| gartenbau | Gartenbau | `production_ready` | ⏳ Test ausstehend | — | — |
-| catering | Catering | `production_ready` | ⏳ Test ausstehend | — | — |
-| sicherheitsdienst | Sicherheitsdienst | `production_ready` | ⏳ Test ausstehend | — | — |
+| sicherheitsdienst | Sicherheitsdienst | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| gartenbau | Gartenbau | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| catering | Catering | `production_ready` | ✅ GOOD (avgScore 99) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| immobilien | Immobilien | `production_ready` | ⏳ Test ausstehend | — | — |
+| lager_fulfillment | Lager / Fulfillment | `production_ready` | ⏳ Test ausstehend | — | — |
+| entruempelung | Entrümpelung | `production_ready` | ⏳ Test ausstehend | — | — |
+| eventservice | Eventservice | `production_ready` | ⏳ Test ausstehend | — | — |
+| gesundheit_medizin | Gesundheit / Medizin | `production_ready` | ⏳ Test ausstehend | — | — |
+| marketing_webdesign_werbung | Marketing / Webdesign / Werbung | `production_ready` | ⏳ Test ausstehend | — | — |
+| personal_zeitarbeit | Personal / Zeitarbeit | `production_ready` | ⏳ Test ausstehend | — | — |
+| buchhaltung_steuernahe_dienste | Buchhaltung / steuernahe Dienste | `production_ready` | ⏳ Test ausstehend | — | — |
+| industrieservice | Industrieservice | `production_ready` | ⏳ Test ausstehend | — | — |
+| fuhrparkservice_fahrzeugpflege | Fuhrparkservice / Fahrzeugpflege | `production_ready` | ⏳ Test ausstehend | — | — |
+| pflege_betreuung | Pflege / Betreuung | `production_ready` | ⏳ Test ausstehend | — | — |
+| schulungen_weiterbildung | Schulungen / Weiterbildung | `production_ready` | ⏳ Test ausstehend | — | — |
+| dachdecker | Dachdecker | `production_ready` | ⏳ Test ausstehend | — | — |
+| geruestbau | Gerüstbau | `production_ready` | ⏳ Test ausstehend | — | — |
+| trockenbau_innenausbau | Trockenbau / Innenausbau | `production_ready` | ⏳ Test ausstehend | — | — |
+| fliesenleger | Fliesenleger | `production_ready` | ⏳ Test ausstehend | — | — |
+| bodenleger | Bodenleger | `production_ready` | ⏳ Test ausstehend | — | — |
+| schluesseldienst_schliesanlagen | Schlüsseldienst / Schließanlagen | `production_ready` | ⏳ Test ausstehend | — | — |
+| schaedlingsbekaempfung | Schädlingsbekämpfung | `production_ready` | ⏳ Test ausstehend | — | — |
+| brandschutzservice | Brandschutzservice | `production_ready` | ⏳ Test ausstehend | — | — |
+| aufzugservice | Aufzugservice | `production_ready` | ⏳ Test ausstehend | — | — |
+| tor_tuertechnik | Tor- und Türtechnik | `production_ready` | ⏳ Test ausstehend | — | — |
+| photovoltaik_service | Photovoltaik-Service | `production_ready` | ⏳ Test ausstehend | — | — |
+| umzugsunternehmen | Umzugsunternehmen | `production_ready` | ⏳ Test ausstehend | — | — |
+| druckerei_werbetechnik | Druckerei / Werbetechnik | `production_ready` | ⏳ Test ausstehend | — | — |
+| aktenvernichtung_dokumentenmanagement | Aktenvernichtung / Dokumentenmanagement | `production_ready` | ⏳ Test ausstehend | — | — |
+| energieberatung | Energieberatung | `production_ready` | ⏳ Test ausstehend | — | — |
+| arbeitsschutz_arbeitssicherheit | Arbeitsschutz / Arbeitssicherheit | `production_ready` | ⏳ Test ausstehend | — | — |
+| datenschutz_compliance | Datenschutz / Compliance | `production_ready` | ⏳ Test ausstehend | — | — |
+| messebau | Messebau | `production_ready` | ⏳ Test ausstehend | — | — |
+| fallback_lokaler_dienstleister | Fallback (allg.) | `production_ready` | bewusst generisch | kein Test | — |
+| fallback_handwerk_allgemein | Fallback Handwerk | `production_ready` | bewusst generisch | kein Test | — |
+| fallback_b2b_service | Fallback B2B | `production_ready` | bewusst generisch | kein Test | — |
+| fallback_immobiliennaher_dienstleister | Fallback Immobilien | `production_ready` | bewusst generisch | kein Test | — |
+| fallback_gesundheitsnaher_dienstleister | Fallback Gesundheit | `production_ready` | bewusst generisch | kein Test | — |
 
 ---
 
@@ -337,3 +507,4 @@ _Keine offenen Punkte für die 8 Kernprofile. Alle Tuning-Maßnahmen abgeschloss
 | 2026-05-17 | v6 Weighted Scoring live — scoringSignalWeights aus DB geladen |
 | 2026-05-17 | **24 Tests vollständig** — 8 Kernprofile × 3 Regionen — alle GOOD. Kritischer Befund: scoring_signal_weights fehlte bei maler_renovierung, shk, elektro_gebaeudetechnik |
 | 2026-05-17 | **Tuning abgeschlossen** — 3 Profile nachgepflegt: scoring_signal_weights (10 Gewichte), place_type_confidence=high, SEED aktualisiert, TAXONOMY_VERSION=v6-weighted-scoring |
+| 2026-05-18 | **P0-Regel aktiviert** — Alle Profile müssen geprüft werden. Batch 2 gestartet: sicherheitsdienst, gartenbau, catering — 9 Tests, alle GOOD (avgScore 97–99). 12 Gewichte je Profil eingetragen. TAXONOMY_VERSION=v6-weighted-scoring-b2 |
