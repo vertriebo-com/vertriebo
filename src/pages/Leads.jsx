@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Plus, Filter, X, MoreVertical, Download, TrendingUp, Building2, Upload, Sparkles, Activity, Target } from "lucide-react";
+import { Search, Plus, Filter, X, MoreVertical, Download, TrendingUp, Building2, Upload, Sparkles, Activity, Target, Flame, Phone, Mail, PhoneCall } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -267,6 +267,103 @@ export default function Leads() {
 
       {/* Aktiver ResearchRun Banner */}
       <ActiveResearchBanner orgId={orgId} onNewLeads={() => refetch()} />
+
+      {/* Success Box for new_run filter with Best Lead CTA */}
+      {newRunFilter && filtered.length > 0 && (
+        <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-6 mb-6">
+          <div className="flex items-center justify-between flex-wrap gap-4 mb-4">
+            <div>
+              <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">✨ Recherche abgeschlossen</p>
+              <p className="text-lg font-bold text-emerald-900 mt-1">
+                {filtered.length} {filtered.length === 1 ? 'Firmenkontakt' : 'Firmenkontakte'} gefunden
+              </p>
+              <p className="text-xs text-emerald-800 mt-0.5">
+                Sortiert nach Priorität – starten Sie mit dem besten Lead
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => setNewRunFilter(null)} 
+              className="gap-2 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+            >
+              Filter aufheben <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* Bester Lead + Erste-Aktion-CTA */}
+          <div className="bg-white border border-emerald-200 rounded-xl p-5">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400/20 to-red-500/20 border border-orange-400/30 flex items-center justify-center shrink-0">
+                <Flame className="w-6 h-6 text-orange-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wide mb-1">Bester Lead</p>
+                <Link to={`/leads/${filtered[0]?.id}`} className="text-lg font-bold text-slate-900 hover:text-blue-600 transition-colors block mb-1">
+                  {filtered[0]?.name}
+                </Link>
+                <div className="flex items-center gap-2 flex-wrap text-xs">
+                  <span className="text-slate-700 font-medium">{filtered[0]?.branche || 'Keine Branche'}</span>
+                  {filtered[0]?.matched_target_customer_type && (
+                    <>
+                      <span className="text-slate-400">·</span>
+                      <span className="text-emerald-700 font-semibold">Passt zu: {filtered[0]?.matched_target_customer_type}</span>
+                    </>
+                  )}
+                  {filtered[0]?.matched_service_context && (
+                    <>
+                      <span className="text-slate-400">·</span>
+                      <span className="text-blue-700 font-medium">Service: {filtered[0]?.matched_service_context}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="px-2.5 py-1 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 text-xs font-bold">
+                    Heiß
+                  </div>
+                  <div className="px-2.5 py-1 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 text-xs font-bold">
+                    Score: {filtered[0]?.priority_score || 0}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Erste-Aktion-CTA Buttons */}
+            <div className="flex flex-wrap gap-2 pt-4 border-t border-emerald-100">
+              <Link to={`/leads/${filtered[0]?.id}`}>
+                <Button size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <Building2 className="w-4 h-4" /> Lead öffnen
+                </Button>
+              </Link>
+              {filtered[0]?.telefon && (
+                <a href={`tel:${filtered[0]?.telefon}`}>
+                  <Button size="sm" variant="outline" className="gap-2 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                    <Phone className="w-4 h-4" /> Anrufen
+                  </Button>
+                </a>
+              )}
+              {filtered[0]?.email && (
+                <a href={`mailto:${filtered[0]?.email}`}>
+                  <Button size="sm" variant="outline" className="gap-2 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                    <Mail className="w-4 h-4" /> E-Mail
+                  </Button>
+                </a>
+              )}
+              <Link to={`/leads/${filtered[0]?.id}`}>
+                <Button size="sm" variant="outline" className="gap-2 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                  <PhoneCall className="w-4 h-4" /> Anrufskript
+                </Button>
+              </Link>
+              <Link to={`/leads/${filtered[0]?.id}`}>
+                <Button size="sm" variant="outline" className="gap-2 bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-50">
+                  <Mail className="w-4 h-4" /> E-Mail vorbereiten
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Vertriebo Engine Stats */}
       <EngineStatsBox companies={filtered} onAnalyzeLatest={isAdmin ? handleAnalyzeLatest : null} analyzingLatest={researching} lastEngineResult={lastEngineResult} />

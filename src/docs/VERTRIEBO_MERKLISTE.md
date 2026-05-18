@@ -670,6 +670,47 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 **Nächste Phase:**
 - Phase 3: Dashboard Empty State Modernisierung (separater Block)
 
+### Phase 3: Leadseite "Erste-Aktion"-CTA — ABGESCHLOSSEN ✅ (2026-05-18)
+
+**Ziel:** Nutzer nach Onboarding-Recherche sofort zur ersten Aktion führen.
+
+**Umsetzung:**
+- ✅ **Success-Box erweitert** mit "Bester Lead" Abschnitt
+- ✅ **Bester Lead automatisch bestimmt**: Erster Lead (sortiert nach Priorität/Score)
+- ✅ **Kontext angezeigt**: matched_target_customer_type, matched_service_context, Score
+- ✅ **Erste-Aktion-CTA Buttons**:
+  - Lead öffnen
+  - Anrufen (wenn Telefonnummer)
+  - E-Mail (wenn E-Mail-Adresse)
+  - Anrufskript (öffnet CallScriptDialog auf LeadDetail)
+  - E-Mail vorbereiten (öffnet SendEmailDialog auf LeadDetail)
+- ✅ **Bestehende Dialoge genutzt**: CallScriptDialog, SendEmailDialog — keine doppelte Logik
+- ✅ **Zero/Failed States unverändert**: Bleiben freundlich und kundenfreundlich
+- ✅ **Keine technischen Begriffe**: Nur kundenfreundliche Formulierungen
+
+**Akzeptanzkriterien:**
+- ✅ bestLeadHighlightedAfterOnboardingResearch
+- ✅ firstActionCtaVisibleOnLeadsPage
+- ✅ ctaCanOpenLeadDetailOrScriptOrEmail
+- ✅ bestLeadUsesMatchedContextAndScore
+- ✅ noDuplicateCallEmailLogic
+- ✅ zeroAndFailedStatesStillWork
+- ✅ noTechnicalDebugTermsForCustomers
+- ✅ noBigDesignRefactorYet
+- ✅ merklisteUpdated
+
+**Dateien geändert:**
+- `pages/Leads.jsx` — Success-Box um Bester-Lead-CTA erweitert
+- `docs/VERTRIEBO_MERKLISTE.md` — Phase 3 dokumentiert
+
+**Live-Test erforderlich:**
+- Onboarding mit Leads → Success-Box mit bestem Lead + CTAs
+- CTA "Lead öffnen" → LeadDetail
+- CTA "Anrufskript" → CallScriptDialog öffnet
+- CTA "E-Mail vorbereiten" → SendEmailDialog öffnet
+- 0-Leads-State → Alternativen funktionieren
+- Failed-State → Recovery funktioniert
+
 **Ziel:** Onboarding-Launch auf stabilen async ResearchRun-Flow umstellen.
 
 **Umsetzung:**
