@@ -10,68 +10,68 @@ import ProductShowcase from "@/components/landing/ProductShowcase";
 import PricingFAQ from "@/components/landing/PricingFAQ";
 
 const PLANS = [
-  {
-    name: "Starter",
-    slug: "starter",
-    planId: "69fb1b37d7433caf98c34ff9",
-    price: "99",
-    description: "Für kleine Dienstleister, die regelmäßig neue Firmenkunden gewinnen möchten.",
-    popular: false,
-    features: ["300 Firmenkontakte/Monat", "KI-Recherche inklusive", "2 Nutzer", "CRM & Pipeline", "Basis-Reports"],
-    cta: "14 Tage kostenlos testen"
-  },
-  {
-    name: "Professional",
-    slug: "professional",
-    planId: "69fb1b37d7433caf98c34ffa",
-    price: "199",
-    description: "Für Teams, die regelmäßig aktiv Vertrieb machen",
-    popular: true,
-    features: ["1.500 Firmenkontakte/Monat", "KI-Recherche inklusive", "5 Nutzer", "KI-Priorisierung für heiße Leads", "Eigene E-Mail-Vorlagen", "Erweiterte Reports"],
-    cta: "Professional buchen"
-  },
-  {
-    name: "Gold",
-    slug: "gold",
-    planId: "69fb7de571a0504da10ef985",
-    price: "349",
-    description: "Für wachsende Vertriebsteams mit hohem Kontaktvolumen",
-    popular: false,
-    features: ["5.000 Firmenkontakte/Monat", "KI-Recherche inklusive", "10 Nutzer", "Erweiterte Automationen / Professional-Features", "Priority Support"],
-    cta: "Gold buchen"
-  },
-  {
-    name: "Agency",
-    slug: "agency",
-    planId: "69fb1b37d7433caf98c34ffb",
-    price: null,
-    description: "Für Agenturen & größere Teams",
-    popular: false,
-    isAgency: true,
-    features: ["Mehrere Kundenorganisationen", "Hohes Kontaktvolumen / Fair-Use", "Unbegrenzte Nutzer oder individuelle Nutzeranzahl", "Persönliches Onboarding", "Eigene Kundenverwaltung"],
-    cta: "Demo anfragen"
-  }
-];
+{
+  name: "Starter",
+  slug: "starter",
+  planId: "69fb1b37d7433caf98c34ff9",
+  price: "99",
+  description: "Für kleine Dienstleister, die regelmäßig neue Firmenkunden gewinnen möchten.",
+  popular: false,
+  features: ["300 Firmenkontakte/Monat", "KI-Recherche inklusive", "2 Nutzer", "CRM & Pipeline", "Basis-Reports"],
+  cta: "14 Tage kostenlos testen"
+},
+{
+  name: "Professional",
+  slug: "professional",
+  planId: "69fb1b37d7433caf98c34ffa",
+  price: "199",
+  description: "Für Teams, die regelmäßig aktiv Vertrieb machen",
+  popular: true,
+  features: ["1.500 Firmenkontakte/Monat", "KI-Recherche inklusive", "5 Nutzer", "KI-Priorisierung für heiße Leads", "Eigene E-Mail-Vorlagen", "Erweiterte Reports"],
+  cta: "Professional buchen"
+},
+{
+  name: "Gold",
+  slug: "gold",
+  planId: "69fb7de571a0504da10ef985",
+  price: "349",
+  description: "Für wachsende Vertriebsteams mit hohem Kontaktvolumen",
+  popular: false,
+  features: ["5.000 Firmenkontakte/Monat", "KI-Recherche inklusive", "10 Nutzer", "Erweiterte Automationen / Professional-Features", "Priority Support"],
+  cta: "Gold buchen"
+},
+{
+  name: "Agency",
+  slug: "agency",
+  planId: "69fb1b37d7433caf98c34ffb",
+  price: null,
+  description: "Für Agenturen & größere Teams",
+  popular: false,
+  isAgency: true,
+  features: ["Mehrere Kundenorganisationen", "Hohes Kontaktvolumen / Fair-Use", "Unbegrenzte Nutzer oder individuelle Nutzeranzahl", "Persönliches Onboarding", "Eigene Kundenverwaltung"],
+  cta: "Demo anfragen"
+}];
+
 
 const FAQS = [
-  { q: "Was sind gespeicherte Firmenkontakte?", a: "Das sind alle Firmen, die Sie mit Vertriebo recherchieren oder manuell erfassen. Die monatlichen Limits zeigen, wie viele neue Kontakte Sie pro Monat speichern können. Alle Ihre Kontakte bleiben unbegrenzt abrufbar." },
-  { q: "Wie funktionieren Recherche-Läufe?", a: "Mit einem Recherche-Lauf starten Sie eine automatische Firmensuche in Ihrer Region. Die Anzahl der Recherche-Läufe selbst ist nicht begrenzt – nur die Kontakte, die Sie speichern, werden gezählt." },
-  { q: "Was sind KI-Aktionen?", a: "KI-Aktionen umfassen Lead-Bewertung, E-Mail-Entwürfe, Gesprächseinstiege, Follow-up-Vorschläge und Vertriebs-Coaching. Jede KI-gestützte Funktion verbraucht eine Aktion." },
-  { q: "Kann ich monatlich kündigen?", a: "Ja, alle Self-Service-Pläne (Starter, Professional, Gold) sind monatlich kündbar. Keine langfristigen Verträge, keine versteckten Kosten." },
-  { q: "Was passiert mit meinen Daten nach Kündigung?", a: "Ihre Firmenkontakte und Dokumentation bleiben 30 Tage nach Kündigung einsehbar. Alle Daten sind DSGVO-konform und können exportiert werden." },
-];
+{ q: "Was sind gespeicherte Firmenkontakte?", a: "Das sind alle Firmen, die Sie mit Vertriebo recherchieren oder manuell erfassen. Die monatlichen Limits zeigen, wie viele neue Kontakte Sie pro Monat speichern können. Alle Ihre Kontakte bleiben unbegrenzt abrufbar." },
+{ q: "Wie funktionieren Recherche-Läufe?", a: "Mit einem Recherche-Lauf starten Sie eine automatische Firmensuche in Ihrer Region. Die Anzahl der Recherche-Läufe selbst ist nicht begrenzt – nur die Kontakte, die Sie speichern, werden gezählt." },
+{ q: "Was sind KI-Aktionen?", a: "KI-Aktionen umfassen Lead-Bewertung, E-Mail-Entwürfe, Gesprächseinstiege, Follow-up-Vorschläge und Vertriebs-Coaching. Jede KI-gestützte Funktion verbraucht eine Aktion." },
+{ q: "Kann ich monatlich kündigen?", a: "Ja, alle Self-Service-Pläne (Starter, Professional, Gold) sind monatlich kündbar. Keine langfristigen Verträge, keine versteckten Kosten." },
+{ q: "Was passiert mit meinen Daten nach Kündigung?", a: "Ihre Firmenkontakte und Dokumentation bleiben 30 Tage nach Kündigung einsehbar. Alle Daten sind DSGVO-konform und können exportiert werden." }];
+
 
 const FEATURES = [
-  { icon: "🔍", title: "Automatische Firmenkontakt-Recherche", desc: "Legen Sie Zielgebiet, Branche und Kundentyp fest – Vertriebo findet passende Firmenkontakte für Ihren Vertrieb.", color: "border-blue-500/20 bg-blue-500/5" },
-  { icon: "🗺️", title: "Lückenlose Gebiets-Abdeckung", desc: "Nicht nur die Kreisstadt — Vertriebo durchsucht alle Orte in Ihrem Radius automatisch.", color: "border-teal-500/20 bg-teal-500/5" },
-  { icon: "⭐", title: "Priorisierte Tagesliste", desc: "Tagesprioritäten statt Chaos. Heute fällige Rückrufe, priorisierte Neuleads und offene Angebote – Ihr Team sieht auf einen Blick, wer heute angerufen werden sollte.", color: "border-amber-500/20 bg-amber-500/5" },
-  { icon: "📞", title: "Komplette Kontakthistorie", desc: "Alle Gespräche, E-Mails und Notizen zu jeder Firma an einem Ort. Anrufe dokumentiert, E-Mail-Verlauf, gespeicherte Notizen – nichts geht verloren.", color: "border-emerald-500/20 bg-emerald-500/5" },
-  { icon: "✉️", title: "E-Mails & Follow-ups", desc: "E-Mail-Vorlagen mit Ihrem Logo und Signatur, automatische Aufgaben und Follow-up-Erinnerungen – von Erstansprache bis Nachfassen alles organisiert.", color: "border-purple-500/20 bg-purple-500/5" },
-  { icon: "👥", title: "Vertriebssteuerung für Teams", desc: "Admins sehen Fortschritt, offene Aufgaben, Aktivität und Ergebnisse. Vertriebler sehen nur ihre eigenen Leads.", color: "border-indigo-500/20 bg-indigo-500/5" },
-  { icon: "✅", title: "Alles leicht bedienbar", desc: "Keine komplizierte CRM-Einrichtung. Zielgebiet festlegen, Kontakte recherchieren, losarbeiten.", color: "border-slate-500/20 bg-slate-500/5" },
-  { icon: "🧠", title: "System das mitlernt", desc: "Je mehr Sie nutzen, desto besser wird Vertriebo. Erfolgreiche Branchen werden automatisch priorisiert.", color: "border-orange-500/20 bg-orange-500/5" },
-  { icon: "📊", title: "Echtzeit-Erfolgsquoten", desc: "Sehen Sie sofort, wie Ihr Team performt: Quote pro Vertriebler, beste Branchen, ROI der Recherche.", color: "border-rose-500/20 bg-rose-500/5" },
-];
+{ icon: "🔍", title: "Automatische Firmenkontakt-Recherche", desc: "Legen Sie Zielgebiet, Branche und Kundentyp fest – Vertriebo findet passende Firmenkontakte für Ihren Vertrieb.", color: "border-blue-500/20 bg-blue-500/5" },
+{ icon: "🗺️", title: "Lückenlose Gebiets-Abdeckung", desc: "Nicht nur die Kreisstadt — Vertriebo durchsucht alle Orte in Ihrem Radius automatisch.", color: "border-teal-500/20 bg-teal-500/5" },
+{ icon: "⭐", title: "Priorisierte Tagesliste", desc: "Tagesprioritäten statt Chaos. Heute fällige Rückrufe, priorisierte Neuleads und offene Angebote – Ihr Team sieht auf einen Blick, wer heute angerufen werden sollte.", color: "border-amber-500/20 bg-amber-500/5" },
+{ icon: "📞", title: "Komplette Kontakthistorie", desc: "Alle Gespräche, E-Mails und Notizen zu jeder Firma an einem Ort. Anrufe dokumentiert, E-Mail-Verlauf, gespeicherte Notizen – nichts geht verloren.", color: "border-emerald-500/20 bg-emerald-500/5" },
+{ icon: "✉️", title: "E-Mails & Follow-ups", desc: "E-Mail-Vorlagen mit Ihrem Logo und Signatur, automatische Aufgaben und Follow-up-Erinnerungen – von Erstansprache bis Nachfassen alles organisiert.", color: "border-purple-500/20 bg-purple-500/5" },
+{ icon: "👥", title: "Vertriebssteuerung für Teams", desc: "Admins sehen Fortschritt, offene Aufgaben, Aktivität und Ergebnisse. Vertriebler sehen nur ihre eigenen Leads.", color: "border-indigo-500/20 bg-indigo-500/5" },
+{ icon: "✅", title: "Alles leicht bedienbar", desc: "Keine komplizierte CRM-Einrichtung. Zielgebiet festlegen, Kontakte recherchieren, losarbeiten.", color: "border-slate-500/20 bg-slate-500/5" },
+{ icon: "🧠", title: "System das mitlernt", desc: "Je mehr Sie nutzen, desto besser wird Vertriebo. Erfolgreiche Branchen werden automatisch priorisiert.", color: "border-orange-500/20 bg-orange-500/5" },
+{ icon: "📊", title: "Echtzeit-Erfolgsquoten", desc: "Sehen Sie sofort, wie Ihr Team performt: Quote pro Vertriebler, beste Branchen, ROI der Recherche.", color: "border-rose-500/20 bg-rose-500/5" }];
+
 
 // Stable Particles Component - Larger and faster movement
 const Particles = () => {
@@ -88,28 +88,28 @@ const Particles = () => {
   }, []);
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, overflow: "hidden" }}>
-      {particles.map(p => (
-        <div key={p.id} style={{
-          position: "absolute", width: p.size, height: p.size,
-          background: `radial-gradient(circle, rgba(96,165,250,${p.opacity}) 0%, rgba(139,92,246,${p.opacity * 0.5}) 100%)`,
-          borderRadius: "50%",
-          left: `${p.left}%`, top: `${p.top}%`,
-          animation: `float ${p.duration}s ease-in-out infinite`,
-          animationDelay: `${p.delay}s`,
-          filter: "blur(2px)",
-          boxShadow: `0 0 ${p.size * 3}px rgba(96,165,250,${p.opacity})`
-        }} />
-      ))}
-    </div>
-  );
+      {particles.map((p) =>
+      <div key={p.id} style={{
+        position: "absolute", width: p.size, height: p.size,
+        background: `radial-gradient(circle, rgba(96,165,250,${p.opacity}) 0%, rgba(139,92,246,${p.opacity * 0.5}) 100%)`,
+        borderRadius: "50%",
+        left: `${p.left}%`, top: `${p.top}%`,
+        animation: `float ${p.duration}s ease-in-out infinite`,
+        animationDelay: `${p.delay}s`,
+        filter: "blur(2px)",
+        boxShadow: `0 0 ${p.size * 3}px rgba(96,165,250,${p.opacity})`
+      }} />
+      )}
+    </div>);
+
 };
 
 const INDUSTRIES = [
-  { icon: "🏢", name: "Gebäudereinigung" }, { icon: "🛡️", name: "Sicherheitsdienst" }, { icon: "🏠", name: "Facility Service" }, { icon: "📦", name: "Entrümpelung" },
-  { icon: "🔨", name: "Handwerk" }, { icon: "💻", name: "IT-Service" }, { icon: "🌿", name: "Gartenbau" }, { icon: "🚚", name: "Spedition" },
-  { icon: "🔧", name: "SHK / Heizung" }, { icon: "⚡", name: "Elektro" }, { icon: "🍽️", name: "Catering" }, { icon: "👥", name: "Personal / Zeitarbeit" },
-  { icon: "⚙️", name: "Industrieservice" }, { icon: "🧹", name: "Maler / Renovierung" }, { icon: "💰", name: "Buchhaltung" }, { icon: "🏥", name: "Gesundheit / Pflege" }
-];
+{ icon: "🏢", name: "Gebäudereinigung" }, { icon: "🛡️", name: "Sicherheitsdienst" }, { icon: "🏠", name: "Facility Service" }, { icon: "📦", name: "Entrümpelung" },
+{ icon: "🔨", name: "Handwerk" }, { icon: "💻", name: "IT-Service" }, { icon: "🌿", name: "Gartenbau" }, { icon: "🚚", name: "Spedition" },
+{ icon: "🔧", name: "SHK / Heizung" }, { icon: "⚡", name: "Elektro" }, { icon: "🍽️", name: "Catering" }, { icon: "👥", name: "Personal / Zeitarbeit" },
+{ icon: "⚙️", name: "Industrieservice" }, { icon: "🧹", name: "Maler / Renovierung" }, { icon: "💰", name: "Buchhaltung" }, { icon: "🏥", name: "Gesundheit / Pflege" }];
+
 
 // Reveal Animation Component
 const RevealOnScroll = ({ children, delay = 0 }) => {
@@ -117,7 +117,7 @@ const RevealOnScroll = ({ children, delay = 0 }) => {
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); }
+      if (entry.isIntersecting) {setIsVisible(true);observer.disconnect();}
     }, { threshold: 0.1 });
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
@@ -130,11 +130,11 @@ const RevealOnScroll = ({ children, delay = 0 }) => {
         transform: isVisible ? "translateY(0)" : "translateY(30px)",
         transition: `opacity 0.8s ease ${delay}ms, transform 0.8s ease ${delay}ms`,
         willChange: "opacity, transform"
-      }}
-    >
+      }}>
+      
       {children}
-    </div>
-  );
+    </div>);
+
 };
 
 export default function Landing() {
@@ -164,7 +164,7 @@ export default function Landing() {
   const handleRegister = () => base44.auth.redirectToLogin(window.location.origin + "/onboarding");
 
   const handleCheckout = async (plan) => {
-    if (plan.slug === "agency") { setShowAgencyModal(true); return; }
+    if (plan.slug === "agency") {setShowAgencyModal(true);return;}
     if (window.self !== window.top) {
       alert("Der Checkout funktioniert nur in der veröffentlichten App, nicht in der Vorschau.");
       return;
@@ -178,10 +178,10 @@ export default function Landing() {
     try {
       const orgs = await base44.entities.Organization.filter({ owner_email: user.email });
       const org = orgs?.[0];
-      if (!org) { window.location.href = `/onboarding?plan_id=${plan.planId}&plan_name=${encodeURIComponent(plan.name)}`; return; }
+      if (!org) {window.location.href = `/onboarding?plan_id=${plan.planId}&plan_name=${encodeURIComponent(plan.name)}`;return;}
       const res = await base44.functions.invoke("createCheckoutSession", { organization_id: org.id, plan_id: plan.planId });
-      if (res.data?.url) window.location.href = res.data.url;
-      else toast.error(res.data?.error || "Kein Checkout-Link erhalten.");
+      if (res.data?.url) window.location.href = res.data.url;else
+      toast.error(res.data?.error || "Kein Checkout-Link erhalten.");
     } catch (e) {
       toast.error("Fehler beim Starten des Checkouts: " + e.message);
     }
@@ -257,28 +257,28 @@ export default function Landing() {
           
           {/* Center Navigation */}
           <div style={{ display: "flex", alignItems: "center", gap: 40, flex: 1, justifyContent: "center", marginLeft: 40 }}>
-            <button 
+            <button
               onClick={() => scrollToSection("how-it-works")}
               style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
               onMouseEnter={(e) => e.target.style.color = "white"}
-              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}
-            >
+              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
+              
               Wie es funktioniert
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection("pricing")}
               style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
               onMouseEnter={(e) => e.target.style.color = "white"}
-              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}
-            >
+              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
+              
               Preise
             </button>
-            <button 
+            <button
               onClick={() => scrollToSection("faq")}
               style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
               onMouseEnter={(e) => e.target.style.color = "white"}
-              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}
-            >
+              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
+              
               FAQ
             </button>
           </div>
@@ -286,9 +286,9 @@ export default function Landing() {
           {/* Right Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
             <button onClick={handleLogin} style={{ color: "rgba(148,163,184,1)", fontSize: 14, padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
-              onMouseEnter={(e) => e.target.style.color = "white"}
-              onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}
-            >
+            onMouseEnter={(e) => e.target.style.color = "white"}
+            onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
+              
               Login
             </button>
             <button onClick={handleRegister} style={{
@@ -297,9 +297,9 @@ export default function Landing() {
               boxShadow: "0 0 30px rgba(37,99,235,0.4)",
               transition: "all 0.3s"
             }}
-              onMouseEnter={(e) => e.target.style.boxShadow = "0 0 40px rgba(37,99,235,0.6)"}
-              onMouseLeave={(e) => e.target.style.boxShadow = "0 0 30px rgba(37,99,235,0.4)"}
-            >
+            onMouseEnter={(e) => e.target.style.boxShadow = "0 0 40px rgba(37,99,235,0.6)"}
+            onMouseLeave={(e) => e.target.style.boxShadow = "0 0 30px rgba(37,99,235,0.4)"}>
+              
               🚀 14 Tage testen
             </button>
           </div>
@@ -327,7 +327,7 @@ export default function Landing() {
         <div style={{
           position: "absolute", inset: 0, pointerEvents: "none",
           opacity: 0.03,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`
         }} />
 
         <div style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
@@ -337,25 +337,25 @@ export default function Landing() {
             <div>
             {/* Badge */}
             <div style={{
-              display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 999,
-              background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.4)",
-              color: "#93c5fd", fontSize: 13, fontWeight: 600, marginBottom: 24
-            }}>
+                display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 999,
+                background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.4)",
+                color: "#93c5fd", fontSize: 13, fontWeight: 600, marginBottom: 24
+              }}>
               <Zap size={14} color="#3b82f6" fill="white" /> Für lokale Dienstleister
             </div>
 
             {/* Headline - Original Text */}
             <h1 style={{
-              fontSize: "clamp(40px,5vw,64px)", fontWeight: 900, color: "white",
-              lineHeight: 1.1, letterSpacing: -2, marginBottom: 20
-            }}>
+                fontSize: "clamp(40px,5vw,64px)", fontWeight: 900, color: "white",
+                lineHeight: 1.1, letterSpacing: -2, marginBottom: 20
+              }}>
               Neue Firmenkunden finden.{" "}
               <span style={{
-                background: "linear-gradient(135deg,#60a5fa 0%,#a78bfa 50%,#60a5fa 100%)",
-                backgroundSize: "200% auto",
-                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
-                animation: "shimmer 4s linear infinite"
-              }}>
+                  background: "linear-gradient(135deg,#60a5fa 0%,#a78bfa 50%,#60a5fa 100%)",
+                  backgroundSize: "200% auto",
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+                  animation: "shimmer 4s linear infinite"
+                }}>
                 Leads priorisieren.
               </span>{" "}
               Vertrieb einfacher steuern.
@@ -374,25 +374,25 @@ export default function Landing() {
             {/* CTAs */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 32 }}>
               <button
-                onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
-                style={{
-                  background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", fontWeight: 800,
-                  fontSize: 15, padding: "14px 28px", borderRadius: 12, border: "none", cursor: "pointer",
-                  fontFamily: "inherit", boxShadow: "0 0 40px rgba(37,99,235,0.5)",
-                  transition: "all 0.3s"
-                }}
-              >
+                  onClick={() => document.getElementById("pricing")?.scrollIntoView({ behavior: "smooth" })}
+                  style={{
+                    background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", fontWeight: 800,
+                    fontSize: 15, padding: "14px 28px", borderRadius: 12, border: "none", cursor: "pointer",
+                    fontFamily: "inherit", boxShadow: "0 0 40px rgba(37,99,235,0.5)",
+                    transition: "all 0.3s"
+                  }}>
+                  
                 14 Tage kostenlos testen
               </button>
               <a
-                href="#how-it-works"
-                style={{
-                  color: "rgba(148,163,184,1)", fontSize: 15, fontWeight: 600, padding: "14px 24px",
-                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8,
-                  textDecoration: "none", fontFamily: "inherit", transition: "all 0.2s"
-                }}
-              >
+                  href="#how-it-works"
+                  style={{
+                    color: "rgba(148,163,184,1)", fontSize: 15, fontWeight: 600, padding: "14px 24px",
+                    background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 12, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8,
+                    textDecoration: "none", fontFamily: "inherit", transition: "all 0.2s"
+                  }}>
+                  
                 So funktioniert Vertriebo
               </a>
             </div>
@@ -409,20 +409,20 @@ export default function Landing() {
 
             {/* Trust Badges */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 16, fontSize: 13, color: "rgba(100,116,139,1)" }}>
-              {["14 Tage kostenlos testen", "Monatlich kündbar", "DSGVO-orientiert", "Für deutsche B2B-Dienstleister"].map(t => (
-                <span key={t} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {["14 Tage kostenlos testen", "Monatlich kündbar", "DSGVO-orientiert", "Für deutsche B2B-Dienstleister"].map((t) =>
+                <span key={t} style={{ display: "flex", alignItems: "center", gap: 6 }} className="hidden">
                   <Check size={14} color="#22c55e" strokeWidth={2.5} />{t}
                 </span>
-              ))}
+                )}
             </div>
           </div>
 
           {/* Right: App Mockup */}
           <div style={{ position: "relative" }}>
             <div style={{
-              background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20,
-              overflow: "hidden", boxShadow: "0 40px 120px rgba(0,0,0,0.8),0 0 0 1px rgba(37,99,235,0.2)"
-            }}>
+                background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20,
+                overflow: "hidden", boxShadow: "0 40px 120px rgba(0,0,0,0.8),0 0 0 1px rgba(37,99,235,0.2)"
+              }}>
               {/* Browser Chrome */}
               <div style={{ background: "#0f172a", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -441,11 +441,11 @@ export default function Landing() {
                   <div style={{ padding: "8px 4px" }}>
                     <VertrieboLogo variant="outline" size="sm" />
                   </div>
-                  {[1,2,3,4,5].map(i => (
+                  {[1, 2, 3, 4, 5].map((i) =>
                     <div key={i} style={{ width: 24, height: 24, background: i === 1 ? "rgba(37,99,235,0.15)" : "transparent", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", border: i === 1 ? "1px solid rgba(37,99,235,0.3)" : "none" }}>
                       <div style={{ width: 12, height: 12, background: i === 1 ? "#3b82f6" : "rgba(71,85,105,0.5)", borderRadius: 3 }} />
                     </div>
-                  ))}
+                    )}
                 </div>
 
                 {/* Main Dashboard */}
@@ -539,16 +539,16 @@ export default function Landing() {
       {/* MARQUEE */}
       <div style={{ background: "#080e1e", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)", padding: "14px 0", overflow: "hidden" }}>
         <div style={{ display: "flex", animation: "marquee 25s linear infinite", width: "max-content" }}>
-          {[...Array(2)].map((_, di) => (
-            <div key={di} style={{ display: "flex", gap: 48, padding: "0 24px", alignItems: "center" }}>
-              {["⭐⭐⭐⭐⭐ \"3 Terminanfragen in der ersten Woche\"", "🔥 Gebäudereinigung · Sicherheit · IT · Handwerk · Logistik", "⭐⭐⭐⭐⭐ \"Endlich weiß mein Team, wen es anrufen soll\"", "📈 Mehr Struktur im Vertrieb", "🇩🇪 DSGVO-konform · Made for Germany", "⭐⭐⭐⭐⭐ \"Erste Leads nach 5 Minuten\""].map((t, i) => (
-                <span key={i} style={{ color: "rgba(71,85,105,1)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
+          {[...Array(2)].map((_, di) =>
+          <div key={di} style={{ display: "flex", gap: 48, padding: "0 24px", alignItems: "center" }}>
+              {["⭐⭐⭐⭐⭐ \"3 Terminanfragen in der ersten Woche\"", "🔥 Gebäudereinigung · Sicherheit · IT · Handwerk · Logistik", "⭐⭐⭐⭐⭐ \"Endlich weiß mein Team, wen es anrufen soll\"", "📈 Mehr Struktur im Vertrieb", "🇩🇪 DSGVO-konform · Made for Germany", "⭐⭐⭐⭐⭐ \"Erste Leads nach 5 Minuten\""].map((t, i) =>
+            <span key={i} style={{ color: "rgba(71,85,105,1)", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
                   {t}
                   {i < 5 && <span style={{ color: "rgba(37,99,235,0.4)", fontSize: 20, marginLeft: 48 }}>·</span>}
                 </span>
-              ))}
+            )}
             </div>
-          ))}
+          )}
         </div>
       </div>
 
@@ -567,19 +567,19 @@ export default function Landing() {
           </RevealOnScroll>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 16 }}>
-            {FEATURES.map((f, i) => (
-              <RevealOnScroll key={i} delay={i * 100}>
+            {FEATURES.map((f, i) =>
+            <RevealOnScroll key={i} delay={i * 100}>
                 <div style={{
-                  background: "rgba(255,255,255,0.03)", border: `1px solid ${f.color.split(" ")[0].replace("border-", "").replace("-500/20", "")}`,
-                  borderColor: f.color.includes("blue") ? "rgba(37,99,235,0.2)" : f.color.includes("teal") ? "rgba(20,184,166,0.2)" : f.color.includes("amber") ? "rgba(245,158,11,0.2)" : f.color.includes("emerald") ? "rgba(16,185,129,0.2)" : f.color.includes("purple") ? "rgba(139,92,246,0.2)" : f.color.includes("indigo") ? "rgba(99,102,241,0.2)" : f.color.includes("orange") ? "rgba(249,115,22,0.2)" : f.color.includes("rose") ? "rgba(244,63,94,0.2)" : "rgba(100,116,139,0.2)",
-                  borderRadius: 20, padding: 28, transition: "all 0.3s", cursor: "default"
-                }}>
+                background: "rgba(255,255,255,0.03)", border: `1px solid ${f.color.split(" ")[0].replace("border-", "").replace("-500/20", "")}`,
+                borderColor: f.color.includes("blue") ? "rgba(37,99,235,0.2)" : f.color.includes("teal") ? "rgba(20,184,166,0.2)" : f.color.includes("amber") ? "rgba(245,158,11,0.2)" : f.color.includes("emerald") ? "rgba(16,185,129,0.2)" : f.color.includes("purple") ? "rgba(139,92,246,0.2)" : f.color.includes("indigo") ? "rgba(99,102,241,0.2)" : f.color.includes("orange") ? "rgba(249,115,22,0.2)" : f.color.includes("rose") ? "rgba(244,63,94,0.2)" : "rgba(100,116,139,0.2)",
+                borderRadius: 20, padding: 28, transition: "all 0.3s", cursor: "default"
+              }}>
                   <div style={{ fontSize: 36, marginBottom: 16 }}>{f.icon}</div>
                   <h3 style={{ fontSize: 17, fontWeight: 800, color: "white", marginBottom: 10 }}>{f.title}</h3>
                   <p style={{ fontSize: 14, color: "rgba(148,163,184,1)", lineHeight: 1.7 }}>{f.desc}</p>
                 </div>
               </RevealOnScroll>
-            ))}
+            )}
           </div>
         </div>
       </section>
@@ -605,12 +605,12 @@ export default function Landing() {
           </RevealOnScroll>
 
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10 }}>
-            {INDUSTRIES.map((ind) => (
-              <div key={ind.name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 999, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", cursor: "default" }}>
+            {INDUSTRIES.map((ind) =>
+            <div key={ind.name} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 999, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", cursor: "default" }}>
                 <span style={{ fontSize: 16 }}>{ind.icon}</span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(148,163,184,1)" }}>{ind.name}</span>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </section>
@@ -628,56 +628,56 @@ export default function Landing() {
           </RevealOnScroll>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 16, alignItems: "start" }}>
-            {PLANS.map((plan) => (
-              <RevealOnScroll key={plan.name} delay={100}>
+            {PLANS.map((plan) =>
+            <RevealOnScroll key={plan.name} delay={100}>
                 <div style={{
-                  background: plan.popular ? "linear-gradient(135deg,#1d4ed8,#2563eb)" : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${plan.popular ? "rgba(37,99,235,0.6)" : plan.isAgency ? "rgba(124,58,237,0.2)" : "rgba(255,255,255,0.08)"}`,
-                  borderRadius: 20, padding: 28, position: "relative",
-                  transform: plan.popular ? "scale(1.03)" : "none",
-                  boxShadow: plan.popular ? "0 30px 80px rgba(37,99,235,0.3)" : "none"
-                }}>
-                  {plan.popular && (
-                    <div style={{
-                      position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)",
-                      background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#1c1917",
-                      fontSize: 11, fontWeight: 900, padding: "4px 14px", borderRadius: 999, whiteSpace: "nowrap"
-                    }}>Beliebtester Plan</div>
-                  )}
+                background: plan.popular ? "linear-gradient(135deg,#1d4ed8,#2563eb)" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${plan.popular ? "rgba(37,99,235,0.6)" : plan.isAgency ? "rgba(124,58,237,0.2)" : "rgba(255,255,255,0.08)"}`,
+                borderRadius: 20, padding: 28, position: "relative",
+                transform: plan.popular ? "scale(1.03)" : "none",
+                boxShadow: plan.popular ? "0 30px 80px rgba(37,99,235,0.3)" : "none"
+              }}>
+                  {plan.popular &&
+                <div style={{
+                  position: "absolute", top: -14, left: "50%", transform: "translateX(-50%)",
+                  background: "linear-gradient(135deg,#f59e0b,#d97706)", color: "#1c1917",
+                  fontSize: 11, fontWeight: 900, padding: "4px 14px", borderRadius: 999, whiteSpace: "nowrap"
+                }}>Beliebtester Plan</div>
+                }
                   <div style={{ fontSize: 17, fontWeight: 800, color: "white", marginBottom: 4 }}>{plan.name}</div>
                   <div style={{ fontSize: 13, color: plan.popular ? "rgba(147,197,253,0.8)" : "rgba(148,163,184,1)", marginBottom: 20, lineHeight: 1.5 }}>{plan.description}</div>
                   <div style={{ marginBottom: 24 }}>
-                    {plan.isAgency ? (
-                      <span style={{ fontSize: 20, fontWeight: 800, color: "white" }}>Individuelle Preisgestaltung</span>
-                    ) : (
-                      <><span style={{ fontSize: 40, fontWeight: 900, color: "white" }}>€{plan.price}</span><span style={{ fontSize: 13, color: plan.popular ? "rgba(147,197,253,0.7)" : "rgba(148,163,184,1)", marginLeft: 4 }}>/Monat</span></>
-                    )}
+                    {plan.isAgency ?
+                  <span style={{ fontSize: 20, fontWeight: 800, color: "white" }}>Individuelle Preisgestaltung</span> :
+
+                  <><span style={{ fontSize: 40, fontWeight: 900, color: "white" }}>€{plan.price}</span><span style={{ fontSize: 13, color: plan.popular ? "rgba(147,197,253,0.7)" : "rgba(148,163,184,1)", marginLeft: 4 }}>/Monat</span></>
+                  }
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-                    {plan.features.map(f => (
-                      <div key={f} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: plan.popular ? "rgba(191,219,254,1)" : "rgba(148,163,184,1)" }}>
+                    {plan.features.map((f) =>
+                  <div key={f} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 13, color: plan.popular ? "rgba(191,219,254,1)" : "rgba(148,163,184,1)" }}>
                         <Check size={14} color={plan.popular ? "rgba(147,197,253,0.8)" : "#22c55e"} strokeWidth={2.5} style={{ flexShrink: 0, marginTop: 1 }} />
                         {f}
                       </div>
-                    ))}
+                  )}
                   </div>
                   <button
-                    onClick={() => handleCheckout(plan)}
-                    disabled={loading === plan.name}
-                    style={{
-                      width: "100%", padding: "13px", borderRadius: 12,
-                      background: plan.popular ? "white" : plan.isAgency ? "rgba(124,58,237,0.12)" : "rgba(255,255,255,0.06)",
-                      border: plan.popular ? "none" : plan.isAgency ? "1px solid rgba(124,58,237,0.25)" : "1px solid rgba(255,255,255,0.1)",
-                      color: plan.popular ? "#1d4ed8" : plan.isAgency ? "#a78bfa" : "white",
-                      fontWeight: plan.popular ? 800 : 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
-                      opacity: loading === plan.name ? 0.5 : 1, transition: "all 0.2s"
-                    }}
-                  >
+                  onClick={() => handleCheckout(plan)}
+                  disabled={loading === plan.name}
+                  style={{
+                    width: "100%", padding: "13px", borderRadius: 12,
+                    background: plan.popular ? "white" : plan.isAgency ? "rgba(124,58,237,0.12)" : "rgba(255,255,255,0.06)",
+                    border: plan.popular ? "none" : plan.isAgency ? "1px solid rgba(124,58,237,0.25)" : "1px solid rgba(255,255,255,0.1)",
+                    color: plan.popular ? "#1d4ed8" : plan.isAgency ? "#a78bfa" : "white",
+                    fontWeight: plan.popular ? 800 : 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit",
+                    opacity: loading === plan.name ? 0.5 : 1, transition: "all 0.2s"
+                  }}>
+                  
                     {loading === plan.name ? "Wird geladen..." : plan.cta}
                   </button>
                 </div>
               </RevealOnScroll>
-            ))}
+            )}
           </div>
 
           <RevealOnScroll delay={200}>
@@ -713,8 +713,8 @@ export default function Landing() {
                 fontSize: 17, padding: "18px 40px", borderRadius: 14, border: "none", cursor: "pointer",
                 display: "inline-flex", alignItems: "center", gap: 10, fontFamily: "inherit",
                 boxShadow: "0 0 40px rgba(37,99,235,0.5)", transition: "all 0.3s"
-              }}
-            >
+              }}>
+              
               14 Tage kostenlos testen →
             </button>
             <p style={{ color: "rgba(100,116,139,1)", fontSize: 14, marginTop: 20 }}>
@@ -741,6 +741,6 @@ export default function Landing() {
       </footer>
 
       <AgencyDemoModal isOpen={showAgencyModal} onClose={() => setShowAgencyModal(false)} />
-    </div>
-  );
+    </div>);
+
 }
