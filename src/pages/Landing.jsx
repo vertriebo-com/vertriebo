@@ -253,7 +253,10 @@ export default function Landing() {
         /* Mobile Optimizations */
         @media (max-width: 768px) {
           .feature-grid { grid-template-columns: 1fr !important; }
-          .navbar-mobile { padding-top: env(safe-area-inset-top, 0px); }
+          .navbar-mobile { padding-top: env(safe-area-inset-top, 0px) !important; }
+        }
+        @media (min-width: 769px) {
+          .desktop-nav { display: flex !important; }
         }
         @media (min-width: 769px) and (max-width: 1024px) {
           .feature-grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -282,21 +285,21 @@ export default function Landing() {
       {/* NAVBAR - Premium Header with Mobile Safe Area */}
       <nav className="navbar-mobile" style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
-        background: scrolled || isMobile ? "rgba(2,6,23,0.98)" : "transparent",
-        backdropFilter: scrolled || isMobile ? "blur(20px)" : "none",
-        borderBottom: scrolled || isMobile ? "1px solid rgba(255,255,255,0.08)" : "none",
+        background: "rgba(2,6,23,0.98)",
+        backdropFilter: "blur(20px)",
+        borderBottom: "1px solid rgba(255,255,255,0.08)",
         transition: "all 0.3s",
-        paddingTop: isMobile ? "env(safe-area-inset-top, 0px)" : "0",
-        minHeight: isMobile ? 70 : 70
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        minHeight: 70
       }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: isMobile ? "0 16px" : "0 24px", height: 70, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 16px", height: 70, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {/* Logo Links - Groß und klar sichtbar */}
           <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0 }}>
             <VertrieboLogo size="lg" className="" />
           </a>
           
           {/* Center Navigation - Hidden on mobile, shown on desktop */}
-          <div style={{ display: isMobile ? "none" : "flex", alignItems: "center", gap: 40, flex: 1, justifyContent: "center", marginLeft: 40 }}>
+          <div className="desktop-nav" style={{ display: "none", alignItems: "center", gap: 40, flex: 1, justifyContent: "center", marginLeft: 40 }}>
             <button
               onClick={() => scrollToSection("how-it-works")}
               style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
