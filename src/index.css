@@ -28,9 +28,14 @@
     --muted: 210 40% 96%;
     --muted-foreground: 217 19% 35%; /* #475569 - dunkler für besseren Kontrast */
     
-    /* Accent - Teal/Green for success */
-    --accent: 160 84% 39%;
+    /* Accent - Violet for gradients/highlights (from landing preview) */
+    --accent: 262 78% 57%; /* #7c3aed */
     --accent-foreground: 0 0% 100%;
+    
+    /* Premium colors for landing page */
+    --violet: 262 78% 57%; /* #7c3aed */
+    --gold: 34 50% 64%; /* #d4a574 */
+    --dark-premium: 220 90% 4%; /* #020617 */
     
     /* Destructive */
     --destructive: 0 84% 60%;
@@ -60,39 +65,43 @@
     --sidebar-border: 217 19% 15%;
     --sidebar-ring: 221 83% 53%;
     
-    /* Success & Warning */
-    --success: 160 84% 39%;
+    /* Success & Warning (aligned with landing preview) */
+    --success: 140 71% 46%; /* #22c55e */
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
+    --warning: 38 92% 50%; /* #f59e0b */
     --warning-foreground: 0 0% 100%;
   }
 
   .dark {
-    /* Keep dark mode for future use */
-    --background: 222 47% 6%;
-    --foreground: 210 40% 96%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 96%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 221 83% 53%;
+    /* Premium Dark Mode - Landing Page Theme */
+    --background: 220 90% 4%;   /* #020617 */
+    --foreground: 0 0% 100%;
+    --card: 220 90% 8%;
+    --card-foreground: 217 19% 80%;
+    --popover: 220 90% 8%;
+    --popover-foreground: 217 19% 80%;
+    --primary: 221 83% 53%;    /* #2563EB */
     --primary-foreground: 0 0% 100%;
-    --secondary: 217 19% 18%;
-    --secondary-foreground: 210 40% 96%;
+    --secondary: 262 78% 57%;  /* #7c3aed Violet */
+    --secondary-foreground: 0 0% 100%;
     --muted: 217 19% 18%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 19% 23%;
-    --accent-foreground: 210 40% 96%;
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 210 40% 96%;
+    --muted-foreground: 217 19% 65%;
+    --accent: 34 50% 64%;      /* #d4a574 Gold */
+    --accent-foreground: 220 90% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
     --border: 217 19% 18%;
-    --input: 217 19% 18%;
+    --input: 220 90% 8%;
     --ring: 221 83% 53%;
-    --sidebar-background: 222 47% 6%;
+    --success: 140 71% 46%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --sidebar-background: 220 90% 4%;
     --sidebar-foreground: 210 40% 96%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 19% 12%;
+    --sidebar-accent: 217 19% 15%;
     --sidebar-accent-foreground: 210 40% 96%;
     --sidebar-border: 217 19% 18%;
     --sidebar-ring: 221 83% 53%;
