@@ -9,6 +9,7 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import ResearchRunDiagnostics from '@/components/platform-admin/ResearchRunDiagnostics';
 import LeadScoringDiagnostics from '@/components/platform-admin/LeadScoringDiagnostics';
+import LeadEngineDryTest from '@/components/platform-admin/LeadEngineDryTest';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -974,6 +975,9 @@ export default function PlatformAdmin() {
                   userEmail={currentUser?.email}
                   orgId={currentUser ? organizations.find(o => o.owner_email === currentUser.email)?.id : null}
                 />
+              </div>
+              <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                <LeadEngineDryTest userRole={currentUser?.role} />
               </div>
             </div>
           </TabsContent>
