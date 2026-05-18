@@ -253,7 +253,7 @@ export default function Landing() {
         /* Mobile Optimizations */
         @media (max-width: 768px) {
           .feature-grid { grid-template-columns: 1fr !important; }
-          .navbar-mobile { padding-top: env(safe-area-inset-top, 0px) !important; }
+          .navbar-mobile { padding-top: max(env(safe-area-inset-top, 0px), 16px) !important; }
         }
         @media (min-width: 769px) {
           .desktop-nav { display: flex !important; }
@@ -289,9 +289,9 @@ export default function Landing() {
         backdropFilter: "blur(20px)",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         transition: "all 0.3s",
-        paddingTop: "env(safe-area-inset-top, 16px)"
+        paddingTop: "max(env(safe-area-inset-top, 0px), 16px)"
       }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 16px", height: 70, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 16px", minHeight: 70, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {/* Logo Links - Groß und klar sichtbar */}
           <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0, height: 48 }}>
             <VertrieboLogo size="md" className="" />
