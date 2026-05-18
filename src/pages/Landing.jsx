@@ -216,8 +216,17 @@ export default function Landing() {
       const org = orgs?.[0];
       if (!org) {window.location.href = `/onboarding?plan_id=${plan.planId}&plan_name=${encodeURIComponent(plan.name)}`;return;}
       const res = await base44.functions.invoke("createCheckoutSession", { organization_id: org.id, plan_id: plan.planId });
-      if (res.data?.url) window.location.href = res.data.url;else
-      toast.error(res.data?.error || "Kein Checkout-Link erhalten.");
+      if (res.data?.url) {
+        window.location.href = res.data.url;
+      } else if (res.data?.subscription_status) {
+        // Aktive Subscription vorhanden → Kundenportal öffnen
+        toast.info("Sie haben bereits ein aktives Abo. Sie werden zum Kundenportal weitergeleitet...");
+        const portalRes = await base44.functions.invoke("createPortalSession", { organization_id: org.id });
+        if (portalRes.data?.url) window.location.href = portalRes.data.url;
+        else window.location.href = "/settings";
+      } else {
+        toast.error(res.data?.error || "Kein Checkout-Link erhalten.");
+      }
     } catch (e) {
       toast.error("Fehler beim Starten des Checkouts: " + e.message);
     }
