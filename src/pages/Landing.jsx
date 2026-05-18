@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Check, Zap, ArrowRight, ChevronDown, Star, MapPin, Target, Phone, Mail, Users, TrendingUp, Shield, Brain, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
@@ -72,6 +72,32 @@ const FEATURES = [
   { icon: "📊", title: "Echtzeit-Erfolgsquoten", desc: "Sehen Sie sofort, wie Ihr Team performt: Quote pro Vertriebler, beste Branchen, ROI der Recherche.", color: "border-rose-500/20 bg-rose-500/5" },
 ];
 
+// Stable Particles Component
+const Particles = () => {
+  const particles = useMemo(() => {
+    return Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      duration: 5 + Math.random() * 10,
+      delay: Math.random() * 5
+    }));
+  }, []);
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, overflow: "hidden" }}>
+      {particles.map(p => (
+        <div key={p.id} style={{
+          position: "absolute", width: 4, height: 4, background: "rgba(37,99,235,0.3)", borderRadius: "50%",
+          left: `${p.left}%`, top: `${p.top}%`,
+          animation: `float ${p.duration}s ease-in-out infinite`,
+          animationDelay: `${p.delay}s`,
+          filter: "blur(1px)"
+        }} />
+      ))}
+    </div>
+  );
+};
+
 const INDUSTRIES = [
   { icon: "🏢", name: "Gebäudereinigung" }, { icon: "🛡️", name: "Sicherheitsdienst" }, { icon: "🏠", name: "Facility Service" }, { icon: "📦", name: "Entrümpelung" },
   { icon: "🔨", name: "Handwerk" }, { icon: "💻", name: "IT-Service" }, { icon: "🌿", name: "Gartenbau" }, { icon: "🚚", name: "Spedition" },
@@ -81,18 +107,18 @@ const INDUSTRIES = [
 
 // Reveal Animation Component
 const RevealOnScroll = ({ children, delay = 0 }) => {
+  const ref = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => {
       if (entry.isIntersecting) { setIsVisible(true); observer.disconnect(); }
     }, { threshold: 0.1 });
-    const el = document.getElementById(`reveal-${delay}`);
-    if (el) observer.observe(el);
+    if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
-  }, [delay]);
+  }, []);
   return (
     <div
-      id={`reveal-${delay}`}
+      ref={ref}
       style={{
         opacity: isVisible ? 1 : 0,
         transform: isVisible ? "translateY(0)" : "translateY(30px)",
@@ -160,25 +186,13 @@ export default function Landing() {
       }} />
 
       {/* FLOATING PARTICLES */}
-      <div style={{
-        position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, overflow: "hidden"
-      }}>
-        {[...Array(20)].map((_, i) => (
-          <div key={i} style={{
-            position: "absolute", width: 4, height: 4, background: "rgba(37,99,235,0.3)", borderRadius: "50%",
-            left: `${Math.random() * 100}%`, top: `${Math.random() * 100}%`,
-            animation: `float ${5 + Math.random() * 10}s ease-in-out infinite`,
-            animationDelay: `${Math.random() * 5}s`,
-            filter: "blur(1px)"
-          }} />
-        ))}
-      </div>
+      <Particles />
       <style>{`
         @keyframes float {
           0%, 100% { transform: translate(0, 0); opacity: 0.3; }
-          25% { transform: translate(${20 + Math.random() * 30}px, ${-30 - Math.random() * 20}px); opacity: 0.6; }
-          50% { transform: translate(${-(20 + Math.random() * 30)}px, ${-60 - Math.random() * 40}px); opacity: 0.4; }
-          75% { transform: translate(${20 + Math.random() * 30}px, ${-30 - Math.random() * 20}px); opacity: 0.6; }
+          25% { transform: translate(30px, -40px); opacity: 0.6; }
+          50% { transform: translate(-25px, -70px); opacity: 0.4; }
+          75% { transform: translate(35px, -35px); opacity: 0.6; }
         }
         @keyframes shimmer {
           0% { background-position: -200% center; }
@@ -250,9 +264,11 @@ export default function Landing() {
           backgroundSize: "48px 48px"
         }} />
 
-        <div style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", padding: "0 24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, alignItems: "center" }}>
-          {/* Left: Content */}
-          <div>
+        <div style={{ position: "relative", zIndex: 2, maxWidth: 1200, margin: "0 auto", padding: "0 24px" }}>
+          {/* Responsive Grid: 1 column mobile, 2 columns tablet+ */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 48, alignItems: "center" }}>
+            {/* Left: Content */}
+            <div>
             {/* Badge */}
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 999,
@@ -431,6 +447,108 @@ export default function Landing() {
                     <button style={{ padding: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(148,163,184,1)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                       📝 Kontakt loggen
                     </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: App Mockup */}
+            <div style={{ position: "relative" }}>
+              <div style={{
+                background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20,
+                overflow: "hidden", boxShadow: "0 40px 120px rgba(0,0,0,0.8),0 0 0 1px rgba(37,99,235,0.2)"
+              }}>
+                {/* Browser Chrome */}
+                <div style={{ background: "#0f172a", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "rgba(239,68,68,0.6)" }} />
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "rgba(245,158,11,0.6)" }} />
+                    <div style={{ width: 12, height: 12, borderRadius: "50%", background: "rgba(34,197,94,0.6)" }} />
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(100,116,139,1)", fontFamily: "monospace" }}>app.vertriebo.de/dashboard</div>
+                  <div style={{ width: 40 }} />
+                </div>
+
+                {/* App Content */}
+                <div style={{ background: "#0c1428", display: "flex", minHeight: 400 }}>
+                  {/* Mini Sidebar */}
+                  <div style={{ width: 56, background: "#080e1e", borderRight: "1px solid rgba(255,255,255,0.05)", display: "flex", flexDirection: "column", alignItems: "center", padding: "16px 0", gap: 16 }}>
+                    <div style={{ width: 32, height: 32, background: "linear-gradient(135deg,#2563eb,#7c3aed)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ color: "white", fontWeight: 900, fontSize: 14 }}>V</span>
+                    </div>
+                    {[1,2,3,4,5].map(i => (
+                      <div key={i} style={{ width: 20, height: 20, background: i === 1 ? "rgba(37,99,235,0.15)" : "transparent", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", border: i === 1 ? "1px solid rgba(37,99,235,0.3)" : "none" }}>
+                        <div style={{ width: 10, height: 10, background: i === 1 ? "#3b82f6" : "rgba(71,85,105,0.5)", borderRadius: 2 }} />
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Main Dashboard */}
+                  <div style={{ flex: 1, padding: 16 }}>
+                    {/* Stats Row */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
+                      <div style={{ background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: 10, padding: 12 }}>
+                        <p style={{ fontSize: 9, fontWeight: 700, color: "#93c5fd", textTransform: "uppercase", marginBottom: 4 }}>Heute fällig</p>
+                        <p style={{ fontSize: 24, fontWeight: 900, color: "#60a5fa" }}>12</p>
+                        <p style={{ fontSize: 9, color: "rgba(100,116,139,1)" }}>Rückrufe</p>
+                      </div>
+                      <div style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 10, padding: 12 }}>
+                        <p style={{ fontSize: 9, fontWeight: 700, color: "#86efac", textTransform: "uppercase", marginBottom: 4 }}>Offen</p>
+                        <p style={{ fontSize: 24, fontWeight: 900, color: "#4ade80" }}>47</p>
+                        <p style={{ fontSize: 9, color: "rgba(100,116,139,1)" }}>Leads</p>
+                      </div>
+                      <div style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.2)", borderRadius: 10, padding: 12 }}>
+                        <p style={{ fontSize: 9, fontWeight: 700, color: "#c4b5fd", textTransform: "uppercase", marginBottom: 4 }}>Woche</p>
+                        <p style={{ fontSize: 24, fontWeight: 900, color: "#a78bfa" }}>23</p>
+                        <p style={{ fontSize: 9, color: "rgba(100,116,139,1)" }}>Anrufe</p>
+                      </div>
+                    </div>
+
+                    {/* Prioritized Leads */}
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(148,163,184,1)", display: "flex", alignItems: "center", gap: 4 }}>
+                          <Star size={10} fill="#fbbf24" color="#fbbf24" /> Priorisierte Leads
+                        </p>
+                        <button style={{ fontSize: 9, fontWeight: 700, color: "#60a5fa", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>Alle →</button>
+                      </div>
+
+                      {/* Lead 1 - High Priority */}
+                      <div style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 10, padding: 12, marginBottom: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                          <p style={{ fontSize: 9, fontWeight: 700, color: "#f87171", textTransform: "uppercase" }}>Priorität: Hoch</p>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "#f87171", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", padding: "2px 8px", borderRadius: 999 }}>Rückruf</span>
+                        </div>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: "white", marginBottom: 4 }}>Schmidt Gebäudereinigung GmbH</p>
+                        <p style={{ fontSize: 10, color: "rgba(100,116,139,1)", marginBottom: 8 }}>Berlin · Gebäudereinigung</p>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                          <span style={{ fontSize: 9, color: "rgba(100,116,139,1)" }}>Letzter Kontakt: Gestern</span>
+                        </div>
+                        <button style={{ width: "100%", padding: "8px", background: "linear-gradient(135deg,#22c55e,#16a34a)", border: "none", borderRadius: 8, color: "white", fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontFamily: "inherit" }}>
+                          <Phone size={10} /> Nächsten anrufen
+                        </button>
+                      </div>
+
+                      {/* Lead 2 */}
+                      <div style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.12)", borderRadius: 10, padding: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                          <p style={{ fontSize: 9, fontWeight: 700, color: "#fbbf24", textTransform: "uppercase" }}>Priorität: Hoch</p>
+                          <span style={{ fontSize: 9, fontWeight: 700, color: "#60a5fa", background: "rgba(37,99,235,0.12)", border: "1px solid rgba(37,99,235,0.2)", padding: "2px 8px", borderRadius: 999 }}>Erstkontakt</span>
+                        </div>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: "white" }}>Hausmeisterdienst Müller</p>
+                        <p style={{ fontSize: 9, color: "rgba(100,116,139,1)" }}>Potsdam · Noch nie kontaktiert</p>
+                      </div>
+                    </div>
+
+                    {/* Quick Actions */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                      <button style={{ padding: "8px", background: "rgba(37,99,235,0.15)", border: "1px solid rgba(37,99,235,0.3)", borderRadius: 8, color: "#93c5fd", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                        📞 Anrufen
+                      </button>
+                      <button style={{ padding: "8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(148,163,184,1)", fontSize: 9, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                        📝 Kontakt loggen
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

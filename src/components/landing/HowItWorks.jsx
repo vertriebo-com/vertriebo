@@ -24,67 +24,41 @@ const HOW_IT_WORKS = [
   },
 ];
 
-const FEATURES = [
-  {
-    icon: Building2,
-    title: "Firmenkontakte automatisch finden",
-    desc: "Ihr Team sieht täglich neue, passende Firmenkontakte – ohne manuelle Suche.",
-  },
-  {
-    icon: Target,
-    title: "Ihr Team weiß, wen es zuerst anrufen sollte",
-    desc: "KI-basiertes Scoring zeigt die vielversprechendsten Leads priorisiert an.",
-  },
-  {
-    icon: Phone,
-    title: "Rückrufe und Follow-ups landen automatisch als Aufgabe",
-    desc: "Nichts geht mehr verloren. Das System erinnert an jeden wichtigen Kontakt.",
-  },
-  {
-    icon: Mail,
-    title: "Professionelle E-Mails mit Ihrem Logo",
-    desc: "Vorgefertigte Vorlagen für Erstkontakt, Angebote und Nachfassen.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Sie sehen genau, was Ihr Team leistet",
-    desc: "Reports zeigen Anrufe, gewonnene Leads und Conversion-Raten auf einen Blick.",
-  },
-  {
-    icon: Users,
-    title: "Jeder sieht nur seine Leads",
-    desc: "Mandantentrennung und rollenbasierte Zugriffe schützen Ihre Daten.",
-  },
-];
-
 export default function HowItWorks() {
   return (
-    <div className="bg-white py-20">
-      <div className="max-w-6xl mx-auto px-6">
-        <h2 className="text-3xl font-bold text-center mb-4 text-slate-900">So funktioniert Vertriebo in 3 Schritten</h2>
-        <p className="text-center text-slate-600 mb-12 max-w-2xl mx-auto">
-          Einfach, klar, effektiv. Ohne komplizierte Einrichtung.
-        </p>
+    <div style={{ background: "#080e1e", padding: "80px 24px", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 56 }}>
+          <h2 style={{ fontSize: "clamp(28px,5vw,40px)", fontWeight: 900, color: "white", lineHeight: 1.2, marginBottom: 16 }}>
+            So funktioniert Vertriebo in 3 Schritten
+          </h2>
+          <p style={{ fontSize: 16, color: "rgba(148,163,184,1)", maxWidth: 700, margin: "0 auto" }}>
+            Einfach, klar, effektiv. Ohne komplizierte Einrichtung.
+          </p>
+        </div>
         
-        <div className="grid md:grid-cols-3 gap-8">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 24 }}>
           {HOW_IT_WORKS.map((item, i) => {
             const Icon = item.icon;
-            const bgColor = item.color === "blue" ? "bg-blue-50" : item.color === "emerald" ? "bg-emerald-50" : "bg-purple-50";
-            const iconColor = item.color === "blue" ? "text-blue-600" : item.color === "emerald" ? "text-emerald-600" : "text-purple-600";
-            const borderColor = item.color === "blue" ? "border-blue-200" : item.color === "emerald" ? "border-emerald-200" : "border-purple-200";
+            const bgColor = item.color === "blue" ? "rgba(37,99,235,0.08)" : item.color === "emerald" ? "rgba(34,197,94,0.08)" : "rgba(139,92,246,0.08)";
+            const iconColor = item.color === "blue" ? "#60a5fa" : item.color === "emerald" ? "#4ade80" : "#a78bfa";
+            const borderColor = item.color === "blue" ? "rgba(37,99,235,0.2)" : item.color === "emerald" ? "rgba(34,197,94,0.2)" : "rgba(139,92,246,0.2)";
             
             return (
-              <div key={i} className="relative">
+              <div key={i} style={{ position: "relative" }}>
                 {i < HOW_IT_WORKS.length - 1 && (
-                  <div className="hidden md:block absolute top-12 left-full w-full h-0.5 bg-gradient-to-r from-slate-200 to-transparent -translate-x-1/2 z-0" />
+                  <div style={{ display: "none", position: "absolute", top: 48, left: "100%", width: "100%", height: 2, background: "linear-gradient(90deg,rgba(255,255,255,0.1),transparent)", transform: "translateX(-50%)", zIndex: 0 }} />
                 )}
-                <div className={`relative z-10 bg-white border-2 ${borderColor} rounded-xl p-6 text-center hover:shadow-lg transition-shadow`}>
-                  <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${bgColor} flex items-center justify-center`}>
-                    <Icon className={`w-8 h-8 ${iconColor}`} />
+                <div style={{
+                  position: "relative", zIndex: 1, background: "rgba(255,255,255,0.03)", border: `1px solid ${borderColor}`,
+                  borderRadius: 20, padding: 32, textAlign: "center", transition: "all 0.3s"
+                }}>
+                  <div style={{ width: 64, height: 64, borderRadius: "50%", background: bgColor, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+                    <Icon style={{ width: 32, height: 32, color: iconColor }} />
                   </div>
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">{item.step}</p>
-                  <h3 className="font-bold text-slate-900 mb-3">{item.title}</h3>
-                  <p className="text-sm text-slate-600 leading-relaxed">{item.desc}</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(100,116,139,1)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>{item.step}</p>
+                  <h3 style={{ fontSize: 17, fontWeight: 800, color: "white", marginBottom: 10 }}>{item.title}</h3>
+                  <p style={{ fontSize: 14, color: "rgba(148,163,184,1)", lineHeight: 1.7 }}>{item.desc}</p>
                 </div>
               </div>
             );
