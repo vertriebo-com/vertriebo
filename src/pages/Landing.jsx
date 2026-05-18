@@ -206,6 +206,11 @@ export default function Landing() {
       return;
     }
     setLoading(plan.name);
+    const isAuthed = await base44.auth.isAuthenticated().catch(() => false);
+    if (!isAuthed) {
+      base44.auth.redirectToLogin(`${window.location.origin}/onboarding?plan_id=${plan.planId}&plan_name=${encodeURIComponent(plan.name)}`);
+      return;
+    }
     const user = await base44.auth.me().catch(() => null);
     if (!user) {
       base44.auth.redirectToLogin(`${window.location.origin}/onboarding?plan_id=${plan.planId}&plan_name=${encodeURIComponent(plan.name)}`);
