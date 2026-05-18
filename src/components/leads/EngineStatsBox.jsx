@@ -16,7 +16,7 @@
  */
 
 import { useMemo } from "react";
-import { Zap } from "lucide-react";
+import { Zap, Flame } from "lucide-react";
 
 // Safe temperature getter
 function getSafeTemperature(temp) {
@@ -82,94 +82,86 @@ function EngineStatsBox({ companies, onAnalyzeLatest, analyzingLatest = false, l
   }
 
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-sm">
-      <div className="p-5 border-b border-[#E2E8F0]">
-        <div className="flex items-center gap-2 mb-4">
-          <Zap className="w-4 h-4 text-purple-600" />
-          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">Vertriebo Engine Status</h3>
+    <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm overflow-hidden">
+      <div className="px-5 py-4 border-b border-[#E2E8F0] bg-gradient-to-r from-purple-50/50 to-blue-50/50">
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center shadow-sm">
+            <Zap className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Vertriebo Engine Status</h3>
+            <p className="text-xs text-slate-600">{companies.length} Leads geladen · {hot + warm} priorisiert</p>
+          </div>
         </div>
-        <p className="text-xs text-slate-600 mb-3">Status der {companies.length} aktuell geladenen Kontakte</p>
-        <p className="text-[10px] text-slate-500 mb-3 leading-relaxed">Die Übersicht basiert auf den aktuell geladenen Leads. Weitere Kontakte werden beim Nachladen berücksichtigt.</p>
 
-        {/* Temperatur-Stats */}
+        {/* Temperatur-Stats - Modernized */}
         <div className="grid grid-cols-4 gap-2">
           {/* Hot */}
-          <div className="bg-gradient-to-br from-red-50 to-orange-50 border-2 border-red-200 rounded-lg p-2.5 text-center">
-            <p className="text-xl font-black text-red-600">{hot}</p>
-            <p className="text-[9px] font-bold uppercase text-red-700 mt-0.5">Heiß</p>
-            <p className="text-[8px] text-red-600 mt-0.5">🔥</p>
+          <div className="bg-gradient-to-br from-red-50 to-orange-50 border border-red-200 rounded-xl p-3 text-center">
+            <p className="text-2xl font-bold text-red-600">{hot}</p>
+            <p className="text-[10px] font-bold text-red-700 mt-0.5">Heiß</p>
           </div>
 
           {/* Warm */}
-          <div className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 rounded-lg p-2.5 text-center">
-            <p className="text-xl font-black text-amber-600">{warm}</p>
-            <p className="text-[9px] font-bold uppercase text-amber-700 mt-0.5">Warm</p>
-            <p className="text-[8px] text-amber-600 mt-0.5">⏱️</p>
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-3 text-center">
+            <p className="text-2xl font-bold text-amber-600">{warm}</p>
+            <p className="text-[10px] font-bold text-amber-700 mt-0.5">Warm</p>
           </div>
 
           {/* Cold */}
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-300 rounded-lg p-2.5 text-center">
-            <p className="text-xl font-black text-slate-600">{cold}</p>
-            <p className="text-[9px] font-bold uppercase text-slate-700 mt-0.5">Kalt</p>
-            <p className="text-[8px] text-slate-600 mt-0.5">❄️</p>
+          <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-200 rounded-xl p-3 text-center">
+            <p className="text-2xl font-bold text-slate-600">{cold}</p>
+            <p className="text-[10px] font-bold text-slate-700 mt-0.5">Kalt</p>
           </div>
 
           {/* Unanalysiert */}
-          <div className="bg-gradient-to-br from-gray-100 to-gray-50 border-2 border-gray-300 rounded-lg p-2.5 text-center">
-            <p className="text-xl font-black text-gray-600">{unanalyzed}</p>
-            <p className="text-[9px] font-bold uppercase text-gray-700 mt-0.5">Nicht analysiert</p>
-            <p className="text-[8px] text-gray-600 mt-0.5">⏳</p>
+          <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-xl p-3 text-center">
+            <p className="text-2xl font-bold text-gray-500">{unanalyzed}</p>
+            <p className="text-[10px] font-bold text-gray-600 mt-0.5">Offen</p>
           </div>
         </div>
       </div>
 
-      {/* Top Leads oder "Noch keine Analysen" */}
+      {/* Top Leads */}
       <div className="border-t border-[#E2E8F0]">
         {topLeads.length > 0 ? (
-          <>
-            <div className="px-5 py-3 bg-slate-50 border-b border-[#E2E8F0]">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-700">
-                {hot + warm > 0 ? "Analysierte Leads mit höchster Priorität" : "Analysierte Leads mit höchster Priorität"}
-              </p>
+          <div className="px-5 py-3">
+            <div className="flex items-center gap-2 mb-3">
+              <Flame className="w-4 h-4 text-orange-500" />
+              <p className="text-xs font-bold text-slate-700 uppercase tracking-wide">Top {topLeads.length} Leads</p>
             </div>
-            <div className="divide-y divide-[#E2E8F0]">
-             {topLeads.map((company) => {
-                const tempColor = company.analysis?.temperature === "Hot" ? "#fca5a5" : "#fcd34d";
-                const tempBg = company.analysis?.temperature === "Hot" ? "#fef2f2" : "#fffbeb";
-                const tempText = company.analysis?.temperature === "Hot" ? "#991b1b" : "#92400e";
-                const reason = company.analysis?.reason || "Engine-Analyse vorhanden";
-
+            <div className="space-y-2">
+              {topLeads.map((company, idx) => {
+                const isHot = company.analysis?.temperature === "Hot";
                 return (
-                  <div key={company.id} className="px-5 py-3 hover:bg-slate-50 transition-colors">
-                    <div className="flex items-start justify-between gap-2">
+                  <div key={company.id} className="flex items-center justify-between p-3 rounded-xl border bg-white hover:shadow-sm transition-all">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold ${isHot ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {idx + 1}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-slate-900 truncate">{company.name}</p>
                         <p className="text-xs text-slate-600 truncate">{company.branche}</p>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[10px] font-bold"
-                          style={{
-                            borderColor: tempColor,
-                            backgroundColor: tempBg,
-                            color: tempText
-                          }}>
-                          {company.analysis?.temperature}
-                        </div>
-                        <p className="text-xs font-bold text-slate-900 mt-1">{company.analysis?.score}</p>
-                      </div>
                     </div>
-                    <p className="text-xs text-slate-600 mt-1.5 leading-snug">
-                      {reason.length > 60 ? `${reason.substring(0, 60)}...` : reason}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <div className={`px-2.5 py-1 rounded-lg border text-xs font-bold ${isHot ? 'bg-red-50 text-red-700 border-red-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                        {company.analysis?.temperature}
+                      </div>
+                      <p className="text-sm font-bold text-slate-900 w-8 text-right">{company.analysis?.score}</p>
+                    </div>
                   </div>
                 );
               })}
             </div>
-          </>
+          </div>
         ) : (
-          <div className="px-5 py-6 text-center">
-            <p className="text-sm text-slate-600 font-medium mb-2">Noch keine priorisierten Leads gefunden</p>
-            <p className="text-xs text-slate-500 leading-relaxed">Analysieren Sie weitere Leads oder ergänzen Sie Kontaktinformationen, damit Vertriebo bessere Empfehlungen geben kann.</p>
+          <div className="px-5 py-8 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+              <Zap className="w-5 h-5 text-slate-400" />
+            </div>
+            <p className="text-sm font-semibold text-slate-700 mb-1">Noch keine analysierten Leads</p>
+            <p className="text-xs text-slate-500">Starten Sie die Analyse um priorisierte Empfehlungen zu erhalten</p>
           </div>
         )}
       </div>

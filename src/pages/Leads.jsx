@@ -384,16 +384,16 @@ export default function Leads() {
       {/* Pipeline Bar */}
       <PipelineBar companies={companies} activeStatus={statusFilter} onStatusClick={setStatusFilter} />
 
-      {/* Search + Actions */}
-      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm space-y-4">
+      {/* Search + Actions - Clean Filterbar */}
+      <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm p-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
               placeholder="Firma, Branche oder Ort suchen..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-white border border-[#E2E8F0] text-slate-900 placeholder:text-slate-500 focus:border-blue-400"
+              className="pl-9 bg-white border border-[#E2E8F0] text-slate-900 placeholder:text-slate-500 focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
             />
           </div>
           <Select value={sortBy} onValueChange={setSortBy}>
@@ -406,7 +406,7 @@ export default function Leads() {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="gap-2 bg-white border border-[#E2E8F0] text-slate-700 hover:bg-slate-50">
+          <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="gap-2 bg-white border border-[#E2E8F0] text-slate-700 hover:bg-slate-50 hover:text-slate-900">
             <Filter className="w-3.5 h-3.5" /> Filter
           </Button>
           <div className="flex-1" />
@@ -414,13 +414,13 @@ export default function Leads() {
             <Plus className="w-4 h-4" /> Neuer Lead
           </Button>
           <div className="relative">
-            <Button variant="outline" size="sm" onClick={() => setShowActions(!showActions)} className="gap-1.5 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">
+            <Button variant="outline" size="sm" onClick={() => setShowActions(!showActions)} className="gap-1.5 bg-white border border-[#E2E8F0] text-slate-700 hover:bg-slate-50">
               <MoreVertical className="w-3.5 h-3.5" /> Mehr
             </Button>
             {showActions && (
-              <div className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-full mt-2 z-50 w-48 bg-white border border-[#E2E8F0] rounded-xl shadow-xl overflow-hidden">
                 {isAdmin && (
-                  <a href="/import" onClick={() => setShowActions(false)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors border-b border-slate-100">
+                  <a href="/import" onClick={() => setShowActions(false)} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors border-b border-[#E2E8F0]">
                     <Upload className="w-4 h-4" /> CSV importieren
                   </a>
                 )}
@@ -434,7 +434,7 @@ export default function Leads() {
 
         {/* Extended Filters */}
         {showFilters && (
-          <div className="grid sm:grid-cols-3 gap-3 pt-3 border-t border-border">
+          <div className="grid sm:grid-cols-3 gap-3 pt-3 border-t border-[#E2E8F0]">
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
               <SelectTrigger><SelectValue placeholder="Priorität" /></SelectTrigger>
               <SelectContent>{["Alle","Hoch","Mittel","Niedrig"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
@@ -447,7 +447,7 @@ export default function Leads() {
               </SelectContent>
             </Select>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} className="w-4 h-4 rounded accent-primary" />
+              <input type="checkbox" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} className="w-4 h-4 rounded accent-blue-600" />
               Archivierte anzeigen
             </label>
           </div>

@@ -31,7 +31,7 @@ export default function FocusCards({ companies, activeFocus, onFilterClick }) {
   });
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
       {FOCUS_CARDS.map(card => {
         const Icon = card.icon;
         const isActive = activeFocus === card.value;
@@ -41,16 +41,16 @@ export default function FocusCards({ companies, activeFocus, onFilterClick }) {
           <button
             key={card.id}
             onClick={() => onFilterClick(isActive ? null : card.value)}
-            className={`bg-white border-2 transition-all duration-200 rounded-xl p-4 hover:shadow-md cursor-pointer ${
-              isActive ? "border-blue-500 shadow-md ring-1 ring-blue-500" : "border-[#E2E8F0] hover:border-blue-400"
+            className={`bg-white border transition-all duration-200 rounded-xl p-3.5 hover:shadow-md cursor-pointer ${
+              isActive ? "border-blue-500 shadow-md ring-1 ring-blue-500 bg-blue-50/50" : "border-[#E2E8F0] hover:border-blue-300"
             }`}
           >
-            <div className="flex items-center justify-between mb-2">
-              <div className={`w-9 h-9 rounded-lg ${card.iconBg} flex items-center justify-center shadow-sm`}>
+            <div className="flex items-center justify-between mb-2.5">
+              <div className={`w-9 h-9 rounded-xl ${card.iconBg} flex items-center justify-center shadow-sm`}>
                 <Icon className="w-4.5 h-4.5 text-white" />
               </div>
               {count > 0 && (
-                <span className="text-xl font-bold text-slate-900">{count}</span>
+                <span className={`text-xl font-bold ${isActive ? 'text-blue-600' : 'text-slate-900'}`}>{count}</span>
               )}
             </div>
             <div className="text-left">
