@@ -253,7 +253,6 @@ export default function Landing() {
         /* Mobile Optimizations */
         @media (max-width: 768px) {
           .feature-grid { grid-template-columns: 1fr !important; }
-          .navbar-mobile { padding-top: max(env(safe-area-inset-top, 0px), 16px) !important; }
         }
         @media (min-width: 769px) {
           .desktop-nav { display: flex !important; }
@@ -284,14 +283,25 @@ export default function Landing() {
 
       {/* NAVBAR - Premium Header with Mobile Safe Area */}
       <nav className="navbar-mobile" style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
         background: "rgba(2,6,23,0.98)",
         backdropFilter: "blur(20px)",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
-        transition: "all 0.3s",
-        paddingTop: "max(env(safe-area-inset-top, 0px), 16px)"
+        transition: "all 0.3s"
       }}>
-        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 16px", minHeight: 70, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ 
+          maxWidth: 1280, 
+          margin: "0 auto", 
+          padding: "16px 16px 0 16px",
+          minHeight: 70, 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "space-between" 
+        }}>
           {/* Logo Links - Groß und klar sichtbar */}
           <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0, height: 48 }}>
             <VertrieboLogo size="md" className="" />
@@ -352,7 +362,7 @@ export default function Landing() {
       <section style={{
         minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
         background: "#020617",
-        position: "relative", overflow: "hidden", paddingTop: isMobile ? 100 : 80
+        position: "relative", overflow: "hidden", paddingTop: isMobile ? 120 : 80
       }}>
         {/* Premium Background: Noise + Glows */}
         <div style={{
