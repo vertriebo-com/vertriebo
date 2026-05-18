@@ -365,6 +365,21 @@ export default function ResearchRunDiagnostics({ userRole, userEmail, orgId }) {
     }
   };
 
+  const filtered = useMemo(() => {
+    if (!hasAccess) return [];
+    return runs.filter(r => {
+      if (filterOrg !== 'all' && r.organization_id !== filterOrg) return false;
+      if (filterStatus !== 'all' && r.status !== filterStatus) return false;
+      if (searchText.trim()) {
+        const q = searchText.toLowerCase();
+        const orgName = (orgMap[r.organization_id] || '').toLowerCase();
+        const industry = (r.industry_id || '').toLowerCase();
+        if (!orgName.includes(q) && !industry.includes(q) && !r.id.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [hasAccess, runs, filterOrg, filterStatus, searchText, orgMap]);
+
   useEffect(() => { if (hasAccess) loadData(); }, [hasAccess]);
 
   // Kein Zugriff für normale Vertriebler — nach allen Hooks
@@ -379,20 +394,6 @@ export default function ResearchRunDiagnostics({ userRole, userEmail, orgId }) {
       </div>
     );
   }
-
-  const filtered = useMemo(() => {
-    return runs.filter(r => {
-      if (filterOrg !== 'all' && r.organization_id !== filterOrg) return false;
-      if (filterStatus !== 'all' && r.status !== filterStatus) return false;
-      if (searchText.trim()) {
-        const q = searchText.toLowerCase();
-        const orgName = (orgMap[r.organization_id] || '').toLowerCase();
-        const industry = (r.industry_id || '').toLowerCase();
-        if (!orgName.includes(q) && !industry.includes(q) && !r.id.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [runs, filterOrg, filterStatus, searchText, orgMap]);
 
   return (
     <div className="space-y-4">
