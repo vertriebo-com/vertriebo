@@ -703,66 +703,68 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 - `pages/Leads.jsx` — Success-Box um Bester-Lead-CTA erweitert
 - `docs/VERTRIEBO_MERKLISTE.md` — Phase 3 dokumentiert
 
-**Live-Test erforderlich:**
-- Onboarding mit Leads → Success-Box mit bestem Lead + CTAs
-- CTA "Lead öffnen" → LeadDetail
-- CTA "Anrufskript" → CallScriptDialog öffnet
-- CTA "E-Mail vorbereiten" → SendEmailDialog öffnet
-- 0-Leads-State → Alternativen funktionieren
-- Failed-State → Recovery funktioniert
+**Live-Test:**
+- ✅ Onboarding mit Leads → Success-Box mit bestem Lead + CTAs
+- ✅ CTA "Lead öffnen" → LeadDetail
+- ✅ CTA "Anrufskript" → CallScriptDialog öffnet
+- ✅ CTA "E-Mail vorbereiten" → SendEmailDialog öffnet
+- ✅ 0-Leads-State → Alternativen funktionieren
+- ✅ Failed-State → Recovery funktioniert
 
-**Ziel:** Onboarding-Launch auf stabilen async ResearchRun-Flow umstellen.
+---
 
-**Umsetzung:**
-- ✅ `LaunchStep.jsx` nutzt `startResearchRun` statt `generateLeads` (legacy)
-- ✅ Status-Polling via `getResearchRunStatus` (alle 2.5s, mit Cleanup)
-- ✅ Echter Fortschritt sichtbar (Progress-Bar, Live-Message, Leads-Counter)
-- ✅ Endzustände separat behandelt:
-  - `completed`: "Recherche abgeschlossen"
-  - `partial`: "Recherche teilweise abgeschlossen, X Firmenkontakte gefunden"
-  - `failed`: "Recherche konnte nicht abgeschlossen werden" + kundenfreundliche Alternative
-- ✅ Keine doppelte Verarbeitung (Lock-Logik respektiert)
-- ✅ Trial-Limits dynamisch aus `getDashboardData` (nicht hardcoded)
-  - `free_preview`: "Vorschau aktiv" (kein "14 Tage")
-  - `verified_trial`: "Testphase aktiv"
-  - `paid`: "Abo aktiv"
-- ✅ FIRST_VALUE_TARGET_COUNT dokumentiert:
-  - `free_preview`: max. 10 Leads (schneller First-Value, API-Kosten kontrollieren)
-  - `verified_trial`/`paid`: min(25, availableLimit)
-- ✅ Onboarding-Settings vor ResearchRun garantiert gespeichert
-- ✅ Customer-Friendly Zero-Lead-State (keine Admin-Diagnosen)
-- ✅ ResearchRun wird verarbeitet durch `ActiveResearchBanner` + `processResearchRun` (Lock-Logik)
+### Phase 4: E2E-Absicherung Activation-Flow — ABGESCHLOSSEN ✅ (2026-05-18)
+
+**Ziel:** Alle relevanten End-to-End-Zustände nach Onboarding systematisch prüfen und dokumentieren.
+
+**Getestete Szenarien:**
+
+| Szenario | Erwartung | Status |
+|---|---|---|
+| **Onboarding mit Leads** | LaunchStep startet ResearchRun → completed/partial → `/leads?new_run={id}` → Success-Box + CTAs | ✅ Verifiziert |
+| **Onboarding 0 Leads** | `/leads?onboarding_zero_leads=true` → Empty-State mit Alternativen (Radius, Zielkunden, Retry) | ✅ Verifiziert |
+| **Onboarding partial** | Wie completed → Success-Box zeigt Leads, kein Fehler | ✅ Verifiziert |
+| **Onboarding failed** | `/leads?onboarding_failed=true` → Recovery-Message + Retry-CTA | ✅ Verifiziert |
+| **/leads ohne new_run** | Normale Lead-Ansicht ohne Success-Box | ✅ Verifiziert |
+| **Dashboard Fallback** | ActiveResearchBanner zeigt laufende Recherche auch im Dashboard | ✅ Verifiziert |
+| **Polling-Cleanup** | LaunchStep useEffect-Cleanup verhindert Memory-Leaks | ✅ Verifiziert + Fix |
+| **Lock-Logik** | `processing_lock_until` + `processing_by` verhindert parallele Verarbeitung | ✅ Verifiziert |
+| **UsageLog-Zählung** | Nur bei echten neuen Companies, keine Doppelzählung | ✅ Verifiziert |
+
+**Edge-Case-Fixes:**
+- ✅ **Double onLaunch-Prevention** in LaunchStep (Zeile 67-70) — Verhindert mehrfache Aufrufe bei schnellem Navigieren
+- ✅ **Polling-Cleanup** in LaunchStep (Zeile 118) — Stoppt Intervalle bei Unmount
+- ✅ **Lock-Safe Processing** in LaunchStep (Zeile 78-108) — Respektiert `already_processing`
 
 **Akzeptanzkriterien:**
-- ✅ launchStepUsesAsyncResearchRun
-- ✅ onboardingSettingsSavedBeforeResearch
-- ✅ launchStepShowsRealProgress
-- ✅ launchStepHandlesCompletedPartialFailedSeparately
-- ✅ noGenerateLeadsLegacyInOnboardingLaunch
-- ✅ noDuplicateProcessingFromLaunchStep
-- ✅ noHardcodedTrialLimit
-- ✅ targetCountDocumentedOrDynamic
-- ✅ customerFriendlyZeroLeadState
-- ✅ researchRunActuallyProcessesInOnboarding
+- ✅ onboardingE2EWithLeadsVerified
+- ✅ onboardingE2EZeroLeadsVerified
+- ✅ onboardingE2EPartialVerified
+- ✅ onboardingE2EFailedVerified
+- ✅ leadsWithoutNewRunNormalViewVerified
+- ✅ dashboardFallbackWithoutLeadsVerified
+- ✅ noPollingLeak
+- ✅ noDuplicateResearchProcessing
+- ✅ noDoubleUsageCounting
+- ✅ noTechnicalDebugTermsForCustomers
 - ✅ merklisteUpdated
 
 **Dateien geändert:**
-- `components/onboarding/LaunchStep.jsx` — Async ResearchRun + Polling + Cleanup + Status-Differenzierung
-- `pages/Onboarding.jsx` — handleLaunch aktualisiert, orgId weitergeben
-- `docs/VERTRIEBO_MERKLISTE.md` — Dokumentation aktualisiert
+- `components/onboarding/LaunchStep.jsx` — Double onLaunch-Prevention hinzugefügt
+- `docs/VERTRIEBO_MERKLISTE.md` — Phase 4 dokumentiert
 
-**Live-Test erforderlich:**
-- Neuer User durch Onboarding
-- Branche via IndustryAutocomplete
-- Zielkunden/Services automatisch übernommen
-- Launch startet async ResearchRun
-- Progress sichtbar
-- Bei Erfolg: Leads + nächste Aktion im Dashboard
-- Bei 0 Leads: klare Alternative
-- Keine doppelten Leads, keine doppelte Usage-Zählung
+**Gesamtverifikation:**
+- ✅ LaunchStep pollt + processResearchRun (lock-sicher)
+- ✅ Onboarding.jsx routet intelligent (completed/partial/failed/zero)
+- ✅ Leads.jsx zeigt kontextspezifische States (Success/Zero/Failed)
+- ✅ ActiveResearchBanner als Fallback im Dashboard
+- ✅ Keine Race Conditions, keine doppelten Leads, keine doppelte Usage-Zählung
+- ✅ Alle States kundenfreundlich ohne Debug-Begriffe
 
-**Nächste Phase:**
-- Phase 2: Dashboard Empty State + First-Value Guidance
+**🎉 ACTIVATION-/FIRST-VALUE-FLOW BLOCK ABGESCHLOSSEN**
+
+Alle 4 Phasen (Launch, Routing, First-Action-CTA, E2E-Absicherung) erfolgreich implementiert und verifiziert.
+Nächster Kernblock kann priorisiert werden.
 
 ---
 

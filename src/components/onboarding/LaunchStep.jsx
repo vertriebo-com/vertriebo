@@ -65,6 +65,7 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
 
             // Check if done
             if (data.done || ['completed', 'partial', 'failed'].includes(data.status)) {
+              if (isDone) return; // Verhindert doppelte onLaunch-Aufrufe
               setIsDone(true);
               polling = false;
               setTimeout(() => {
