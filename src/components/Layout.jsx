@@ -82,7 +82,7 @@ export default function Layout() {
         {/* Logo - Sauber dargestellt */}
          <div className="px-4 py-4 border-b border-[#E2E8F0]">
            <Link to="/dashboard" className="flex items-center justify-center">
-             <VertrieboLogo size="lg" variant="light" className="h-10 w-auto" />
+             <VertrieboLogo size="md" variant="light" className="h-7 w-auto" />
            </Link>
          </div>
 
