@@ -41,7 +41,7 @@ export default function ProductShowcase() {
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "rgba(245,158,11,0.6)" }} />
               <div style={{ width: 12, height: 12, borderRadius: "50%", background: "rgba(34,197,94,0.6)" }} />
             </div>
-            <div style={{ fontSize: 11, color: "rgba(100,116,139,1)", fontFamily: "monospace" }}>app.vertriebo.de/dashboard</div>
+            <div style={{ fontSize: 11, color: "rgba(100,116,139,1)", fontFamily: "monospace" }}>app.vertriebo.com/dashboard</div>
             <div style={{ width: 40 }} />
           </div>
 
