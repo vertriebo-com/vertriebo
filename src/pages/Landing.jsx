@@ -289,13 +289,12 @@ export default function Landing() {
         backdropFilter: "blur(20px)",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         transition: "all 0.3s",
-        paddingTop: "env(safe-area-inset-top, 0px)",
-        minHeight: 70
+        paddingTop: "env(safe-area-inset-top, 16px)"
       }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 16px", height: 70, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {/* Logo Links - Groß und klar sichtbar */}
-          <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0 }}>
-            <VertrieboLogo size="lg" className="" />
+          <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0, height: 48 }}>
+            <VertrieboLogo size="md" className="" />
           </a>
           
           {/* Center Navigation - Hidden on mobile, shown on desktop */}
@@ -327,23 +326,23 @@ export default function Landing() {
           </div>
           
           {/* Right Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-            <button onClick={handleLogin} style={{ color: "rgba(148,163,184,1)", fontSize: 14, padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <button onClick={handleLogin} style={{ color: "rgba(148,163,184,1)", fontSize: 13, padding: "6px 12px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
             onMouseEnter={(e) => e.target.style.color = "white"}
             onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
               
               Login
             </button>
             <button onClick={handleRegister} style={{
-              background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", fontWeight: 700, fontSize: 14,
-              padding: "10px 22px", borderRadius: 10, border: "none", cursor: "pointer", fontFamily: "inherit",
-              boxShadow: "0 0 30px rgba(37,99,235,0.4)",
-              transition: "all 0.3s"
+              background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", fontWeight: 700, fontSize: 13,
+              padding: "8px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontFamily: "inherit",
+              boxShadow: "0 0 20px rgba(37,99,235,0.4)",
+              transition: "all 0.3s", whiteSpace: "nowrap"
             }}
-            onMouseEnter={(e) => e.target.style.boxShadow = "0 0 40px rgba(37,99,235,0.6)"}
-            onMouseLeave={(e) => e.target.style.boxShadow = "0 0 30px rgba(37,99,235,0.4)"}>
+            onMouseEnter={(e) => e.target.style.boxShadow = "0 0 30px rgba(37,99,235,0.6)"}
+            onMouseLeave={(e) => e.target.style.boxShadow = "0 0 20px rgba(37,99,235,0.4)"}>
               
-              🚀 14 Tage testen
+              14 Tage testen
             </button>
           </div>
         </div>
