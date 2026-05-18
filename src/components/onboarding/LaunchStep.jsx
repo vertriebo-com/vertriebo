@@ -66,6 +66,10 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
             // Check if done
             if (data.done || ['completed', 'partial', 'failed'].includes(data.status)) {
               if (isDone) return; // Verhindert doppelte onLaunch-Aufrufe
+              // Kundenfreundliche Meldung bei Kill-Switch (platform_disabled)
+              if (data.error === 'platform_disabled' || data.stop_reason === 'platform_config_kill_switch') {
+                setMessage('Die Recherche ist aktuell kurz nicht verfügbar. Bitte versuchen Sie es in wenigen Minuten erneut.');
+              }
               setIsDone(true);
               polling = false;
               setTimeout(() => {

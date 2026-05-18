@@ -248,7 +248,31 @@ Deno.serve(async (req) => {
       radius_km = 25,
       max_queries = 6,    // max. Google-Queries (Kosten-Kontrolle)
       dry_run = true,     // immer true — kein DB-Speichern
+      bypass_kill_switch = false, // Nur für Platform-Admin-Diagnose
     } = body;
+
+    // ── PLATFORMCONFIG KILL-SWITCH (Phase 3) ──────────────────────────────────
+    // testLeadSearchEngine respektiert Kill-Switch, außer Platform-Admin darf bewusst Diagnose machen
+    if (!bypass_kill_switch) {
+      const configs = await base44.asServiceRole.entities.PlatformConfig.list();
+      const platformConfig = configs[0] || null;
+      const isGooglePlacesDisabled = platformConfig && !platformConfig.google_places_api_enabled;
+      
+      if (isGooglePlacesDisabled) {
+        console.warn(`[testLeadSearchEngine] KILL-SWITCH: google_places_api_enabled=false profile=${profile_id} city=${city}`);
+        const disabledReason = platformConfig.disabled_reason || 'Die Lead-Recherche ist gerade in Wartung.';
+        
+        return Response.json({
+          success: false,
+          error: 'platform_disabled',
+          message: disabledReason,
+          dry_run: true,
+          kill_switch_active: true,
+        }, { status: 503 });
+      }
+    } else {
+      console.info(`[testLeadSearchEngine] Bypass-Kill-Switch für Platform-Admin-Diagnose: profile=${profile_id} city=${city}`);
+    }
 
     if (!profile_id || !city) {
       return Response.json({ error: 'profile_id und city erforderlich', success: false }, { status: 400 });

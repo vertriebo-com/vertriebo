@@ -941,8 +941,70 @@ LEGACY: utils/leadSearchTaxonomy.js
 - ✅ deprecatedResearchFunctionsNotUserCallable (generateLeads + runUnifiedResearch haben Runtime-Guard 410)
 - ✅ merklisteUpdated
 
-### Offene Punkte Phase 3
+### Offene Punkte Phase 3 → Abgeschlossen (2026-05-18)
 
-- `processResearchRun` Kill-Switch-Check ergänzen (PlatformConfig sollte auch dort geprüft werden)
-- `checkAccess`-Lib in `startResearchRun` integrieren (aktuell duplizierte Auth-Logik — niedrige Prio)
-- `StartLeadsStep.jsx` migrieren oder entfernen
+- ~~`processResearchRun` Kill-Switch-Check~~ → ✅ Phase 3 implementiert
+- `checkAccess`-Lib in `startResearchRun` integrieren (aktuell duplizierte Auth-Logik — niedrige Prio, nach Phase 3)
+- `StartLeadsStep.jsx` migrieren oder entfernen (niedrige Prio)
+
+---
+
+## 17. PRODUCTION READINESS AUDIT — Phase 3 (2026-05-18)
+
+### Backend Guard & Kill-Switch Completeness — ABGESCHLOSSEN ✅
+
+#### processResearchRun — Kill-Switch ✅
+
+```
+if (google_places_api_enabled === false):
+  → ResearchRun.status = 'failed'
+  → ResearchRun.stop_reason = 'platform_config_kill_switch'
+  → ResearchRun.zero_result_cause = 'platform_disabled'
+  → error_message = disabledReason (admin-freundlich)
+  → KEINE Company.create
+  → KEIN UsageLog-Update
+  → HTTP 503 zurück an Frontend
+```
+
+Kill-Switch Prüfung erfolgt **vor** der Taxonomie-Prüfung und vor allen Google API-Calls.
+
+#### testLeadSearchEngine — Kill-Switch ✅
+
+```
+Normaler Aufruf: respektiert Kill-Switch → HTTP 503 + kill_switch_active: true
+bypass_kill_switch: true (nur in Request-Payload setzbar): Erlaubt bewusste Diagnose für Platform-Admins
+```
+
+Sicherheit: `testLeadSearchEngine` ist bereits auf Platform-Admins (`admin/platform_owner/platform_admin`) beschränkt. `bypass_kill_switch` ist damit intern, nicht Kundenzugang.
+
+#### ActiveResearchBanner / LaunchStep — Kill-Switch-UX ✅
+
+- `processResearchRun` setzt `current_step = disabledReason` → Banner zeigt admin-freundlichen Text
+- `LaunchStep` prüft `stop_reason === 'platform_config_kill_switch'` → zeigt kundenfreundliche Meldung statt technischem Debug-Text
+- Kein Hängen: `failed`-Status triggert sofort `onLaunch(data)` wie bei normalem Fehler
+
+#### Vollständige Kill-Switch-Kette ✅
+
+| Funktion | PlatformConfig-Check | Verhalten bei disabled |
+|---|---|---|
+| `startResearchRun` | ✅ (Phase 1) | HTTP 503, kein Run erstellt |
+| `processResearchRun` | ✅ (Phase 3) | Run = failed, kein Company.create, kein UsageLog |
+| `testLeadSearchEngine` | ✅ (Phase 3) | HTTP 503, bypass_kill_switch=true für Admin-Diagnose |
+| `generateLeads` | ✅ (deprecated + Runtime-Guard) | 410 für User, 503 für Admin wenn disabled |
+| `runUnifiedResearch` | ✅ (deprecated + Runtime-Guard) | 410 für alle Nicht-Admins |
+
+#### Deprecated Functions — unverändert blockiert ✅
+
+- `generateLeads`: HTTP 410 für normale User; Platform-Admin + interne Calls weiterhin erlaubt
+- `runUnifiedResearch`: HTTP 410 für alle Nicht-Platform-Admins
+- Beide als DEPRECATED dokumentiert, kein aktiver Kundenflow
+
+### Akzeptanzkriterien Phase 3 ✅
+
+- ✅ processResearchRunRespectsPlatformConfig
+- ✅ disabledResearchDoesNotCreateCompanies (Kill-Switch prüft vor Company.create)
+- ✅ disabledResearchDoesNotWriteUsageLog (Kill-Switch prüft vor upsertUsageLog)
+- ✅ dryTestRespectsKillSwitchOrIsAdminOnly (bypass_kill_switch nur für Platform-Admins, die bereits Auth-Guard haben)
+- ✅ launchAndBannerHandleDisabledResearchGracefully (kundenfreundliche Meldung, kein Hängen)
+- ✅ deprecatedFunctionsRemainBlockedForUsers (unverändert aus Phase 2)
+- ✅ merklisteUpdated

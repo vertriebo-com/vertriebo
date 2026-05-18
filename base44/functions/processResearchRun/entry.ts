@@ -507,6 +507,35 @@ Deno.serve(async (req) => {
 
     const hasGeoCoords = !!(cityCoords?.lat && cityCoords?.lng);
 
+    // ── PLATFORMCONFIG KILL-SWITCH (Phase 3) ──────────────────────────────────
+    // Wenn Google Places oder Research systemweit deaktiviert ist → sauber abbrechen
+    const configs = await base44.asServiceRole.entities.PlatformConfig.list();
+    const platformConfig = configs[0] || null;
+    const isGooglePlacesDisabled = platformConfig && !platformConfig.google_places_api_enabled;
+    
+    if (isGooglePlacesDisabled) {
+      console.warn(`[processResearchRun] KILL-SWITCH: google_places_api_enabled=false run=${research_run_id}`);
+      const disabledReason = platformConfig.disabled_reason || 'Die Lead-Recherche ist gerade in Wartung.';
+      
+      await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+        status: 'failed',
+        error_message: disabledReason,
+        finished_at: new Date().toISOString(),
+        zero_result_cause: 'platform_disabled',
+        stop_reason: 'platform_config_kill_switch',
+        processing_lock_until: null, processing_by: null,
+      });
+      
+      // KEINE Companies erstellt, KEIN UsageLog geschrieben
+      return Response.json({
+        success: false,
+        done: true,
+        status: 'failed',
+        error: 'platform_disabled',
+        message: disabledReason,
+      }, { status: 503 });
+    }
+
     // ── Taxonomie-Profil Pflichtprüfung ──────────────────────────────────────
     if (!taxonomyProfile) {
       console.error(`[processResearchRun] taxonomy_profile_missing run=${research_run_id}`);
