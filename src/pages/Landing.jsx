@@ -255,13 +255,13 @@ export default function Landing() {
           0%, 100% { opacity: 0.4; transform: scale(1); }
           50% { opacity: 0.7; transform: scale(1.1); }
         }
-        /* Mobile Optimizations */
-        @media (max-width: 768px) {
-          .feature-grid { grid-template-columns: 1fr !important; }
-          .desktop-nav { display: none !important; }
-        }
+        /* Desktop-only Elemente */
         @media (min-width: 769px) {
-          .desktop-nav { display: flex !important; }
+          .desktop-only { display: flex !important; }
+        }
+        @media (max-width: 768px) {
+          .desktop-only { display: none !important; }
+          .feature-grid { grid-template-columns: 1fr !important; }
         }
         @media (min-width: 769px) and (max-width: 1024px) {
           .feature-grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -287,7 +287,7 @@ export default function Landing() {
         }} />
       </>}
 
-      {/* NAVBAR */}
+      {/* NAVBAR - Desktop + Mobile separat */}
       <nav style={{
         position: "fixed",
         top: 0,
@@ -301,13 +301,27 @@ export default function Landing() {
         width: "100%"
       }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 20px", height: "60px", display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", boxSizing: "border-box" }}>
-          {/* Logo Links - Groß und klar sichtbar */}
-          <a href="/" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", flexShrink: 0 }}>
-            <VertrieboLogo size="lg" variant="light" />
+          
+          {/* LOGO - Immer sichtbar, direktes Asset für Mobile */}
+          <a href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+            {/* Mobile Logo - direktes img Tag */}
+            <img 
+              src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/8e6400f40_ChatGPTImage18Mai202615_39_07.png"
+              alt="Vertriebo Logo"
+              style={{ height: "40px", width: "auto", display: "block" }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            {/* Fallback Text falls Bild nicht lädt */}
+            <div style={{ display: 'none', color: 'white', fontWeight: 800, fontSize: '18px', letterSpacing: '-1px' }}>
+              VERTRIEBO
+            </div>
           </a>
           
-          {/* Center Navigation - Hidden on mobile, shown on desktop */}
-          <div className="desktop-nav" style={{ display: "none", alignItems: "center", gap: 40, flex: 1, justifyContent: "center", marginLeft: 40 }}>
+          {/* DESKTOP NAVIGATION + CTA - nur Desktop */}
+          <div className="desktop-only" style={{ display: "none", alignItems: "center", gap: 40, flex: 1, justifyContent: "center", marginLeft: 40 }}>
             <button
               onClick={() => scrollToSection("how-it-works")}
               style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
@@ -334,7 +348,7 @@ export default function Landing() {
             </button>
           </div>
           
-          {/* Right Actions */}
+          {/* DESKTOP + MOBILE LOGIN - immer sichtbar */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
             <button onClick={handleLogin} style={{ color: "rgba(148,163,184,1)", fontSize: 14, padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
             onMouseEnter={(e) => e.target.style.color = "white"}
@@ -342,7 +356,9 @@ export default function Landing() {
               
               Login
             </button>
-            <button onClick={handleRegister} style={{
+            {/* CTA nur Desktop */}
+            <button className="desktop-only" onClick={handleRegister} style={{
+              display: "none",
               background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", fontWeight: 700, fontSize: 14,
               padding: "10px 22px", borderRadius: 10, border: "none", cursor: "pointer", fontFamily: "inherit",
               boxShadow: "0 0 30px rgba(37,99,235,0.4)",
