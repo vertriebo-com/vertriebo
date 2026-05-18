@@ -1,6 +1,31 @@
 /**
  * ============================================================
- * VERTRIEBO - generateLeads v2 (Phase C)
+ * VERTRIEBO - generateLeads v2 (Phase C) — DEPRECATED
+ * ============================================================
+ *
+ * ⚠️ DEPRECATED: Dieser Pfad ist NICHT der kanonische Kundenflow.
+ *
+ * KANONISCHER RESEARCH-FLOW (v3+):
+ *   startResearchRun → processResearchRun → getResearchRunStatus
+ *   Diese drei Funktionen nutzen die DB-Taxonomie (TaxonomyEntry),
+ *   async ResearchRun-Status-Tracking, und korrekte Lock/Dedupe-Logik.
+ *
+ * DIESE FUNKTION:
+ *   - Enthält eine veraltete Inline-Taxonomie (nur 23 Profile, ohne v6-Gewichte)
+ *   - Ist synchron/blockierend (bis zu 40s Runtime)
+ *   - Nutzt einen eigenen Settings-basierten Lock (lead_research_running)
+ *     der nicht mit dem ResearchRun-Lock koordiniert ist
+ *   - Wird nicht mehr direkt von Frontend-Seiten aufgerufen
+ *   - Wird von runUnifiedResearch als Orchestrator gerufen (ebenfalls deprecated)
+ *
+ * AKTUELL NOCH AUFGERUFEN VON:
+ *   - runUnifiedResearch (intern, kein direkter Frontend-Aufruf bekannt)
+ *   - StartLeadsStep (alt, nicht mehr im aktiven Onboarding-Flow)
+ *
+ * NICHT LÖSCHEN OHNE vollständigen Audit: runUnifiedResearch + StartLeadsStep
+ *
+ * ============================================================
+ * VERTRIEBO - generateLeads v2 (Phase C) — Original-Kommentar:
  * ============================================================
  * Nutzt die neue LeadSearchEngine Inline.
  *

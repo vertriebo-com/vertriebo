@@ -1,6 +1,25 @@
 /**
  * ============================================================
- * VERTRIEBO - runUnifiedResearch
+ * VERTRIEBO - runUnifiedResearch — DEPRECATED
+ * ============================================================
+ *
+ * ⚠️ DEPRECATED: Dieser Orchestrator ist NICHT der kanonische Kundenflow.
+ *
+ * KANONISCHER RESEARCH-FLOW (v3+):
+ *   startResearchRun → processResearchRun → getResearchRunStatus
+ *   Diese drei Funktionen nutzen die DB-Taxonomie (TaxonomyEntry),
+ *   async ResearchRun-Status-Tracking, und korrekte Lock/Dedupe-Logik.
+ *
+ * DIESE FUNKTION:
+ *   - Ruft generateLeads auf (ebenfalls deprecated, alte Inline-Taxonomie)
+ *   - Hat keinen PlatformConfig-Check (google_places_api_enabled Kill-Switch greift nicht)
+ *   - Kein direkter Frontend-Aufruf bekannt (2026-05-18 Audit)
+ *   - Darf NICHT im Live-Kundenflow genutzt werden
+ *
+ * NICHT LÖSCHEN OHNE vollständigen Audit aller Automationen + direkten API-Calls.
+ *
+ * ============================================================
+ * Original-Kommentar:
  * ============================================================
  * Ein-Klick-Firmenrecherche für Kunden.
  * 

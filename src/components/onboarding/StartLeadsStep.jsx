@@ -57,6 +57,10 @@ export default function StartLeadsStep({ org, onDone }) {
     setLoading(true);
     setError(null);
     try {
+      // DEPRECATED: Diese Komponente ist nicht mehr im aktiven Onboarding-Flow (pages/Onboarding.jsx).
+      // Der kanonische Research-Flow ist: startResearchRun → processResearchRun → getResearchRunStatus
+      // Diese Komponente bleibt erhalten aber inaktiv (nicht mehr in Onboarding eingebunden).
+      // TODO: Bei Gelegenheit migrieren oder entfernen.
       const res = await base44.functions.invoke("generateLeads", {
         organization_id: org.id,
         target_count: 25,

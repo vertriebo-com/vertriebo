@@ -264,6 +264,7 @@ export default function CompanySettings({ org: orgProp }) {
     const settingsToSave = {
       company_name:                    firmenname.trim(),
       industry_name:                   industry,
+      own_industry:                    industry,  // Legacy-Kompatibilität: startResearchRun liest settings.own_industry als Fallback
       industry_id:                     industryId || industry,
       // Fallback-Tracking: persistent auswertbar in OrganizationSettings
       ...(industryId?.startsWith("fallback_") ? {

@@ -797,3 +797,82 @@ Nächster Kernblock kann priorisiert werden.
 4. `TAXONOMY_VERSION` in `getTaxonomy` erhöhen
 5. Admin: `getTaxonomy({ action: "seed_reset" })` aufrufen
 6. Verifikation: `testLeadSearchEngine` mit neuem Profil + 3 Städten
+
+---
+
+## 15. PRODUCTION READINESS AUDIT — Phase 1 (2026-05-18)
+
+### Referenzsuche abgeschlossen ✅
+
+#### generateLeads — Entscheidungsmatrix
+
+| Aufrufer | Status | Entscheidung |
+|---|---|---|
+| `runUnifiedResearch` (Backend) | Interner Orchestrator | ⚠️ Deprecated — kein direkter Frontend-Aufruf bekannt |
+| `StartLeadsStep.jsx` | Altes Onboarding-Step | ⚠️ Nicht aktiv (nicht mehr in pages/Onboarding.jsx eingebunden) |
+| `pages/Onboarding.jsx` | ✅ Canonical | Nutzt LaunchStep → `startResearchRun` |
+| `LaunchStep.jsx` | ✅ Canonical | Nutzt `startResearchRun` + `processResearchRun` |
+| `ResearchDialog.jsx` | ✅ Canonical | Nutzt `startResearchRun` + `processResearchRun` |
+| `pages/Leads.jsx` | ✅ Canonical | Nur `ResearchDialog` |
+| `pages/Dashboard.jsx` | ✅ Canonical | Nur `getDashboardData` |
+
+#### runUnifiedResearch — Status
+
+- Kein direkter Frontend-Aufruf gefunden (Audit 2026-05-18) → DEPRECATED-Header eingefügt
+- PlatformConfig-Check fehlt (Kill-Switch greift nicht) → dokumentiert, Phase 2
+
+#### leadSearchTaxonomy.js — Status
+
+- Kein aktiver Import in Kundenflow-Komponenten → LEGACY-Header eingefügt, auf 542 Zeilen komprimiert
+
+#### lead_research_running (Settings-Lock)
+
+- Wird von `generateLeads` gesetzt/gelesen — kein akuter Kundenflow-Konflikt (generateLeads inaktiv)
+
+### Umgesetzte Fixes ✅
+
+1. `generateLeads` — DEPRECATED-Header mit vollständiger Dokumentation
+2. `runUnifiedResearch` — DEPRECATED-Header mit vollständiger Dokumentation
+3. `StartLeadsStep.jsx` — DEPRECATED-Kommentar im handleGenerate-Block
+4. `utils/leadSearchTaxonomy.js` — LEGACY/REFERENZ-Header, auf 542 Zeilen komprimiert (vorher 2013)
+5. `CompanySettings.jsx` — `own_industry` beim Speichern ergänzt (Legacy-Kompatibilität)
+
+### Canonical Research Flow
+
+```
+CANONICAL: startResearchRun → processResearchRun → getResearchRunStatus
+DEPRECATED: generateLeads / runUnifiedResearch
+LEGACY: utils/leadSearchTaxonomy.js
+```
+
+### Kanonische Settings-Keys
+
+| Key | Status | Legacy-Alias |
+|---|---|---|
+| `industry_id` | ✅ Canonical | — |
+| `industry_name` | ✅ Canonical | `own_industry` (wird mitgeschrieben) |
+| `target_customer_types` | ✅ Canonical | `zielkunden` |
+| `services` | ✅ Canonical | `dienstleistungen` |
+| `excluded_customer_types` | ✅ Canonical | — |
+| `service_area_city` | ✅ Canonical | `lead_plz_city` |
+| `service_area_lat/lng` | ✅ Canonical | `lead_lat/lng` |
+| `service_area_radius_km` | ✅ Canonical | `lead_radius_km` |
+
+### Akzeptanzkriterien Phase 1 ✅
+
+- ✅ legacyResearchReferencesScanned
+- ✅ generateLeadsUsageKnown
+- ✅ runUnifiedResearchUsageKnown
+- ✅ leadSearchTaxonomyUsageKnown
+- ✅ canonicalResearchFlowDocumented
+- ✅ activeCustomerFlowUsesStartResearchRunProcessResearchRun
+- ✅ noDoubleUsageRiskFromLegacyFlow
+- ✅ ownIndustrySavedForCompatibility
+- ✅ merklisteUpdated
+
+### Offene Punkte Phase 2
+
+- `runUnifiedResearch` PlatformConfig-Fix (Kill-Switch für Google Places greift nicht)
+- `StartLeadsStep.jsx` Migration auf startResearchRun oder entfernen
+- `generateLeads` finales Deprecation nach Automations-Audit
+- `leadSearchEngine.js` Import-Audit
