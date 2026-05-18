@@ -949,6 +949,99 @@ LEGACY: utils/leadSearchTaxonomy.js
 
 ---
 
+## 18. PRODUCTION READINESS AUDIT — Phase 4 (2026-05-18)
+
+### Entity-/Settings-Konsistenz Audit — ABGESCHLOSSEN ✅
+
+#### Vollständige Prüfung aller canonical Felder
+
+**OrganizationSettings:**
+- ✅ Canonical Keys: `industry_id`, `industry_name`, `services`, `target_customer_types`, `excluded_customer_types`, `service_area_*`
+- ✅ Legacy-Aliases: `own_industry`, `dienstleistungen`, `zielkunden` werden parallel geschrieben
+- ✅ Fallback-Tracking: `custom_industry_requested`, `fallback_profile_used` für "Andere Branche"
+- ✅ CompanySettings schreibt alle Keys korrekt
+- ✅ startResearchRun liest mit Legacy-Fallbacks
+
+**Company:**
+- ✅ Canonical Fields: `organization_id`, `research_run_id`, `google_place_id`, `source_provider`, `relevance_score`, `matched_*`, `engine_analysis_json`
+- ✅ processResearchRun v6 setzt alle Felder korrekt
+- ✅ engine_analysis_json enthält vollständige v6-Diagnostik
+- ⚠️ Bestands-Companies vor v6: Haben evtl. kein `engine_analysis_json` (Backfill optional)
+- ⚠️ Bestands-Companies vor v5: Haben evtl. kein `google_place_id` (Backfill empfohlen)
+
+**ResearchRun:**
+- ✅ Canonical Fields: `taxonomy_version`, `taxonomy_hash`, `industry_id`, `search_plan_json` (mit taxonomyProfile)
+- ✅ startResearchRun bettet Taxonomie-Profil ein
+- ✅ processResearchRun liest aus search_plan_json (kein eigener Inline-Code)
+- ✅ Status-Felder: `leads_saved`, `raw_hits`, `duplicates_skipped`, `no_match_count`, `outside_radius_count`
+- ✅ Kill-Switch-Felder: `stop_reason`, `zero_result_cause` (Phase 3)
+- ⚠️ `selected_services`, `search_queries_used` nur in search_plan_json (nicht als direkte Felder) → niedrige Prio
+
+**UsageLog:**
+- ✅ Canonical Fields: `lead_generations_used`, `leads_created`, `last_lead_generation_at`, `last_lead_generation_report`
+- ✅ Google API-Counters: `google_places_text_search_requests`, `google_place_details_essentials_requests`
+- ✅ processResearchRun schreibt NUR bei echten Companies (`newLeadsSavedThisBatch > 0`)
+- ✅ testLeadSearchEngine schreibt KEIN UsageLog (dry_run=true)
+- ✅ disabled/failed Runs schreiben KEIN UsageLog
+- ⚠️ KEINE `research_run_id`-Referenz → Zuordnung nur über Zeitraum (niedrige Prio)
+
+**Task:**
+- ✅ Canonical Fields: `organization_id`, `company_id`, `company_name`, `titel`, `beschreibung`, `typ`, `prioritaet`, `faellig_am`
+- ✅ followUpAgent v2 erstellt Tasks mit `matched_service_context`, `matched_target_customer_type`, `relevance_reason`
+- ✅ Tasks haben immer `company_id` + `organization_id` bei Lead-Bezug
+- ⚠️ Manuelle Tasks (AddTaskDialog) können ohne `company_id` sein (nicht kritisch)
+
+### Backfill-Bedarf — Dokumentiert ✅
+
+**HOHE Priorität:**
+- ✅ `industry_id` für Bestands-Orgs → `backfillOrganizationIndustryIds` existiert ✅
+- ⚠️ `google_place_id` für Companies vor v5 → `matchExternalSourceWithGooglePlaces` nachträglich (mittlere Prio)
+
+**MITTLERE Priorität:**
+- ⚠️ `engine_analysis_json` für Companies vor v6 → `analyzeLeadEngine` im Batch (optional)
+- ⚠️ `services`/`target_customer_types` für Orgs mit nur Legacy-Keys → Backfill-Skript (optional)
+
+**NIEDRIGE Priorität:**
+- ⚠️ ResearchRun: `selected_services`, `search_queries_used` als direkte Felder (Admin-Diagnose)
+- ⚠️ UsageLog: `research_run_id`-Referenz
+- ⚠️ Task: `company_id` für manuelle Tasks
+
+### Akzeptanzkriterien Phase 4 ✅
+
+- ✅ entitySettingsConsistencyAuditCompleted
+- ✅ canonicalOrganizationSettingsVerified
+- ✅ companyFieldsConsistencyVerified
+- ✅ researchRunFieldsConsistencyVerified
+- ✅ usageLogConsistencyVerified
+- ✅ taskConsistencyVerified
+- ✅ backfillNeedsDocumented (docs/PHASE4_ENTITY_SETTINGS_AUDIT.md erstellt)
+- ✅ merklisteUpdated
+
+### Nächste Schritte (nach Phase 4)
+
+1. **Company google_place_id Backfill** planen (mittlere Prio, Google API-Kosten beachten)
+2. **OrganizationSettings Canonical Sync** (optional, niedrige Prio)
+3. **Admin-Diagnosecenter um UsageLog-Zuordnung erweitern** (optional)
+
+---
+
+## 19. PRODUCTION READINESS — GESAMTSTATUS (2026-05-18)
+
+| Phase | Thema | Status | Dokumentation |
+|---|---|---|---|
+| **Phase 1** | Research Flow + Legacy-Deprecation | ✅ ABGESCHLOSSEN | VERTRIEBO_MERKLISTE.md §15 |
+| **Phase 2** | Rollen-/Rechte-Audit + Runtime-Guards | ✅ ABGESCHLOSSEN | VERTRIEBO_MERKLISTE.md §16 |
+| **Phase 3** | Backend Guard + Kill-Switch Completeness | ✅ ABGESCHLOSSEN | VERTRIEBO_MERKLISTE.md §17 |
+| **Phase 4** | Entity-/Settings-Konsistenz + Backfill | ✅ ABGESCHLOSSEN | VERTRIEBO_MERKLISTE.md §18 + docs/PHASE4_ENTITY_SETTINGS_AUDIT.md |
+
+**Nächster Block:** Phase 5+ (Priorisierung offen)
+- Product Integration Block (E-Mail / KI-Skripte / Follow-ups mit echten Daten)
+- Fachliche Top-Lead-Sichtung (manuelle Qualitätsprüfung je Profil)
+- Restliche 25 Profile validieren (Batch 8+)
+- Backfill-Umsetzung (google_place_id, engine_analysis_json)
+
+---
+
 ## 17. PRODUCTION READINESS AUDIT — Phase 3 (2026-05-18)
 
 ### Backend Guard & Kill-Switch Completeness — ABGESCHLOSSEN ✅
