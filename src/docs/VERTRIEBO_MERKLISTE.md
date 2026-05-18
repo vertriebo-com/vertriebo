@@ -280,14 +280,24 @@ POST testLeadSearchEngine
 | gartenbau | 78 | ✅ 12 aktiv | 98 | ✅ production_ready |
 | catering | 82 | ✅ 12 aktiv | 99 | ✅ production_ready |
 
-### Noch ausstehend (30 nicht-Fallback-Profile)
+### Batch 3 — Immobilien / Logistik / Event / Gesundheit (5 Profile × 3 Regionen = 15 Tests, abgeschlossen 2026-05-18)
+
+| Profil | profile_quality_score | Signal-Gewichte | avgScore | Status |
+|---|---|---|---|---|
+| immobilien | 82 | ✅ 12 aktiv | 97 | ✅ production_ready |
+| lager_fulfillment | 76 | ✅ 12 aktiv | 95 | ✅ production_ready |
+| entruempelung | 78 | ✅ 12 aktiv | 97 | ✅ production_ready |
+| eventservice | 84 | ✅ 12 aktiv | 99 | ✅ production_ready |
+| gesundheit_medizin | 86 | ✅ 12 aktiv | **100** 🏆 | ✅ production_ready |
+
+### Noch ausstehend (25 nicht-Fallback-Profile)
 
 | Nächste Batch-Kandidaten | Warum priorisiert |
 |---|---|
-| immobilien, lager_fulfillment, entruempelung | Gebäude/Facility-Cluster |
-| eventservice, gesundheit_medizin | Event + Gesundheit |
-| marketing_webdesign_werbung, buchhaltung_steuernahe_dienste | IT & Beratung |
-| … (23 weitere) | nach Batch 3+ |
+| marketing_webdesign_werbung, personal_zeitarbeit, buchhaltung_steuernahe_dienste | IT & Beratung Cluster |
+| industrieservice, fuhrparkservice_fahrzeugpflege, pflege_betreuung | Industrie & Pflege |
+| schulungen_weiterbildung, dachdecker, geruestbau | Handwerk Erweiterung |
+| … (16 weitere) | nach Batch 4+ |
 
 **P0-Regel: Kein Produktblock starten, bis `allExistingProfilesQualityReviewed = true`.**
 
@@ -296,9 +306,10 @@ POST testLeadSearchEngine
 ```
 batch1FinalAbschluss                      ✅ 24/24 Tests GOOD, seed_reset, Re-Tests bestätigt
 batch2Abgeschlossen                       ✅ 9/9 Tests GOOD (sicherheitsdienst, gartenbau, catering)
+batch3Abgeschlossen                       ✅ 15/15 Tests GOOD (immobilien, lager, entruempelung, event, gesundheit)
 weightedSignalsSeedSafe                   ✅ Gewichte NUR in TAXONOMY_SEED gepflegt
-taxonomyVersionV6WeightedScoringB2        ✅ aktiv, seed_reset ausgeführt
-allExistingProfilesQualityReviewed        ⏳ 11/41 validiert — Batch 3+ ausstehend
+taxonomyVersionV6WeightedScoringB3        ✅ aktiv, seed_reset ausgeführt
+allExistingProfilesQualityReviewed        ⏳ 16/41 validiert — Batch 4+ ausstehend
 readyForNextProductIntegrationBlock       ❌ BLOCKED bis allExistingProfilesQualityReviewed
 ```
 
@@ -397,6 +408,7 @@ readyForNextProductIntegrationBlock       ❌ BLOCKED bis allExistingProfilesQua
 | **quality-matrix-v1** | **2026-05-17** | **24 Tests: 8 Profile × 3 Regionen. Alle GOOD. maler/shk/elektro Gewichte nachgepflegt. place_type_confidence=high. TAXONOMY_VERSION=v6-weighted-scoring** | **46** |
 | **quality-matrix-b1-final** | **2026-05-18** | **Batch 1 finaler Abschluss: seed_reset + 9 Re-Tests. scoring_signal_weights_count=10 in maler/shk/elektro bestätigt. Alle 24 Tests weiterhin GOOD.** | **46** |
 | **quality-matrix-b2** | **2026-05-18** | **Batch 2: sicherheitsdienst, gartenbau, catering × 3 Regionen = 9 Tests, alle GOOD (avgScore 97–99). 12 Gewichte je Profil. TAXONOMY_VERSION=v6-weighted-scoring-b2** | **46** |
+| **quality-matrix-b3** | **2026-05-18** | **Batch 3: immobilien, lager_fulfillment, entruempelung, eventservice, gesundheit_medizin × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. gesundheit_medizin avgScore=100. TAXONOMY_VERSION=v6-weighted-scoring-b3** | **46** |
 
 ---
 
@@ -440,7 +452,8 @@ Diese Features müssen **echte Taxonomie-Daten** nutzen (own_services, target_cu
 |---|---|---|
 | **Batch 1** (8 auditiert) | gebaeudereinigung, facility_service, it_service, spedition_logistik, handwerk, maler_renovierung, shk, elektro_gebaeudetechnik | ✅ v6 gewichtet, 24 Tests GOOD, Re-Tests bestätigt |
 | **Batch 2** (3 auditiert) | sicherheitsdienst, gartenbau, catering | ✅ v6 gewichtet, 9 Tests GOOD, 12 Gewichte aktiv |
-| **Core Verticals** (ausstehend) | immobilien … schulungen_weiterbildung | ⚠️ Qualitätsaudit Batch 3+ |
+| **Batch 3** (5 auditiert) | immobilien, lager_fulfillment, entruempelung, eventservice, gesundheit_medizin | ✅ v6 gewichtet, 15 Tests GOOD, 12 Gewichte aktiv |
+| **Core Verticals** (ausstehend) | marketing_webdesign_werbung … messebau | ⚠️ Qualitätsaudit Batch 4+ |
 | **Erweiterte Dienstleister** (18) | dachdecker … messebau | ⚠️ Qualitätsaudit ausstehend |
 | **Fallback-Profile** (5) | fallback_* | ✅ bewusst generisch |
 

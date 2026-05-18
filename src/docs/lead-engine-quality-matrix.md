@@ -43,15 +43,20 @@ POST testLeadSearchEngine
 | gartenbau | ✅ GOOD (98/43) Köln | ✅ GOOD (98/47) Koblenz | ✅ GOOD (97/43) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
 | catering | ✅ GOOD (99/51) Köln | ✅ GOOD (98/44) Bonn | ✅ GOOD (99/37) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
 
-### Batch 3+ — Ausstehend
+### Batch 3 — Immobilien / Logistik / Event / Gesundheit (abgeschlossen 2026-05-18)
+
+| profile_id | Großstadt | Mittelstadt | Kleinstadt | Gesamt-Verdict | Gewichte |
+|---|---|---|---|---|---|
+| immobilien | ✅ GOOD (99/46) Köln | ✅ GOOD (96/41) Koblenz | ✅ GOOD (96/40) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| lager_fulfillment | ✅ GOOD (96/45) Dortmund | ✅ GOOD (95/44) Koblenz | ✅ GOOD (95/37) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| entruempelung | ✅ GOOD (98/56) Köln | ✅ GOOD (97/47) Bonn | ✅ GOOD (97/49) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| eventservice | ✅ GOOD (99/46) Köln | ✅ GOOD (99/45) Düsseldorf | ✅ GOOD (99/32) Koblenz | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+| gesundheit_medizin | ✅ GOOD (100/56) Köln | ✅ GOOD (100/58) Bonn | ✅ GOOD (99/56) Neuwied | **✅ PRODUCTION READY** | ✅ 12 aktiv |
+
+### Batch 4+ — Ausstehend
 
 | profile_id | Label | Status |
 |---|---|---|
-| immobilien | Immobilien | ⏳ ausstehend |
-| lager_fulfillment | Lager / Fulfillment | ⏳ ausstehend |
-| entruempelung | Entrümpelung | ⏳ ausstehend |
-| eventservice | Eventservice | ⏳ ausstehend |
-| gesundheit_medizin | Gesundheit / Medizin | ⏳ ausstehend |
 | marketing_webdesign_werbung | Marketing / Webdesign / Werbung | ⏳ ausstehend |
 | personal_zeitarbeit | Personal / Zeitarbeit | ⏳ ausstehend |
 | buchhaltung_steuernahe_dienste | Buchhaltung / steuernahe Dienste | ⏳ ausstehend |
@@ -445,11 +450,11 @@ POST testLeadSearchEngine
 | sicherheitsdienst | Sicherheitsdienst | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | gartenbau | Gartenbau | `production_ready` | ✅ GOOD (avgScore 98) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | catering | Catering | `production_ready` | ✅ GOOD (avgScore 99) | ✅ 12 Gewichte aktiv | 2026-05-18 |
-| immobilien | Immobilien | `production_ready` | ⏳ Test ausstehend | — | — |
-| lager_fulfillment | Lager / Fulfillment | `production_ready` | ⏳ Test ausstehend | — | — |
-| entruempelung | Entrümpelung | `production_ready` | ⏳ Test ausstehend | — | — |
-| eventservice | Eventservice | `production_ready` | ⏳ Test ausstehend | — | — |
-| gesundheit_medizin | Gesundheit / Medizin | `production_ready` | ⏳ Test ausstehend | — | — |
+| immobilien | Immobilien | `production_ready` | ✅ GOOD (avgScore 97) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| lager_fulfillment | Lager / Fulfillment | `production_ready` | ✅ GOOD (avgScore 95) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| entruempelung | Entrümpelung | `production_ready` | ✅ GOOD (avgScore 97) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| eventservice | Eventservice | `production_ready` | ✅ GOOD (avgScore 99) | ✅ 12 Gewichte aktiv | 2026-05-18 |
+| gesundheit_medizin | Gesundheit / Medizin | `production_ready` | ✅ GOOD (avgScore 100🏆) | ✅ 12 Gewichte aktiv | 2026-05-18 |
 | marketing_webdesign_werbung | Marketing / Webdesign / Werbung | `production_ready` | ⏳ Test ausstehend | — | — |
 | personal_zeitarbeit | Personal / Zeitarbeit | `production_ready` | ⏳ Test ausstehend | — | — |
 | buchhaltung_steuernahe_dienste | Buchhaltung / steuernahe Dienste | `production_ready` | ⏳ Test ausstehend | — | — |
@@ -508,4 +513,5 @@ _Keine offenen Punkte für die 8 Kernprofile. Alle Tuning-Maßnahmen abgeschloss
 | 2026-05-17 | **24 Tests vollständig** — 8 Kernprofile × 3 Regionen — alle GOOD. Kritischer Befund: scoring_signal_weights fehlte bei maler_renovierung, shk, elektro_gebaeudetechnik |
 | 2026-05-17 | **Tuning abgeschlossen** — 3 Profile nachgepflegt: scoring_signal_weights (10 Gewichte), place_type_confidence=high, SEED aktualisiert, TAXONOMY_VERSION=v6-weighted-scoring |
 | 2026-05-18 | **Batch 1 finaler Abschluss** — maler_renovierung, shk, elektro_gebaeudetechnik: seed_reset + 9 Re-Tests bestätigt. scoring_signal_weights_count=10 in allen 3 Profilen verifiziert. Alle 24 Batch-1-Tests GOOD. |
+| 2026-05-18 | **Batch 3 abgeschlossen** — immobilien, lager_fulfillment, entruempelung, eventservice, gesundheit_medizin × 3 Regionen = 15 Tests, alle GOOD. 12 Gewichte je Profil. gesundheit_medizin mit avgScore=100 bisher bester Score. TAXONOMY_VERSION=v6-weighted-scoring-b3 |
 | 2026-05-18 | **P0-Regel aktiviert** — Alle Profile müssen geprüft werden. Batch 2 gestartet: sicherheitsdienst, gartenbau, catering — 9 Tests, alle GOOD (avgScore 97–99). 12 Gewichte je Profil eingetragen. TAXONOMY_VERSION=v6-weighted-scoring-b2 |
