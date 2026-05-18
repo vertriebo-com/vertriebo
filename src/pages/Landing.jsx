@@ -298,44 +298,48 @@ export default function Landing() {
         backgroundImage: "none",
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         height: "60px",
-        width: "100%"
+        width: "100%",
+        overflow: "hidden"
       }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 20px", height: "60px", display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", boxSizing: "border-box" }}>
           
-          {/* LOGO - Immer sichtbar, direktes Asset für Mobile */}
-          <a href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-            {/* Mobile Logo - direktes img Tag */}
+          {/* LOGO CONTAINER - Links, begrenzt */}
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            flexShrink: 0,
+            maxWidth: "200px",
+            overflow: "hidden"
+          }}>
             <img 
               src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/8e6400f40_ChatGPTImage18Mai202615_39_07.png"
-              alt="Vertriebo Logo"
-              style={{ height: "40px", width: "auto", display: "block" }}
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }}
+              alt="Vertriebo"
+              style={{ height: "36px", width: "auto", display: "block", objectFit: "contain" }}
             />
-            {/* Fallback Text falls Bild nicht lädt */}
-            <div style={{ display: 'none', color: 'white', fontWeight: 800, fontSize: '18px', letterSpacing: '-1px' }}>
-              VERTRIEBO
-            </div>
-          </a>
+          </div>
           
-          {/* DESKTOP NAVIGATION + CTA - nur Desktop */}
-          <div className="desktop-only" style={{ display: "none", alignItems: "center", gap: 40, flex: 1, justifyContent: "center", marginLeft: 40 }}>
+          {/* DESKTOP NAVIGATION - Mitte */}
+          <div className="desktop-only" style={{ 
+            display: "none", 
+            alignItems: "center", 
+            gap: 32,
+            flex: 1, 
+            justifyContent: "center",
+            marginLeft: 24,
+            marginRight: 24
+          }}>
             <button
               onClick={() => scrollToSection("how-it-works")}
               style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
               onMouseEnter={(e) => e.target.style.color = "white"}
               onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
-              
               Wie es funktioniert
             </button>
             <button
               onClick={() => scrollToSection("pricing")}
-              style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
+              style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
               onMouseEnter={(e) => e.target.style.color = "white"}
               onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
-              
               Preise
             </button>
             <button
@@ -343,30 +347,51 @@ export default function Landing() {
               style={{ color: "rgba(148,163,184,1)", fontSize: 14, background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
               onMouseEnter={(e) => e.target.style.color = "white"}
               onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
-              
               FAQ
             </button>
           </div>
           
-          {/* DESKTOP + MOBILE LOGIN - immer sichtbar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-            <button onClick={handleLogin} style={{ color: "rgba(148,163,184,1)", fontSize: 14, padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
+          {/* LOGIN + CTA - Rechts, begrenzt */}
+          <div style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 12, 
+            flexShrink: 0,
+            justifyContent: "flex-end"
+          }}>
+            <button onClick={handleLogin} style={{ 
+              color: "rgba(148,163,184,1)", 
+              fontSize: 14, 
+              padding: "8px 12px", 
+              background: "none", 
+              border: "none", 
+              cursor: "pointer", 
+              fontWeight: 500, 
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
+              transition: "color 0.3s" 
+            }}
             onMouseEnter={(e) => e.target.style.color = "white"}
             onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
-              
               Login
             </button>
-            {/* CTA nur Desktop */}
             <button className="desktop-only" onClick={handleRegister} style={{
               display: "none",
-              background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", fontWeight: 700, fontSize: 14,
-              padding: "10px 22px", borderRadius: 10, border: "none", cursor: "pointer", fontFamily: "inherit",
+              background: "linear-gradient(135deg,#2563eb,#7c3aed)", 
+              color: "white", 
+              fontWeight: 700, 
+              fontSize: 14,
+              padding: "10px 16px", 
+              borderRadius: 10, 
+              border: "none", 
+              cursor: "pointer", 
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
               boxShadow: "0 0 30px rgba(37,99,235,0.4)",
               transition: "all 0.3s"
             }}
             onMouseEnter={(e) => e.target.style.boxShadow = "0 0 40px rgba(37,99,235,0.6)"}
             onMouseLeave={(e) => e.target.style.boxShadow = "0 0 30px rgba(37,99,235,0.4)"}>
-              
               🚀 14 Tage testen
             </button>
           </div>
