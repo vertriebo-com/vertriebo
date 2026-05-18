@@ -253,8 +253,10 @@ export default function Landing() {
         /* Mobile Optimizations */
         @media (max-width: 768px) {
           .feature-grid { grid-template-columns: 1fr !important; }
-          .navbar-mobile { height: auto !important; padding-top: 16px !important; }
-          .navbar-mobile > div { height: auto !important; min-height: 60px !important; }
+          .navbar-mobile { padding-top: env(safe-area-inset-top, 16px) !important; }
+          .navbar-mobile > div { height: 60px !important; }
+          .desktop-nav { display: none !important; }
+          .mobile-cta { display: none !important; }
         }
         @media (min-width: 769px) {
           .desktop-nav { display: flex !important; }
@@ -328,13 +330,13 @@ export default function Landing() {
           
           {/* Right Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-            <button onClick={handleLogin} style={{ color: "rgba(148,163,184,1)", fontSize: 14, padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
+            <button onClick={handleLogin} className="mobile-cta" style={{ color: "rgba(148,163,184,1)", fontSize: 14, padding: "8px 16px", background: "none", border: "none", cursor: "pointer", fontWeight: 500, fontFamily: "inherit", transition: "color 0.3s" }}
             onMouseEnter={(e) => e.target.style.color = "white"}
             onMouseLeave={(e) => e.target.style.color = "rgba(148,163,184,1)"}>
               
               Login
             </button>
-            <button onClick={handleRegister} style={{
+            <button onClick={handleRegister} className="mobile-cta" style={{
               background: "linear-gradient(135deg,#2563eb,#7c3aed)", color: "white", fontWeight: 700, fontSize: 14,
               padding: "10px 22px", borderRadius: 10, border: "none", cursor: "pointer", fontFamily: "inherit",
               boxShadow: "0 0 30px rgba(37,99,235,0.4)",
@@ -353,7 +355,7 @@ export default function Landing() {
       <section style={{
         minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
         background: "#020617",
-        position: "relative", overflow: "hidden", paddingTop: isMobile ? 120 : 80
+        position: "relative", overflow: "hidden", paddingTop: isMobile ? 90 : 80
       }}>
         {/* Premium Background: Noise + Glows */}
         <div style={{
