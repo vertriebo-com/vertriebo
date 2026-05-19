@@ -245,12 +245,10 @@ export default function Dashboard() {
               <Calendar className="w-4 h-4 text-amber-600" />
             </div>
           </div>
-          <p className="text-2xl font-bold text-slate-900">
-            {todayTasks.length}
-            {overdueTasks.length > 0 && (
-              <span className="text-sm font-medium text-red-500 ml-1">+{overdueTasks.length}</span>
-            )}
-          </p>
+          <p className="text-2xl font-bold text-slate-900">{todayTasks.length}</p>
+          {overdueTasks.length > 0 && (
+            <p className="text-[11px] font-semibold text-red-500 mt-0.5">{overdueTasks.length} überfällig</p>
+          )}
         </Link>
 
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm">
@@ -324,16 +322,32 @@ export default function Dashboard() {
                 </Link>
               ))
             ) : (
-              <div className="px-5 py-10 text-center">
-                <Flame className="w-8 h-8 text-slate-200 mx-auto mb-3" />
-                <p className="text-sm font-semibold text-slate-700">Noch keine heißen Leads</p>
-                <p className="text-xs text-slate-400 mt-1 mb-4">Starten Sie eine Recherche oder analysieren Sie neue Leads.</p>
-                <Link to="/leads">
-                  <Button size="sm" variant="outline" className="gap-2 text-xs">
-                    <Search className="w-3.5 h-3.5" />
-                    Zur Lead-Übersicht
-                  </Button>
-                </Link>
+              <div className="px-5 py-8 text-center">
+                <Flame className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+                <p className="text-sm font-semibold text-slate-700">
+                  {totalLeads > 0 ? "Noch keine heißen Leads erkannt" : "Noch keine Leads vorhanden"}
+                </p>
+                <p className="text-xs text-slate-400 mt-1 mb-4">
+                  {totalLeads > 0
+                    ? "Analysieren Sie Ihre Leads, damit Vertriebo heiße Kontakte erkennt."
+                    : "Starten Sie eine Recherche, um erste Firmenkontakte zu finden."}
+                </p>
+                <div className="flex flex-col items-center gap-2">
+                  {totalLeads > 0 && (
+                    <Link to="/leads">
+                      <Button size="sm" className="gap-2 text-xs bg-orange-500 hover:bg-orange-600 text-white">
+                        <Zap className="w-3.5 h-3.5" />
+                        Leads analysieren
+                      </Button>
+                    </Link>
+                  )}
+                  <Link to="/leads">
+                    <Button size="sm" variant="outline" className="gap-2 text-xs">
+                      <Search className="w-3.5 h-3.5" />
+                      Zur Lead-Übersicht
+                    </Button>
+                  </Link>
+                </div>
               </div>
             )}
           </div>

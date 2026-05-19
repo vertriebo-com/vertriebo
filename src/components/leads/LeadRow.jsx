@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Building2, Flame, Phone, Mail, MapPin, User, Calendar, MoreHorizontal, ArrowRight } from "lucide-react";
+import { Building2, Flame, Phone, Mail, MapPin, User, Calendar, MoreHorizontal, ArrowRight, Zap } from "lucide-react";
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
@@ -129,6 +129,22 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
               </>
             )}
           </div>
+          {/* Passgrund / Nächste Aktion */}
+          {(company.matched_target_customer_type || company.next_best_action) && (
+            <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-500 flex-wrap">
+              {company.matched_target_customer_type && (
+                <span className="truncate">🎯 {company.matched_target_customer_type}</span>
+              )}
+              {company.next_best_action && (
+                <>
+                  {company.matched_target_customer_type && <span className="text-slate-300">·</span>}
+                  <span className="flex items-center gap-0.5 text-blue-600 font-medium truncate">
+                    <Zap className="w-2.5 h-2.5 shrink-0" /> {company.next_best_action}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Status + Temperatur */}
@@ -155,17 +171,11 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <Link
-            to={`/leads/${company.id}`}
-            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow-sm transition-all"
-          >
-            Details
-          </Link>
           {company.telefon && (
             <a
               href={`tel:${company.telefon}`}
               className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 transition-all"
-              title="Anrufen"
+              title={`Anrufen: ${company.telefon}`}
             >
               <Phone className="w-3.5 h-3.5" />
             </a>
@@ -174,11 +184,17 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
             <a
               href={`mailto:${company.email}`}
               className="p-2 rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-all"
-              title="E-Mail"
+              title={`E-Mail: ${company.email}`}
             >
               <Mail className="w-3.5 h-3.5" />
             </a>
           )}
+          <Link
+            to={`/leads/${company.id}`}
+            className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-semibold transition-all"
+          >
+            Details
+          </Link>
           <div className="relative">
             <button
               onClick={() => setShowActions(!showActions)}

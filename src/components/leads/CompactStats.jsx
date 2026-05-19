@@ -29,12 +29,14 @@ export default function CompactStats({ companies, tasks = [] }) {
     { label: "Heute fällig", value: heuteFaellig, icon: Clock, color: "text-red-600", bg: "bg-red-50", show: heuteFaellig > 0 },
   ].filter(s => s.show);
 
-  if (stats.length === 0) return null;
+  // Wenn nur "Leads gesamt" sichtbar wäre → keinen eigenen Block rendern
+  const meaningfulStats = stats.filter(s => s.label !== "Leads gesamt");
+  if (meaningfulStats.length === 0) return null;
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-3">
-      <div className={`grid gap-2 ${stats.length === 1 ? 'grid-cols-1' : stats.length === 2 ? 'grid-cols-2' : stats.length === 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
-        {stats.map(stat => {
+      <div className={`grid gap-2 ${meaningfulStats.length === 1 ? 'grid-cols-1' : meaningfulStats.length === 2 ? 'grid-cols-2' : meaningfulStats.length === 3 ? 'grid-cols-3' : 'grid-cols-2 sm:grid-cols-4'}`}>
+        {meaningfulStats.map(stat => {
           const Icon = stat.icon;
           return (
             <div key={stat.label} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-slate-50 border border-slate-100">

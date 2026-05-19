@@ -20,6 +20,19 @@ export default function PipelineBar({ companies, activeStatus, onStatusClick }) 
   // Nur Stages mit Einträgen oder aktiv gefilterte zeigen
   const visibleStages = PIPELINE_STAGES.filter(s => counts[s.status] > 0 || activeStatus === s.status);
 
+  // Wenn nur "Neu" vorhanden und kein aktiver Filter → kompakte Inline-Darstellung
+  const onlyNew = visibleStages.length === 1 && visibleStages[0].status === "Neu" && !activeStatus;
+  if (onlyNew) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm px-4 py-2.5 flex items-center gap-3">
+        <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">Pipeline</span>
+        <div className="w-2 h-2 rounded-full bg-blue-500" />
+        <span className="text-xs font-semibold text-slate-700">{counts["Neu"]} Neu</span>
+        <span className="text-xs text-slate-400 ml-auto">Noch kein Kontakt gestartet</span>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-3">
       <div className="flex items-center justify-between mb-2.5">

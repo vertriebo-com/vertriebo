@@ -16,7 +16,6 @@ import EngineStatsBox from "../components/leads/EngineStatsBox";
 import ResearchDialog from "../components/leads/ResearchDialog";
 import ActiveResearchBanner from "../components/leads/ActiveResearchBanner";
 import LearnedIntelligencePanel from "../components/settings/LearnedIntelligencePanel";
-import PrimaryActionCard from "../components/leads/PrimaryActionCard";
 import CompactStats from "../components/leads/CompactStats";
 import moment from "moment";
 import { isHotLead } from "@/utils/leadTemperature";
@@ -282,12 +281,7 @@ export default function Leads() {
         </div>
       )}
 
-      {/* Primary Action Card - "Heute zuerst" */}
-      {filtered.length > 0 && (
-        <PrimaryActionCard company={filtered[0]} onAnalyze={handleAnalyzeLatest} />
-      )}
-
-      {/* Compact Stats */}
+      {/* Compact Stats – nur wenn mehrere KPIs sichtbar */}
       <CompactStats companies={filtered} />
 
       {/* Pipeline - Kompakt */}
@@ -308,11 +302,17 @@ export default function Leads() {
               />
             </div>
             <Select value={sortBy} onValueChange={setSortBy}>
-              <SelectTrigger className="w-full sm:w-40 bg-white border border-[#E2E8F0] text-slate-900">
-                <SelectValue placeholder="Sortieren" />
+              <SelectTrigger className="w-full sm:w-48 bg-white border border-[#E2E8F0] text-slate-900">
+                <SelectValue placeholder="Sortieren nach…" />
               </SelectTrigger>
               <SelectContent>
-                {[{value:"priority",label:"Priorität"},{value:"name",label:"Name A–Z"},{value:"created",label:"Neueste"},{value:"last_contact",label:"Letzter Kontakt"}].map(o => (
+                {[
+                  {value:"priority",label:"Höchste Priorität zuerst"},
+                  {value:"score",label:"Bester Score zuerst"},
+                  {value:"name",label:"Name A–Z"},
+                  {value:"created",label:"Neueste zuerst"},
+                  {value:"last_contact",label:"Zuletzt kontaktiert"},
+                ].map(o => (
                   <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -322,8 +322,13 @@ export default function Leads() {
           {/* Filter-Gruppe */}
           <div className="flex flex-wrap items-center gap-2">
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-32 bg-white border border-[#E2E8F0]"><SelectValue placeholder="Temperatur" /></SelectTrigger>
-              <SelectContent>{["Alle","Hoch","Mittel","Niedrig"].map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
+              <SelectTrigger className="w-36 bg-white border border-[#E2E8F0]"><SelectValue placeholder="Temperatur" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Alle">Alle Temperaturen</SelectItem>
+                <SelectItem value="Hoch">🔥 Heiß (Score ≥60)</SelectItem>
+                <SelectItem value="Mittel">Warm (30–59)</SelectItem>
+                <SelectItem value="Niedrig">Kalt (&lt;30)</SelectItem>
+              </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-32 bg-white border border-[#E2E8F0]"><SelectValue placeholder="Status" /></SelectTrigger>
