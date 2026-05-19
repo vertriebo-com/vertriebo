@@ -77,11 +77,22 @@ Deno.serve(async (req) => {
     const { organization_id, target_count = 25 } = body;
     if (!organization_id) return Response.json({ error: 'organization_id fehlt', success: false }, { status: 400 });
 
-    // ── Access Check ────────────────────────────────────────────────────────
+    // ── Tenant-sicherer Access Check ─────────────────────────────────────────
     const isPlatformAdmin = ["admin","platform_owner","platform_admin"].includes(user.role);
-    const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
+
+    const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id }).catch(() => []);
     const org = orgs[0];
     if (!org) return Response.json({ error: 'Organisation nicht gefunden', success: false }, { status: 404 });
+
+    if (!isPlatformAdmin) {
+      // Prüfen: User ist Owner oder aktives Mitglied dieser Organisation
+      const isOwner = org.owner_email === user.email;
+      const memberships = await base44.asServiceRole.entities.OrganizationMember.filter({ organization_id, user_email: user.email, status: 'active' }).catch(() => []);
+      const isMember = memberships.length > 0;
+      if (!isOwner && !isMember) {
+        return Response.json({ error: 'Kein Zugriff auf diese Organisation', success: false }, { status: 403 });
+      }
+    }
 
     if (!isPlatformAdmin) {
       if (org.platform_status === 'suspended') return Response.json({ error: 'organization_suspended', success: false }, { status: 403 });

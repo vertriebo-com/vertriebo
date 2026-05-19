@@ -12,15 +12,29 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Nicht eingeloggt', success: false }, { status: 401 });
 
     const body = await req.json();
-    const { research_run_id, organization_id } = body;
-    if (!research_run_id || !organization_id) {
-      return Response.json({ error: 'research_run_id und organization_id erforderlich', success: false }, { status: 400 });
+    const { research_run_id } = body;
+    if (!research_run_id) {
+      return Response.json({ error: 'research_run_id erforderlich', success: false }, { status: 400 });
     }
 
-    const runs = await base44.asServiceRole.entities.ResearchRun.filter({ id: research_run_id });
+    const runs = await base44.asServiceRole.entities.ResearchRun.filter({ id: research_run_id }).catch(() => []);
     const run = runs[0];
-    if (!run) return Response.json({ error: 'ResearchRun nicht gefunden', success: false }, { status: 404 });
-    if (run.organization_id !== organization_id) return Response.json({ error: 'Ungültige organization_id', success: false }, { status: 403 });
+    if (!run) return Response.json({ error: 'Nicht gefunden', success: false }, { status: 404 });
+
+    // ── Tenant-sicherer Ownership-Check ──────────────────────────────────────
+    // organization_id IMMER aus dem validierten ResearchRun nehmen, nie aus dem Request-Body
+    const organization_id = run.organization_id;
+    const isPlatformAdmin = ["admin","platform_owner","platform_admin"].includes(user.role);
+
+    if (!isPlatformAdmin) {
+      const orgsOwned = await base44.asServiceRole.entities.Organization.filter({ id: organization_id, owner_email: user.email }).catch(() => []);
+      const isOwner = orgsOwned.length > 0;
+      const memberships = await base44.asServiceRole.entities.OrganizationMember.filter({ organization_id, user_email: user.email, status: 'active' }).catch(() => []);
+      const isMember = memberships.length > 0;
+      if (!isOwner && !isMember) {
+        return Response.json({ error: 'Nicht gefunden', success: false }, { status: 404 }); // 404 statt 403: kein Info-Leak über fremde Run-IDs
+      }
+    }
 
     // ── Stale-Run-Watchdog ────────────────────────────────────────────────────
     // Run ist running/queued aber kein Update seit >90s → automatisch beenden
@@ -61,7 +75,7 @@ Deno.serve(async (req) => {
       message = run.error_message || 'Recherche fehlgeschlagen';
     }
 
-    // Monatliche Nutzung
+    // Monatliche Nutzung (organization_id aus validiertem ResearchRun)
     const periodMonth = new Date().toISOString().slice(0,7);
     const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
     const monthlyUsage = usageLogs[0] ? {
