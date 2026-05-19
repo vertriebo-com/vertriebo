@@ -77,16 +77,21 @@ function EmailEditor({ tpl, company, orgId, fromName, orgSettings, onBack, onDon
       });
 
       // Increment manual_emails_logged in UsageLog (not emails_sent — no auto-send happened)
-      const now = new Date();
-      const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      // KANONISCH: period_month via Europe/Berlin – identisch zu processResearchRun / getDashboardData
+      const periodMonth = new Intl.DateTimeFormat('de-DE', {
+        timeZone: 'Europe/Berlin',
+        year: 'numeric',
+        month: '2-digit',
+      }).format(new Date()).split('.').reverse().join('-');
+      const [py, pm] = periodMonth.split('-').map(Number);
+      const periodStart = new Date(Date.UTC(py, pm - 1, 1)).toISOString();
+      const periodEnd   = new Date(Date.UTC(py, pm, 0, 23, 59, 59)).toISOString();
       const existingUsage = await base44.entities.UsageLog.filter({ organization_id: orgIdForLog, period_month: periodMonth });
       if (existingUsage.length > 0) {
         await base44.entities.UsageLog.update(existingUsage[0].id, {
           manual_emails_logged: (existingUsage[0].manual_emails_logged || 0) + 1,
         });
       } else {
-        const periodStart = new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)).toISOString();
-        const periodEnd = new Date(Date.UTC(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)).toISOString();
         await base44.entities.UsageLog.create({
           organization_id: orgIdForLog,
           period_month: periodMonth,
