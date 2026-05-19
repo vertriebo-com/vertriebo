@@ -30,6 +30,34 @@ function formatPeriodMonth(periodMonth) {
   return date.toLocaleDateString("de-DE", { month: "long", year: "numeric", timeZone: "Europe/Berlin" });
 }
 
+// Over-Limit Banner Component
+function OverLimitBanner({ used, limit, resetDate }) {
+  return (
+    <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 mb-4">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <h4 className="text-sm font-bold text-red-900 mb-1">Monatskontingent überschritten</h4>
+          <p className="text-xs text-red-800 mb-2">
+            Sie haben <strong>{used} von {limit} Leads</strong> genutzt ({Math.round((used / limit) * 100)}%). 
+            Weitere Recherchen sind blockiert bis zum {resetDate}.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.location.href = "/settings?tab=billing#upgrade"}
+              className="text-red-700 border-red-300 hover:bg-red-100"
+            >
+              Jetzt upgraden
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MonthlyLeadQuotaCard({ usageSummary, plan, subscription }) {
   const maxLeads = usageSummary?.monthly_limit ?? plan?.max_leads_per_month ?? -1;
   const usedLeads = usageSummary?.monthly_used || 0;
@@ -48,6 +76,11 @@ function MonthlyLeadQuotaCard({ usageSummary, plan, subscription }) {
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monatskontingent · Leads</h3>
         <span className="text-[11px] font-medium text-slate-400">Wird am {resetDate} zurückgesetzt</span>
       </div>
+
+      {/* Over-Limit Banner */}
+      {isOverLimit && (
+        <OverLimitBanner used={usedLeads} limit={maxLeads} resetDate={resetDate} />
+      )}
 
       {maxLeads === -1 ? (
         <div className="flex items-center gap-2">
@@ -194,19 +227,6 @@ export default function BillingSettings({ org: orgProp, user }) {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  // Helper: Reset-Datum aus usageSummary oder defensiver Fallback
-  const getResetDateFallback = () => {
-    if (usageSummary?.reset_date) return usageSummary.reset_date;
-    // Defensiver Fallback (nur wenn backend nicht liefert)
-    const now = new Date();
-    const periodParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit' }).formatToParts(now);
-    const yearPart = periodParts.find(p => p.type === 'year');
-    const monthPart = periodParts.find(p => p.type === 'month');
-    const [py, pm] = [parseInt(yearPart?.value || 2026), parseInt(monthPart?.value || 1)];
-    const resetDate = new Date(Date.UTC(py, pm, 1));
-    return resetDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' });
   };
 
   useEffect(() => { loadData(); }, []);
