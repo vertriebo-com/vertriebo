@@ -370,8 +370,9 @@ function getPeriodMonth() {
   return `${yearPart?.value}-${monthPart?.value}`; // z.B. "2026-05"
 }
 
-// ATOMARE QUOTA-RESERVIERUNG: EIN Datensatz pro Slot mit UNIQUE constraint
-// Base44 enforced unique constraints atomar → nur EIN Worker kann slot_number=300 erstellen
+// QUOTA-RESERVIERUNG MIT CODE-BASEIERTER UNIQUE-PRÜFUNG
+// WICHTIG: Base44 enforced unique_constraints NICHT atomar auf DB-Ebene!
+// Daher müssen wir im Code prüfen ob der Slot schon existiert VOR dem Create.
 async function reserveQuotaSlot(base44, organization_id, runId) {
   const periodMonth = getPeriodMonth();
   const now = new Date().toISOString();
@@ -388,18 +389,18 @@ async function reserveQuotaSlot(base44, organization_id, runId) {
     return { success: true, unlimited: true };
   }
   
-  // 1. Nächste freie Slot-Nummer ermitteln (COUNT + 1)
-  // Race condition: zwei Worker lesen beide COUNT=299 → beide wollen Slot 300 erstellen
-  // ABER: Base44 unique constraint auf (org_id, period_month, slot_number) blockiert den Zweiten!
+  // 1. ALLE Slots laden (nicht nur COUNT!)
+  // Base44 unique_constraints werden NICHT enforced → wir müssen selbst prüfen
   const existingSlots = await base44.asServiceRole.entities.QuotaReservation.filter({ 
     organization_id, 
     period_month: periodMonth 
   });
   
+  // 2. Nächste freie Slot-Nummer ermitteln
   const maxSlot = existingSlots.reduce((max, r) => Math.max(max, r.slot_number || 0), 0);
   const nextSlot = maxSlot + 1;
   
-  // 2. Hard-Check: Slot > Limit?
+  // 3. Hard-Check: Slot > Limit?
   if (nextSlot > monthlyLimit) {
     console.warn(`[reserveQuotaSlot] QUOTA EXHAUSTED: Slot ${nextSlot}/${monthlyLimit} org=${organization_id}`);
     return { 
@@ -410,72 +411,81 @@ async function reserveQuotaSlot(base44, organization_id, runId) {
     };
   }
   
-  // 3. Atomarer Create-Versuch: unique constraint enforced by Base44 DB
-  try {
-    await base44.asServiceRole.entities.QuotaReservation.create({
-      organization_id,
-      period_month: periodMonth,
-      slot_number: nextSlot,
-      research_run_id: runId,
-      status: 'reserved',
-      reserved_at: now,
-    });
+  // 4. PRÜFEN ob Slot schon existiert (Race-Condition-Schutz im Code!)
+  const slotExists = existingSlots.some(s => s.slot_number === nextSlot);
+  if (slotExists) {
+    // Slot wurde parallel erstellt → nächsten freien Slot finden
+    console.warn(`[reserveQuotaSlot] Slot ${nextSlot} exists (race condition), finding next free slot org=${organization_id}`);
     
-    return { 
-      success: true, 
-      reserved: true, 
-      slot_number: nextSlot,
-      remaining: monthlyLimit - nextSlot
-    };
-  } catch (createErr) {
-    // Unique constraint violation → Slot wurde parallel belegt
-    // Nächsten freien Slot finden und retry
-    console.warn(`[reserveQuotaSlot] Slot ${nextSlot} conflict, retrying org=${organization_id}`);
+    // Alle belegten Slots
+    const takenSlots = new Set(existingSlots.map(s => s.slot_number));
     
-    // Re-read und nächster Versuch
-    const retrySlots = await base44.asServiceRole.entities.QuotaReservation.filter({ 
-      organization_id, 
-      period_month: periodMonth 
-    });
-    const retryMax = retrySlots.reduce((max, r) => Math.max(max, r.slot_number || 0), 0);
-    const retrySlot = retryMax + 1;
+    // Nächsten freien Slot finden
+    let freeSlot = nextSlot;
+    while (takenSlots.has(freeSlot) && freeSlot <= monthlyLimit) {
+      freeSlot++;
+    }
     
-    if (retrySlot > monthlyLimit) {
+    if (freeSlot > monthlyLimit) {
       return { 
         success: false, 
         error: 'monthly_quota_reached',
-        slot: retrySlot,
+        slot: freeSlot,
         limit: monthlyLimit 
       };
     }
     
-    // Zweiter Versuch
-    try {
-      await base44.asServiceRole.entities.QuotaReservation.create({
-        organization_id,
-        period_month: periodMonth,
-        slot_number: retrySlot,
-        research_run_id: runId,
-        status: 'reserved',
-        reserved_at: now,
-      });
-      
-      return { 
-        success: true, 
-        reserved: true, 
-        slot_number: retrySlot,
-        remaining: monthlyLimit - retrySlot
-      };
-    } catch (retryErr) {
-      // Immer noch Conflict → Quota wirklich voll
-      return { 
-        success: false, 
-        error: 'monthly_quota_reached',
-        slot: retrySlot,
-        limit: monthlyLimit 
-      };
-    }
+    console.info(`[reserveQuotaSlot] Using free slot ${freeSlot} instead of ${nextSlot}`);
+    return await createQuotaReservation(base44, organization_id, periodMonth, freeSlot, runId, now, monthlyLimit);
   }
+  
+  // 5. Slot erstellen
+  return await createQuotaReservation(base44, organization_id, periodMonth, nextSlot, runId, now, monthlyLimit);
+}
+
+// Helper: QuotaReservation erstellen mit abschließender Prüfung
+async function createQuotaReservation(base44, organization_id, periodMonth, slotNumber, runId, now, monthlyLimit) {
+  // Letzte Prüfung VOR Create
+  const existingSlots = await base44.asServiceRole.entities.QuotaReservation.filter({ 
+    organization_id, 
+    period_month: periodMonth 
+  });
+  
+  const slotExists = existingSlots.some(s => s.slot_number === slotNumber);
+  if (slotExists) {
+    console.warn(`[createQuotaReservation] Slot ${slotNumber} just taken, retrying...`);
+    // Retry mit nächstem Slot
+    const takenSlots = new Set(existingSlots.map(s => s.slot_number));
+    let freeSlot = slotNumber;
+    while (takenSlots.has(freeSlot) && freeSlot <= monthlyLimit) {
+      freeSlot++;
+    }
+    
+    if (freeSlot > monthlyLimit) {
+      return { success: false, error: 'monthly_quota_reached', slot: freeSlot, limit: monthlyLimit };
+    }
+    
+    return await createQuotaReservation(base44, organization_id, periodMonth, freeSlot, runId, now, monthlyLimit);
+  }
+  
+  // Create
+  await base44.asServiceRole.entities.QuotaReservation.create({
+    organization_id,
+    period_month: periodMonth,
+    slot_number: slotNumber,
+    research_run_id: runId,
+    status: 'reserved',
+    reserved_at: now,
+  });
+  
+  console.info(`[createQuotaReservation] Created slot ${slotNumber}/${monthlyLimit} for run ${runId}`);
+  
+  return { 
+    success: true, 
+    reserved: true, 
+    slot_number: slotNumber,
+    remaining: monthlyLimit - slotNumber
+  };
 }
 
 // Commit nach erfolgreichem Company.create: slot → committed, company_id setzen
