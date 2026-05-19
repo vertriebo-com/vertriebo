@@ -370,16 +370,11 @@ function getPeriodMonth() {
   return `${yearPart?.value}-${monthPart?.value}`; // z.B. "2026-05"
 }
 
-// ATOMARE QUOTA-RESERVIERUNG mit Optimistic Locking
-// Reserviert Slot VOR Company.create - verhindert paralleles Over-Usage
+// ATOMARE QUOTA-RESERVIERUNG: EIN Datensatz pro Slot mit UNIQUE constraint
+// Base44 enforced unique constraints atomar → nur EIN Worker kann slot_number=300 erstellen
 async function reserveQuotaSlot(base44, organization_id, runId) {
   const periodMonth = getPeriodMonth();
   const now = new Date().toISOString();
-  
-  // 1. Aktuelles Usage + Planlimit holen
-  const usageRecords = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
-  const usage = usageRecords[0];
-  const usedCount = usage?.leads_created || 0;
   
   const org = await base44.asServiceRole.entities.Organization.filter({ id: organization_id }).catch(() => []);
   const planId = org[0]?.plan_id;
@@ -393,117 +388,109 @@ async function reserveQuotaSlot(base44, organization_id, runId) {
     return { success: true, unlimited: true };
   }
   
-  // 2. QuotaReservation mit Optimistic Locking
-  const reservations = await base44.asServiceRole.entities.QuotaReservation.filter({ 
+  // 1. Nächste freie Slot-Nummer ermitteln (COUNT + 1)
+  // Race condition: zwei Worker lesen beide COUNT=299 → beide wollen Slot 300 erstellen
+  // ABER: Base44 unique constraint auf (org_id, period_month, slot_number) blockiert den Zweiten!
+  const existingSlots = await base44.asServiceRole.entities.QuotaReservation.filter({ 
     organization_id, 
     period_month: periodMonth 
   });
   
-  let reservation = reservations[0];
-  let retries = 0;
-  const MAX_RETRIES = 3;
+  const maxSlot = existingSlots.reduce((max, r) => Math.max(max, r.slot_number || 0), 0);
+  const nextSlot = maxSlot + 1;
   
-  while (retries < MAX_RETRIES) {
-    if (!reservation) {
-      // Erste Reservierung für diesen Monat
-      try {
-        await base44.asServiceRole.entities.QuotaReservation.create({
-          organization_id,
-          period_month: periodMonth,
-          reserved_slots: 1,
-          used_slots: 0,
-          lock_version: 0,
-          last_reserved_at: now,
-        });
-        return { success: true, reserved: true, position: 1 };
-      } catch (createErr) {
-        // Race condition: wurde parallel erstellt → retry mit read
-        retries++;
-        const retryRes = await base44.asServiceRole.entities.QuotaReservation.filter({ 
-          organization_id, 
-          period_month: periodMonth 
-        });
-        reservation = retryRes[0];
-        continue;
-      }
-    }
+  // 2. Hard-Check: Slot > Limit?
+  if (nextSlot > monthlyLimit) {
+    console.warn(`[reserveQuotaSlot] QUOTA EXHAUSTED: Slot ${nextSlot}/${monthlyLimit} org=${organization_id}`);
+    return { 
+      success: false, 
+      error: 'monthly_quota_reached',
+      slot: nextSlot,
+      limit: monthlyLimit 
+    };
+  }
+  
+  // 3. Atomarer Create-Versuch: unique constraint enforced by Base44 DB
+  try {
+    await base44.asServiceRole.entities.QuotaReservation.create({
+      organization_id,
+      period_month: periodMonth,
+      slot_number: nextSlot,
+      research_run_id: runId,
+      status: 'reserved',
+      reserved_at: now,
+    });
     
-    // 3. Hard-Check: used_slots + reserved_slots >= limit?
-    const totalCommitted = (reservation.used_slots || 0) + (reservation.reserved_slots || 0);
-    if (totalCommitted >= monthlyLimit) {
-      console.warn(`[reserveQuotaSlot] QUOTA EXHAUSTED: ${totalCommitted}/${monthlyLimit} org=${organization_id}`);
+    return { 
+      success: true, 
+      reserved: true, 
+      slot_number: nextSlot,
+      remaining: monthlyLimit - nextSlot
+    };
+  } catch (createErr) {
+    // Unique constraint violation → Slot wurde parallel belegt
+    // Nächsten freien Slot finden und retry
+    console.warn(`[reserveQuotaSlot] Slot ${nextSlot} conflict, retrying org=${organization_id}`);
+    
+    // Re-read und nächster Versuch
+    const retrySlots = await base44.asServiceRole.entities.QuotaReservation.filter({ 
+      organization_id, 
+      period_month: periodMonth 
+    });
+    const retryMax = retrySlots.reduce((max, r) => Math.max(max, r.slot_number || 0), 0);
+    const retrySlot = retryMax + 1;
+    
+    if (retrySlot > monthlyLimit) {
       return { 
         success: false, 
         error: 'monthly_quota_reached',
-        used: totalCommitted,
+        slot: retrySlot,
         limit: monthlyLimit 
       };
     }
     
-    // 4. Atomares Update via lock_version (optimistic locking)
-    const newReserved = (reservation.reserved_slots || 0) + 1;
-    const newVersion = (reservation.lock_version || 0) + 1;
-    
+    // Zweiter Versuch
     try {
-      // Update nur wenn lock_version unverändert (Base44 SDK hat kein CAS, wir simulieren es)
-      // In Produktion: Base44 SDK um atomic update erweitern lassen
-      await base44.asServiceRole.entities.QuotaReservation.update(reservation.id, {
-        reserved_slots: newReserved,
-        lock_version: newVersion,
-        last_reserved_at: now,
+      await base44.asServiceRole.entities.QuotaReservation.create({
+        organization_id,
+        period_month: periodMonth,
+        slot_number: retrySlot,
+        research_run_id: runId,
+        status: 'reserved',
+        reserved_at: now,
       });
       
-      // Verify update succeeded (simple check: read back)
-      const verify = await base44.asServiceRole.entities.QuotaReservation.filter({ 
-        organization_id, 
-        period_month: periodMonth 
-      });
-      
-      if (verify[0]?.lock_version === newVersion) {
-        const position = totalCommitted + 1;
-        return { 
-          success: true, 
-          reserved: true, 
-          position,
-          remaining: monthlyLimit - position
-        };
-      } else {
-        // Update wurde überschrieben → retry
-        retries++;
-        reservation = verify[0];
-      }
-    } catch (updateErr) {
-      retries++;
-      const retryRes = await base44.asServiceRole.entities.QuotaReservation.filter({ 
-        organization_id, 
-        period_month: periodMonth 
-      });
-      reservation = retryRes[0];
+      return { 
+        success: true, 
+        reserved: true, 
+        slot_number: retrySlot,
+        remaining: monthlyLimit - retrySlot
+      };
+    } catch (retryErr) {
+      // Immer noch Conflict → Quota wirklich voll
+      return { 
+        success: false, 
+        error: 'monthly_quota_reached',
+        slot: retrySlot,
+        limit: monthlyLimit 
+      };
     }
   }
-  
-  // Max retries exceeded → fail safe
-  console.error(`[reserveQuotaSlot] MAX_RETRIES exceeded org=${organization_id}`);
-  return { 
-    success: false, 
-    error: 'quota_lock_contention',
-    message: 'Zu viele parallele Reservierungen - bitte später versuchen' 
-  };
 }
 
-// Markiere reservierten Slot als genutzt (nach erfolgreichem Company.create)
-async function commitQuotaUsage(base44, organization_id) {
-  const periodMonth = getPeriodMonth();
-  
-  const reservations = await base44.asServiceRole.entities.QuotaReservation.filter({ 
-    organization_id, 
-    period_month: periodMonth 
+// Commit nach erfolgreichem Company.create: slot → committed, company_id setzen
+async function commitQuotaSlot(base44, organization_id, periodMonth, slotNumber, companyId) {
+  const slots = await base44.asServiceRole.entities.QuotaReservation.filter({
+    organization_id,
+    period_month: periodMonth,
+    slot_number: slotNumber,
   });
   
-  if (reservations[0]) {
-    await base44.asServiceRole.entities.QuotaReservation.update(reservations[0].id, {
-      used_slots: (reservations[0].used_slots || 0) + 1,
-      reserved_slots: Math.max(0, (reservations[0].reserved_slots || 1) - 1),
+  if (slots[0]) {
+    await base44.asServiceRole.entities.QuotaReservation.update(slots[0].id, {
+      status: 'committed',
+      company_id: companyId,
+      committed_at: new Date().toISOString(),
     });
   }
   
@@ -528,29 +515,24 @@ async function commitQuotaUsage(base44, organization_id) {
   }
 }
 
-async function upsertUsageLogBatch(base44, organization_id, newLeads) {
-  if (newLeads <= 0) return;
-  const periodMonth = getPeriodMonth();
-  const now = new Date().toISOString();
-  const existing = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
+// Release bei Fallback: Slot freigeben wenn Company.create fehlschlägt
+async function releaseQuotaSlot(base44, organization_id, periodMonth, slotNumber) {
+  const slots = await base44.asServiceRole.entities.QuotaReservation.filter({
+    organization_id,
+    period_month: periodMonth,
+    slot_number: slotNumber,
+  });
   
-  if (existing[0]) {
-    await base44.asServiceRole.entities.UsageLog.update(existing[0].id, {
-      leads_created: (existing[0].leads_created || 0) + newLeads,
-      last_lead_generation_at: now,
-    });
-  } else {
-    const [y, m] = periodMonth.split('-').map(Number);
-    const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();
-    const end = new Date(Date.UTC(y, m, 0, 23, 59, 59)).toISOString();
-    await base44.asServiceRole.entities.UsageLog.create({
-      organization_id, period_month: periodMonth,
-      period_start: start, period_end: end,
-      leads_created: newLeads, lead_generations_used: 1,
-      last_lead_generation_at: now,
+  if (slots[0]) {
+    await base44.asServiceRole.entities.QuotaReservation.update(slots[0].id, {
+      status: 'released',
+      released_at: new Date().toISOString(),
     });
   }
 }
+
+// upsertUsageLogBatch wurde entfernt - nicht mehr genutzt!
+// UsageLog wird pro Lead via commitQuotaSlot synchron gehalten
 
 // ── MAIN ─────────────────────────────────────────────────────────────────────
 
@@ -800,9 +782,9 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, done: true, status: 'completed', leads_saved: currentLeadsSaved, progress_percent: 100 });
     }
 
-    // ── HARTER QUOTA-CHECK: Vor Batch-Start + pro Lead atomare Reservierung ──
-    // Verwendet QuotaReservation-Entity mit Optimistic Locking für Parallelitätssicherheit
-    let batchTarget = effectiveTarget || 25; // Default: aus searchPlan
+    // ── HARTER QUOTA-CHECK: Vor Batch-Start via QuotaReservation COUNT ────────
+    // Zählt committed + reserved Slots für harten Stop vor Batch-Start
+    let batchTarget = effectiveTarget || 25;
 
     const orgForQuota = await base44.asServiceRole.entities.Organization.filter({ id: organization_id }).catch(() => []);
     const orgPlanId = orgForQuota[0]?.plan_id;
@@ -811,17 +793,17 @@ Deno.serve(async (req) => {
       const monthlyLimit = planForQuota?.max_leads_per_month ?? -1;
 
       if (monthlyLimit !== -1) {
-        // Erster Check: grobe Vorab-Prüfung (kann veralten → pro Lead trotzdem reservieren!)
         const quotaPeriodMonth = getPeriodMonth();
-        const reservations = await base44.asServiceRole.entities.QuotaReservation.filter({ 
+        
+        // COUNT aller Slots (committed + reserved) für diesen Monat
+        const allSlots = await base44.asServiceRole.entities.QuotaReservation.filter({ 
           organization_id, 
           period_month: quotaPeriodMonth 
         }).catch(() => []);
         
-        const reservation = reservations[0];
-        const totalCommitted = reservation 
-          ? ((reservation.used_slots || 0) + (reservation.reserved_slots || 0))
-          : 0;
+        const committedCount = allSlots.filter(s => s.status === 'committed').length;
+        const reservedCount = allSlots.filter(s => s.status === 'reserved').length;
+        const totalCommitted = committedCount + reservedCount;
         
         if (totalCommitted >= monthlyLimit) {
           console.warn(`[processResearchRun] QUOTA HARD STOP: ${totalCommitted}/${monthlyLimit} run=${research_run_id}`);
@@ -951,7 +933,7 @@ Deno.serve(async (req) => {
           }
 
           // ── KRITISCH: Quota-Reservierung VOR Company.create ─────────────────
-          // Verhindert paralleles Over-Usage durch atomare Reservierung
+          // Verhindert paralleles Over-Usage durch atomare Unique-Constraint-Reservierung
           const quotaRes = await reserveQuotaSlot(base44, organization_id, research_run_id);
           
           if (!quotaRes.success) {
@@ -967,7 +949,7 @@ Deno.serve(async (req) => {
               finished_at: new Date().toISOString(),
               stop_reason: 'monthly_quota_reached',
               error_message: quotaRes.error === 'monthly_quota_reached' 
-                ? `Monatskontingent erreicht (${quotaRes.used}/${quotaRes.limit})`
+                ? `Monatskontingent erreicht (${quotaRes.slot}/${quotaRes.limit})`
                 : quotaRes.message || 'Quota-Reservierung fehlgeschlagen',
               processing_lock_until: null, processing_by: null,
             });
@@ -976,7 +958,7 @@ Deno.serve(async (req) => {
             break outer;
           }
           
-          console.info(`[processResearchRun] Quota reserved: position=${quotaRes.position}, remaining=${quotaRes.remaining || '∞'} run=${research_run_id}`);
+          console.info(`[processResearchRun] Quota reserved: slot=${quotaRes.slot_number}, remaining=${quotaRes.remaining || '∞'} run=${research_run_id}`);
 
           // Diagnostics-JSON für Engine-Analyse
           const engineDiagnostics = {
@@ -988,39 +970,59 @@ Deno.serve(async (req) => {
             matched_target_customer,
           };
 
-          // JETZT Company erstellen (Quota ist bereits reserviert)
-          await base44.asServiceRole.entities.Company.create({
-            organization_id,
-            name: place.name || '',
-            branche: scoring.matched_target_customer_type || matched_target_customer || scoring.matched_search_category || category,
-            ort: ort || city, plz: plz || '', adresse: adresse || '',
-            telefon: details?.formatted_phone_number || '',
-            email: '', website: details?.website || '',
-            latitude: details?.geometry?.location?.lat || placeLat || null,
-            longitude: details?.geometry?.location?.lng || placeLng || null,
-            quelle: 'Google Places API', status: 'Neu', is_hot: false,
-            relevance_score: scoring.score,
-            relevance_reason: scoring.relevance_reason,
-            source_query: variant || query,
-            distance_km: distanceKm !== null ? Math.round(distanceKm * 10) / 10 : null,
-            search_center_city: pointCenter.city || city,
-            search_center_lat: pointCenter.lat,
-            search_center_lng: pointCenter.lng,
-            search_radius_km: radiusKm,
-            research_run_id,
-            matched_target_customer_type: scoring.matched_target_customer_type || matched_target_customer || null,
-            matched_service_context: matchedServiceContext || null,
-            google_place_id: place.place_id || null,
-            source_provider: 'google_places',
-            // v6: Engine-Diagnostics speichern
-            engine_analysis_json: JSON.stringify(engineDiagnostics),
-            engine_version: SEARCH_ENGINE_VERSION,
-            engine_confidence: scoring.score,
-            engine_last_analyzed_at: new Date().toISOString(),
-          });
-
-          // Quota als genutzt markieren (reserved → used)
-          await commitQuotaUsage(base44, organization_id);
+          // ── TRY/FINALLY für sauberes Release bei Fehlern ────────────────────
+          let companyId = null;
+          try {
+            // JETZT Company erstellen (Quota ist bereits reserviert)
+            const companyRes = await base44.asServiceRole.entities.Company.create({
+              organization_id,
+              name: place.name || '',
+              branche: scoring.matched_target_customer_type || matched_target_customer || scoring.matched_search_category || category,
+              ort: ort || city, plz: plz || '', adresse: adresse || '',
+              telefon: details?.formatted_phone_number || '',
+              email: '', website: details?.website || '',
+              latitude: details?.geometry?.location?.lat || placeLat || null,
+              longitude: details?.geometry?.location?.lng || placeLng || null,
+              quelle: 'Google Places API', status: 'Neu', is_hot: false,
+              relevance_score: scoring.score,
+              relevance_reason: scoring.relevance_reason,
+              source_query: variant || query,
+              distance_km: distanceKm !== null ? Math.round(distanceKm * 10) / 10 : null,
+              search_center_city: pointCenter.city || city,
+              search_center_lat: pointCenter.lat,
+              search_center_lng: pointCenter.lng,
+              search_radius_km: radiusKm,
+              research_run_id,
+              matched_target_customer_type: scoring.matched_target_customer_type || matched_target_customer || null,
+              matched_service_context: matchedServiceContext || null,
+              google_place_id: place.place_id || null,
+              source_provider: 'google_places',
+              // v6: Engine-Diagnostics speichern
+              engine_analysis_json: JSON.stringify(engineDiagnostics),
+              engine_version: SEARCH_ENGINE_VERSION,
+              engine_confidence: scoring.score,
+              engine_last_analyzed_at: new Date().toISOString(),
+            });
+            
+            companyId = companyRes.id;
+            
+            // Commit: slot → committed, company_id setzen
+            await commitQuotaSlot(base44, organization_id, periodMonth, quotaRes.slot_number, companyId);
+            
+            existingNames.add(normStr(place.name || ''));
+            existingPlaceIds.add(place.place_id);
+            if (ort) existingNameOrt.add(nameOrtKey);
+            if (phoneNorm.length >= 6) existingNamePhone.add(namePhoneKey);
+            newLeadsSavedThisBatch++;
+            
+          } catch (createErr) {
+            // FALLBACK: Company.create fehlgeschlagen → Slot freigeben!
+            console.error(`[processResearchRun] Company.create failed, releasing slot=${quotaRes.slot_number}: ${createErr.message}`);
+            await releaseQuotaSlot(base44, organization_id, periodMonth, quotaRes.slot_number);
+            
+            // Error weiterwerfen oder loggen (nicht break - andere Companies können noch erstellt werden)
+            continue;
+          }
 
           existingNames.add(normStr(place.name || ''));
           existingPlaceIds.add(place.place_id);
@@ -1042,8 +1044,8 @@ Deno.serve(async (req) => {
       ? (rawHitsThisBatch === 0 ? 'no_google_results' : dupSkippedThisBatch > 0 ? 'all_duplicates' : 'no_match_score')
       : null;
 
-    // UsageLog wird bereits pro Lead atomar erhöht (incrementUsageLog oben)
-    // Keine Batch-Aktualisierung nötig – verhindert Double-Counting
+    // UsageLog wird pro Lead via commitQuotaSlot synchron gehalten
+    // Keine Batch-Aktualisierung nötig
     if (trialStage === 'free_preview' && newLeadsSavedThisBatch > 0) {
       const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
       if (orgs[0]) {

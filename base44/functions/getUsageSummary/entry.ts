@@ -72,22 +72,34 @@ Deno.serve(async (req) => {
       day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' 
     });
 
-    // ── USAGELOG LADEN ─────────────────────────────────────────────────────
-    const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ 
-      organization_id: orgId, 
-      period_month: periodMonth 
+    // ── QUOTA RESERVATION ALS SOURCE OF TRUTH ──────────────────────────────
+    // Zählt committed Slots (tatsächlich erstellte Companies)
+    const quotaSlots = await base44.asServiceRole.entities.QuotaReservation.filter({
+      organization_id: orgId,
+      period_month: periodMonth,
     });
-    const usageLog = usageLogs?.[0] || null;
-
+    
+    const committedSlots = quotaSlots.filter(s => s.status === 'committed').length;
+    const reservedSlots = quotaSlots.filter(s => s.status === 'reserved').length;
+    const totalCommitted = committedSlots + reservedSlots;
+    
     // ── PLAN LADEN ─────────────────────────────────────────────────────────
     const plan = org.plan_id 
       ? (await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id }))?.[0] 
       : null;
 
     const monthlyLimit = plan?.max_leads_per_month ?? -1;
-    const monthlyUsed = usageLog?.leads_created || 0;
+    const monthlyUsed = committedSlots; // NUR committed = tatsächlich erstellt
     const monthlyRemaining = monthlyLimit === -1 ? null : Math.max(0, monthlyLimit - monthlyUsed);
     const isOverLimit = monthlyLimit !== -1 && monthlyUsed > monthlyLimit;
+    
+    // UsageLog zum Abgleich laden (für Debugging/Reconciliation)
+    const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ 
+      organization_id: orgId, 
+      period_month: periodMonth 
+    });
+    const usageLog = usageLogs?.[0] || null;
+    const usageLogDiff = usageLog ? (usageLog.leads_created || 0) - committedSlots : 0;
 
     // ── CRM-BESTAND (aktuell gespeicherte Companies, ohne Blacklist) ───────
     const blacklist = await base44.entities.Blacklist.filter({ organization_id: orgId });
@@ -101,25 +113,34 @@ Deno.serve(async (req) => {
     const allCompanies = await base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 2000);
     const crmTotal = allCompanies.filter(c => !isBlacklisted(c.name)).length;
 
-    // ── ZENTRALE USAGE_SUMMARY (Single Source of Truth) ────────────────────
+    // ── ZENTRALE USAGE_SUMMARY (Single Source of Truth: QuotaReservation) ──
     const usage_summary = {
       period_month: periodMonth,
       plan_name: plan?.name || null,
       monthly_limit: monthlyLimit,
-      monthly_used: monthlyUsed,
+      monthly_used: monthlyUsed, // committed slots = tatsächlich erstellte Companies
       monthly_remaining: monthlyRemaining,
       is_over_limit: isOverLimit,
       reset_date: resetDateFormatted,
       crm_total: crmTotal,
       // Erklärung warum monthly_used ≠ crm_total sein kann:
       explanation: {
-        monthly_used_description: "Automatisch generierte neue Leads in diesem Kalendermonat",
+        monthly_used_description: "Automatisch generierte neue Leads in diesem Kalendermonat (committed slots)",
         crm_total_description: "Aktuell gespeicherte Firmenkontakte (kann auch manuell angelegte enthalten)",
         why_different: monthlyUsed !== crmTotal ? 
           "Der Monatsverbrauch zählt nur automatisch recherchierte Leads. Der CRM-Bestand enthält auch manuell angelegte Kontakte und kann sich durch Löschen/Archivieren unterscheiden." : 
           null,
       },
-      // Weitere Usage-Metriken
+      // Reconciliation-Info für Debugging
+      reconciliation: {
+        quota_reservation_source: true,
+        committed_slots: committedSlots,
+        reserved_slots: reservedSlots,
+        usage_log_value: usageLog ? (usageLog.leads_created || 0) : null,
+        usage_log_diff: usageLogDiff,
+        note: usageLogDiff !== 0 ? "UsageLog weicht ab - Reconciliation empfohlen" : null,
+      },
+      // Weitere Usage-Metriken (aus UsageLog für Backwards Compatibility)
       research_runs_used: usageLog?.lead_generations_used || 0,
       ai_actions_used: usageLog?.ai_actions_used || 0,
       manual_emails_logged: usageLog?.manual_emails_logged || 0,

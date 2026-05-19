@@ -10,29 +10,47 @@
       "type": "string",
       "title": "Periode Monat (YYYY-MM)"
     },
-    "reserved_slots": {
+    "slot_number": {
       "type": "number",
-      "title": "Reservierte Slots",
-      "default": 0
+      "title": "Slot-Nummer (1-based, z.B. 300 bei 300er Limit)"
     },
-    "used_slots": {
-      "type": "number",
-      "title": "Genutzte Slots",
-      "default": 0
+    "research_run_id": {
+      "type": "string",
+      "title": "ResearchRun ID (Reserviert von)"
     },
-    "lock_version": {
-      "type": "number",
-      "title": "Optimistic Lock Version",
-      "default": 0
+    "company_id": {
+      "type": "string",
+      "title": "Company ID (Nach erfolgreichem Create)"
     },
-    "last_reserved_at": {
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "reserved",
+        "committed",
+        "released"
+      ],
+      "default": "reserved"
+    },
+    "reserved_at": {
       "type": "string",
       "format": "date-time",
-      "title": "Zuletzt reserviert am"
+      "title": "Reserviert am"
+    },
+    "committed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Commit am (nach Company.create)"
+    },
+    "released_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Freigegeben am (bei Fallback)"
     }
   },
   "required": [
     "organization_id",
-    "period_month"
+    "period_month",
+    "slot_number"
   ]
 }
