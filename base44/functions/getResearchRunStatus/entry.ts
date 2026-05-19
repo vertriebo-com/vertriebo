@@ -76,7 +76,8 @@ Deno.serve(async (req) => {
     }
 
     // Monatliche Nutzung (organization_id aus validiertem ResearchRun)
-    const periodMonth = new Date().toISOString().slice(0,7);
+    // KANONISCH: Europe/Berlin – identisch zu processResearchRun / getDashboardData
+    const periodMonth = new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit' }).format(new Date()).split('.').reverse().join('-');
     const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
     const monthlyUsage = usageLogs[0] ? {
       monthly_used: usageLogs[0].leads_created || 0,

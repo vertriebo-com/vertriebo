@@ -144,10 +144,13 @@ Deno.serve(async (req) => {
       const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
       if (plans[0]) monthlyContactLimit = plans[0].max_leads_per_month ?? 300;
     }
+    // monthlyRemaining wird für effectiveTarget weiter unten genutzt (verhindert Überbuchung)
+    let monthlyRemaining = -1; // -1 = unbegrenzt
     if (monthlyContactLimit !== -1) {
       const periodMonth = getPeriodMonth();
       const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
       const used = usageLogs[0]?.leads_created || 0;
+      monthlyRemaining = Math.max(0, monthlyContactLimit - used);
       if (used >= monthlyContactLimit) {
         // Reset-Datum: erster Tag des nächsten Kalendermonats (Europe/Berlin)
         const [py, pm] = periodMonth.split('-').map(Number);
@@ -205,9 +208,12 @@ Deno.serve(async (req) => {
     }
 
     // ── Suchplan zusammenbauen ───────────────────────────────────────────────
+    // effectiveTarget: verhindert Überbuchung bei knappem Kontingent (z.B. 299/300 → max 1 neuer Lead)
     const effectiveTarget = trialStage === 'free_preview'
       ? Math.min(remainingPreviewLeads, 10)
-      : Math.min(target_count, 25);
+      : monthlyRemaining === -1
+        ? Math.min(target_count, 25)
+        : Math.min(target_count, 25, monthlyRemaining);
 
     // Grid-Punkte für alle Such-Zentren
     const mainGrid = generateSearchGrid(cityCoords.lat, cityCoords.lng, radiusKm, trialStage).map(p => ({

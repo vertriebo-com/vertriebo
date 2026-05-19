@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Zap, CheckCircle2 } from "lucide-react";
+import { Loader2, Zap, CheckCircle2, AlertTriangle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
 export default function LaunchStep({ onBack, onLaunch, loading, organization, orgId }) {
@@ -13,6 +13,7 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
   const [runStatus, setRunStatus] = useState(null); // completed/partial/failed
   const [availableLimit, setAvailableLimit] = useState(null);
   const [planInfo, setPlanInfo] = useState({ name: 'Starter', trialStage: 'free_preview' });
+  const [quotaError, setQuotaError] = useState(null); // { used, limit, resetDate } – zeigt dedizierten Quota-State
   
   // FIRST_VALUE_TARGET_COUNT: Begrenzung für ersten Recherche-Lauf im Onboarding
   // Zweck: Verhindert API-Kosten-Explosion bei Testnutzern, gibt schnelle First-Value-Experience
@@ -137,33 +138,80 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
         setResearchRunId(run.data.research_run_id);
         setMessage('Recherche wird vorbereitet...');
       } else {
-        // Kein Exception, aber success=false (z.B. bei 2xx-Fallback)
         const reason = run.data?.reason || run.data?.error || '';
         const monthly = run.data?.monthly_usage;
-        const friendlyMsg = reason === 'monthly_lead_quota_reached' || reason === 'monthly_contact_limit_reached'
-          ? `Monatskontingent erreicht (${monthly?.monthly_used ?? '?'}/${monthly?.monthly_limit ?? '?'} Leads). Reset am ${monthly?.reset_date ?? 'Monatsende'}.`
-          : run.data?.message || 'Recherche konnte nicht gestartet werden.';
-        setIsSearching(false);
-        onLaunch({ error: friendlyMsg });
+        if (reason === 'monthly_lead_quota_reached' || reason === 'monthly_contact_limit_reached') {
+          setQuotaError({ used: monthly?.monthly_used, limit: monthly?.monthly_limit, resetDate: monthly?.reset_date });
+          setIsSearching(false);
+        } else {
+          setIsSearching(false);
+          onLaunch({ error: run.data?.message || 'Recherche konnte nicht gestartet werden.' });
+        }
       }
     } catch (e) {
       console.error('[LaunchStep] Start error:', e.message);
-      // Axios-Exception: strukturierten Body aus err.response.data auslesen
       const axiosData = e?.response?.data;
       const reason = axiosData?.reason || axiosData?.error || '';
       const monthly = axiosData?.monthly_usage;
-      let friendlyMsg;
       if (reason === 'monthly_lead_quota_reached' || reason === 'monthly_contact_limit_reached') {
-        friendlyMsg = `Monatskontingent erreicht (${monthly?.monthly_used ?? '?'}/${monthly?.monthly_limit ?? '?'} Leads). Reset am ${monthly?.reset_date ?? 'Monatsende'}.`;
+        setQuotaError({ used: monthly?.monthly_used, limit: monthly?.monthly_limit, resetDate: monthly?.reset_date });
+        setIsSearching(false);
       } else if (e?.response?.status === 429) {
-        friendlyMsg = 'Recherche gerade ausgelastet. Bitte in wenigen Minuten erneut versuchen.';
+        setIsSearching(false);
+        onLaunch({ error: 'Recherche gerade ausgelastet. Bitte in wenigen Minuten erneut versuchen.' });
       } else {
-        friendlyMsg = 'Recherche konnte nicht gestartet werden. Bitte erneut versuchen.';
+        setIsSearching(false);
+        onLaunch({ error: 'Recherche konnte nicht gestartet werden. Bitte erneut versuchen.' });
       }
-      setIsSearching(false);
-      onLaunch({ error: friendlyMsg });
     }
   };
+
+  // ── Quota-Error-State: Monatskontingent im Onboarding erreicht ────────────
+  if (quotaError) {
+    return (
+      <div className="bg-white border border-amber-200 rounded-2xl p-8 text-center space-y-5">
+        <div className="w-14 h-14 mx-auto bg-amber-100 rounded-full flex items-center justify-center">
+          <AlertTriangle className="w-7 h-7 text-amber-600" />
+        </div>
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Monatskontingent erreicht</h2>
+          <p className="text-sm text-slate-600">
+            Sie haben <strong>{quotaError.used ?? '?'} von {quotaError.limit ?? '?'} Leads</strong> diesen Monat genutzt.
+          </p>
+          {quotaError.resetDate && (
+            <p className="text-xs text-slate-500 mt-1">
+              Ihr Kontingent wird am <strong>{quotaError.resetDate}</strong> zurückgesetzt.
+            </p>
+          )}
+        </div>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600">
+          Sie können bis dahin bestehende Leads bearbeiten oder auf einen größeren Plan wechseln.
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button
+            onClick={() => window.location.href = '/leads'}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Bestehende Leads ansehen
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => window.location.href = '/settings?tab=billing'}
+            className="w-full"
+          >
+            Plan ansehen / upgraden
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => onLaunch({ leads_saved: 0, quota_reached: true })}
+            className="w-full text-slate-500"
+          >
+            Später fortfahren
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (isSearching && researchRunId) {
     return (

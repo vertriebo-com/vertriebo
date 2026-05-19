@@ -1612,6 +1612,28 @@ Nachher: HTTP **402**, `{ success: false, reason: 'monthly_lead_quota_reached', 
 - ✅ `changedCodeReviewedAfterPatch`
 - ✅ `merklisteUpdated`
 
+### Edge-Case-Prüfung (2026-05-19 Nachprüfung) — FINAL GRÜN
+
+#### Geänderte Dateien
+- `functions/startResearchRun.js` — `monthlyRemaining` Variable, `effectiveTarget` begrenzt auf `Math.min(target, 25, monthlyRemaining)`
+- `functions/getResearchRunStatus.js` — `periodMonth` via Europe/Berlin (war noch UTC `.slice(0,7)`)
+- `components/onboarding/LaunchStep.jsx` — dedizierter `quotaError`-State + Quota-UI mit 3 CTAs
+
+#### Edge-Cases verifiziert
+
+| Szenario | Verhalten | Status |
+|---|---|---|
+| 300/300 (Starter) | HTTP 402, `reason: monthly_lead_quota_reached`, kein ResearchRun.create, kein Google-Call, kein UsageLog-Write | ✅ |
+| 299/300 target_count=25 | `effectiveTarget = Math.min(25, 25, 1) = 1` → nur 1 Lead möglich, keine Überbuchung | ✅ |
+| Echter API-429 (ohne reason) | `status=429` ohne `reason` → "Recherche gerade ausgelastet" | ✅ |
+| Onboarding Quota | Dedizierter `quotaError`-State: "Monatskontingent erreicht" + "Leads ansehen" / "Plan upgraden" / "Später" | ✅ |
+| ActiveResearchBanner Fehler | try/catch mit `console.warn` – kein technischer Text im UI (Banner zeigt `null` bei Fehler) | ✅ |
+| getResearchRunStatus periodMonth | Europe/Berlin statt UTC `.slice(0,7)` | ✅ (Issue #3 Nachtrag) |
+
+#### Offene Risiken
+- `processResearchRun` könnte intern einen echten Google-API-429 empfangen: wird als `api_rate_limited` im `stop_reason` gespeichert, Run geht auf `partial`/`failed`. Frontend zeigt den `current_step`-Text – kein roher 429 im UI, da `ActiveResearchBanner` nur `activeRun.message` anzeigt (keine Exception-Anzeige).
+- Für 299/300 gilt: `effectiveTarget=1` → Run wird gestartet, aber processResearchRun kann maximal 1 Lead speichern bevor das UsageLog-Limit erneut greift. Das ist korrektes Verhalten (kein Over-Booking).
+
 ### 🎉 ISSUE #5: QUOTA-/RATE-LIMIT-FEHLER KUNDENFREUNDLICH — FINAL GRÜN (2026-05-19)
 
 ---
