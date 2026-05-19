@@ -196,9 +196,9 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-sm font-bold text-emerald-900">
-                  {stats.newLeadsFromResearchCount || newLeadsFromResearch.length} neue Firmenkontakte
+                  {stats.newLeadsFromResearchCount || newLeadsFromResearch.length} neue Leads gefunden
                 </p>
-                <p className="text-xs text-emerald-700">Aus Ihrer letzten Recherche bereit</p>
+                <p className="text-xs text-emerald-700">Aus Ihrer letzten Recherche – bereit zur Bearbeitung</p>
               </div>
             </div>
             <Link to="/leads?new_run=latest">
@@ -220,7 +220,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Link to="/leads" className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-sm hover:shadow-md hover:border-blue-200 transition-all">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Gesamt Leads</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Lead-Bestand</p>
             <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
               <Building2 className="w-4 h-4 text-blue-600" />
             </div>
@@ -267,7 +267,7 @@ export default function Dashboard() {
               style={{ width: `${weeklyProgress}%` }}
             />
           </div>
-          <p className="text-[10px] text-slate-400 mt-1">{contactsThisWeek} / {weeklyGoal} Kontakte</p>
+          <p className="text-[10px] text-slate-400 mt-1">{contactsThisWeek} / {weeklyGoal} Leads kontaktiert</p>
         </div>
       </div>
 
@@ -374,14 +374,15 @@ export default function Dashboard() {
         <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-slate-700">
-              {meta.planName || "Plan"} · <span className="font-normal text-slate-500">Monatliche Nutzung</span>
+              {meta.planName || "Plan"} · <span className="font-normal text-slate-500">Monatskontingent</span>
             </p>
             <p className="text-sm font-bold text-slate-900 mt-0.5">
               {meta.currentUsage?.leads_created || 0}
               {meta.maxContacts && meta.maxContacts !== -1 && (
-                <span className="font-normal text-slate-500"> von {meta.maxContacts} Kontakten</span>
+                <span className="font-normal text-slate-500"> von {meta.maxContacts} neuen Leads genutzt</span>
               )}
             </p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Gesamtbestand: {totalLeads} Leads im CRM</p>
           </div>
           {meta.maxContacts && meta.maxContacts !== -1 && (
             <div className="flex items-center gap-3 shrink-0">
@@ -392,7 +393,7 @@ export default function Dashboard() {
                 />
               </div>
               <span className="text-xs text-slate-500 whitespace-nowrap">
-                {Math.max(0, meta.maxContacts - (meta.currentUsage?.leads_created || 0))} frei
+                {Math.max(0, meta.maxContacts - (meta.currentUsage?.leads_created || 0))} verbleibend
               </span>
             </div>
           )}
