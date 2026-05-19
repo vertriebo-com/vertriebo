@@ -91,9 +91,11 @@ async function incrementUsageLog(base44, organizationId) {
       monthly_limit: existing[0].monthly_limit || null,
     };
   } else {
-    const now = new Date();
-    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
-    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0, 23, 59, 59)).toISOString();
+    // period_start/end aus periodMonth ableiten – identisch zu processResearchRun.upsertUsageLog()
+    // Verhindert Inkonsistenz am Monatswechsel (period_month = Berlin, period_start/end = UTC-Grenzen desselben Monats)
+    const [y, m] = periodMonth.split('-').map(Number);
+    const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();         // 1. des Monats, 00:00 UTC
+    const end   = new Date(Date.UTC(y, m, 0, 23, 59, 59)).toISOString(); // Letzter Tag, 23:59:59 UTC
     await base44.asServiceRole.entities.UsageLog.create({
       organization_id: organizationId,
       period_month: periodMonth,

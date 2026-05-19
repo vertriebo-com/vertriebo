@@ -1449,6 +1449,15 @@ Manuell angelegte Kontakte (`AddCompanyDialog`, CSV Import) erhöhen `leads_crea
 - ✅ `changedCodeReviewedAfterPatch` — alle 6 Dateien nach Patch verifiziert
 - ✅ `merklisteUpdated`
 
+### Letzter Restpunkt (2026-05-19, nach zweiter Nachprüfung) ✅
+
+#### promoteExternalSourceToCompany — period_start/end aus periodMonth ableiten ✅
+
+- **Alt:** `period_start/end` aus `now.getUTCFullYear() / now.getUTCMonth()` (UTC-Rohdatum)
+- **Risiko:** Am Monatswechsel hätte z.B. `period_month = "2026-06"` (Berlin) aber `period_start = 2026-05-01` (UTC) gezeigt — inkonsistente Metadaten im selben UsageLog-Eintrag.
+- **Fix:** `const [y, m] = periodMonth.split('-').map(Number)` dann `Date.UTC(y, m-1, 1)` und `Date.UTC(y, m, 0, 23, 59, 59)` — exakt identisch zu `processResearchRun.upsertUsageLog()`.
+- **Verifikation:** Datei nach Patch vollständig gelesen. `getPeriodMonth()` → Europe/Berlin Intl. `period_start/end` aus demselben `periodMonth` abgeleitet. Alle drei Felder referenzieren denselben Kalendermonat. ✅
+
 ### 🎉 ISSUE #3: BILLING/USAGE PERIOD_MONTH — FINAL GRÜN (2026-05-19)
 
 ---
