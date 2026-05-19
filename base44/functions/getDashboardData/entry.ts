@@ -31,10 +31,13 @@ Deno.serve(async (req) => {
     }
 
     // Platform-Admin ohne eigene Org: erste Org nehmen (für Support-Ansicht)
+    // WICHTIG: Platform-Admins die auch eine eigene Org haben, nutzen immer ihre eigene Org
     if (!org && isPlatformAdmin) {
       const anyOrg = await base44.asServiceRole.entities.Organization.list("-created_date", 1);
       org = anyOrg?.[0] || null;
     }
+
+
 
     if (!org) {
       return Response.json({ error: 'No organization found' }, { status: 404 });
@@ -59,8 +62,8 @@ Deno.serve(async (req) => {
       return blacklistNames.some(bl => normalized.includes(bl) || bl.includes(normalized));
     };
 
-    // Companies laden (nur relevante Felder für Dashboard)
-    const allCompanies = await base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 500);
+    // Companies laden - alle aktiven (kein 500er-Limit damit Zähler mit Leads-Page übereinstimmen)
+    const allCompanies = await base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 2000);
     const companies = allCompanies.filter(c => !isBlacklisted(c.name));
 
     // Tasks laden
@@ -107,7 +110,9 @@ Deno.serve(async (req) => {
 
     const recentActivities = companies.slice(0, 5);
 
-    const newLeadsFromResearch = companies.filter(c => c.research_run_id);
+    // Nur wirklich neue Leads aus den letzten 24h für den Banner
+    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const newLeadsFromResearch = companies.filter(c => c.research_run_id && c.created_date >= last24h);
 
     // ── Actionable Leads für "Heute wichtig" ────────────────────────────────
     // WHY: Dashboard soll konkrete tagesaktuelle Handlungen zeigen, nicht nur Zahlen.
@@ -310,7 +315,7 @@ Deno.serve(async (req) => {
         actionableLeads: allActionItems,
       },
       meta: {
-        totalCompanies: companies.length,
+        totalCompanies: allCompanies.length, // Ohne Blacklist-Filter = echte Gesamtzahl wie in Leads Page
         totalTasks: tasks.length,
         loadedAt: new Date().toISOString(),
         currentUsage: {
