@@ -642,6 +642,50 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, done: true, status: 'completed', leads_saved: currentLeadsSaved, progress_percent: 100 });
     }
 
+    // ── HARTER QUOTA-CHECK: Aktuelles Monatskontingent prüfen ───────────────
+    // Läuft bei JEDEM Batch-Aufruf erneut – verhindert Over-Usage bei parallelen Workers.
+    let batchTarget = effectiveTarget || 25; // Default: aus searchPlan
+
+    const orgForQuota = await base44.asServiceRole.entities.Organization.filter({ id: organization_id }).catch(() => []);
+    const orgPlanId = orgForQuota[0]?.plan_id;
+    if (orgPlanId) {
+      const planForQuota = (await base44.asServiceRole.entities.Plan.filter({ id: orgPlanId }).catch(() => []))[0];
+      const monthlyLimit = planForQuota?.max_leads_per_month ?? -1;
+
+      if (monthlyLimit !== -1) {
+        const quotaPeriodMonth = getPeriodMonth();
+        const usageRecords = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: quotaPeriodMonth }).catch(() => []);
+        const usedThisMonth = usageRecords[0]?.leads_created || 0;
+        const monthlyRemaining = Math.max(0, monthlyLimit - usedThisMonth);
+
+        if (monthlyRemaining <= 0) {
+          console.warn(`[processResearchRun] QUOTA HARD STOP: ${usedThisMonth}/${monthlyLimit} run=${research_run_id}`);
+          const finishStatus = currentLeadsSaved > 0 ? 'partial' : 'completed';
+          await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+            status: finishStatus, progress_percent: 100,
+            current_step: currentLeadsSaved > 0
+              ? `${currentLeadsSaved} Firmenkontakte gefunden (Monatskontingent erreicht)`
+              : 'Monatskontingent erschöpft',
+            finished_at: new Date().toISOString(),
+            stop_reason: 'monthly_quota_reached',
+            processing_lock_until: null, processing_by: null,
+          });
+          return Response.json({
+            success: true, done: true, status: finishStatus,
+            leads_saved: currentLeadsSaved, progress_percent: 100,
+            stop_reason: 'monthly_quota_reached',
+            message: `Monatskontingent erreicht (${usedThisMonth}/${monthlyLimit}). Recherche gestoppt.`,
+          });
+        }
+
+        // Harter Cap: niemals mehr Leads speichern als noch im Kontingent frei
+        batchTarget = Math.min(batchTarget, currentLeadsSaved + monthlyRemaining);
+        if (batchTarget < (effectiveTarget || 25)) {
+          console.warn(`[processResearchRun] QUOTA CAP: effectiveTarget=${effectiveTarget} → batchTarget=${batchTarget} (${usedThisMonth}/${monthlyLimit}) run=${research_run_id}`);
+        }
+      }
+    }
+
     // ── Batch ────────────────────────────────────────────────────────────────
     const batchIndex = run.batch_index || 0;
     const QUERIES_PER_BATCH = trialStage === 'free_preview' ? 2 : 3;
@@ -682,14 +726,14 @@ Deno.serve(async (req) => {
       for (const qItem of batchQueries) {
         const { query, category, variant, family, matched_target_customer } = qItem;
 
-        if (newLeadsSavedThisBatch + currentLeadsSaved >= effectiveTarget) break outer;
+        if (newLeadsSavedThisBatch + currentLeadsSaved >= batchTarget) break outer;
         if (Date.now() - startedAt > MAX_BATCH_MS) { console.warn('[processResearchRun] Batch time budget reached'); break outer; }
 
         const places = await searchPlaces(query, { lat: point.lat, lng: point.lng }, pointRadiusMeters, GOOGLE_PLACES_API_KEY);
         rawHitsThisBatch += places.length;
 
         for (const place of places) {
-          if (newLeadsSavedThisBatch + currentLeadsSaved >= effectiveTarget) break outer;
+          if (newLeadsSavedThisBatch + currentLeadsSaved >= batchTarget) break outer;
           if (placeDetailsUsed >= PLACE_DETAILS_PER_BATCH) break outer;
 
           if (seenPlaceIds.has(place.place_id)) continue;
@@ -796,7 +840,7 @@ Deno.serve(async (req) => {
     const nextBatchIndex = batchIndex + 1;
     const totalBatches = Math.ceil(allQueries.length / QUERIES_PER_BATCH);
     const progressPercent = Math.min(95, Math.round((nextBatchIndex / totalBatches) * 90) + 5);
-    const isDone = nextBatchIndex >= totalBatches || totalLeadsSaved >= effectiveTarget;
+    const isDone = nextBatchIndex >= totalBatches || totalLeadsSaved >= batchTarget;
     const zeroResultCause = isDone && totalLeadsSaved === 0
       ? (rawHitsThisBatch === 0 ? 'no_google_results' : dupSkippedThisBatch > 0 ? 'all_duplicates' : 'no_match_score')
       : null;
