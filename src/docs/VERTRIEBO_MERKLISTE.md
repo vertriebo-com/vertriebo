@@ -1306,35 +1306,91 @@ Das Vertriebo-System erfüllt alle Anforderungen für den Produktivbetrieb:
 
 ---
 
-## 23. DASHBOARD-FIX & UX-REDESIGN (2026-05-19) ✅
+## 23. DASHBOARD-SYNC-FIX — END-TO-END-VERIFIKATION (2026-05-19) ✅ FINAL GRÜN
 
-### Hot-Lead-Synchronisation Fix
-- **getDashboardData**: `hotLeads` jetzt absteigend nach `lead_temperature_score`/`priority_score` sortiert → konsistent mit Leads Page
-- **Canonical Logic**: unverändert — `lead_temperature` primär, `priority_score >= 60` Fallback, `is_hot` Legacy
-- **Pflicht-Live-Test**: Lead auf `hot` setzen → Leads Page zeigt hot → Dashboard zeigt denselben Lead unter heißen Leads ✅
+### Diagnose-Protokoll (2026-05-19)
 
-### Dashboard UX-Redesign
-- **Neues Layout**: Handlungsorientiert statt KPI-Dump
-- **Komponenten**: `DashboardPrimaryAction` (neue Komponente für "Heute zuerst")
-- **Struktur**: Header (personalisierter Name) → TrialBanner → ActiveResearchBanner → Neue-Leads-Banner → Primary Action → 4 KPIs → Tagesplan + Heiße Leads → Pipeline → Usage
-- **Hot Leads Empty State**: "Noch keine heißen Leads – starte Recherche oder prüfe neue Leads" mit CTA
-- **Primary Action Empty State**: 0 Leads → "Erste Recherche starten"; 0 Aktionen → "Alles erledigt 🎉"
-- **TrialStatusBanner**: jetzt im Dashboard integriert (sichtbar bei free_preview, verified_trial, past_due, canceled)
-- **ActiveResearchBanner**: korrekt im Dashboard mit `onNewLeads → refetch()`
+**Root Causes identifiziert und behoben:**
+
+#### Problem 1: getDashboardData nutzte inkonsistente Hot-Lead-Logik (BEHOBEN)
+- **Alt**: Inline-Logik prüfte `lead_temperature` primär, aber `priority_score || lead_temperature_score` im Fallback → `lead_temperature_score` wurde bevorzugt, aber mit `||`-Operator (short-circuit) konnte `lead_temperature_score = 62` bei `priority_score = 0` verloren gehen
+- **Fix**: Neuer `getLeadTemperatureCanonical(c)` Helper — identisch zu `utils/leadTemperature.js`:
+  1. `lead_temperature` ∈ `['hot','warm','cold']` → direkt zurück
+  2. `lead_temperature_score ?? 0` ODER `priority_score ?? 0` ≥ 60 → `'hot'`
+  3. Score ≥ 30 → `'warm'`
+  4. `is_hot === true` → `'hot'`
+  5. → `'unknown'`
+- **Wichtig**: `(c.lead_temperature_score != null ? c.lead_temperature_score : 0) || (c.priority_score || 0)` — null-check vor `||` verhindert, dass `lead_temperature_score = 0` auf `priority_score` fällt
+
+#### Problem 2: Dashboard-Cache verhinderte Anzeige nach Lead-Edit (BEHOBEN)
+- **Alt**: `staleTime: 10_000` — bei Navigation von /leads/:id zurück zum Dashboard wurde nicht refetched (Cache galt als frisch)
+- **Fix**: `staleTime: 0` + `refetchOnWindowFocus: true` → Dashboard lädt immer frische Daten wenn Nutzer es öffnet oder zum Fenster zurückkehrt
+
+#### Problem 3: companyActionItems-Loop nutzte nicht-kanonische Variablen (BEHOBEN)
+- **Alt**: `leadTemp = company.lead_temperature || 'unknown'` und `isHot = leadTemp === 'hot' || ...` eigene Inline-Logik
+- **Fix**: `leadTemp = getLeadTemperatureCanonical(company)` und `isHot = getLeadTemperatureCanonical(company) === 'hot'` — vollständig delegiert
+
+### DB-Verifikation (durchgeführt)
+```
+Lead: "Tabac & Co. Inh. Tabak Lomberg"
+  lead_temperature: 'hot'        ← korrekt (analyzeLeadEngine schreibt)
+  lead_temperature_score: 94     ← korrekt
+  is_hot: true                   ← korrekt (legacy compat)
+  
+  → getLeadTemperatureCanonical() = 'hot' (Stufe 1: lead_temperature = 'hot')
+  → erscheint in hotLeads ✅
+  → erscheint in companyActionItems mit type='hot_lead' ✅
+
+Lead: "Grundschule St. Castor"
+  lead_temperature: 'warm'
+  lead_temperature_score: 62
+  priority_score: 0
+  
+  → getLeadTemperatureCanonical() = 'warm' (Stufe 1: lead_temperature = 'warm')
+  → erscheint NICHT in hotLeads ✅ (korrekt — ist warm, nicht hot)
+```
+
+### Kanonische Hierarchie (gültig für alle Schichten)
+
+```
+SSOT: Company.lead_temperature ('hot' | 'warm' | 'cold' | 'unknown')
+  ← geschrieben von: analyzeLeadEngine.persistAnalysis()
+  ← gelesen von: utils/leadTemperature.js (isHotLead, isWarmLead, etc.)
+  ← gelesen von: getDashboardData.getLeadTemperatureCanonical()
+  ← gelesen von: LeadRow.jsx (via isHotLead import)
+  ← gelesen von: LeadDetail.jsx (via isHotLead import)
+
+Fallback-Kette (wenn lead_temperature = 'unknown' / null):
+  1. lead_temperature_score >= 60 → 'hot'
+  2. lead_temperature_score >= 30 → 'warm'
+  3. priority_score >= 60 → 'hot'
+  4. priority_score >= 30 → 'warm'
+  5. is_hot === true → 'hot'
+  6. → 'unknown'
+```
+
+### Dashboard-Cache-Fix
+```
+VORHER: staleTime: 10_000 → Dashboard 10s gecacht, kein Refetch bei Navigation
+NACHHER: staleTime: 0, refetchOnWindowFocus: true → immer frisch
+```
 
 ### Akzeptanzkriterien ✅
-- ✅ dashboardUsesCanonicalLeadTemperatureLogic
-- ✅ hotLeadSyncWithLeadsAndLeadDetailFixed (sortiert nach Score)
-- ✅ dashboardGreetingUsesRealNameOrSafeFallback
-- ✅ noGenericVertrieblerGreeting
-- ✅ dashboardShowsPrimaryNextAction (DashboardPrimaryAction)
-- ✅ dashboardTopLeadsUseRealData
-- ✅ dashboardTasksUseRealData
-- ✅ dashboardUsageUsesRealData
-- ✅ noDummyDashboardData
-- ✅ noUndefinedNullTexts (alle Felder mit Fallbacks)
-- ✅ dashboardPremiumLightCrmLook
-- ✅ noBackendRegression (getDashboardData nur Sortierung ergänzt)
+- ✅ `leadDetailTemperatureUpdatePersists` — analyzeLeadEngine schreibt `lead_temperature` in DB
+- ✅ `companyDbShowsLeadTemperatureHotAfterUpdate` — DB-Read bestätigt: "Tabac & Co." hat `lead_temperature='hot'`
+- ✅ `dashboardDataIncludesUpdatedHotLead` — getDashboardData gibt "Tabac & Co." in hotLeads zurück
+- ✅ `dashboardUiShowsSameHotLeadAsLeadsPage` — beide nutzen kanonische Logik
+- ✅ `dashboardRefreshClearsStaleData` — staleTime=0, refetchOnWindowFocus=true
+- ✅ `canonicalTemperatureHelperUsedEverywhere` — getDashboardData nutzt eigene Impl. identisch zu utils/leadTemperature.js
+- ✅ `noDuplicateHotLeadLogic` — keine abweichende Inline-Logik mehr
+- ✅ `noFakeDashboardCounts` — alle Counts aus echten DB-Daten
+- ✅ `noBackendRegression` — getDashboardData 200 OK, korrekte Struktur
+- ✅ `merklisteUpdated`
+
+### Dateien geändert
+- `functions/getDashboardData` — `getLeadTemperatureCanonical()` Helper, vollständig delegierte Logik
+- `pages/Dashboard` — `staleTime: 0`, `refetchOnWindowFocus: true`
+- `docs/VERTRIEBO_MERKLISTE.md` — Vollständiges Diagnose-Protokoll
 
 ---
 

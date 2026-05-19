@@ -91,16 +91,22 @@ Deno.serve(async (req) => {
       return new Date(t.faellig_am) < todayStart;
     });
 
-    // KANONISCHE LOGIK: lead_temperature primär, fallback priority_score >= 60
-    // Sortiert nach Temperatur-Score absteigend für konsistente Reihenfolge mit Leads Page
+    // KANONISCHE LOGIK – identisch zu utils/leadTemperature.js getLeadTemperature():
+    // 1. Primär: lead_temperature ('hot' | 'warm' | 'cold')
+    // 2. Fallback: lead_temperature_score >= 60 ODER priority_score >= 60
+    // 3. Legacy-Fallback: is_hot === true
+    const getLeadTemperatureCanonical = (c) => {
+      const temp = c.lead_temperature;
+      if (temp && ['hot', 'warm', 'cold'].includes(temp)) return temp;
+      const score = (c.lead_temperature_score != null ? c.lead_temperature_score : 0) || (c.priority_score || 0);
+      if (score >= 60) return 'hot';
+      if (score >= 30) return 'warm';
+      if (c.is_hot === true) return 'hot';
+      return 'unknown';
+    };
+
     const hotLeads = companies
-      .filter(c => {
-        const temp = c.lead_temperature;
-        if (temp && ['hot', 'warm', 'cold'].includes(temp)) return temp === 'hot';
-        const score = c.priority_score || c.lead_temperature_score || 0;
-        if (score >= 60) return true;
-        return c.is_hot === true; // Legacy-Fallback
-      })
+      .filter(c => getLeadTemperatureCanonical(c) === 'hot')
       .sort((a, b) => {
         const scoreA = a.lead_temperature_score || a.priority_score || 0;
         const scoreB = b.lead_temperature_score || b.priority_score || 0;
@@ -180,12 +186,11 @@ Deno.serve(async (req) => {
         }
       }
 
-      const leadTemp = company.lead_temperature || 'unknown';
-      const tempScore = company.lead_temperature_score || 0;
+      const leadTemp = getLeadTemperatureCanonical(company); // kanonisch aufgelöst
       const hasContact = !!(company.telefon || company.email);
 
-      // Heiße Leads ohne Task - KANONISCHE LOGIK
-      const isHot = leadTemp === 'hot' || (leadTemp === 'unknown' && tempScore >= 60) || (company.is_hot === true && leadTemp !== 'cold');
+      // Heiße Leads ohne Task - KANONISCHE LOGIK (identisch zu getLeadTemperatureCanonical oben)
+      const isHot = getLeadTemperatureCanonical(company) === 'hot';
       if (isHot && !companiesWithTasks.has(company.id)) {
         const action = nbaTitle || (company.telefon ? 'Anrufen' : company.email ? 'E-Mail senden' : 'Recherchieren');
         companyActionItems.push({

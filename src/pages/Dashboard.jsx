@@ -71,7 +71,8 @@ export default function Dashboard() {
       return response.data;
     },
     enabled: !!orgData?.id,
-    staleTime: 10_000,
+    staleTime: 0,           // Immer frisch – kein veralteter Cache nach Lead-Edit
+    refetchOnWindowFocus: true,
     placeholderData: null,
   });
 
