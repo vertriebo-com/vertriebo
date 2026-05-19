@@ -30,11 +30,22 @@ function formatPeriodMonth(periodMonth) {
   return date.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
 }
 
+// KANONISCH: Reset-Datum = erster Tag des nächsten Kalendermonats (Europe/Berlin)
+// Identisch zur Monatslogik in processResearchRun / getDashboardData.
+function getPeriodMonthBerlin() {
+  return new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+  }).format(new Date()).split('.').reverse().join('-');
+}
+
 function getResetDate() {
-  const now = new Date();
-  // Erster Tag des nächsten Monats
-  return new Date(now.getFullYear(), now.getMonth() + 1, 1)
-    .toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+  // Aktuellen Kalendermonat in Berlin bestimmen und den ersten Tag des Folgemonats berechnen
+  const [year, month] = getPeriodMonthBerlin().split('-').map(Number);
+  // Erster Tag des nächsten Monats in Berlin darstellen
+  const nextMonth = new Date(year, month, 1); // month ist bereits 1-basiert → month = nächster Monat
+  return nextMonth.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
 function MonthlyLeadQuotaCard({ usageLog, plan, subscription }) {
@@ -170,9 +181,9 @@ export default function BillingSettings({ org: orgProp, user }) {
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       setAllPlans(plansWithPrice);
 
-      // Aktuellen UsageLog laden – nach period_month filtern
-      const now = new Date();
-      const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      // Aktuellen UsageLog laden – KANONISCH: Kalendermonat Europe/Berlin
+      // Identisch zu processResearchRun.getPeriodMonth() und getDashboardData
+      const periodMonth = getPeriodMonthBerlin();
       const allUsageLogs = await base44.entities.UsageLog.filter(
         { organization_id: freshOrg.id },
         "-period_month",
@@ -217,7 +228,7 @@ export default function BillingSettings({ org: orgProp, user }) {
               await loadData(true);
             }
           }
-        } catch (e) { console.error('[BillingSettings] Checkout-refresh error:', e); }
+        } catch { /* Polling-Fehler still ignorieren */ }
       };
       doRefresh();
     }

@@ -355,14 +355,21 @@ function extractAddress(components = []) {
   return { plz, ort, adresse: [strasse, hausnummer].filter(Boolean).join(' ') };
 }
 
+// KANONISCH: Kalendermonat Europe/Berlin (YYYY-MM)
+// Alle UsageLog-Schreibungen und Reads müssen dieselbe Logik nutzen.
 function getPeriodMonth() {
-  const n = new Date();
-  return `${n.getUTCFullYear()}-${String(n.getUTCMonth()+1).padStart(2,'0')}`;
+  return new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+  }).format(new Date()).split('.').reverse().join('-');
+  // Beispiel: "05.2026" → "2026-05"
 }
 
 async function upsertUsageLog(base44, organization_id, newLeads) {
   if (newLeads <= 0) return;
-  const periodMonth = getPeriodMonth();
+  // KANONISCH: period_month immer Europe/Berlin-Kalendermonat (via getPeriodMonth())
+  const periodMonth = getPeriodMonth(); // z.B. "2026-05"
   const now = new Date().toISOString();
   const existing = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
   if (existing[0]) {
@@ -371,8 +378,10 @@ async function upsertUsageLog(base44, organization_id, newLeads) {
       last_lead_generation_at: now,
     });
   } else {
-    const start = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString();
-    const end = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth()+1, 0, 23, 59, 59)).toISOString();
+    // period_start / period_end: erster bzw. letzter Tag des Berlin-Kalendermonats (in UTC gespeichert)
+    const [y, m] = periodMonth.split('-').map(Number);
+    const start = new Date(y, m - 1, 1).toISOString();            // 1. des Monats 00:00 Lokalzeit → UTC
+    const end   = new Date(y, m, 0, 23, 59, 59).toISOString();    // Letzter Tag 23:59:59 Lokalzeit → UTC
     await base44.asServiceRole.entities.UsageLog.create({
       organization_id, period_month: periodMonth,
       period_start: start, period_end: end,

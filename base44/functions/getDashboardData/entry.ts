@@ -301,9 +301,13 @@ Deno.serve(async (req) => {
     const weeklyGoal = parseInt(settingsMap['weekly_contact_goal'] || '20', 10);
 
     // Current month usage log laden für Usage-Banner
-    // KANONISCH: Kalendermonat in Europe/Berlin (lokale Serverzeit = UTC, Nutzer = DE)
-    // Entscheidung: period_month ist immer Kalendermonat (YYYY-MM), nicht Stripe-Billing-Cycle
-    const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    // KANONISCH: Kalendermonat Europe/Berlin (YYYY-MM) – identisch zu processResearchRun.getPeriodMonth()
+    // NICHT UTC-basiert (now.getUTCMonth), da UsageLog-Writes auch Europe/Berlin nutzen.
+    const periodMonth = new Intl.DateTimeFormat('de-DE', {
+      timeZone: 'Europe/Berlin',
+      year: 'numeric',
+      month: '2-digit',
+    }).format(now).split('.').reverse().join('-');
     const usageLogs = await base44.entities.UsageLog.filter({ organization_id: orgId, period_month: periodMonth });
     const usageLog = usageLogs?.[0] || {};
 

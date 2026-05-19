@@ -35,9 +35,14 @@ const LEGACY_INDUSTRY_MAP = {
   "Schulungen / Weiterbildung":"schulungen_weiterbildung","Schulungen":"schulungen_weiterbildung",
 };
 
+// KANONISCH: Kalendermonat Europe/Berlin (YYYY-MM)
+// Identisch zu processResearchRun – alle UsageLog-Reads/Writes müssen dieselbe Logik nutzen.
 function getPeriodMonth() {
-  const n = new Date();
-  return `${n.getUTCFullYear()}-${String(n.getUTCMonth()+1).padStart(2,'0')}`;
+  return new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+  }).format(new Date()).split('.').reverse().join('-');
 }
 
 function haversineKm(lat1, lng1, lat2, lng2) {

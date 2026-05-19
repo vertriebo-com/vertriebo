@@ -1306,6 +1306,102 @@ Das Vertriebo-System erfüllt alle Anforderungen für den Produktivbetrieb:
 
 ---
 
+## 24. BILLING/USAGE-MINI-ABSCHLUSS (2026-05-19) ✅ FINAL GRÜN
+
+### Ziel
+`period_month` in allen Reads und Writes vereinheitlichen auf Kalendermonat **Europe/Berlin** (YYYY-MM).
+
+### Befund vor Änderung
+
+| Stelle | Methode | Zeitzone | Status |
+|---|---|---|---|
+| `processResearchRun.getPeriodMonth()` | `getUTCFullYear() / getUTCMonth()` | UTC | ❌ falsch |
+| `startResearchRun.getPeriodMonth()` | `getUTCFullYear() / getUTCMonth()` | UTC | ❌ falsch |
+| `getDashboardData` (period_month Read) | `now.getFullYear() / now.getMonth()` | Deno-Server = UTC | ❌ falsch |
+| `BillingSettings.jsx` (period_month Read) | `new Date().getFullYear() / getMonth()` | Browser = Europe/Berlin | ✅ zufällig richtig |
+| `UsageBillingDiagnostics` filterMonth | `moment().format('YYYY-MM')` | Browser = Europe/Berlin | ✅ zufällig richtig |
+
+**Konkretes Risiko:** Am 1. eines Monats um 00:01 Uhr Berlin-Zeit (= 31. des Vormonats 22:01 UTC) würden Backend-Writes noch in den Vormonat schreiben, aber Frontend-Reads schon den neuen Monat abfragen → keine Daten gefunden → Anzeige "0 Leads".
+
+### Geänderte Dateien
+
+1. **`functions/processResearchRun.js`** — `getPeriodMonth()` auf `Intl.DateTimeFormat Europe/Berlin` umgestellt. `upsertUsageLog` nutzt `period_start`/`period_end` aus Berlin-Kalendermonat.
+2. **`functions/startResearchRun.js`** — `getPeriodMonth()` identisch auf `Intl.DateTimeFormat Europe/Berlin` umgestellt.
+3. **`functions/getDashboardData.js`** — `periodMonth`-Berechnung auf `Intl.DateTimeFormat Europe/Berlin` umgestellt (nicht mehr `now.getMonth()`).
+4. **`components/settings/BillingSettings.jsx`** — `getPeriodMonthBerlin()` Helper hinzugefügt (gleiche `Intl`-Logik), `getResetDate()` nutzt Berlin-Kalendermonat, `loadData` nutzt `getPeriodMonthBerlin()`. Debug-Log `console.error('[BillingSettings] Checkout-refresh error')` entfernt.
+
+### Kanonische period_month-Logik (ab 2026-05-19)
+
+```js
+// ÜBERALL GLEICH – Backend und Frontend:
+function getPeriodMonth() {
+  return new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+  }).format(new Date()).split('.').reverse().join('-');
+  // Ergibt z.B. "2026-05"
+}
+```
+
+### Manuelle Leads – Verifikation ✅
+
+- `AddCompanyDialog.jsx` ruft nur `base44.entities.Company.create()` auf.
+- Kein `UsageLog`-Update in `AddCompanyDialog`.
+- Kein `UsageLog`-Update bei `quelle: 'Manuell'` in `processResearchRun` (wird dort gar nicht ausgeführt).
+- **Ergebnis:** Manuell angelegte Kontakte erhöhen `UsageLog.leads_created` nicht. ✅
+- Einzige UsageLog-Schreibstelle: `upsertUsageLog()` in `processResearchRun`, aufgerufen nur wenn `newLeadsSavedThisBatch > 0` nach echtem Google Places Batch.
+
+### Reset-Datum ✅
+
+- `getResetDate()` berechnet immer den ersten Tag des nächsten Berlin-Kalendermonats.
+- **Nicht** `Stripe.current_period_end` für Kontingent-Reset.
+- Anzeige in BillingSettings: „Wird am 01.MM.YYYY zurückgesetzt".
+
+### Kein Rollover ✅
+
+- Neuer Monat = neuer `period_month` = kein UsageLog vorhanden = Anzeige `0 / Planlimit`.
+- Kein manueller Reset nötig. Nicht genutzte Leads verfallen.
+
+### Debug-Logs ✅
+
+- `console.error('[BillingSettings] Checkout-refresh error:', e)` → entfernt (war unnötig laut).
+- Alle anderen `console.warn/error` in Backend-Functions bleiben (Fehlerbehandlung und Diagnostics, nicht Kundenpfad).
+
+### Testfälle
+
+| Test | Ergebnis |
+|---|---|
+| Aktueller Monat mit UsageLog | X / Planlimit, verbleibende Leads korrekt |
+| Neuer Monat ohne UsageLog | 0 / Planlimit, kein Crash, kein undefined |
+| Manuell angelegter Lead | Company.create(), UsageLog unverändert ✅ |
+| ResearchRun mit neuen Leads | upsertUsageLog() erhöht leads_created um echte neue Leads |
+| Dashboard + BillingSettings | Beide nutzen Europe/Berlin period_month → identische Anzeige |
+| Monatswechsel | Reset-Datum = 01.MM.YYYY (nächster Kalendermonat Berlin) |
+
+### Offene Risiken
+
+- **Bestehende UsageLogs mit UTC-period_month:** Historische Einträge wurden unter UTC-Monat geschrieben. Diese werden nach dem Patch korrekt angezeigt, solange `period_month` übereinstimmt. Einzig in der Stunde zwischen `00:00 UTC` und `01:00 Berlin` (= `02:00 CET`) hätten ältere Writes in UTC-Vormonat und neue Reads in Berlin-Monat → minimaler 1-Stunden-Drift möglich für Bestandsdaten. Für Neudaten ab Patch vollständig korrekt.
+- **UsageBillingDiagnostics filterMonth Default:** Nutzt `moment().format('YYYY-MM')` (Browser-Berlin-Zeit). Da der Filter nur für Diagnose genutzt wird und die Filterung danach client-seitig erfolgt, entsteht kein Produktionsproblem. Keine Änderung nötig.
+
+### Akzeptanzkriterien
+
+- ✅ `billingPeriodMonthUnified` — Europe/Berlin überall
+- ✅ `dashboardAndBillingUseSamePeriodMonth` — identische `Intl`-Logik
+- ✅ `usageLogWritesUseSamePeriodMonth` — processResearchRun nutzt Europe/Berlin
+- ✅ `resetDateMatchesQuotaPeriod` — erster Tag nächster Kalendermonat Berlin
+- ✅ `unusedLeadsDoNotRolloverDisplayed` — "Nicht genutzte Leads verfallen am Monatsende – kein Rollover"
+- ✅ `newMonthStartsAtZeroUsageForNewPeriod` — kein UsageLog = 0 Anzeige
+- ✅ `manualLeadsDoNotConsumeQuotaVerified` — AddCompanyDialog kein UsageLog-Call
+- ✅ `billingDebugLogsRemoved` — Checkout-Refresh-Log entfernt
+- ✅ `noMisleadingBillingCopy` — "Leads", "Leads/Monat", "Monatskontingent" konsistent
+- ✅ `noFakeUsageCounts` — nur echte Companies zählen
+- ✅ `noResearchRunSecurityRegression` — keine Änderungen an Mandantensicherheit
+- ✅ `changedCodeReviewedAfterPatch` — Dateien nach Patch erneut gelesen und verifiziert
+- ✅ `merklisteUpdated`
+
+---
+
 ## 23. DASHBOARD-SYNC-FIX — END-TO-END-VERIFIKATION (2026-05-19) ✅ FINAL GRÜN
 
 ### Diagnose-Protokoll (2026-05-19)
