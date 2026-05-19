@@ -80,11 +80,15 @@ export default function Layout() {
         }`}
       >
         {/* Logo - Sauber dargestellt */}
-         <div className="px-4 py-4 border-b border-[#E2E8F0]">
-           <Link to="/dashboard" className="flex items-center justify-center">
-             <VertrieboLogo size="sm" variant="light" className="h-5 w-auto" />
-           </Link>
-         </div>
+        <div className="px-4 py-5 border-b border-[#E2E8F0]">
+          <Link to="/dashboard" className="flex items-center justify-center">
+            <img
+              src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/cd7488d03_ChatGPTImage18Mai202615_41_39.png"
+              alt="Vertriebo"
+              className="h-14 w-auto object-contain"
+            />
+          </Link>
+        </div>
 
         {/* Navigation */}
         <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
