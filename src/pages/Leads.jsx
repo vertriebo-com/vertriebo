@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import { useQuery } from "@tanstack/react-query";
@@ -23,6 +23,7 @@ import { isHotLead } from "@/utils/leadTemperature";
 
 export default function Leads() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, org, filterCompanies, loading: filterLoading } = useLeadsFilter();
   
   // ═ States
@@ -51,11 +52,11 @@ export default function Leads() {
   // ═ Effects
   // Parse query parameters: new_run, search, onboarding_zero_leads, onboarding_failed
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(location.search);
     const newRun = params.get("new_run");
     setNewRunFilter(newRun);
     const searchParam = params.get("search");
-    if (searchParam) setSearch(searchParam);
+    setSearch(searchParam || "");
     
     // Onboarding-Zustände anzeigen
     const onboardingZeroLeads = params.get("onboarding_zero_leads");
@@ -69,7 +70,7 @@ export default function Leads() {
       // Zeige Recovery-Message
       setShowOnboardingFailed(true);
     }
-  }, []);
+  }, [location.search]);
 
   const orgId = org?.id || null;
   const { data: companies = [], isLoading: loading, refetch } = useQuery({

@@ -128,14 +128,23 @@ export default function AppHeader() {
 
   const isAdmin = user?.role === "admin" || orgRole === "organization_admin";
 
-  // Suche
+  // Suche: bei Enter navigieren
   const handleSearch = (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    // Zur Leads-Suche navigieren
     navigate(`/leads?search=${encodeURIComponent(searchQuery)}`);
-    setSearchQuery("");
     setSearchOpen(false);
+  };
+
+  // Live-Suche: bei jedem Tastendruck navigieren wenn bereits auf Leads
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    if (location.pathname === "/leads") {
+      const params = new URLSearchParams(window.location.search);
+      if (val) { params.set("search", val); } else { params.delete("search"); }
+      navigate(`/leads?${params.toString()}`, { replace: true });
+    }
   };
 
   // Mobile Search Toggle
@@ -175,7 +184,7 @@ export default function AppHeader() {
                   <Input
                     type="text"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={handleSearchChange}
                     placeholder={config.searchPlaceholder}
                     className="pl-9 h-10 bg-slate-50 border-slate-200 focus:bg-white transition-colors"
                   />
@@ -232,7 +241,7 @@ export default function AppHeader() {
               <Input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 placeholder={config.searchPlaceholder}
                 className="pl-9 h-10 bg-slate-50 border-slate-200 focus:bg-white"
                 autoFocus
