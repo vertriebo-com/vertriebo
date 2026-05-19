@@ -314,7 +314,7 @@ Deno.serve(async (req) => {
       const yearPart = periodParts.find(p => p.type === 'year');
       const monthPart = periodParts.find(p => p.type === 'month');
       const periodMonth = `${yearPart?.value}-${monthPart?.value}`;
-      const [py, pm] = [parseInt(yearPart?.value || 2026), parseInt(monthPart?.value || 1)];
+      const [py, pm] = [parseInt(yearPart?.value || new Date().getFullYear()), parseInt(monthPart?.value || 1)];
       const resetDate = new Date(Date.UTC(py, pm, 1));
       
       usage_summary = {

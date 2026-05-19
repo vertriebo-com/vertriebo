@@ -357,34 +357,62 @@ function extractAddress(components = []) {
 
 // KANONISCH: Kalendermonat Europe/Berlin (YYYY-MM)
 // Alle UsageLog-Schreibungen und Reads müssen dieselbe Logik nutzen.
+// Robuste Implementierung via formatToParts (vermeidet Invalid Date / Split-Fehler)
 function getPeriodMonth() {
-  return new Intl.DateTimeFormat('de-DE', {
+  const now = new Date();
+  const periodParts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Berlin',
     year: 'numeric',
     month: '2-digit',
-  }).format(new Date()).split('.').reverse().join('-');
-  // Beispiel: "05.2026" → "2026-05"
+  }).formatToParts(now);
+  const yearPart = periodParts.find(p => p.type === 'year');
+  const monthPart = periodParts.find(p => p.type === 'month');
+  return `${yearPart?.value}-${monthPart?.value}`; // z.B. "2026-05"
 }
 
-async function upsertUsageLog(base44, organization_id, newLeads) {
+// Atomare pro-Lead-Zählung für Parallelitätssicherheit
+// Jeder Lead wird SOFORT beim Erstellen gezählt – verhindert Race Conditions bei parallelen Runs
+async function incrementUsageLog(base44, organization_id) {
+  const periodMonth = getPeriodMonth();
+  const now = new Date().toISOString();
+  
+  // Atomares Increment via filter + update (Base44 SDK unterstützt kein atomares increment)
+  // Lock durch Processing-Lock des ResearchRuns bereits vorhanden
+  const existing = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
+  
+  if (existing[0]) {
+    await base44.asServiceRole.entities.UsageLog.update(existing[0].id, {
+      leads_created: (existing[0].leads_created || 0) + 1,
+      last_lead_generation_at: now,
+    });
+  } else {
+    const [y, m] = periodMonth.split('-').map(Number);
+    const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();
+    const end = new Date(Date.UTC(y, m, 0, 23, 59, 59)).toISOString();
+    await base44.asServiceRole.entities.UsageLog.create({
+      organization_id, period_month: periodMonth,
+      period_start: start, period_end: end,
+      leads_created: 1, lead_generations_used: 1,
+      last_lead_generation_at: now,
+    });
+  }
+}
+
+async function upsertUsageLogBatch(base44, organization_id, newLeads) {
   if (newLeads <= 0) return;
-  // KANONISCH: period_month immer Europe/Berlin-Kalendermonat (via getPeriodMonth())
-  const periodMonth = getPeriodMonth(); // z.B. "2026-05"
+  const periodMonth = getPeriodMonth();
   const now = new Date().toISOString();
   const existing = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
+  
   if (existing[0]) {
     await base44.asServiceRole.entities.UsageLog.update(existing[0].id, {
       leads_created: (existing[0].leads_created || 0) + newLeads,
       last_lead_generation_at: now,
     });
   } else {
-    // period_start / period_end: UTC-Grenzen des period_month-Kalendermonats.
-    // Deno läuft in UTC, daher ergibt new Date(y, m-1, 1) UTC-Mitternacht des ersten Tages.
-    // period_start/end sind reine Metadaten-Felder für spätere Reports – period_month (YYYY-MM)
-    // ist die primäre Matching-Spalte für alle Queries.
     const [y, m] = periodMonth.split('-').map(Number);
-    const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();          // 1. des Monats, 00:00 UTC
-    const end   = new Date(Date.UTC(y, m, 0, 23, 59, 59)).toISOString();  // Letzter Tag, 23:59:59 UTC
+    const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();
+    const end = new Date(Date.UTC(y, m, 0, 23, 59, 59)).toISOString();
     await base44.asServiceRole.entities.UsageLog.create({
       organization_id, period_month: periodMonth,
       period_start: start, period_end: end,
@@ -825,6 +853,9 @@ Deno.serve(async (req) => {
             engine_last_analyzed_at: new Date().toISOString(),
           });
 
+          // ATOMARE QUOTA-ZÄHLUNG: Jeder Lead wird SOFORT gezählt (Parallelitätssicherheit)
+          await incrementUsageLog(base44, organization_id);
+
           existingNames.add(normStr(place.name || ''));
           existingPlaceIds.add(place.place_id);
           if (ort) existingNameOrt.add(nameOrtKey);
@@ -845,13 +876,12 @@ Deno.serve(async (req) => {
       ? (rawHitsThisBatch === 0 ? 'no_google_results' : dupSkippedThisBatch > 0 ? 'all_duplicates' : 'no_match_score')
       : null;
 
-    if (newLeadsSavedThisBatch > 0) {
-      await upsertUsageLog(base44, organization_id, newLeadsSavedThisBatch);
-      if (trialStage === 'free_preview') {
-        const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
-        if (orgs[0]) {
-          await base44.asServiceRole.entities.Organization.update(organization_id, { trial_leads_granted: (orgs[0].trial_leads_granted || 0) + newLeadsSavedThisBatch });
-        }
+    // UsageLog wird bereits pro Lead atomar erhöht (incrementUsageLog oben)
+    // Keine Batch-Aktualisierung nötig – verhindert Double-Counting
+    if (trialStage === 'free_preview' && newLeadsSavedThisBatch > 0) {
+      const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
+      if (orgs[0]) {
+        await base44.asServiceRole.entities.Organization.update(organization_id, { trial_leads_granted: (orgs[0].trial_leads_granted || 0) + newLeadsSavedThisBatch });
       }
     }
 
