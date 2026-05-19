@@ -1,0 +1,38 @@
+{
+  "name": "QuotaReservation",
+  "type": "object",
+  "properties": {
+    "organization_id": {
+      "type": "string",
+      "title": "Organisation ID"
+    },
+    "period_month": {
+      "type": "string",
+      "title": "Periode Monat (YYYY-MM)"
+    },
+    "reserved_slots": {
+      "type": "number",
+      "title": "Reservierte Slots",
+      "default": 0
+    },
+    "used_slots": {
+      "type": "number",
+      "title": "Genutzte Slots",
+      "default": 0
+    },
+    "lock_version": {
+      "type": "number",
+      "title": "Optimistic Lock Version",
+      "default": 0
+    },
+    "last_reserved_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Zuletzt reserviert am"
+    }
+  },
+  "required": [
+    "organization_id",
+    "period_month"
+  ]
+}
