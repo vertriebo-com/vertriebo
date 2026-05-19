@@ -15,12 +15,12 @@ export default function VertrieboLogo({ size = "default", variant = "dark", clas
 
   return (
     <div className={`${sizes[size] || sizes.default} ${className}`} style={{ display: "flex", alignItems: "center" }}>
-      <img 
+      <img
         src={logos[variant] || logos.dark}
-        alt="Vertriebo Logo" 
-        className="w-full h-full object-contain"
-        style={{ display: "block" }}
-      />
-    </div>
-  );
+        alt="Vertriebo Logo"
+        className="w-full h-full object-contain hidden"
+        style={{ display: "block" }} />
+      
+    </div>);
+
 }
