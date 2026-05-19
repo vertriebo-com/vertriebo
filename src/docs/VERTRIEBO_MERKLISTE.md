@@ -6,6 +6,61 @@
 
 ---
 
+## 0. MANDANTENSICHERHEIT — RESEARCHRUN-FUNCTIONS (2026-05-19) ✅ FINAL GRÜN
+
+### Audit-Ergebnis: Alle 3 kritischen Functions sind mandantensicher abgesichert
+
+| Function | Vorher | Nachher | Status |
+|---|---|---|---|
+| `startResearchRun` | `organization_id` aus Body blind vertraut | Org per DB geladen, `owner_email === user.email` Direktvergleich + Member-Check | ✅ |
+| `processResearchRun` | `organization_id` aus Body, `isOwner` per Filter | `organization_id` aus `run.organization_id`, Org separat geladen für Direktvergleich | ✅ |
+| `getResearchRunStatus` | Cross-Tenant-Read möglich | Ownership via `run.organization_id` → 404 (kein Info-Leak) | ✅ |
+
+### Kernprinzip (nicht verletzen)
+
+```
+organization_id DARF NIEMALS aus dem Request-Body als Vertrauensquelle genutzt werden.
+IMMER: run = DB.ResearchRun.filter({id: run_id_from_body})[0]; then organization_id = run.organization_id;
+```
+
+### Vollständige Akzeptanzliste ✅
+
+- ✅ `startResearchRunValidatesOrgAccess` — 404 für unbekannte Org, 403 für fremde Org
+- ✅ `processResearchRunValidatesRunOwnership` — 403 nach Direktvergleich `owner_email`
+- ✅ `getResearchRunStatusValidatesRunOwnership` — 404 (kein Info-Leak) bei fremdem Run
+- ✅ `noBlindTrustInRequestOrganizationId` — `organization_id` nirgends aus Body genutzt
+- ✅ `forceFinishTenantSafe` — `force_finish` nur nach bestandenem Tenant-Guard
+- ✅ `companyWritesUseValidatedOrganizationId` — `run.organization_id`
+- ✅ `usageLogWritesUseValidatedOrganizationId` — `run.organization_id`
+- ✅ `noCrossTenantReadWritePossible` — keine Cross-Tenant-Pfade mehr
+- ✅ `existingOwnOrgResearchStillWorks` — Live-Regressionstest bestätigt (2026-05-19)
+- ✅ `errorHandlerNoTenantBypass` — `research_run_id` als outer `let null`, erst nach Tenant-Check gesetzt
+
+### Error-Codes (final)
+
+| Situation | HTTP Code |
+|---|---|
+| Nicht eingeloggt | 401 |
+| Org/Run nicht gefunden | 404 |
+| Fremder Run (getResearchRunStatus) | 404 (kein Info-Leak) |
+| Kein Org-Zugriff | 403 |
+| Billing-Problem | 402 |
+
+### Verbotene Patterns (zusätzlich zu §8)
+
+12. **`organization_id` aus Request-Body in ResearchRun-Functions** → immer aus validiertem DB-Objekt
+13. **`isOwner` via DB-Filter** → immer `orgRecord.owner_email === user.email` Direktvergleich
+14. **Error-Handler schreibt Run ohne vorherigen Tenant-Check** → `research_run_id` erst nach Guard setzen
+
+### Admin-Ausnahmen (explizit erlaubt)
+
+- `backfillOrganizationIndustryIds` — PlatformAdmin-only, darf org-übergreifend operieren
+- `testLeadSearchEngine` — PlatformAdmin-only, darf org-übergreifend operieren
+- `getTaxonomy seed_reset` — PlatformAdmin-only
+- `getPlatformAdminData` / `platformAdmin` / `updateSystemConfig` — PlatformAdmin-only
+
+---
+
 ## 1. TAXONOMIE — EINZIGE WAHRHEITSQUELLE: DATENBANK
 
 ### Architektur (produktionsreif ab v6-weighted-2026-05)
