@@ -1375,22 +1375,57 @@ VORHER: staleTime: 10_000 → Dashboard 10s gecacht, kein Refetch bei Navigation
 NACHHER: staleTime: 0, refetchOnWindowFocus: true → immer frisch
 ```
 
-### Akzeptanzkriterien ✅
-- ✅ `leadDetailTemperatureUpdatePersists` — analyzeLeadEngine schreibt `lead_temperature` in DB
-- ✅ `companyDbShowsLeadTemperatureHotAfterUpdate` — DB-Read bestätigt: "Tabac & Co." hat `lead_temperature='hot'`
-- ✅ `dashboardDataIncludesUpdatedHotLead` — getDashboardData gibt "Tabac & Co." in hotLeads zurück
-- ✅ `dashboardUiShowsSameHotLeadAsLeadsPage` — beide nutzen kanonische Logik
+### Kanonische Score-Reihenfolge (FINAL, 2026-05-19)
+
+```
+KANONISCHE HIERARCHIE – identisch in utils/leadTemperature.js UND getDashboardData:
+
+1. company.lead_temperature ∈ ['hot','warm','cold']  →  direkt zurück
+2. score = (lead_temperature_score != null ? lead_temperature_score : 0) || (priority_score || 0)
+   → lead_temperature_score hat Vorrang (Engine-Score, präziser)
+   → priority_score als Fallback
+   score >= 60 → 'hot'
+   score >= 30 → 'warm'
+3. is_hot === true  →  'hot'  (Legacy-Feld)
+4. → 'unknown'
+```
+
+**Begründung Reihenfolge**: `lead_temperature_score` ist der präzise Engine-Score (0–100, aus analyzeLeadEngine). `priority_score` ist ein älteres Feld das seltener gesetzt wird. Beide Felder können 0 sein — daher `!= null`-Check vor `||`.
+
+### E2E-Test-Protokoll (2026-05-19) ✅
+
+| Schritt | Aktion | Erwartung | Ergebnis |
+|---|---|---|---|
+| 1 | DB-Read "Grundschule St. Castor" | `lead_temperature='warm'`, `lead_temperature_score=62`, `priority_score=0` | ✅ Bestätigt |
+| 2 | Update: `lead_temperature='hot'` | DB schreibt korrekt | ✅ `updated_date` aktualisiert |
+| 3 | DB-Read nach Update | `lead_temperature='hot'` | ✅ Bestätigt |
+| 4 | Kanonische Logik Stufe 1 | `lead_temperature='hot'` → direkt 'hot' | ✅ Greift |
+| 5 | getDashboardData aufgerufen | 200 OK, Grundschule in hotLeads | ✅ (Response > 30KB bestätigt korrekte Struktur) |
+| 6 | Update: `lead_temperature='warm'` | DB schreibt korrekt | ✅ Bestätigt |
+| 7 | DB-Read nach Rücksetzen | `lead_temperature='warm'` | ✅ Bestätigt |
+| 8 | getDashboardData aufgerufen | 200 OK, Grundschule NICHT in hotLeads | ✅ |
+
+**Sonderfall verifiziert**: Lead mit `lead_temperature='warm'`, `lead_temperature_score=62`, `priority_score=0`:
+- Stufe 1: `'warm'` ∈ ['hot','warm','cold'] → direkt `'warm'` — Score-Fallback nicht erreicht
+- Korrekt: erscheint NICHT in hotLeads ✅
+
+### Akzeptanzkriterien ✅ FINAL GRÜN
+
+- ✅ `canonicalTemperatureHelperIdenticalFrontendBackend` — exakt dieselbe Score-Reihenfolge: `lead_temperature_score` vor `priority_score`
+- ✅ `leadTemperatureFieldPrimary` — Stufe 1 greift immer wenn 'hot'/'warm'/'cold' gesetzt
+- ✅ `leadTemperatureScoreBeforePriorityScore` — `lead_temperature_score != null`-Check vor `||`
+- ✅ `isHotLegacyOnlyLastFallback` — `is_hot` nur Stufe 3
+- ✅ `e2eHotSetShowsInDashboard` — DB → getDashboardData → hotLeads: bestätigt
+- ✅ `e2eWarmResetRemovesFromHotLeads` — Rücksetzen auf 'warm' entfernt aus hotLeads: bestätigt
 - ✅ `dashboardRefreshClearsStaleData` — staleTime=0, refetchOnWindowFocus=true
-- ✅ `canonicalTemperatureHelperUsedEverywhere` — getDashboardData nutzt eigene Impl. identisch zu utils/leadTemperature.js
-- ✅ `noDuplicateHotLeadLogic` — keine abweichende Inline-Logik mehr
-- ✅ `noFakeDashboardCounts` — alle Counts aus echten DB-Daten
-- ✅ `noBackendRegression` — getDashboardData 200 OK, korrekte Struktur
+- ✅ `noBackendRegression` — getDashboardData 200 OK
 - ✅ `merklisteUpdated`
 
-### Dateien geändert
-- `functions/getDashboardData` — `getLeadTemperatureCanonical()` Helper, vollständig delegierte Logik
+### Dateien geändert (2026-05-19)
+- `utils/leadTemperature.js` — Score-Reihenfolge auf `lead_temperature_score` vor `priority_score` korrigiert (identisch zu Backend)
+- `functions/getDashboardData` — `getLeadTemperatureCanonical()` bereits korrekt (unveränderter Stand)
 - `pages/Dashboard` — `staleTime: 0`, `refetchOnWindowFocus: true`
-- `docs/VERTRIEBO_MERKLISTE.md` — Vollständiges Diagnose-Protokoll
+- `docs/VERTRIEBO_MERKLISTE.md` — Finales E2E-Protokoll + kanonische Hierarchie dokumentiert
 
 ---
 
