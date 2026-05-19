@@ -31,21 +31,28 @@ function formatPeriodMonth(periodMonth) {
 }
 
 // KANONISCH: Reset-Datum = erster Tag des nächsten Kalendermonats (Europe/Berlin)
-// Identisch zur Monatslogik in processResearchRun / getDashboardData.
+// Robuste Implementierung via Intl.DateTimeFormat mit expliziten Einzelfeldern (kein Split/Parse).
 function getPeriodMonthBerlin() {
-  return new Intl.DateTimeFormat('de-DE', {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Berlin',
     year: 'numeric',
     month: '2-digit',
-  }).format(new Date()).split('.').reverse().join('-');
+  }).formatToParts(now);
+  const year = parts.find(p => p.type === 'year')?.value;
+  const month = parts.find(p => p.type === 'month')?.value;
+  return `${year}-${month}`; // z.B. "2026-05"
 }
 
 function getResetDate() {
-  // Aktuellen Kalendermonat in Berlin bestimmen und den ersten Tag des Folgemonats berechnen
-  const [year, month] = getPeriodMonthBerlin().split('-').map(Number);
-  // Erster Tag des nächsten Monats in Berlin darstellen
-  const nextMonth = new Date(year, month, 1); // month ist bereits 1-basiert → month = nächster Monat
-  return nextMonth.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const periodMonth = getPeriodMonthBerlin();
+  const [year, month] = periodMonth.split('-').map(Number);
+  // Erster Tag des nächsten Monats (month ist 1-basiert, new Date month ist 0-basiert → month selbst = nächster Monat)
+  const nextMonth = new Date(year, month, 1);
+  const d = String(nextMonth.getDate()).padStart(2, '0');
+  const m = String(nextMonth.getMonth() + 1).padStart(2, '0');
+  const y = nextMonth.getFullYear();
+  return `${d}.${m}.${y}`;
 }
 
 function MonthlyLeadQuotaCard({ usageLog, plan, subscription }) {
