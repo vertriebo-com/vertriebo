@@ -144,7 +144,6 @@ export default function BillingSettings({ org: orgProp, user }) {
   const [checkoutLoading, setCheckoutLoading] = useState(null); // plan_id being checked out
 
   const loadData = async (showRefresh = false) => {
-    console.log('[BillingSettings] loadData() CALLED, showRefresh:', showRefresh, 'org.id:', org?.id);
     if (showRefresh) setRefreshing(true);
     try {
       const [orgs, subs] = await Promise.all([
@@ -561,11 +560,28 @@ export default function BillingSettings({ org: orgProp, user }) {
       </div>
       )}
 
-      {!org?.stripe_customer_id && (
-        <p className="text-xs text-slate-600 font-medium text-center">
-          Kein Stripe-Konto verknüpft – bitte Abonnement abschließen.
-        </p>
-      )}
+      {/* Statusabhängiger Stripe-Hinweis */}
+      {(() => {
+        const ts = org?.trial_stage;
+        const bs = org?.billing_status;
+        // free_preview und verified_trial: keine Stripe-Warnung (TrialStatusBanner übernimmt)
+        if (ts === 'free_preview' || ts === 'verified_trial') return null;
+        // paid + active, aber stripe_customer_id fehlt oder keine Subscription → Sync-Hinweis
+        if (ts === 'paid' && bs === 'active' && (!org?.stripe_customer_id || !subscription)) {
+          return (
+            <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+              <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-blue-800 font-medium">
+                Abo aktiv, Zahlungsdaten werden noch synchronisiert. Falls dies länger bestehen bleibt, bitte Support kontaktieren.
+              </p>
+            </div>
+          );
+        }
+        // paid + active + alles vorhanden: keine Warnung
+        if (ts === 'paid' && bs === 'active') return null;
+        // problematische Billing-Zustände werden bereits durch isProblematic-Block weiter oben abgedeckt
+        return null;
+      })()}
     </div>
   );
 }
