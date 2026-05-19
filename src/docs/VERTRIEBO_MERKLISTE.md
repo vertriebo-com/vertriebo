@@ -1634,6 +1634,12 @@ Nachher: HTTP **402**, `{ success: false, reason: 'monthly_lead_quota_reached', 
 - `processResearchRun` könnte intern einen echten Google-API-429 empfangen: wird als `api_rate_limited` im `stop_reason` gespeichert, Run geht auf `partial`/`failed`. Frontend zeigt den `current_step`-Text – kein roher 429 im UI, da `ActiveResearchBanner` nur `activeRun.message` anzeigt (keine Exception-Anzeige).
 - Für 299/300 gilt: `effectiveTarget=1` → Run wird gestartet, aber processResearchRun kann maximal 1 Lead speichern bevor das UsageLog-Limit erneut greift. Das ist korrektes Verhalten (kein Over-Booking).
 
+#### UX-Nachtrag: knapper Kontingent-Hinweis (2026-05-19)
+- `startResearchRun` gibt `effective_target` + `monthly_usage.remaining` in der Success-Response mit.
+- `ResearchDialog`: wenn `effective_target < 25` → `quotaHint`-State gesetzt → Amber-Banner im RUNNING-State:
+  *"Es ist nur noch X Lead(s) in Ihrem Monatskontingent verfügbar. Die Recherche wurde automatisch auf das verbleibende Kontingent begrenzt."*
+- Wirkt nicht wie ein Fehler – Recherche läuft normal, Nutzer versteht die Begrenzung.
+
 ### 🎉 ISSUE #5: QUOTA-/RATE-LIMIT-FEHLER KUNDENFREUNDLICH — FINAL GRÜN (2026-05-19)
 
 ---

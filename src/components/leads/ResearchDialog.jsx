@@ -73,6 +73,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const [currentStep, setCurrentStep] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
   const [errorInfo, setErrorInfo] = useState(null); // { type, title, message, resetDate }
+  const [quotaHint, setQuotaHint] = useState(null); // { remaining, limit } – sanfter Hinweis wenn Kontingent knapp
 
   const pollRef = useRef(null);
   const processingRef = useRef(false);
@@ -86,6 +87,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       setLeadsSaved(0);
       setCurrentStep("");
       setErrorMsg("");
+      setQuotaHint(null);
     } else {
       stopPolling();
     }
@@ -125,6 +127,13 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       setPhase("running");
       setCurrentStep("Recherche wird gestartet…");
       setProgressPercent(5);
+
+      // Wenn effectiveTarget < 25 (Kontingent war knapp) → sanften Hinweis setzen
+      const effective = res.data?.effective_target;
+      const monthly = res.data?.monthly_usage;
+      if (effective != null && effective < 25 && monthly?.remaining != null) {
+        setQuotaHint({ remaining: monthly.remaining, limit: monthly.monthly_limit });
+      }
 
       // Polling starten
       startPolling(runId);
@@ -267,6 +276,15 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                 <div className="flex items-center gap-2 text-sm text-emerald-700 font-medium bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
                   <CheckCircle2 className="w-4 h-4 shrink-0" />
                   {leadsSaved} neue Firmenkontakte bereits gefunden
+                </div>
+              )}
+
+              {quotaHint && (
+                <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
+                  <span>
+                    Es ist nur noch <strong>{quotaHint.remaining} Lead{quotaHint.remaining !== 1 ? 's' : ''}</strong> in Ihrem Monatskontingent verfügbar. Die Recherche wurde automatisch auf das verbleibende Kontingent begrenzt.
+                  </span>
                 </div>
               )}
 

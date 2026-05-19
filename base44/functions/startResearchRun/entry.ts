@@ -363,7 +363,12 @@ Deno.serve(async (req) => {
       research_run_id: run.id,
       status: 'queued',
       message: 'Recherche gestartet. Erste Kontakte erscheinen automatisch in Ihrer Leadliste.',
-      effectiveTarget,
+      effective_target: effectiveTarget,
+      // monthly_usage mitgeben wenn Kontingent begrenzt – Frontend zeigt sanften Hinweis bei knappem Kontingent
+      monthly_usage: monthlyRemaining !== -1 ? {
+        remaining: monthlyRemaining,
+        monthly_limit: monthlyContactLimit,
+      } : null,
       searchConfig: { city, radiusKm, trialStage, targetCustomerTypes: targetCustomerTypes.slice(0, 3) }
     });
 
