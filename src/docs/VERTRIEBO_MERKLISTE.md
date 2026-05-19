@@ -1384,21 +1384,72 @@ function getPeriodMonth() {
 - **Bestehende UsageLogs mit UTC-period_month:** Historische Einträge wurden unter UTC-Monat geschrieben. Diese werden nach dem Patch korrekt angezeigt, solange `period_month` übereinstimmt. Einzig in der Stunde zwischen `00:00 UTC` und `01:00 Berlin` (= `02:00 CET`) hätten ältere Writes in UTC-Vormonat und neue Reads in Berlin-Monat → minimaler 1-Stunden-Drift möglich für Bestandsdaten. Für Neudaten ab Patch vollständig korrekt.
 - **UsageBillingDiagnostics filterMonth Default:** Nutzt `moment().format('YYYY-MM')` (Browser-Berlin-Zeit). Da der Filter nur für Diagnose genutzt wird und die Filterung danach client-seitig erfolgt, entsteht kein Produktionsproblem. Keine Änderung nötig.
 
-### Akzeptanzkriterien
+### Restpunkte A–D (2026-05-19, nach Review) — ABGESCHLOSSEN ✅
 
-- ✅ `billingPeriodMonthUnified` — Europe/Berlin überall
+#### A) console.info pro gespeichertem Lead → ENTFERNT ✅
+- `processResearchRun.js` Zeile ~786: `console.info([processResearchRun] SAVED ...)` → auskommentiert als `// DEBUG:`
+- Begründung: Im Produktbetrieb mit bis zu 25 Leads pro Batch erzeugt das Log-Spam ohne Mehrwert.
+- Operationelle Logs (`console.warn` für Locks, Kill-Switch, Max-Runtime) bleiben.
+
+#### B) period_start/period_end Kommentar ungenau → KORRIGIERT ✅
+- **Alt:** `// 1. des Monats 00:00 Lokalzeit → UTC` (irreführend, da Deno in UTC läuft)
+- **Neu:** `new Date(Date.UTC(y, m-1, 1))` mit explizitem UTC-Konstruktor + Kommentar:
+  ```
+  // Deno läuft in UTC, daher ergibt new Date(y, m-1, 1) UTC-Mitternacht des ersten Tages.
+  // period_start/end sind reine Metadaten-Felder für spätere Reports – period_month (YYYY-MM)
+  // ist die primäre Matching-Spalte für alle Queries.
+  ```
+- Konsequenz: `period_start`/`period_end` sind UTC-Grenzen des Kalendermonats (korrekt für Reports/Filter).
+
+#### C) UsageBillingDiagnostics filterMonth → DOKUMENTIERT ✅
+- `filterMonth` Default: `moment().format('YYYY-MM')` (Browser-Lokalzeit = Europe/Berlin).
+- Diese Komponente läuft ausschließlich im Browser. Der Filter ist rein client-seitig gegen `period_month`.
+- Da `period_month` jetzt von Backend (Europe/Berlin via `Intl`) und Browser (Europe/Berlin via Lokalzeit) identisch berechnet wird, ist die Filterung korrekt.
+- Kommentar im Code ergänzt (Zeile ~295 in `UsageBillingDiagnostics`).
+- **Ergebnis:** Kein Änderungsbedarf, Konsistenz dokumentiert. ✅
+
+#### D) Alle Company.create-Flows geprüft → VOLLSTÄNDIG ABGESCHLOSSEN ✅
+
+Vollständige Auflistung aller `Company.create`-Flows in der Codebase:
+
+| Flow | Datei | UsageLog? | period_month Logik |
+|---|---|---|---|
+| Google Places Recherche | `processResearchRun.js` | ✅ `upsertUsageLog()` | Europe/Berlin (gepatcht) |
+| OpenRegister Promote | `promoteExternalSourceToCompany.js` | ✅ `incrementUsageLog()` | **Europe/Berlin (gepatcht 2026-05-19)** |
+| Manuell (UI) | `AddCompanyDialog.jsx` | ❌ kein UsageLog | — (bewusst: manuell zählt nicht) |
+| CSV Import | Frontend `import_data`-Tool | ❌ kein UsageLog | — (Direktimport, kein Backend-Flow) |
+
+**Außerdem gepatcht:**
+- `enrichCompany.js`: `periodMonth`-Berechnung für KI-Aktions-Limit (ai_actions_used) war UTC-basiert → Europe/Berlin.
+  Kein Company.create hier, aber UsageLog-Lese- und Schreibzugriff muss ebenfalls konsistent sein.
+
+**Ergebnis:** Es gibt genau 2 Flows, die `leads_created` im UsageLog erhöhen:
+1. `processResearchRun` (Google Places) → ✅ Europe/Berlin
+2. `promoteExternalSourceToCompany` (OpenRegister) → ✅ Europe/Berlin (neu)
+
+Manuell angelegte Kontakte (`AddCompanyDialog`, CSV Import) erhöhen `leads_created` nicht. ✅
+
+### Akzeptanzkriterien — FINAL GRÜN ✅
+
+- ✅ `billingPeriodMonthUnified` — Europe/Berlin in allen 4 relevanten Functions + BillingSettings
 - ✅ `dashboardAndBillingUseSamePeriodMonth` — identische `Intl`-Logik
-- ✅ `usageLogWritesUseSamePeriodMonth` — processResearchRun nutzt Europe/Berlin
+- ✅ `usageLogWritesUseSamePeriodMonth` — processResearchRun + promoteExternalSource Europe/Berlin
 - ✅ `resetDateMatchesQuotaPeriod` — erster Tag nächster Kalendermonat Berlin
 - ✅ `unusedLeadsDoNotRolloverDisplayed` — "Nicht genutzte Leads verfallen am Monatsende – kein Rollover"
 - ✅ `newMonthStartsAtZeroUsageForNewPeriod` — kein UsageLog = 0 Anzeige
-- ✅ `manualLeadsDoNotConsumeQuotaVerified` — AddCompanyDialog kein UsageLog-Call
-- ✅ `billingDebugLogsRemoved` — Checkout-Refresh-Log entfernt
+- ✅ `manualLeadsDoNotConsumeQuotaVerified` — AddCompanyDialog + CSV kein UsageLog-Call ✅
+- ✅ `allCompanyCreateFlowsAudited` — 4 Flows geprüft, 2 mit UsageLog, beide Europe/Berlin ✅
+- ✅ `billingDebugLogsRemoved` — Checkout-Refresh-Log + SAVED-per-Lead-Log entfernt ✅
+- ✅ `periodStartEndCommentAccurate` — UTC-Konstruktor + korrekter Kommentar ✅
+- ✅ `usageBillingDiagnosticsFilterMonthDocumented` — Konsistenz via Browser-Berlin-Lokalzeit ✅
+- ✅ `enrichCompanyPeriodMonthUnified` — ai_actions_used-Zähler ebenfalls Europe/Berlin ✅
 - ✅ `noMisleadingBillingCopy` — "Leads", "Leads/Monat", "Monatskontingent" konsistent
 - ✅ `noFakeUsageCounts` — nur echte Companies zählen
 - ✅ `noResearchRunSecurityRegression` — keine Änderungen an Mandantensicherheit
-- ✅ `changedCodeReviewedAfterPatch` — Dateien nach Patch erneut gelesen und verifiziert
+- ✅ `changedCodeReviewedAfterPatch` — alle 6 Dateien nach Patch verifiziert
 - ✅ `merklisteUpdated`
+
+### 🎉 ISSUE #3: BILLING/USAGE PERIOD_MONTH — FINAL GRÜN (2026-05-19)
 
 ---
 

@@ -108,8 +108,11 @@ Deno.serve(async (req) => {
     }
 
     // ── 4. KI-Limit prüfen vor LLM ──────────────────────────────────────────
+    // KANONISCH: Europe/Berlin-Kalendermonat – identisch zu processResearchRun/getDashboardData
     const now = new Date();
-    const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const periodMonth = new Intl.DateTimeFormat('de-DE', {
+      timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit',
+    }).format(now).split('.').reverse().join('-');
     let currentUsageLog = null;
     try {
       const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });

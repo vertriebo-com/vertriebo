@@ -378,10 +378,13 @@ async function upsertUsageLog(base44, organization_id, newLeads) {
       last_lead_generation_at: now,
     });
   } else {
-    // period_start / period_end: erster bzw. letzter Tag des Berlin-Kalendermonats (in UTC gespeichert)
+    // period_start / period_end: UTC-Grenzen des period_month-Kalendermonats.
+    // Deno läuft in UTC, daher ergibt new Date(y, m-1, 1) UTC-Mitternacht des ersten Tages.
+    // period_start/end sind reine Metadaten-Felder für spätere Reports – period_month (YYYY-MM)
+    // ist die primäre Matching-Spalte für alle Queries.
     const [y, m] = periodMonth.split('-').map(Number);
-    const start = new Date(y, m - 1, 1).toISOString();            // 1. des Monats 00:00 Lokalzeit → UTC
-    const end   = new Date(y, m, 0, 23, 59, 59).toISOString();    // Letzter Tag 23:59:59 Lokalzeit → UTC
+    const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();          // 1. des Monats, 00:00 UTC
+    const end   = new Date(Date.UTC(y, m, 0, 23, 59, 59)).toISOString();  // Letzter Tag, 23:59:59 UTC
     await base44.asServiceRole.entities.UsageLog.create({
       organization_id, period_month: periodMonth,
       period_start: start, period_end: end,
@@ -783,7 +786,7 @@ Deno.serve(async (req) => {
           if (ort) existingNameOrt.add(nameOrtKey);
           if (phoneNorm.length >= 6) existingNamePhone.add(namePhoneKey);
           newLeadsSavedThisBatch++;
-          console.info(`[processResearchRun] SAVED "${place.name}" score=${scoring.score} signals=${scoring.diagnostics.matched_weighted_signals?.join(',')} engine=${SEARCH_ENGINE_VERSION}`);
+          // DEBUG: console.info(`[processResearchRun] SAVED "${place.name}" score=${scoring.score}`);
         }
       }
     }

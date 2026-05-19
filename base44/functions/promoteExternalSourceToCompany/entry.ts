@@ -35,9 +35,13 @@ function extractDomain(url) {
   }
 }
 
+// KANONISCH: Europe/Berlin-Kalendermonat – identisch zu processResearchRun/getDashboardData
 function getPeriodMonth() {
-  const n = new Date();
-  return `${n.getUTCFullYear()}-${String(n.getUTCMonth() + 1).padStart(2, '0')}`;
+  return new Intl.DateTimeFormat('de-DE', {
+    timeZone: 'Europe/Berlin',
+    year: 'numeric',
+    month: '2-digit',
+  }).format(new Date()).split('.').reverse().join('-');
 }
 
 // ── ACCESS CHECK ─────────────────────────────────────────────────────────────

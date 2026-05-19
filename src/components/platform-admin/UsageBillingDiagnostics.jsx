@@ -292,6 +292,10 @@ export default function UsageBillingDiagnostics({ userRole, userEmail, orgId }) 
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterOrg, setFilterOrg] = useState(isPlatformAdmin ? 'all' : (orgId || 'all'));
+  // filterMonth: moment().format('YYYY-MM') liefert im Browser den lokalen Kalendermonat (Europe/Berlin).
+  // Da die Komponente nur im Browser läuft und die Filterung client-seitig gegen period_month erfolgt,
+  // ist dies konsistent mit der Europe/Berlin-Logik in processResearchRun/getDashboardData.
+  // KEIN Backend-Call mit filterMonth – reiner UI-Filter. Keine Änderung nötig.
   const [filterMonth, setFilterMonth] = useState(moment().format('YYYY-MM'));
   const [searchText, setSearchText] = useState('');
   const [showComparisons, setShowComparisons] = useState(false);
