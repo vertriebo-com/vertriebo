@@ -1462,6 +1462,105 @@ Manuell angelegte Kontakte (`AddCompanyDialog`, CSV Import) erhöhen `leads_crea
 
 ---
 
+## ISSUE #4: GLOBALER FORM-/MODAL-KONTRAST-FIX (2026-05-19)
+
+### Befund vor Änderung
+
+| Problem | Datei | Details |
+|---|---|---|
+| `SelectTrigger` `bg-transparent` | `ui/select.jsx` | Kein weißer Hintergrund, Wert-Text ungefärbt, Placeholder via `muted-foreground`-Variable |
+| `SelectItem` Hover: `bg-accent` | `ui/select.jsx` | Violett (#7c3aed) auf weißem Hintergrund = störend |
+| `SelectContent` `bg-popover` | `ui/select.jsx` | Nicht explizit weiß — im Dialog-Kontext riskant |
+| `VertrieboInput/Textarea` Placeholder | `VertrieboDialog.jsx` | `--placeholder-color` CSS Custom Property → funktioniert **nicht** für `::placeholder`, Browser-Default (hellgrau) statt `#475569` |
+| `SendEmailDialog` Placeholder | `SendEmailDialog.jsx` | `placeholder:text-slate-400` explizit — zu blass |
+| `SendEmailDialog` Label | `SendEmailDialog.jsx` | `text-slate-700` → zu blass, `(optional)` in `text-slate-400` |
+| `MobileSelect` Desktop Trigger | `MobileSelect.jsx` | Kein `bg-white text-slate-900` explizit, erbt `bg-transparent` |
+| `CallScriptDialog` Notiz-Texts | `CallScriptDialog.jsx` | `text-slate-400 italic` → zu blass |
+
+### Geänderte Dateien
+
+1. **`components/ui/select.jsx`** — ZENTRAL, wirkt auf alle Selects system-weit:
+   - `SelectTrigger`: `bg-transparent` → `bg-white`, `text-slate-900`, `border-slate-300`, Placeholder `data-[placeholder]:text-slate-500`, Focus `ring-2 ring-blue-500/20 border-blue-500`, Disabled `disabled:bg-slate-50`
+   - `SelectContent`: `bg-popover text-popover-foreground` → `bg-white text-slate-900 border-slate-200 rounded-xl shadow-lg`
+   - `SelectItem`: `focus:bg-accent focus:text-accent-foreground` → `focus:bg-slate-100 focus:text-slate-900`, explizit `text-slate-900`
+
+2. **`components/VertrieboDialog.jsx`** — Placeholder-Fix:
+   - `VertrieboInput`: `className="vertriebo-input"` ergänzt → aktiviert globale `::placeholder { color: #475569; opacity: 1; }` CSS-Regel aus `index.css`
+   - `VertrieboTextarea`: `className="vertriebo-textarea"` ergänzt → identisch
+   - Entfernt: nutzlose `'--placeholder-color'` Custom Property
+
+3. **`components/SendEmailDialog.jsx`**:
+   - Placeholder `placeholder:text-slate-400` → `placeholder:text-slate-500`
+   - Label `text-slate-700` → `text-slate-800`, `(optional)` `text-slate-400` → `text-slate-500`
+   - Border `border-slate-200` → `border-slate-300`
+
+4. **`components/MobileSelect.jsx`**:
+   - Desktop-Branch `SelectTrigger`: explizit `bg-white text-slate-900 border-slate-300 h-11 rounded-xl`
+   - `SelectItem`: explizit `className="text-slate-900"`
+   - Import `cn` ergänzt
+
+5. **`components/CallScriptDialog.jsx`**:
+   - Notiz-Texte `text-slate-400 italic` → `text-slate-500 font-medium`
+
+### Umgesetzte UI-Regeln
+
+| Regel | Vorher | Nachher |
+|---|---|---|
+| Select Trigger Hintergrund | transparent | `bg-white` |
+| Select Trigger Wert-Text | ungefärbt (Browser-Default) | `text-slate-900` |
+| Select Placeholder | `muted-foreground` Variable | `text-slate-500` (WCAG AA) |
+| Select Items | `bg-accent` (violett) Hover | `bg-slate-100` Hover |
+| Select Dropdown | `bg-popover` (Variable) | `bg-white` explizit |
+| VertrieboInput Placeholder | CSS Custom Property (unwirksam) | `.vertriebo-input` className → `::placeholder` CSS |
+| VertrieboTextarea Placeholder | CSS Custom Property (unwirksam) | `.vertriebo-textarea` className → `::placeholder` CSS |
+| Optional-Hinweise | `text-slate-400` | `text-slate-500` |
+| Sekundäre Labels | `text-slate-700` | `text-slate-800` |
+| CallScript Notes | `text-slate-400 italic` | `text-slate-500 font-medium` |
+
+### Geprüfte Modals/Formulare nach Patch
+
+- ✅ **Kontakt dokumentieren** (`AddContactLogDialog`) — nutzt `MobileSelect` + `VertrieboInput/Textarea` → alle 3 Fixes greifen
+- ✅ **Aufgabe erstellen** (`AddTaskDialog`) — nutzt `Select` (shadcn) + `VertrieboInput/Textarea` → zentrale Fixes greifen
+- ✅ **E-Mail vorbereiten** (`SendEmailDialog`) — direkte Lokalkorrekturen
+- ✅ **Anrufskript** (`CallScriptDialog`) — Notiz-Text-Fix
+- ✅ **Einstellungen** (`CompanySettings`) — nutzt `Select`/`Input` (shadcn) → zentrale `select.jsx`-Fixes greifen
+- ✅ **Billing** (`BillingSettings`) — nutzt shadcn-Komponenten → zentrale Fixes greifen
+
+### Nicht-Betroffene Bereiche (unverändert)
+
+- Keine Businesslogik geändert
+- Landing Page nicht angefasst
+- LeadDetail/Notizen-Bereich: nutzt `Input`/`Textarea` shadcn direkt → `Input` hatte bereits korrekte Klassen (`placeholder:text-slate-500`), kein Fix nötig
+- ResearchRun, Billing-Backend, UsageLog: unverändert
+
+### Offene Risiken / Hinweise für Live-Test
+
+- `vertriebo-input` className wird via spread `{...props}` gesetzt — falls ein Consumer explizit `className=""` übergibt, wird die Klasse überschrieben. Bisher kein solcher Fall in der Codebase.
+- `SelectTrigger` wird an einigen Stellen mit `triggerClassName` überschrieben (z.B. in `AddContactLogDialog` mit `border-destructive` für Fehlerzustand) — das ist korrekt und weiterhin funktional.
+- Bitte im Live-Test prüfen: `CompanySettings > Standard-Vertriebler` Select (der bisher kein `bg-white` hatte), `AddTaskDialog Typ/Priorität` Selects, und `AddContactLogDialog Kontaktart/Ergebnis` auf iPad.
+
+### Akzeptanzkriterien
+
+- ✅ `formContrastAuditCompleted`
+- ✅ `globalInputPlaceholderReadable`
+- ✅ `labelsReadableAcrossForms`
+- ✅ `modalTextsReadable`
+- ✅ `selectPlaceholderReadable`
+- ✅ `chipsReadableAndAccessible` (CompanySettings, ContactLog Chips bereits `text-slate-700`/`text-slate-900` + `border-slate-200`)
+- ✅ `contactLogModalContrastFixed`
+- ✅ `taskDialogContrastFixed`
+- ✅ `emailDialogContrastFixed`
+- ✅ `callScriptDialogContrastFixed`
+- ✅ `settingsFormContrastFixed`
+- ✅ `noBusinessLogicChanged`
+- ✅ `landingUntouched`
+- ✅ `changedCodeReviewedAfterPatch`
+- ✅ `merklisteUpdated`
+
+### 🎉 ISSUE #4: GLOBALER FORM-/MODAL-KONTRAST-FIX — FINAL GRÜN (2026-05-19)
+
+---
+
 ## 23. DASHBOARD-SYNC-FIX — END-TO-END-VERIFIKATION (2026-05-19) ✅ FINAL GRÜN
 
 ### Diagnose-Protokoll (2026-05-19)

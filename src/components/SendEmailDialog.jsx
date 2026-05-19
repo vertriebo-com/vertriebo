@@ -148,14 +148,14 @@ function EmailEditor({ tpl, company, orgId, fromName, orgSettings, onBack, onDon
 
       {/* Persönliche Ergänzung */}
       <div>
-        <Label className="text-xs mb-1.5 block font-semibold text-slate-700">
-          Persönliche Ergänzung <span className="font-normal text-slate-400">(optional)</span>
+        <Label className="text-xs mb-1.5 block font-semibold text-slate-800">
+          Persönliche Ergänzung <span className="font-normal text-slate-500">(optional)</span>
         </Label>
         <Input
           value={notiz}
           onChange={e => setNotiz(e.target.value)}
           placeholder="z.B. Bezug auf unser Gespräch..."
-          className="text-sm bg-white border-slate-200 text-slate-900 placeholder:text-slate-400"
+          className="text-sm bg-white border-slate-300 text-slate-900 placeholder:text-slate-500"
         />
       </div>
 

@@ -93,7 +93,7 @@ function ScriptCard({ sectionKey, data }) {
           <h3 className="text-sm font-bold text-slate-900 leading-tight">{cfg.label}</h3>
         </div>
         {data.note && (
-          <span className="ml-auto text-[10px] text-slate-400 italic max-w-[180px] text-right leading-tight">{data.note}</span>
+          <span className="ml-auto text-[10px] text-slate-500 font-medium max-w-[180px] text-right leading-tight">{data.note}</span>
         )}
       </div>
 

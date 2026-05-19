@@ -101,6 +101,7 @@ export function VertrieboInput({ label, error, required, ...props }) {
       )}
       <input
         {...props}
+        className={`vertriebo-input ${props.className || ''}`}
         style={{
           width: '100%',
           padding: '10px 14px',
@@ -111,7 +112,6 @@ export function VertrieboInput({ label, error, required, ...props }) {
           color: colors.text.primary,
           transition: 'all 0.2s',
           outline: 'none',
-          '--placeholder-color': '#475569',
         }}
         onFocus={(e) => {
           e.target.style.borderColor = colors.primary.blue;
@@ -158,6 +158,7 @@ export function VertrieboTextarea({ label, error, required, rows = 3, ...props }
       <textarea
         {...props}
         rows={rows}
+        className={`vertriebo-textarea ${props.className || ''}`}
         style={{
           width: '100%',
           padding: '10px 14px',

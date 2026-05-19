@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 function useIsMobile() {
   return typeof window !== "undefined" && window.innerWidth < 1024;
@@ -20,12 +21,12 @@ export default function MobileSelect({ value, onValueChange, options = [], place
   if (!isMobile) {
     return (
       <Select value={value} onValueChange={onValueChange}>
-        <SelectTrigger className={triggerClassName ?? className}>
+        <SelectTrigger className={cn("bg-white text-slate-900 border-slate-300 h-11 rounded-xl", triggerClassName ?? className)}>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
         <SelectContent>
           {options.map(o => (
-            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+            <SelectItem key={o.value} value={o.value} className="text-slate-900">{o.label}</SelectItem>
           ))}
         </SelectContent>
       </Select>
