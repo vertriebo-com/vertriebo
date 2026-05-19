@@ -1306,6 +1306,38 @@ Das Vertriebo-System erfüllt alle Anforderungen für den Produktivbetrieb:
 
 ---
 
+## 23. DASHBOARD-FIX & UX-REDESIGN (2026-05-19) ✅
+
+### Hot-Lead-Synchronisation Fix
+- **getDashboardData**: `hotLeads` jetzt absteigend nach `lead_temperature_score`/`priority_score` sortiert → konsistent mit Leads Page
+- **Canonical Logic**: unverändert — `lead_temperature` primär, `priority_score >= 60` Fallback, `is_hot` Legacy
+- **Pflicht-Live-Test**: Lead auf `hot` setzen → Leads Page zeigt hot → Dashboard zeigt denselben Lead unter heißen Leads ✅
+
+### Dashboard UX-Redesign
+- **Neues Layout**: Handlungsorientiert statt KPI-Dump
+- **Komponenten**: `DashboardPrimaryAction` (neue Komponente für "Heute zuerst")
+- **Struktur**: Header (personalisierter Name) → TrialBanner → ActiveResearchBanner → Neue-Leads-Banner → Primary Action → 4 KPIs → Tagesplan + Heiße Leads → Pipeline → Usage
+- **Hot Leads Empty State**: "Noch keine heißen Leads – starte Recherche oder prüfe neue Leads" mit CTA
+- **Primary Action Empty State**: 0 Leads → "Erste Recherche starten"; 0 Aktionen → "Alles erledigt 🎉"
+- **TrialStatusBanner**: jetzt im Dashboard integriert (sichtbar bei free_preview, verified_trial, past_due, canceled)
+- **ActiveResearchBanner**: korrekt im Dashboard mit `onNewLeads → refetch()`
+
+### Akzeptanzkriterien ✅
+- ✅ dashboardUsesCanonicalLeadTemperatureLogic
+- ✅ hotLeadSyncWithLeadsAndLeadDetailFixed (sortiert nach Score)
+- ✅ dashboardGreetingUsesRealNameOrSafeFallback
+- ✅ noGenericVertrieblerGreeting
+- ✅ dashboardShowsPrimaryNextAction (DashboardPrimaryAction)
+- ✅ dashboardTopLeadsUseRealData
+- ✅ dashboardTasksUseRealData
+- ✅ dashboardUsageUsesRealData
+- ✅ noDummyDashboardData
+- ✅ noUndefinedNullTexts (alle Felder mit Fallbacks)
+- ✅ dashboardPremiumLightCrmLook
+- ✅ noBackendRegression (getDashboardData nur Sortierung ergänzt)
+
+---
+
 ## 19. PRODUCTION READINESS — GESAMTSTATUS (2026-05-18)
 
 | Phase | Thema | Status | Dokumentation |

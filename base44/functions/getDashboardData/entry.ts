@@ -89,6 +89,7 @@ Deno.serve(async (req) => {
     });
 
     // KANONISCHE LOGIK: lead_temperature primär, fallback priority_score >= 60
+    // Sortiert nach Temperatur-Score absteigend für konsistente Reihenfolge mit Leads Page
     const hotLeads = companies
       .filter(c => {
         const temp = c.lead_temperature;
@@ -96,6 +97,11 @@ Deno.serve(async (req) => {
         const score = c.priority_score || c.lead_temperature_score || 0;
         if (score >= 60) return true;
         return c.is_hot === true; // Legacy-Fallback
+      })
+      .sort((a, b) => {
+        const scoreA = a.lead_temperature_score || a.priority_score || 0;
+        const scoreB = b.lead_temperature_score || b.priority_score || 0;
+        return scoreB - scoreA;
       })
       .slice(0, 5);
 
