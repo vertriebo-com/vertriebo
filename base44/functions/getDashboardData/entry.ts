@@ -300,19 +300,14 @@ Deno.serve(async (req) => {
     allSettings.forEach(s => { settingsMap[s.key] = s.value; });
     const weeklyGoal = parseInt(settingsMap['weekly_contact_goal'] || '20', 10);
 
-    // Current month usage log laden für Usage-Banner
-    // KANONISCH: Kalendermonat Europe/Berlin (YYYY-MM) – identisch zu processResearchRun.getPeriodMonth()
-    // NICHT UTC-basiert (now.getUTCMonth), da UsageLog-Writes auch Europe/Berlin nutzen.
-    const periodMonth = new Intl.DateTimeFormat('de-DE', {
-      timeZone: 'Europe/Berlin',
-      year: 'numeric',
-      month: '2-digit',
-    }).format(now).split('.').reverse().join('-');
-    const usageLogs = await base44.entities.UsageLog.filter({ organization_id: orgId, period_month: periodMonth });
-    const usageLog = usageLogs?.[0] || {};
-
-    // Plan laden für max_leads_per_month
-    const plan = org.plan_id ? (await base44.entities.Plan.filter({ id: org.plan_id }))?.[0] : null;
+    // ── USAGE_SUMMARY (Single Source of Truth) ─────────────────────────────
+    // Zentrale Usage-Berechnung via getUsageSummary – NICHT lokal berechnen!
+    const usageSummaryRes = await base44.functions.invoke('getUsageSummary', { org_id: orgId });
+    const usage_summary = usageSummaryRes?.data?.usage_summary || {
+      period_month: new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit' }).format(now).split('.').reverse().join('-'),
+      monthly_limit: 300, monthly_used: 0, monthly_remaining: 300, crm_total: allCompanies.length,
+      reset_date: '01.' + new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('de-DE', { month: '2-digit', year: 'numeric' }),
+    };
 
     return Response.json({
       org,
@@ -343,14 +338,10 @@ Deno.serve(async (req) => {
         actionableLeads: allActionItems,
       },
       meta: {
-        totalCompanies: allCompanies.length, // Ohne Blacklist-Filter = echte Gesamtzahl wie in Leads Page
+        totalCompanies: allCompanies.length,
         totalTasks: tasks.length,
         loadedAt: new Date().toISOString(),
-        currentUsage: {
-          leads_created: usageLog.leads_created || 0,
-        },
-        maxContacts: plan?.max_leads_per_month || 300,
-        planName: plan?.name || null,
+        usage_summary, // ← Single Source of Truth für alle Usage-Anzeigen
       },
     });
   } catch (error) {

@@ -55,18 +55,17 @@ function getResetDate() {
   return `${d}.${m}.${y}`;
 }
 
-function MonthlyLeadQuotaCard({ usageLog, plan, subscription }) {
-  const maxLeads = plan?.max_leads_per_month ?? -1;
-  const usedLeads = usageLog?.leads_created || 0;
-  const remaining = maxLeads === -1 ? null : Math.max(0, maxLeads - usedLeads);
+function MonthlyLeadQuotaCard({ usageLog, usageSummary, plan, subscription }) {
+  const maxLeads = usageSummary?.monthly_limit ?? plan?.max_leads_per_month ?? -1;
+  const usedLeads = usageSummary?.monthly_used ?? (usageLog?.leads_created || 0);
+  const remaining = usageSummary?.monthly_remaining ?? (maxLeads === -1 ? null : Math.max(0, maxLeads - usedLeads));
+  const isOverLimit = usageSummary?.is_over_limit ?? false;
   const pct = maxLeads === -1 ? 0 : Math.min(100, Math.round((usedLeads / maxLeads) * 100));
   const isWarning = maxLeads !== -1 && pct >= 80;
-  const isDanger = maxLeads !== -1 && pct >= 95;
+  const isDanger = maxLeads !== -1 && pct >= 95 || isOverLimit;
 
-  // Reset-Datum: Lead-Kontingent ist kalendermonatsbasiert (period_month = YYYY-MM).
-  // Stripe billing cycle und Lead-Kontingent laufen unabhängig.
-  // Anzeige: immer erster Tag des nächsten Kalendermonats.
-  const resetDate = getResetDate();
+  const resetDate = usageSummary?.reset_date || getResetDate();
+  const crmTotal = usageSummary?.crm_total || null;
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
@@ -88,11 +87,11 @@ function MonthlyLeadQuotaCard({ usageLog, plan, subscription }) {
                 {usedLeads}
               </span>
               <span className="text-lg font-semibold text-slate-400"> / {maxLeads}</span>
-              <p className="text-xs text-slate-500 mt-0.5">neue Leads diesen Monat genutzt</p>
+              <p className="text-xs text-slate-500 mt-0.5">{usageSummary?.explanation?.monthly_used_description || "neue Leads diesen Monat genutzt"}</p>
             </div>
             <div className="text-right">
               <span className={`text-xl font-bold ${isDanger ? "text-red-600" : isWarning ? "text-amber-600" : "text-emerald-600"}`}>
-                {remaining}
+                {remaining ?? '–'}
               </span>
               <p className="text-xs text-slate-500">verbleibend</p>
             </div>
@@ -104,6 +103,19 @@ function MonthlyLeadQuotaCard({ usageLog, plan, subscription }) {
               style={{ width: `${pct}%` }}
             />
           </div>
+
+          {/* Erklärung für Unterschied Monatsverbrauch vs. CRM-Bestand */}
+          {crmTotal !== null && (
+            <div className="bg-slate-50 rounded-lg px-3 py-2.5 mb-2 border border-slate-200">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs font-semibold text-slate-600">CRM-Bestand:</span>
+                <span className="text-sm font-bold text-slate-900">{crmTotal} Firmenkontakte</span>
+              </div>
+              {usageSummary?.explanation?.why_different && (
+                <p className="text-[11px] text-slate-500 leading-relaxed">{usageSummary.explanation.why_different}</p>
+              )}
+            </div>
+          )}
 
           <div className="flex items-start gap-2 bg-slate-50 rounded-lg px-3 py-2">
             <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
@@ -164,9 +176,11 @@ export default function BillingSettings({ org: orgProp, user }) {
   const loadData = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true);
     try {
-      const [orgs, subs] = await Promise.all([
+      const [orgs, subs, usageRes] = await Promise.all([
         base44.entities.Organization.filter({ id: org?.id || orgProp?.id }),
         base44.entities.Subscription.filter({ organization_id: org?.id || orgProp?.id }),
+        // Single Source of Truth: getUsageSummary
+        base44.functions.invoke('getUsageSummary', { org_id: org?.id || orgProp?.id }),
       ]);
       const freshOrg = orgs[0] || org;
       setOrg(freshOrg);
@@ -188,18 +202,23 @@ export default function BillingSettings({ org: orgProp, user }) {
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       setAllPlans(plansWithPrice);
 
-      // Aktuellen UsageLog laden – KANONISCH: Kalendermonat Europe/Berlin
-      // Identisch zu processResearchRun.getPeriodMonth() und getDashboardData
-      const periodMonth = getPeriodMonthBerlin();
+      // Usage aus zentraler Summary
+      const usageSummary = usageRes?.data?.usage_summary || null;
+      setUsageLog(usageSummary ? {
+        leads_created: usageSummary.monthly_used,
+        lead_generations_used: usageSummary.research_runs_used,
+        ai_actions_used: usageSummary.ai_actions_used,
+        manual_emails_logged: usageSummary.manual_emails_logged,
+        period_month: usageSummary.period_month,
+      } : null);
+
+      // Historie laden (letzte 6 Monate)
       const allUsageLogs = await base44.entities.UsageLog.filter(
         { organization_id: freshOrg.id },
         "-period_month",
         6
       );
-      const currentLog = allUsageLogs.find(l => l.period_month === periodMonth) || null;
-      setUsageLog(currentLog);
-      // Letzte 6 Monate als Historie (ohne aktuellen Monat)
-      setUsageHistory(allUsageLogs.filter(l => l.period_month !== periodMonth));
+      setUsageHistory(allUsageLogs);
     } catch (e) {
       toast.error("Fehler beim Laden der Billing-Daten: " + e.message);
     } finally {
@@ -482,6 +501,13 @@ export default function BillingSettings({ org: orgProp, user }) {
       {plan && (
       <MonthlyLeadQuotaCard
         usageLog={usageLog}
+        usageSummary={usageLog ? {
+          monthly_limit: plan.max_leads_per_month ?? -1,
+          monthly_used: usageLog.leads_created || 0,
+          monthly_remaining: plan.max_leads_per_month === -1 ? null : Math.max(0, plan.max_leads_per_month - (usageLog.leads_created || 0)),
+          reset_date: getResetDate(),
+          crm_total: null, // Wird nicht in BillingSettings angezeigt
+        } : null}
         plan={plan}
         subscription={subscription}
       />
