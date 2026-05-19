@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import TrialStatusBanner from "@/components/TrialStatusBanner";
 import {
   CreditCard, Mail, Brain, Search, Database,
-  AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, RefreshCw, Sparkles, ArrowRight
+  AlertTriangle, CheckCircle2, Clock, ExternalLink, Loader2, RefreshCw, Sparkles, ArrowRight, History, Info
 } from "lucide-react";
 
 const BILLING_STATUS_CONFIG = {
@@ -21,6 +21,83 @@ const BILLING_STATUS_CONFIG = {
 function formatDate(iso) {
   if (!iso) return "–";
   return new Date(iso).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function formatPeriodMonth(periodMonth) {
+  if (!periodMonth) return "–";
+  const [year, month] = periodMonth.split("-");
+  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
+  return date.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+}
+
+function getResetDate() {
+  const now = new Date();
+  // Erster Tag des nächsten Monats
+  return new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    .toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function MonthlyLeadQuotaCard({ usageLog, plan, subscription }) {
+  const maxLeads = plan?.max_leads_per_month ?? -1;
+  const usedLeads = usageLog?.leads_created || 0;
+  const remaining = maxLeads === -1 ? null : Math.max(0, maxLeads - usedLeads);
+  const pct = maxLeads === -1 ? 0 : Math.min(100, Math.round((usedLeads / maxLeads) * 100));
+  const isWarning = maxLeads !== -1 && pct >= 80;
+  const isDanger = maxLeads !== -1 && pct >= 95;
+
+  // Reset-Datum: aus Subscription-Periode oder Kalendermonat
+  const resetDate = subscription?.current_period_end
+    ? formatDate(subscription.current_period_end)
+    : getResetDate();
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Monatskontingent · Leads</h3>
+        <span className="text-[11px] font-medium text-slate-400">Wird am {resetDate} zurückgesetzt</span>
+      </div>
+
+      {maxLeads === -1 ? (
+        <div className="flex items-center gap-2">
+          <span className="text-2xl font-extrabold text-emerald-600">∞</span>
+          <span className="text-sm font-semibold text-slate-700">Unbegrenzte Leads pro Monat</span>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-end justify-between mb-3">
+            <div>
+              <span className={`text-3xl font-extrabold ${isDanger ? "text-red-600" : isWarning ? "text-amber-600" : "text-slate-900"}`}>
+                {usedLeads}
+              </span>
+              <span className="text-lg font-semibold text-slate-400"> / {maxLeads}</span>
+              <p className="text-xs text-slate-500 mt-0.5">neue Leads diesen Monat genutzt</p>
+            </div>
+            <div className="text-right">
+              <span className={`text-xl font-bold ${isDanger ? "text-red-600" : isWarning ? "text-amber-600" : "text-emerald-600"}`}>
+                {remaining}
+              </span>
+              <p className="text-xs text-slate-500">verbleibend</p>
+            </div>
+          </div>
+
+          <div className="h-3 bg-slate-100 rounded-full overflow-hidden mb-3">
+            <div
+              className={`h-full rounded-full transition-all ${isDanger ? "bg-red-500" : isWarning ? "bg-amber-500" : "bg-blue-500"}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+
+          <div className="flex items-start gap-2 bg-slate-50 rounded-lg px-3 py-2">
+            <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-slate-500">
+              Neue Leads aus Vertriebo-Recherchen verbrauchen das Monatskontingent. Manuell angelegte Kontakte zählen nicht dazu.
+              Nicht genutzte Leads verfallen am Monatsende – <strong>kein Rollover</strong>.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function UsageBar({ label, icon: Icon, used, max, color = "bg-blue-500" }) {
@@ -60,6 +137,7 @@ export default function BillingSettings({ org: orgProp, user }) {
   const [plan, setPlan] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [usageLog, setUsageLog] = useState(null);
+  const [usageHistory, setUsageHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -94,15 +172,19 @@ export default function BillingSettings({ org: orgProp, user }) {
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       setAllPlans(plansWithPrice);
 
-      // Aktuellen UsageLog laden – nach period_month filtern (zuverlässiger als period_start-Datumsvergleich)
+      // Aktuellen UsageLog laden – nach period_month filtern
       const now = new Date();
       const periodMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const usageLogs = await base44.entities.UsageLog.filter({
-        organization_id: freshOrg.id,
-        period_month: periodMonth,
-      });
-      setUsageLog(usageLogs[0] || null);
-      console.log(`[BillingSettings] UsageLog für ${periodMonth}:`, usageLogs[0] || "nicht gefunden");
+      const allUsageLogs = await base44.entities.UsageLog.filter(
+        { organization_id: freshOrg.id },
+        "-period_month",
+        6
+      );
+      const currentLog = allUsageLogs.find(l => l.period_month === periodMonth) || null;
+      setUsageLog(currentLog);
+      // Letzte 6 Monate als Historie (ohne aktuellen Monat)
+      setUsageHistory(allUsageLogs.filter(l => l.period_month !== periodMonth));
+      console.log(`[BillingSettings] UsageLog für ${periodMonth}:`, currentLog || "nicht gefunden");
     } catch (e) {
       toast.error("Fehler beim Laden der Billing-Daten: " + e.message);
     } finally {
@@ -268,7 +350,7 @@ export default function BillingSettings({ org: orgProp, user }) {
                   )}
                 </div>
                 <ul className="text-xs text-slate-600 space-y-1">
-                  <li>✓ {p.max_leads_per_month === -1 ? "Unbegrenzt" : p.max_leads_per_month} Kontakte/Monat</li>
+                  <li>✓ {p.max_leads_per_month === -1 ? "Unbegrenzt" : p.max_leads_per_month} Leads/Monat</li>
                   <li>✓ {p.max_lead_generations_per_month === -1 ? "Unbegrenzt" : p.max_lead_generations_per_month} Recherchen/Monat</li>
                   <li>✓ {p.max_ai_scorings_per_month === -1 ? "Unbegrenzt" : p.max_ai_scorings_per_month} KI-Aktionen/Monat</li>
                 </ul>
@@ -369,106 +451,137 @@ export default function BillingSettings({ org: orgProp, user }) {
         )}
       </div>
 
-      {/* Current Access Level */}
+      {/* Current Access Level – Trial states */}
       {org?.trial_stage === 'free_preview' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">
-            Aktueller Zugang
-          </h3>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="font-semibold text-slate-700">Zugang:</span>
-              <span className="text-blue-600 font-bold">Kostenlose Vorschau</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="font-semibold text-slate-700">Firmenkontakte:</span>
-              <span className="text-slate-900 font-bold">{org?.trial_leads_granted || 0} / 10 genutzt</span>
-            </div>
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Aktueller Zugang</h3>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-slate-700">Zugang:</span>
+            <span className="text-blue-600 font-bold">Kostenlose Vorschau</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-slate-700">Vorschau-Leads:</span>
+            <span className="text-slate-900 font-bold">{org?.trial_leads_granted || 0} / 10 genutzt</span>
           </div>
         </div>
+      </div>
       )}
 
       {org?.trial_stage === 'verified_trial' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">
-            Aktueller Zugang
-          </h3>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="font-semibold text-slate-700">Zugang:</span>
-              <span className="text-amber-600 font-bold">Verifizierter Testzugang</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="font-semibold text-slate-700">Max. pro Recherche:</span>
-              <span className="text-slate-900 font-bold">25 Firmenkontakte</span>
-            </div>
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Aktueller Zugang</h3>
+        <div className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-slate-700">Zugang:</span>
+            <span className="text-amber-600 font-bold">Verifizierter Testzugang</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="font-semibold text-slate-700">Max. Leads pro Recherche:</span>
+            <span className="text-slate-900 font-bold">25 Leads</span>
           </div>
         </div>
+      </div>
       )}
 
-      {/* Usage this month */}
+      {/* Monatskontingent – Lead-Quota */}
+      {plan && (
+      <MonthlyLeadQuotaCard
+        usageLog={usageLog}
+        plan={plan}
+        subscription={subscription}
+      />
+      )}
+
+      {/* Weitere Verbrauchswerte diesen Monat */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">
-          Verbrauch diesen Monat
-        </h3>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <UsageBar
-            label="Gespeicherte Firmenkontakte"
-            icon={Database}
-            used={usageLog?.leads_created || 0}
-            max={plan?.max_leads_per_month ?? -1}
-            color="bg-blue-500"
-          />
-          <UsageBar
-            label="Vertriebo-Recherchen"
-            icon={Search}
-            used={usageLog?.lead_generations_used || 0}
-            max={plan?.max_lead_generations_per_month ?? -1}
-            color="bg-indigo-500"
-          />
-          <UsageBar
-            label="Dokumentierte E-Mails"
-            icon={Mail}
-            used={usageLog?.manual_emails_logged || 0}
-            max={-1}
-            color="bg-green-500"
-          />
-          <UsageBar
-            label="Vertriebo-Aktionen"
-            icon={Brain}
-            used={usageLog?.ai_actions_used || 0}
-            max={plan?.max_ai_scorings_per_month ?? -1}
-            color="bg-purple-500"
-          />
-        </div>
-
-        {!usageLog && (
-          <div className="sm:col-span-2 text-center py-6">
-            <p className="text-sm font-semibold text-slate-600">Noch kein Verbrauch in diesem Monat erfasst.</p>
-          </div>
-        )}
-
-        {/* Geschätzte externe API-Kosten: nur intern sichtbar (Admin) */}
+      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">
+        Weitere Nutzung diesen Monat
+      </h3>
+      <div className="grid sm:grid-cols-3 gap-3">
+        <UsageBar
+          label="Recherche-Läufe"
+          icon={Search}
+          used={usageLog?.lead_generations_used || 0}
+          max={plan?.max_lead_generations_per_month ?? -1}
+          color="bg-indigo-500"
+        />
+        <UsageBar
+          label="KI-Aktionen"
+          icon={Brain}
+          used={usageLog?.ai_actions_used || 0}
+          max={plan?.max_ai_scorings_per_month ?? -1}
+          color="bg-purple-500"
+        />
+        <UsageBar
+          label="E-Mails dokumentiert"
+          icon={Mail}
+          used={usageLog?.manual_emails_logged || 0}
+          max={-1}
+          color="bg-green-500"
+        />
+      </div>
+      {!usageLog && (
+        <p className="text-sm text-center text-slate-500 pt-4">Noch kein Verbrauch in diesem Monat erfasst.</p>
+      )}
       </div>
 
       {/* Plan Limits Info */}
       {plan && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Plan-Limits im Überblick</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-            {[
-              { label: "Benutzer", value: plan.max_users === -1 ? "∞" : plan.max_users },
-              { label: "Kontakte/Monat", value: plan.max_leads_per_month === -1 ? "∞" : plan.max_leads_per_month },
-              { label: "E-Mails/Monat", value: plan.max_emails_per_month === -1 ? "∞" : plan.max_emails_per_month },
-              { label: "KI-Aktionen/Monat", value: plan.max_ai_scorings_per_month === -1 ? "∞" : plan.max_ai_scorings_per_month },
-            ].map(item => (
-              <div key={item.label} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <div className="text-2xl font-extrabold text-slate-950">{item.value}</div>
-                <div className="text-[11px] font-semibold text-slate-600 mt-1">{item.label}</div>
-              </div>
-            ))}
-          </div>
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Plan-Limits im Überblick</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          {[
+            { label: "Benutzer", value: plan.max_users === -1 ? "∞" : plan.max_users },
+            { label: "Leads/Monat", value: plan.max_leads_per_month === -1 ? "∞" : plan.max_leads_per_month },
+            { label: "E-Mails/Monat", value: plan.max_emails_per_month === -1 ? "∞" : plan.max_emails_per_month },
+            { label: "KI-Aktionen/Monat", value: plan.max_ai_scorings_per_month === -1 ? "∞" : plan.max_ai_scorings_per_month },
+          ].map(item => (
+            <div key={item.label} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <div className="text-2xl font-extrabold text-slate-950">{item.value}</div>
+              <div className="text-[11px] font-semibold text-slate-600 mt-1">{item.label}</div>
+            </div>
+          ))}
         </div>
+        <p className="text-[11px] text-slate-400 mt-3">
+          Leads = automatisch recherchierte Firmenkontakte. Manuell angelegte Kontakte verbrauchen kein Monatskontingent.
+        </p>
+      </div>
+      )}
+
+      {/* Nutzungshistorie */}
+      {usageHistory.length > 0 && (
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+        <div className="flex items-center gap-2 mb-4">
+          <History className="w-4 h-4 text-slate-500" />
+          <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Nutzungshistorie</h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
+                <th className="pb-2">Monat</th>
+                <th className="pb-2 text-right">Neue Leads</th>
+                <th className="pb-2 text-right">Kontingent</th>
+                <th className="pb-2 text-right">Recherchen</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {usageHistory.map(log => (
+                <tr key={log.period_month} className="text-slate-700">
+                  <td className="py-2 font-medium">{formatPeriodMonth(log.period_month)}</td>
+                  <td className="py-2 text-right font-semibold">{log.leads_created || 0}</td>
+                  <td className="py-2 text-right text-slate-400">
+                    {plan?.max_leads_per_month === -1 ? "∞" : plan?.max_leads_per_month || "–"}
+                  </td>
+                  <td className="py-2 text-right">{log.lead_generations_used || 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-[11px] text-slate-400 mt-3">Nicht genutzte Leads verfallen am Monatsende und werden nicht übertragen.</p>
+      </div>
       )}
 
       {!org?.stripe_customer_id && (

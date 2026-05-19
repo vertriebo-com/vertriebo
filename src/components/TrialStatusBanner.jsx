@@ -16,8 +16,8 @@ export default function TrialStatusBanner({
   const getFreePreviewContent = () => ({
     icon: <Info className="w-5 h-5" />,
     title: 'Kostenlose Vorschau aktiv',
-    description: 'Sie testen Vertriebo mit einer begrenzten Vorschau. Sie können bis zu 10 Firmenkontakte prüfen.',
-    stats: `Vorschau-Kontakte: ${trial_leads_granted} / 10 genutzt`,
+    description: 'Sie testen Vertriebo mit einer begrenzten Vorschau. Sie können bis zu 10 Leads einsehen.',
+    stats: `Vorschau-Leads: ${trial_leads_granted} / 10 genutzt`,
     ctaLabel: 'Testzugang aktivieren',
     ctaAction: onUpgrade,
     bgColor: 'bg-blue-50 border-blue-200',
@@ -36,8 +36,8 @@ export default function TrialStatusBanner({
       title: `${planName}-Testphase aktiv`,
       description: `Ihr ${planName}-Tarif ist aktiv. Die Testphase (Starter: 14 Tage) läuft noch.`,
       stats: planLimit === -1 
-        ? 'Unbegrenzte Firmenkontakte pro Abrechnungszeitraum'
-        : `${usedContacts} von ${planLimit} Firmenkontakten genutzt · ${available} verfügbar`,
+        ? 'Unbegrenzte Leads pro Abrechnungszeitraum'
+        : `${usedContacts} von ${planLimit} Leads diesen Monat genutzt · ${available} verbleibend`,
       ctaLabel: 'Plan verwalten',
       ctaAction: onManagePlan,
       bgColor: 'bg-amber-50 border-amber-200',
