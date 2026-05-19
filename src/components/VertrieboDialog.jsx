@@ -111,6 +111,7 @@ export function VertrieboInput({ label, error, required, ...props }) {
           color: colors.text.primary,
           transition: 'all 0.2s',
           outline: 'none',
+          '--placeholder-color': '#475569',
         }}
         onFocus={(e) => {
           e.target.style.borderColor = colors.primary.blue;

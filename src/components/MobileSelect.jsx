@@ -37,9 +37,9 @@ export default function MobileSelect({ value, onValueChange, options = [], place
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className={`flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm text-left ${triggerClassName ?? className ?? ""}`}
+        className={`flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm text-left ${triggerClassName ?? className ?? ""}`}
       >
-        <span className={value ? "" : "text-muted-foreground"}>{selectedLabel}</span>
+        <span className={value ? "text-slate-900" : "text-slate-500"}>{selectedLabel}</span>
         <svg className="h-4 w-4 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
       </button>
 
@@ -54,7 +54,7 @@ export default function MobileSelect({ value, onValueChange, options = [], place
                 key={o.value}
                 type="button"
                 onClick={() => { onValueChange(o.value); setOpen(false); }}
-                className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm hover:bg-muted active:bg-muted/80 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium text-slate-900 hover:bg-slate-100 active:bg-slate-200 transition-colors"
               >
                 {o.label}
                 {value === o.value && <Check className="w-4 h-4 text-primary" />}

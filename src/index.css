@@ -121,10 +121,25 @@
     user-select: none;
   }
   
-  /* Placeholder mit guter Lesbarkeit */
+  /* Placeholder mit guter Lesbarkeit – global für alle Inputs, Textareas */
   ::placeholder {
-    color: hsl(217 19% 45%); /* text-slate-500 equivalent */
+    color: hsl(217 19% 38%); /* #475569 Slate-600 – besser lesbar */
     opacity: 1;
+  }
+  
+  /* Inline-style Inputs (VertrieboInput/VertrieboTextarea) */
+  .vertriebo-input::placeholder,
+  .vertriebo-textarea::placeholder {
+    color: #475569;
+    opacity: 1;
+  }
+  
+  /* Select / Combobox Trigger – Kontraststark */
+  [data-radix-select-trigger] {
+    color: hsl(222 47% 11%); /* slate-900 */
+  }
+  [data-radix-select-trigger] [data-placeholder] {
+    color: #475569; /* slate-600 */
   }
   
   /* Globale Typografie-Klassen mit verbessertem Kontrast */

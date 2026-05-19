@@ -24,11 +24,11 @@ export const colors = {
     hover: '#F1F5F9',     // Light hover state
   },
   
-  // Text (App)
+  // Text (App) – Kontraststark für alle Hintergründe
   text: {
-    primary: '#0F172A',   // Slate-900
-    secondary: '#475569', // Slate-700
-    muted: '#64748B',     // Slate-500
+    primary: '#0F172A',   // Slate-900 – Labels, Überschriften, Eingabewerte
+    secondary: '#334155', // Slate-700 – Sekundäre Texte, Beschreibungen
+    muted: '#475569',     // Slate-600 – Hilfstexte, optional-Hinweise, Placeholder
   },
   
   // Status (Landing → App)

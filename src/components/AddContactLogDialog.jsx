@@ -184,13 +184,13 @@ export default function AddContactLogDialog({ open, onClose, companyId, companyN
                   borderRadius: '9999px',
                   border: form.naechster_schritt === v 
                     ? '1px solid #2563EB' 
-                    : '1px solid #E2E8F0',
+                    : '1px solid #CBD5E1',
                   background: form.naechster_schritt === v 
                     ? '#2563EB' 
-                    : '#F1F5F9',
+                    : '#F8FAFC',
                   color: form.naechster_schritt === v 
                     ? 'white' 
-                    : '#475569',
+                    : '#1E293B',
                   cursor: 'pointer',
                   transition: 'all 0.2s',
                 }}
@@ -198,12 +198,14 @@ export default function AddContactLogDialog({ open, onClose, companyId, companyN
                   if (form.naechster_schritt !== v) {
                     e.target.style.borderColor = '#2563EB';
                     e.target.style.background = '#EFF6FF';
+                    e.target.style.color = '#1D4ED8';
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (form.naechster_schritt !== v) {
-                    e.target.style.borderColor = '#E2E8F0';
-                    e.target.style.background = '#F1F5F9';
+                    e.target.style.borderColor = '#CBD5E1';
+                    e.target.style.background = '#F8FAFC';
+                    e.target.style.color = '#1E293B';
                   }
                 }}
               >
@@ -225,7 +227,7 @@ export default function AddContactLogDialog({ open, onClose, companyId, companyN
             label={
               <span className="flex items-center gap-1">
                 Rückruf am {needsCallback && <span className="text-red-500">*</span>}
-                {!needsCallback && <span className="text-xs text-slate-400 font-normal">(optional)</span>}
+                {!needsCallback && <span className="text-xs text-slate-600 font-normal">(optional)</span>}
               </span>
             }
             type="datetime-local"
