@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
+import CookieBanner from "@/components/CookieBanner"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
@@ -215,6 +216,7 @@ function App() {
         </Router>
         <Toaster />
         <SonnerToaster position="top-right" richColors />
+        <CookieBanner />
       </QueryClientProvider>
     </AuthProvider>
   );
