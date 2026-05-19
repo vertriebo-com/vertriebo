@@ -149,11 +149,17 @@ Deno.serve(async (req) => {
       const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
       const used = usageLogs[0]?.leads_created || 0;
       if (used >= monthlyContactLimit) {
+        // Reset-Datum: erster Tag des nächsten Kalendermonats (Europe/Berlin)
+        const [py, pm] = periodMonth.split('-').map(Number);
+        const resetDate = new Date(Date.UTC(py, pm, 1)); // pm ist 1-basiert → pm = nächster Monat
+        const resetDateFormatted = resetDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' });
         return Response.json({
-          success: false, error: 'monthly_contact_limit_reached',
-          message: `Monatliches Limit von ${monthlyContactLimit} Firmenkontakten erreicht.`,
-          monthly_usage: { monthly_limit: monthlyContactLimit, monthly_used: used, remaining: 0 }
-        }, { status: 429 });
+          success: false,
+          error: 'monthly_contact_limit_reached',
+          reason: 'monthly_lead_quota_reached',
+          message: `Monatskontingent erreicht: ${used} von ${monthlyContactLimit} Leads genutzt.`,
+          monthly_usage: { monthly_limit: monthlyContactLimit, monthly_used: used, remaining: 0, reset_date: resetDateFormatted }
+        }, { status: 402 }); // 402 = semantisch korrekt für Plan/Quota-Limit
       }
     }
 

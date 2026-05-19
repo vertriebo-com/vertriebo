@@ -1561,6 +1561,61 @@ Manuell angelegte Kontakte (`AddCompanyDialog`, CSV Import) erhöhen `leads_crea
 
 ---
 
+## ISSUE #5: QUOTA-/RATE-LIMIT-FEHLER KUNDENFREUNDLICH (2026-05-19)
+
+### Root Cause Analyse
+
+**Wo kam der 429 her?**
+`startResearchRun` Zeile ~151: Bei `monthly_contact_limit_reached` wurde HTTP **429** zurückgegeben.
+Axios wirft bei 4xx-Status eine Exception statt die Response zurückzugeben.
+`ResearchDialog.handleStart` catch-Block zeigte `err.message` = rohes `"Request failed with status code 429"`.
+
+**War es Planlimit oder API-Limit?**
+Planlimit (`monthly_contact_limit_reached`, `used >= monthlyContactLimit`). Kein Google Places Rate-Limit.
+
+**Was kam aus startResearchRun?**
+Vorher: HTTP 429, `{ success: false, error: 'monthly_contact_limit_reached', message: '...' }` — kein `reason`, kein `reset_date`.
+Nachher: HTTP **402**, `{ success: false, reason: 'monthly_lead_quota_reached', monthly_usage: { ..., reset_date: 'DD.MM.YYYY' } }`
+
+### Geänderte Dateien
+
+| Datei | Änderung |
+|---|---|
+| `functions/startResearchRun.js` | HTTP 429 → **402** für Quota-Limit. Feld `reason: 'monthly_lead_quota_reached'` + `monthly_usage.reset_date` ergänzt |
+| `components/leads/ResearchDialog.jsx` | `getFriendlyResearchError()` Helper + strukturiertes Error-UI (quota/ratelimit/billing/general) |
+| `components/onboarding/LaunchStep.jsx` | Axios-Exception-Handling mit `err.response.data` Auslesen, kundenfreundliche Texte |
+
+### Unterscheidungsmatrix (implementiert)
+
+| Grund | HTTP | reason-Feld | UI-Text |
+|---|---|---|---|
+| Monatskontingent erreicht | 402 | `monthly_lead_quota_reached` | "Monatskontingent erreicht – X/Y Leads, Reset am DD.MM." |
+| Tages-Vorschau-Limit | 429 | `free_preview_daily_limit` | "Tages-Limit erreicht – morgen wieder" |
+| Preview aufgebraucht | 403 | `trial_preview_limit_reached` | "Vorschau-Kontingent aufgebraucht" |
+| Echter API-Rate-Limit | 429 | (kein reason) | "Recherche gerade ausgelastet – in Minuten retry" |
+| Billing-Problem | 402 | (billing_status) | "Abo / Zahlung prüfen" |
+| Kill-Switch | 503 | `service_temporarily_unavailable` | "Recherche kurz nicht verfügbar" |
+| Fallback | any | — | "Recherche konnte nicht gestartet werden" |
+
+### Akzeptanzkriterien ✅
+
+- ✅ `monthlyQuotaReachedHandledFriendly`
+- ✅ `noRaw429ShownToCustomer` — Axios-Exception wird über `err.response.data` strukturiert ausgewertet
+- ✅ `planQuota429SeparatedFromApiRateLimit` — 402 vs. 429 explizit unterschieden
+- ✅ `startResearchRunDoesNotCreateRunWhenQuotaReached` — Limit-Check vor ResearchRun.create
+- ✅ `quotaResponseIncludesUsedLimitResetDate` — `monthly_usage.reset_date` im Backend
+- ✅ `researchDialogShowsQuotaMessage` — strukturiertes Quota-UI mit Reset-Datum + CTAs
+- ✅ `launchStepShowsFriendlyQuotaMessage` — kundenfreundlicher Text statt Axios-Rohmeldung
+- ✅ `apiRateLimitShowsRetryLaterMessage` — "Recherche gerade ausgelastet"
+- ✅ `noDoubleUsageLogOnFailedOrRateLimitedRun` — kein Run created, kein UsageLog
+- ✅ `noResearchRunSecurityRegression` — Tenant-Guard unverändert
+- ✅ `changedCodeReviewedAfterPatch`
+- ✅ `merklisteUpdated`
+
+### 🎉 ISSUE #5: QUOTA-/RATE-LIMIT-FEHLER KUNDENFREUNDLICH — FINAL GRÜN (2026-05-19)
+
+---
+
 ## 23. DASHBOARD-SYNC-FIX — END-TO-END-VERIFIKATION (2026-05-19) ✅ FINAL GRÜN
 
 ### Diagnose-Protokoll (2026-05-19)

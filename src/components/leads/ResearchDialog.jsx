@@ -9,17 +9,70 @@ import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Loader2, CheckCircle2, XCircle, X } from "lucide-react";
+import { Sparkles, Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+
+/**
+ * Wandelt Backend-Fehler (inkl. Axios-Exceptions) in kundenfreundliche Texte um.
+ * Unterscheidet explizit: Monatskontingent vs. API-Rate-Limit vs. Billing vs. allgemein.
+ */
+function getFriendlyResearchError(err, responseData) {
+  // responseData kommt aus res.data wenn kein Exception
+  const reason = responseData?.reason || responseData?.error || '';
+  const monthly = responseData?.monthly_usage;
+
+  if (reason === 'monthly_lead_quota_reached' || reason === 'monthly_contact_limit_reached') {
+    return {
+      type: 'quota',
+      title: 'Monatskontingent erreicht',
+      message: `Sie haben ${monthly?.monthly_used ?? '?'} von ${monthly?.monthly_limit ?? '?'} Leads diesen Monat genutzt.`,
+      resetDate: monthly?.reset_date || null,
+    };
+  }
+  if (reason === 'trial_preview_limit_reached') {
+    return { type: 'quota', title: 'Vorschau-Kontingent aufgebraucht', message: 'Alle kostenlosen Vorschau-Leads wurden genutzt. Bitte wählen Sie einen Plan.', resetDate: null };
+  }
+  if (reason === 'free_preview_daily_limit') {
+    return { type: 'ratelimit', title: 'Tages-Limit erreicht', message: 'Für heute wurden alle Vorschau-Recherchen genutzt. Bitte morgen wieder versuchen.', resetDate: null };
+  }
+  // Axios wirft bei 4xx/5xx – dann steht in err.response.data der Body
+  const axiosData = err?.response?.data;
+  const axiosReason = axiosData?.reason || axiosData?.error || '';
+  const axiosMonthly = axiosData?.monthly_usage;
+
+  if (axiosReason === 'monthly_lead_quota_reached' || axiosReason === 'monthly_contact_limit_reached') {
+    return {
+      type: 'quota',
+      title: 'Monatskontingent erreicht',
+      message: `Sie haben ${axiosMonthly?.monthly_used ?? '?'} von ${axiosMonthly?.monthly_limit ?? '?'} Leads diesen Monat genutzt.`,
+      resetDate: axiosMonthly?.reset_date || null,
+    };
+  }
+  const status = err?.response?.status;
+  if (status === 402 || axiosReason === 'billing_blocked') {
+    return { type: 'billing', title: 'Abo / Zahlung prüfen', message: 'Bitte prüfen Sie Ihren Abotstatus unter Einstellungen → Billing.', resetDate: null };
+  }
+  if (status === 429) {
+    return { type: 'ratelimit', title: 'Recherche gerade ausgelastet', message: 'Unsere Recherche wurde kurzzeitig gebremst. Bitte versuchen Sie es in wenigen Minuten erneut.', resetDate: null };
+  }
+  if (status === 403) {
+    return { type: 'forbidden', title: 'Keine Berechtigung', message: 'Sie haben keine Berechtigung für diese Aktion.', resetDate: null };
+  }
+  if (status === 503) {
+    return { type: 'maintenance', title: 'Recherche kurz nicht verfügbar', message: responseData?.message || axiosData?.message || 'Die Recherche befindet sich in Wartung. Bitte versuchen Sie es in Kürze erneut.', resetDate: null };
+  }
+  return { type: 'error', title: 'Recherche konnte nicht gestartet werden', message: 'Bitte versuchen Sie es erneut oder kontaktieren Sie den Support.', resetDate: null };
+}
 
 const POLL_INTERVAL_MS = 3000;
 
 export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
-  const [phase, setPhase] = useState("idle"); // idle | starting | running | done | error
+  const [phase, setPhase] = useState("idle"); // idle | starting | running | done | error | quota | ratelimit
   const [researchRunId, setResearchRunId] = useState(null);
   const [progressPercent, setProgressPercent] = useState(0);
   const [leadsSaved, setLeadsSaved] = useState(0);
   const [currentStep, setCurrentStep] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [errorInfo, setErrorInfo] = useState(null); // { type, title, message, resetDate }
 
   const pollRef = useRef(null);
   const processingRef = useRef(false);
@@ -52,6 +105,7 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
   const handleStart = async () => {
     setPhase("starting");
     setErrorMsg("");
+    setErrorInfo(null);
 
     try {
       const res = await base44.functions.invoke("startResearchRun", {
@@ -60,8 +114,8 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       });
 
       if (!res?.data?.success) {
-        const msg = res?.data?.message || res?.data?.error || "Start fehlgeschlagen.";
-        setErrorMsg(msg);
+        const info = getFriendlyResearchError(null, res?.data);
+        setErrorInfo(info);
         setPhase("error");
         return;
       }
@@ -76,7 +130,9 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
       startPolling(runId);
 
     } catch (err) {
-      setErrorMsg(err?.message || "Unbekannter Fehler beim Starten.");
+      // Axios wirft bei 4xx/5xx – response.data enthält den strukturierten Backend-Body
+      const info = getFriendlyResearchError(err, err?.response?.data);
+      setErrorInfo(info);
       setPhase("error");
     }
   };
@@ -249,16 +305,59 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
           {/* ERROR */}
           {isError && (
             <div className="space-y-4">
-              <div className="flex flex-col items-center gap-2 py-2 text-center">
-                <XCircle className="w-10 h-10 text-red-400" />
-                <div className="text-sm font-semibold text-red-700">{errorMsg}</div>
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleClose} className="flex-1">Schließen</Button>
-                <Button onClick={() => setPhase("idle")} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
-                  Erneut versuchen
-                </Button>
-              </div>
+              {errorInfo?.type === 'quota' ? (
+                <div className="space-y-3">
+                  <div className="flex flex-col items-center gap-2 py-2 text-center">
+                    <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center">
+                      <AlertTriangle className="w-6 h-6 text-amber-600" />
+                    </div>
+                    <div className="text-base font-bold text-slate-900">{errorInfo.title}</div>
+                    <div className="text-sm text-slate-600">{errorInfo.message}</div>
+                    {errorInfo.resetDate && (
+                      <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                        Ihr Kontingent wird am <strong>{errorInfo.resetDate}</strong> zurückgesetzt.
+                        <br />Sie können bis dahin bestehende Leads bearbeiten oder upgraden.
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleClose} className="flex-1">Bestehende Leads</Button>
+                    <Button onClick={() => { handleClose(); window.location.href = '/settings?tab=billing'; }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                      Plan ansehen
+                    </Button>
+                  </div>
+                </div>
+              ) : errorInfo?.type === 'ratelimit' ? (
+                <div className="space-y-3">
+                  <div className="flex flex-col items-center gap-2 py-2 text-center">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div className="text-base font-bold text-slate-900">{errorInfo.title}</div>
+                    <div className="text-sm text-slate-600">{errorInfo.message}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleClose} className="flex-1">Schließen</Button>
+                    <Button onClick={() => setPhase("idle")} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                      Später erneut versuchen
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex flex-col items-center gap-2 py-2 text-center">
+                    <XCircle className="w-10 h-10 text-red-400" />
+                    <div className="text-base font-bold text-slate-900">{errorInfo?.title || 'Fehler'}</div>
+                    <div className="text-sm text-slate-600">{errorInfo?.message || 'Bitte versuchen Sie es erneut.'}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleClose} className="flex-1">Schließen</Button>
+                    <Button onClick={() => setPhase("idle")} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                      Erneut versuchen
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

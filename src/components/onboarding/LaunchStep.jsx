@@ -137,12 +137,31 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
         setResearchRunId(run.data.research_run_id);
         setMessage('Recherche wird vorbereitet...');
       } else {
-        throw new Error('Kein ResearchRun erstellt');
+        // Kein Exception, aber success=false (z.B. bei 2xx-Fallback)
+        const reason = run.data?.reason || run.data?.error || '';
+        const monthly = run.data?.monthly_usage;
+        const friendlyMsg = reason === 'monthly_lead_quota_reached' || reason === 'monthly_contact_limit_reached'
+          ? `Monatskontingent erreicht (${monthly?.monthly_used ?? '?'}/${monthly?.monthly_limit ?? '?'} Leads). Reset am ${monthly?.reset_date ?? 'Monatsende'}.`
+          : run.data?.message || 'Recherche konnte nicht gestartet werden.';
+        setIsSearching(false);
+        onLaunch({ error: friendlyMsg });
       }
     } catch (e) {
       console.error('[LaunchStep] Start error:', e.message);
+      // Axios-Exception: strukturierten Body aus err.response.data auslesen
+      const axiosData = e?.response?.data;
+      const reason = axiosData?.reason || axiosData?.error || '';
+      const monthly = axiosData?.monthly_usage;
+      let friendlyMsg;
+      if (reason === 'monthly_lead_quota_reached' || reason === 'monthly_contact_limit_reached') {
+        friendlyMsg = `Monatskontingent erreicht (${monthly?.monthly_used ?? '?'}/${monthly?.monthly_limit ?? '?'} Leads). Reset am ${monthly?.reset_date ?? 'Monatsende'}.`;
+      } else if (e?.response?.status === 429) {
+        friendlyMsg = 'Recherche gerade ausgelastet. Bitte in wenigen Minuten erneut versuchen.';
+      } else {
+        friendlyMsg = 'Recherche konnte nicht gestartet werden. Bitte erneut versuchen.';
+      }
       setIsSearching(false);
-      onLaunch({ error: e.message });
+      onLaunch({ error: friendlyMsg });
     }
   };
 
