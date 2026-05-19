@@ -3,7 +3,7 @@
  * Zeigt den wichtigsten nächsten Schritt für den Tag.
  */
 import { Link } from "react-router-dom";
-import { Flame, Phone, Mail, ArrowRight, Search, CheckCircle2, AlertCircle, Zap } from "lucide-react";
+import { Flame, Phone, ArrowRight, Search, CheckCircle2, AlertCircle, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function DashboardPrimaryAction({ actionableLeads = [], totalLeads = 0 }) {
@@ -49,8 +49,6 @@ export default function DashboardPrimaryAction({ actionableLeads = [], totalLead
     );
   }
 
-  const isOverdue = primary.type === 'task_overdue';
-  const isHot = primary.type === 'hot_lead';
   const isTask = primary.type === 'task_today' || primary.type === 'task_overdue';
 
   const configs = {

@@ -337,7 +337,7 @@ export default function Dashboard() {
                     <Link to="/leads">
                       <Button size="sm" className="gap-2 text-xs bg-orange-500 hover:bg-orange-600 text-white">
                         <Zap className="w-3.5 h-3.5" />
-                        Leads analysieren
+                        Zur Lead-Übersicht
                       </Button>
                     </Link>
                   )}

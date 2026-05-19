@@ -3,7 +3,7 @@ import { Building2, Flame, Phone, Mail, MapPin, User, Calendar, MoreHorizontal, 
 import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { isHotLead, isWarmLead, getLeadTemperature } from "@/utils/leadTemperature";
+import { isHotLead, isWarmLead } from "@/utils/leadTemperature";
 
 const QUICK_LOG_ACTIONS = [
   { label: "📞 Nicht erreicht", ergebnis: "Nicht erreicht", status: "Rückruf", color: "hover:bg-red-50 text-red-700" },
@@ -72,6 +72,11 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
                 <span className="flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" /> {company.ort}</span>
               )}
             </div>
+            {(company.matched_target_customer_type || company.matched_service_context) && (
+              <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                🎯 {company.matched_target_customer_type || company.matched_service_context}
+              </p>
+            )}
             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
               <span className={`px-2 py-0.5 rounded-md border text-[10px] font-bold ${statusColor(company.status)}`}>
                 {company.status}
@@ -129,22 +134,26 @@ export default function LeadRow({ company, isAdmin, onLogged }) {
               </>
             )}
           </div>
-          {/* Passgrund / Nächste Aktion */}
-          {(company.matched_target_customer_type || company.next_best_action) && (
-            <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-500 flex-wrap">
-              {company.matched_target_customer_type && (
-                <span className="truncate">🎯 {company.matched_target_customer_type}</span>
-              )}
-              {company.next_best_action && (
-                <>
-                  {company.matched_target_customer_type && <span className="text-slate-300">·</span>}
-                  <span className="flex items-center gap-0.5 text-blue-600 font-medium truncate">
-                    <Zap className="w-2.5 h-2.5 shrink-0" /> {company.next_best_action}
-                  </span>
-                </>
-              )}
-            </div>
-          )}
+          {/* Passgrund / Nächste Aktion – aus verfügbaren Feldern ableiten */}
+          {(() => {
+            const passgrund = company.matched_target_customer_type || company.matched_service_context;
+            // next_best_action nur wenn befüllt, sonst relevance_reason als Fallback
+            const nextAction = company.next_best_action || null;
+            if (!passgrund && !nextAction) return null;
+            return (
+              <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-500 flex-wrap">
+                {passgrund && <span className="truncate">🎯 {passgrund}</span>}
+                {nextAction && (
+                  <>
+                    {passgrund && <span className="text-slate-300">·</span>}
+                    <span className="flex items-center gap-0.5 text-blue-600 font-medium truncate">
+                      <Zap className="w-2.5 h-2.5 shrink-0" /> {nextAction}
+                    </span>
+                  </>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Status + Temperatur */}

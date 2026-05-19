@@ -3,19 +3,16 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useLeadsFilter } from "../hooks/useLeadsFilter";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Plus, Filter, X, MoreVertical, Download, TrendingUp, Building2, Upload, Sparkles, Activity, Target, Flame, Phone, Mail, PhoneCall } from "lucide-react";
+import { Search, Filter, X, TrendingUp, Building2, Upload, Sparkles, Activity, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import AddCompanyDialog from "../components/AddCompanyDialog";
-import FocusCards from "../components/leads/FocusCards";
 import PipelineBar from "../components/leads/PipelineBar";
 import LeadRow from "../components/leads/LeadRow";
-import EngineStatsBox from "../components/leads/EngineStatsBox";
 import ResearchDialog from "../components/leads/ResearchDialog";
 import ActiveResearchBanner from "../components/leads/ActiveResearchBanner";
-import LearnedIntelligencePanel from "../components/settings/LearnedIntelligencePanel";
 import CompactStats from "../components/leads/CompactStats";
 import moment from "moment";
 import { isHotLead } from "@/utils/leadTemperature";
@@ -31,20 +28,16 @@ export default function Leads() {
   const [focusFilter, setFocusFilter] = useState(null);
   const [sortBy, setSortBy] = useState("priority");
   const [showAdd, setShowAdd] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
   const [priorityFilter, setPriorityFilter] = useState("Alle");
   const [assignedFilter, setAssignedFilter] = useState("Alle");
   const [showArchived, setShowArchived] = useState(false);
   const [members, setMembers] = useState([]);
-  const [showActions, setShowActions] = useState(false);
   const [showResearch, setShowResearch] = useState(false);
   const [researching, setResearching] = useState(false);
   const [newRunFilter, setNewRunFilter] = useState(null);
-  const [lastEngineResult, setLastEngineResult] = useState(null);
   const [showAllLeads, setShowAllLeads] = useState(false);
   const [leadLimit, setLeadLimit] = useState(100);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [learnedIntelligenceLoaded, setLearnedIntelligenceLoaded] = useState(false);
   const [showOnboardingZeroLeads, setShowOnboardingZeroLeads] = useState(false);
   const [showOnboardingFailed, setShowOnboardingFailed] = useState(false);
 
@@ -112,14 +105,7 @@ export default function Leads() {
     }
   }, [orgId]);
 
-  // LearnedIntelligence deferred laden (nach 2s)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      console.log("[Leads] Enabling LearnedIntelligence after 2s");
-      setLearnedIntelligenceLoaded(true);
-    }, 2000);
-    return () => clearTimeout(timer);
-  }, []);
+
 
   // ═ Helpers & Derived Values
   const loadData = () => refetch();
@@ -207,10 +193,6 @@ export default function Leads() {
       if (result?.data?.success) {
         const analyzed = result.data.analyzed_count || result.data.analyzed || 0;
         toast.success(`${analyzed} Leads analysiert. Hot/Warm/Cold wurde aktualisiert.`);
-        setLastEngineResult({
-          analyzed,
-          at: new Date().toISOString()
-        });
         await refetch();
       } else {
         toast.error(result?.data?.error || "Die Vertriebo Engine konnte nicht gestartet werden.");
@@ -330,10 +312,10 @@ export default function Leads() {
                 <SelectItem value="Niedrig">Kalt (&lt;30)</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter || "alle_status"} onValueChange={v => setStatusFilter(v === "alle_status" ? null : v)}>
               <SelectTrigger className="w-32 bg-white border border-[#E2E8F0]"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value={null}>Alle Status</SelectItem>
+                <SelectItem value="alle_status">Alle Status</SelectItem>
                 {["Neu","Kontakt","Rückruf","Termin","Angebot","Gewonnen","Verloren"].map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
               </SelectContent>
             </Select>
@@ -345,9 +327,6 @@ export default function Leads() {
               </SelectContent>
             </Select>
             <div className="flex-1" />
-            <Button onClick={() => setShowFilters(!showFilters)} variant="outline" className="gap-2 bg-white border-[#E2E8F0] text-slate-700 hover:bg-slate-50">
-              <Filter className="w-3.5 h-3.5" /> {showFilters ? 'Weniger' : 'Mehr'}
-            </Button>
           </div>
         </div>
 
