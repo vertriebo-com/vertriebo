@@ -52,5 +52,33 @@
     "organization_id",
     "period_month",
     "slot_number"
+  ],
+  "unique_constraints": [
+    {
+      "name": "unique_org_period_slot",
+      "fields": [
+        "organization_id",
+        "period_month",
+        "slot_number"
+      ],
+      "description": "Verhindert doppelte Reservierungen desselben Slots. Atomar enforced by Base44 DB \u2192 garantiert dass nur EIN Worker slot_number=300 erstellen kann."
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_org_period",
+      "fields": [
+        "organization_id",
+        "period_month"
+      ],
+      "description": "Optimiert Filterung nach Organisation + Periode f\u00fcr COUNT-Queries"
+    },
+    {
+      "name": "idx_status",
+      "fields": [
+        "status"
+      ],
+      "description": "Optimiert Filterung nach Status (reserved/committed/released)"
+    }
   ]
 }

@@ -970,7 +970,7 @@ Deno.serve(async (req) => {
             matched_target_customer,
           };
 
-          // ── TRY/FINALLY für sauberes Release bei Fehlern ────────────────────
+          // ── TRY/CATCH für Company.create + Commit ───────────────────────────
           let companyId = null;
           try {
             // JETZT Company erstellen (Quota ist bereits reserviert)
@@ -1009,27 +1009,31 @@ Deno.serve(async (req) => {
             // Commit: slot → committed, company_id setzen
             await commitQuotaSlot(base44, organization_id, periodMonth, quotaRes.slot_number, companyId);
             
+            // Dedupe-Sets aktualisieren + Counter erhöhen (NUR HIER!)
             existingNames.add(normStr(place.name || ''));
             existingPlaceIds.add(place.place_id);
             if (ort) existingNameOrt.add(nameOrtKey);
             if (phoneNorm.length >= 6) existingNamePhone.add(namePhoneKey);
             newLeadsSavedThisBatch++;
             
+            // DEBUG: console.info(`[processResearchRun] SAVED "${place.name}" score=${scoring.score}`);
+            
           } catch (createErr) {
-            // FALLBACK: Company.create fehlgeschlagen → Slot freigeben!
-            console.error(`[processResearchRun] Company.create failed, releasing slot=${quotaRes.slot_number}: ${createErr.message}`);
-            await releaseQuotaSlot(base44, organization_id, periodMonth, quotaRes.slot_number);
+            // FALLBACK: Company.create ODER commitQuotaSlot fehlgeschlagen
+            // Wenn companyId gesetzt ist: Company existiert, aber Commit failed → NICHT released!
+            // Stattdessen: Error loggen für manuelle Reparatur
+            if (companyId) {
+              console.error(`[processResearchRun] Company.create OK, aber commitQuotaSlot FAILED: company_id=${companyId}, slot=${quotaRes.slot_number}. MANUELLE REPARATUR ERFORDERLICH!`);
+              // Slot bleibt 'reserved' → kann via Repair-Function später committet werden
+            } else {
+              // Company.create failed → Slot freigeben
+              console.error(`[processResearchRun] Company.create failed, releasing slot=${quotaRes.slot_number}: ${createErr.message}`);
+              await releaseQuotaSlot(base44, organization_id, periodMonth, quotaRes.slot_number);
+            }
             
             // Error weiterwerfen oder loggen (nicht break - andere Companies können noch erstellt werden)
             continue;
           }
-
-          existingNames.add(normStr(place.name || ''));
-          existingPlaceIds.add(place.place_id);
-          if (ort) existingNameOrt.add(nameOrtKey);
-          if (phoneNorm.length >= 6) existingNamePhone.add(namePhoneKey);
-          newLeadsSavedThisBatch++;
-          // DEBUG: console.info(`[processResearchRun] SAVED "${place.name}" score=${scoring.score}`);
         }
       }
     }
