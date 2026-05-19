@@ -16,19 +16,19 @@ import {
   Building2,
   LogOut,
   ChevronRight,
-  CalendarCheck
-} from "lucide-react";
+  CalendarCheck } from
+"lucide-react";
 import { Button } from "@/components/ui/button";
 
 const NAV_ITEMS = [
-  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { path: "/leads", label: "Leads", icon: Building2 },
-  { path: "/tasks", label: "Aufgaben", icon: ListTodo },
-  { path: "/calendar", label: "Kalender", icon: CalendarCheck },
-  { path: "/statistics", label: "Statistiken", icon: BarChart3, adminOnly: true },
-  { path: "/blacklist", label: "Blacklist", icon: Ban },
-  { path: "/settings", label: "Einstellungen", icon: Settings, adminOnly: true },
-];
+{ path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+{ path: "/leads", label: "Leads", icon: Building2 },
+{ path: "/tasks", label: "Aufgaben", icon: ListTodo },
+{ path: "/calendar", label: "Kalender", icon: CalendarCheck },
+{ path: "/statistics", label: "Statistiken", icon: BarChart3, adminOnly: true },
+{ path: "/blacklist", label: "Blacklist", icon: Ban },
+{ path: "/settings", label: "Einstellungen", icon: Settings, adminOnly: true }];
+
 
 // Sub-pages that should show a back button on mobile
 const SUB_PAGES = ["/leads/", "/tasks/"];
@@ -46,7 +46,7 @@ export default function Layout() {
       setUser(me);
       if (!me) return;
       // Plattform-Admin hat immer Zugriff
-      if (me.role === "admin") { setOrgRole("organization_admin"); return; }
+      if (me.role === "admin") {setOrgRole("organization_admin");return;}
       // OrganizationMember-Rolle laden
       const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
       setOrgRole(memberships?.[0]?.role || "sales_rep");
@@ -66,27 +66,27 @@ export default function Layout() {
   return (
     <div className="flex h-screen overflow-hidden bg-[#F6F8FB]">
       {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+      {sidebarOpen &&
+      <div
+        className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+        onClick={() => setSidebarOpen(false)} />
+
+      }
 
       {/* Sidebar - Clean Light CRM */}
       <aside
         className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-[#E2E8F0] flex flex-col transition-transform duration-300 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
-      >
+        sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`
+        }>
+        
         {/* Logo - Sauber dargestellt */}
         <div className="px-4 py-5 border-b border-[#E2E8F0]">
           <Link to="/dashboard" className="flex items-center justify-center">
             <img
               src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/cd7488d03_ChatGPTImage18Mai202615_41_39.png"
               alt="Vertriebo"
-              className="h-14 w-auto object-contain"
-            />
+              className="w-auto object-contain h-16" />
+            
           </Link>
         </div>
 
@@ -101,23 +101,23 @@ export default function Layout() {
                 to={item.path}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  isActive
-                    ? "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
+                isActive ?
+                "bg-blue-50 text-blue-700 border border-blue-200 shadow-sm" :
+                "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`
+                }>
+                
                 <Icon className={`w-4 h-4 ${isActive ? "text-blue-600" : "text-slate-400"}`} />
                 <span className="flex-1">{item.label}</span>
                 {isActive && <ChevronRight className="w-3.5 h-3.5 text-blue-600" />}
-              </Link>
-            );
+              </Link>);
+
           })}
         </nav>
 
         {/* User */}
         <div className="p-3 border-t border-[#E2E8F0]">
-          {user && (
-            <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+          {user &&
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center text-sm font-bold text-blue-600 border border-blue-200">
                   {user.full_name?.charAt(0) || "U"}
@@ -133,7 +133,7 @@ export default function Layout() {
                 </button>
               </div>
             </div>
-          )}
+          }
         </div>
       </aside>
 
@@ -151,6 +151,6 @@ export default function Layout() {
       </div>
 
       <MobileBottomNav />
-    </div>
-  );
+    </div>);
+
 }
