@@ -29,6 +29,7 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
 
   // Step 1: Company
+  const [vorname, setVorname] = useState("");
   const [firmenname, setFirmenname] = useState("");
   const [selectedIndustry, setSelectedIndustry] = useState(null);
   // Strukturiertes Ortsobjekt: { city, label, place_id, lat, lng }
@@ -112,6 +113,7 @@ export default function Onboarding() {
       // Settings: Branche (canonical + legacy) + Ortsdaten
       const isFallback = data.selectedIndustry.isFallback || false;
       const settingsToSave = [
+        { key: "contact_name",           value: data.vorname || "" },
         { key: "industry_name",          value: industryName },
         { key: "industry_id",            value: industryCanonicalId },
         { key: "own_industry",           value: industryName },
@@ -143,6 +145,7 @@ export default function Onboarding() {
         }
       }));
 
+      setVorname(data.vorname || "");
       setFirmenname(data.firmenname);
       setSelectedIndustry(data.selectedIndustry);
       setLocation(data.location);
@@ -281,7 +284,7 @@ export default function Onboarding() {
           <CompanyStep
             onNext={handleCompanyNext}
             loading={saving}
-            initialData={{ firmenname, selectedIndustry, location, radius }}
+            initialData={{ vorname, firmenname, selectedIndustry, location, radius }}
           />
         )}
 

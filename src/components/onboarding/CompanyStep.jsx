@@ -7,6 +7,7 @@ import LocationAutocomplete from "@/components/LocationAutocomplete";
 import IndustryAutocompleteInput from "@/components/IndustryAutocompleteInput";
 
 export default function CompanyStep({ onNext, loading, initialData }) {
+  const [vorname, setVorname] = useState(initialData?.vorname || "");
   const [firmenname, setFirmenname] = useState(initialData?.firmenname || "");
   // selectedIndustry: { id, label, isFallback?, fallbackLabel? } | null
   const [selectedIndustry, setSelectedIndustry] = useState(
@@ -43,6 +44,7 @@ export default function CompanyStep({ onNext, loading, initialData }) {
       profile: selectedIndustry.profile || null,
     };
     onNext({
+      vorname: vorname.trim(),
       firmenname,
       selectedIndustry: finalIndustry,
       location,
@@ -58,6 +60,19 @@ export default function CompanyStep({ onNext, loading, initialData }) {
         <p className="text-sm font-medium text-slate-600">Machen Sie sich in 3 Minuten bereit für Ihre ersten Leads.</p>
       </div>
 
+      {/* Vorname */}
+      <div>
+        <Label className="text-xs font-semibold text-slate-900 mb-2 block">Ihr Vorname</Label>
+        <Input
+          value={vorname}
+          onChange={e => setVorname(e.target.value)}
+          placeholder="z.B. Max"
+          autoFocus
+          className="bg-white text-slate-900 border-slate-300"
+        />
+        <p className="text-[11px] text-slate-500 mt-1">Damit wir Sie persönlich ansprechen können.</p>
+      </div>
+
       {/* Firmenname */}
       <div>
         <Label className="text-xs font-semibold text-slate-900 mb-2 block">Firmenname *</Label>
@@ -65,7 +80,6 @@ export default function CompanyStep({ onNext, loading, initialData }) {
           value={firmenname}
           onChange={e => setFirmenname(e.target.value)}
           placeholder="z.B. Muster Gebäudeservice GmbH"
-          autoFocus
           className="bg-white text-slate-900 border-slate-300"
         />
       </div>

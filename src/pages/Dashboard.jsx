@@ -22,6 +22,7 @@ import PriorityBadge from "../components/PriorityBadge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import moment from "moment";
+import "moment/locale/de";
 import DashboardSkeleton from "@/components/DashboardSkeleton";
 import DailyActionList from "@/components/dashboard/DailyActionList";
 
@@ -111,6 +112,26 @@ export default function Dashboard() {
   const data = dashboardData?.data || {};
   const meta = dashboardData?.meta || {};
 
+  // Personalisierter Vorname: contact_name aus Settings → auth full_name → org name → fallback
+  const [displayName, setDisplayName] = useState("");
+  useEffect(() => {
+    if (!orgData?.id) return;
+    base44.entities.OrganizationSettings.filter({ organization_id: orgData.id, key: "contact_name" })
+      .then(settings => {
+        const saved = settings?.[0]?.value?.trim();
+        if (saved) {
+          setDisplayName(saved);
+        } else {
+          const authName = user?.full_name?.split(" ")[0]?.trim();
+          setDisplayName(authName || "");
+        }
+      })
+      .catch(() => {
+        const authName = user?.full_name?.split(" ")[0]?.trim();
+        setDisplayName(authName || "");
+      });
+  }, [orgData?.id, user?.full_name]);
+
   const loading = isLoading;
 
   // Zeige Skeleton sofort, während Daten im Hintergrund laden
@@ -172,10 +193,10 @@ export default function Dashboard() {
       {/* Header with greeting */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-slate-900">
-          {moment().hour() < 12 ? "Guten Morgen" : moment().hour() < 18 ? "Guten Tag" : "Guten Abend"}, {user?.full_name?.split(" ")[0] || "Vertriebler"} 👋
+          {moment().hour() < 12 ? "Guten Morgen" : moment().hour() < 18 ? "Guten Tag" : "Guten Abend"}{displayName ? `, ${displayName}` : ""} 👋
         </h1>
         <p className="text-sm font-medium text-slate-700 mt-1">
-          {moment().format("dddd, D. MMMM YYYY")}
+          {moment().locale("de").format("dddd, D. MMMM YYYY")}
         </p>
       </div>
 
