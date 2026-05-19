@@ -329,25 +329,27 @@ export default function Dashboard() {
                 </p>
                 <p className="text-xs text-slate-400 mt-1 mb-4">
                   {totalLeads > 0
-                    ? "Analysieren Sie Ihre Leads, damit Vertriebo heiße Kontakte erkennt."
+                    ? "Vertriebo-KI muss Ihre Leads einmalig analysieren, um heiße Kontakte zu erkennen."
                     : "Starten Sie eine Recherche, um erste Firmenkontakte zu finden."}
                 </p>
-                <div className="flex flex-col items-center gap-2">
-                  {totalLeads > 0 && (
+                {totalLeads > 0 ? (
+                  <div className="flex flex-col items-center gap-2">
                     <Link to="/leads">
                       <Button size="sm" className="gap-2 text-xs bg-orange-500 hover:bg-orange-600 text-white">
                         <Zap className="w-3.5 h-3.5" />
-                        Zur Lead-Übersicht
+                        Leads analysieren
                       </Button>
                     </Link>
-                  )}
+                    <p className="text-[10px] text-slate-400">KI-Analyse in der Lead-Übersicht starten</p>
+                  </div>
+                ) : (
                   <Link to="/leads">
                     <Button size="sm" variant="outline" className="gap-2 text-xs">
                       <Search className="w-3.5 h-3.5" />
                       Zur Lead-Übersicht
                     </Button>
                   </Link>
-                </div>
+                )}
               </div>
             )}
           </div>

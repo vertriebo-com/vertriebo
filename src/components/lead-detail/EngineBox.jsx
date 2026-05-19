@@ -4,7 +4,7 @@
  */
 
 import { useState } from "react";
-import { Lightbulb, CheckCircle2, Clock, RefreshCw, AlertTriangle, ChevronRight } from "lucide-react";
+import { Lightbulb, CheckCircle2, Clock, RefreshCw, AlertTriangle, ChevronRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
@@ -81,6 +81,34 @@ const DUE_LABELS = {
   today: "Heute", tomorrow: "Morgen", this_week: "Diese Woche", next_week: "Nächste Woche"
 };
 
+// Datenlücken-bewusste NBA-Auswertung
+function getEffectiveNextBestAction(company, nba) {
+  const hasTelefon = !!company?.telefon;
+  const hasEmail = !!company?.email;
+
+  // Wenn NBA "Anrufen" vorschlägt, aber kein Telefon da → Daten anreichern
+  if (nba?.type === 'call' && !hasTelefon) {
+    return {
+      ...nba,
+      title: "Telefonnummer suchen",
+      reason: "Kein Telefon vorhanden – Kontaktdaten anreichern, um anrufen zu können.",
+      type: "enrich",
+      due: nba.due,
+    };
+  }
+  // Wenn NBA "E-Mail senden" vorschlägt, aber keine E-Mail da → Daten anreichern
+  if (nba?.type === 'email' && !hasEmail) {
+    return {
+      ...nba,
+      title: "E-Mail-Adresse suchen",
+      reason: "Keine E-Mail vorhanden – Kontaktdaten anreichern, um eine E-Mail zu senden.",
+      type: "enrich",
+      due: nba.due,
+    };
+  }
+  return nba;
+}
+
 export default function EngineBox({ company, contactLogs = [], tasks = [], orgId, onAddTask, onReanalyze }) {
   const [analyzing, setAnalyzing] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -96,7 +124,7 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
     score: engineJson.vertriebo_score || company.lead_temperature_score || 0,
     summary: cleanText(engineJson.summary || ""),
     reason: cleanText(engineJson.reason || ""),
-    nextBestAction: engineJson.next_best_action || {},
+    nextBestAction: getEffectiveNextBestAction(company, engineJson.next_best_action || {}),
     topSignals: [
       ...((signals.fit || []).filter(s => s.present !== false)),
       ...((signals.contactability || []).filter(s => s.present !== false)),
@@ -193,9 +221,15 @@ export default function EngineBox({ company, contactLogs = [], tasks = [], orgId
               Empfohlener Zeitpunkt: {DUE_LABELS[analysis.nextBestAction.due] || analysis.nextBestAction.due}
             </p>
           )}
-          <Button size="sm" onClick={handleAddTask} className="mt-2 w-full gap-1.5 h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white">
-            <Clock className="w-3.5 h-3.5" /> Als Aufgabe eintragen
-          </Button>
+          {analysis.nextBestAction.type === 'enrich' ? (
+            <p className="mt-2 text-[10px] text-blue-700 font-semibold flex items-center gap-1">
+              <Sparkles className="w-3 h-3" /> Nutzen Sie „Daten ergänzen" oben auf der Seite
+            </p>
+          ) : (
+            <Button size="sm" onClick={handleAddTask} className="mt-2 w-full gap-1.5 h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white">
+              <Clock className="w-3.5 h-3.5" /> Als Aufgabe eintragen
+            </Button>
+          )}
         </div>
       )}
 

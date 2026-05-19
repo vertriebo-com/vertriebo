@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Building2, Phone, Mail, Globe, MapPin, User, Plus, History, Trash2, Ban,
-  Sparkles, MessageSquare, CheckCircle2, Circle, ChevronRight, PhoneCall, Flame, Target, Calendar
+  Sparkles, MessageSquare, CheckCircle2, Circle, ChevronRight, PhoneCall, Flame, Target, Calendar,
+  AlertTriangle, Loader2
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -335,6 +336,39 @@ export default function LeadDetail() {
           </div>
         </div>
       </div>
+
+      {/* Datenlücken-Banner */}
+      {(() => {
+        const missing = [];
+        if (!company.telefon) missing.push("Telefon");
+        if (!company.email) missing.push("E-Mail");
+        if (!company.ansprechpartner) missing.push("Ansprechpartner");
+        if (!company.website) missing.push("Website");
+        if (missing.length === 0) return null;
+        return (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-start gap-2.5 flex-1">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-amber-900">Kontaktdaten unvollständig</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Fehlend: <span className="font-semibold">{missing.join(", ")}</span>
+                  {!company.telefon && " – Anruf nicht möglich"}
+                  {company.telefon && !company.email && " – E-Mail-Kontakt nicht möglich"}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleEnrich}
+              disabled={enriching}
+              className="inline-flex items-center gap-1.5 h-8 px-3 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors shrink-0 disabled:opacity-60"
+            >
+              {enriching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {enriching ? "Sucht Daten…" : "Kontaktdaten suchen"}
+            </button>
+          </div>
+        );
+      })()}
 
       {/* Outcome Feedback */}
       {orgId && (

@@ -188,6 +188,9 @@ export default function CallScriptDialog({ company }) {
         dienstleistungen: map.services || map.dienstleistungen || "[Ihre Dienstleistungen]",
         // Canonical Key: target_customer_types; Legacy-Fallback: zielkunden
         zielkunden: map.target_customer_types || map.zielkunden || "",
+        ausschluesse: map.excluded_customer_types || "",
+        servicegebiet: map.service_area_city || map.service_area_plz || "",
+        industrie: map.industry_name || map.own_industry || "",
       };
       setOrgSettings(s);
       setOrgId(org.id);
@@ -241,6 +244,14 @@ export default function CallScriptDialog({ company }) {
     const dienstleistungen = settings?.dienstleistungen || "[Ihre Dienstleistungen]";
     const zielkunden = settings?.zielkunden || "lokale Gewerbebetriebe";
     const ansprechpartner = company.ansprechpartner || "[Ansprechpartner]";
+    const servicegebiet = settings?.servicegebiet || "";
+    const ausschluesse = settings?.ausschluesse || "";
+    const industrie = settings?.industrie || "";
+
+    // Lead-Kontext aus Recherche-Engine
+    const matchedZielgruppe = company.matched_target_customer_type || "";
+    const serviceKontext = company.matched_service_context || "";
+    const relevanzGrund = company.relevance_reason || "";
 
     let logs = [];
     try {
@@ -250,7 +261,7 @@ export default function CallScriptDialog({ company }) {
       .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
       .slice(0, 3);
     const logContext = recentLogs.length > 0
-      ? recentLogs.map(l => `${l.typ}: ${l.ergebnis}${l.notiz ? " – " + l.notiz : ""}`).join("; ")
+      ? recentLogs.map(l => `${l.typ}: ${l.ergebnis}${l.naechster_schritt ? " → " + l.naechster_schritt : ""}${l.notiz ? " – " + l.notiz : ""}`).join("; ")
       : "Kein bisheriger Kontakt";
 
     let parsed = null;
@@ -262,18 +273,25 @@ export default function CallScriptDialog({ company }) {
 
 UNSER UNTERNEHMEN (wir rufen an):
 - Firmenname: ${firmenname}
-- Unsere Leistungen: ${dienstleistungen}
+- Unsere Branche / was wir tun: ${industrie || dienstleistungen}
+- Unsere konkreten Leistungen: ${dienstleistungen}
 - Unsere Zielkunden: ${zielkunden}
+${ausschluesse ? `- Nicht passende Kunden (Ausschlüsse): ${ausschluesse}` : ""}
+${servicegebiet ? `- Unser Servicegebiet: ${servicegebiet}` : ""}
 
 ZIEL-FIRMA (wir rufen dort an):
 - Firmenname: ${company.name}
 - Branche der Zielfirma: ${company.branche || "Unbekannt"}
 - Ort: ${company.ort || ""}
 - Ansprechpartner: ${ansprechpartner}
+${matchedZielgruppe ? `- Erkannte Zielgruppe: ${matchedZielgruppe} (diese Firma passt zu unserem Zielkundenprofil)` : ""}
+${serviceKontext ? `- Relevanter Service-Kontext: ${serviceKontext}` : ""}
+${relevanzGrund ? `- Warum dieser Lead relevant ist: ${relevanzGrund}` : ""}
 - Bisherige Kontakte: ${logContext}
 
 WICHTIG: Wir verkaufen UNSERE LEISTUNGEN (${dienstleistungen}) AN die Zielfirma.
-Die Zielfirma ist POTENTIELLER KUNDE. Passe den Leitfaden daran an, warum unsere Leistungen für eine Firma in der Branche "${company.branche || "dieser Branche"}" nützlich sind.
+Die Zielfirma ist POTENTIELLER KUNDE. Nutze den erkannten Zielgruppen-Kontext (${matchedZielgruppe || company.branche || "diese Branche"}) für konkrete, branchenspezifische Argumente.
+Wenn vorherige Kontakte existieren, passe den Einstieg entsprechend an (kein generischer Kaltakquise-Einstieg).
 
 Antworte NUR mit einem JSON-Objekt (kein Markdown, keine Erklärungen). Format:
 {
