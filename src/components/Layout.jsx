@@ -85,7 +85,7 @@ export default function Layout() {
             <img
               src="https://media.base44.com/images/public/69d8fb5b8dde510755b29a7e/cd7488d03_ChatGPTImage18Mai202615_41_39.png"
               alt="Vertriebo"
-              className="w-auto object-contain h-23" />
+              className="w-auto object-contain h-28" />
             
           </Link>
         </div>
