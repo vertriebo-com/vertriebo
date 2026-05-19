@@ -20,17 +20,23 @@ import ActiveResearchBanner from "@/components/leads/ActiveResearchBanner";
 import TrialStatusBanner from "@/components/TrialStatusBanner";
 
 export default function Dashboard() {
-  const { user: authUser, org: authOrg } = useLeadsFilter();
+  const { user: authUser, org: authOrg, loading: orgLoading } = useLeadsFilter();
   const navigate = useNavigate();
-  const [orgData, setOrgData] = useState(authOrg || null);
+
+  // orgData direkt aus useLeadsFilter – kein separates useState das den Initialwert einfriert
+  const orgData = authOrg;
+
+  // Für Checkout-Polling: lokaler Override-State nur wenn Billing-Refresh nötig
+  const [orgOverride, setOrgOverride] = useState(null);
+  const activeOrg = orgOverride || orgData;
 
   // Auto-refresh Org nach erfolgreichem Checkout
   useEffect(() => {
     const handleCheckoutSuccess = async () => {
-      if (orgData?.id) {
+      if (activeOrg?.id) {
         try {
-          const orgs = await base44.entities.Organization.filter({ id: orgData.id });
-          if (orgs[0]) setOrgData(orgs[0]);
+          const orgs = await base44.entities.Organization.filter({ id: activeOrg.id });
+          if (orgs[0]) setOrgOverride(orgs[0]);
         } catch {}
       }
     };
@@ -38,15 +44,15 @@ export default function Dashboard() {
 
     // Checkout-URL-Polling
     const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') === 'success' && orgData?.id) {
+    if (params.get('checkout') === 'success' && activeOrg?.id) {
       let pollCount = 0;
       const pollWebhookStatus = async () => {
         pollCount++;
         try {
-          const orgs = await base44.entities.Organization.filter({ id: orgData.id });
+          const orgs = await base44.entities.Organization.filter({ id: activeOrg.id });
           const freshOrg = orgs[0];
           if (freshOrg) {
-            setOrgData(freshOrg);
+            setOrgOverride(freshOrg);
             const isPaid = freshOrg.billing_status === 'active' && freshOrg.trial_stage === 'paid';
             if (isPaid || pollCount >= 40) {
               window.history.replaceState({}, document.title, window.location.pathname);
@@ -59,19 +65,20 @@ export default function Dashboard() {
       pollWebhookStatus();
     }
     return () => window.removeEventListener('checkout-success', handleCheckoutSuccess);
-  }, [orgData?.id]);
+  }, [activeOrg?.id]);
 
   const queryClient = useQueryClient();
 
   const { data: dashboardData, isLoading, error, refetch } = useQuery({
-    queryKey: ["dashboard-data", orgData?.id],
+    queryKey: ["dashboard-data", activeOrg?.id],
     queryFn: async () => {
-      if (!orgData?.id) throw new Error('No organization');
-      const response = await base44.functions.invoke('getDashboardData', {});
+      if (!activeOrg?.id) throw new Error('No organization');
+      // org_id explizit übergeben → Backend validiert Zugehörigkeit
+      const response = await base44.functions.invoke('getDashboardData', { org_id: activeOrg.id });
       return response.data;
     },
-    enabled: !!orgData?.id,
-    staleTime: 0,           // Immer frisch – kein veralteter Cache nach Lead-Edit
+    enabled: !orgLoading && !!activeOrg?.id,
+    staleTime: 0,
     refetchOnWindowFocus: true,
     placeholderData: null,
   });
@@ -103,7 +110,7 @@ export default function Dashboard() {
       });
   }, [orgData?.id, dashboardData?.user?.full_name]);
 
-  if (isLoading) return <DashboardSkeleton />;
+  if (orgLoading || (isLoading && !dashboardData)) return <DashboardSkeleton />;
 
   if (error) {
     return (
@@ -119,7 +126,7 @@ export default function Dashboard() {
   const stats = dashboardData?.stats || {};
   const data = dashboardData?.data || {};
   const meta = dashboardData?.meta || {};
-  const org = dashboardData?.org || orgData;
+  const org = dashboardData?.org || activeOrg;
 
   const pipelineStats = stats.pipelineStats || {};
   const hotLeads = data.hotLeads || [];
@@ -172,9 +179,9 @@ export default function Dashboard() {
       )}
 
       {/* Active Research Banner */}
-      {orgData?.id && (
+      {activeOrg?.id && (
         <ActiveResearchBanner
-          orgId={orgData.id}
+          orgId={activeOrg.id}
           onNewLeads={() => refetch()}
         />
       )}
@@ -363,7 +370,7 @@ export default function Dashboard() {
       </div>
 
       {/* Usage-Info (nur wenn Plan vorhanden) */}
-      {orgData?.plan_id && meta?.currentUsage && (
+      {activeOrg?.plan_id && meta?.currentUsage && (
         <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-slate-700">

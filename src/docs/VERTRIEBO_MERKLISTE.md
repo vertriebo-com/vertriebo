@@ -1421,11 +1421,15 @@ KANONISCHE HIERARCHIE – identisch in utils/leadTemperature.js UND getDashboard
 - ✅ `noBackendRegression` — getDashboardData 200 OK
 - ✅ `merklisteUpdated`
 
-### Dateien geändert (2026-05-19)
-- `utils/leadTemperature.js` — Score-Reihenfolge auf `lead_temperature_score` vor `priority_score` korrigiert (identisch zu Backend)
-- `functions/getDashboardData` — `getLeadTemperatureCanonical()` bereits korrekt (unveränderter Stand)
-- `pages/Dashboard` — `staleTime: 0`, `refetchOnWindowFocus: true`
-- `docs/VERTRIEBO_MERKLISTE.md` — Finales E2E-Protokoll + kanonische Hierarchie dokumentiert
+### Dateien geändert (2026-05-19 — Org-Kontext-Fix)
+- `pages/Dashboard` — `orgData` nicht mehr via `useState(authOrg || null)` eingefroren; direkt aus `useLeadsFilter` gelesen; `org_id` explizit an Backend übergeben; Query erst enabled wenn `!orgLoading && !!activeOrg?.id`
+- `functions/getDashboardData` — nimmt `org_id` aus Request-Body entgegen; validiert Zugehörigkeit (owner / active member / PlatformAdmin); 403 wenn kein Zugriff
+- `utils/leadTemperature.js` — Score-Reihenfolge auf `lead_temperature_score` vor `priority_score` korrigiert
+
+### Root Cause Org-Kontext-Bug (2026-05-19)
+`useState(authOrg || null)` in Dashboard fror den Initialwert `null` ein, weil `authOrg` async aus `useLeadsFilter` kommt. React `useState` nimmt nur den **ersten** Wert beim Mount — spätere Änderungen von `authOrg` wurden ignoriert. Dadurch war `enabled: false` für die Query → getDashboardData wurde nie aufgerufen → 0 Leads.
+
+Fix: `orgData` direkt als `const orgData = authOrg` referenziert (live), Query wartet via `!orgLoading`. Zusätzlich übergibt das Frontend nun `org_id` explizit ans Backend, damit beide Seiten garantiert dieselbe Org lesen.
 
 ---
 
