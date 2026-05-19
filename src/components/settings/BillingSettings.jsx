@@ -26,45 +26,20 @@ function formatDate(iso) {
 function formatPeriodMonth(periodMonth) {
   if (!periodMonth) return "–";
   const [year, month] = periodMonth.split("-");
-  const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-  return date.toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  const date = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, 1));
+  return date.toLocaleDateString("de-DE", { month: "long", year: "numeric", timeZone: "Europe/Berlin" });
 }
 
-// KANONISCH: Reset-Datum = erster Tag des nächsten Kalendermonats (Europe/Berlin)
-// Robuste Implementierung via Intl.DateTimeFormat mit expliziten Einzelfeldern (kein Split/Parse).
-function getPeriodMonthBerlin() {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Berlin',
-    year: 'numeric',
-    month: '2-digit',
-  }).formatToParts(now);
-  const year = parts.find(p => p.type === 'year')?.value;
-  const month = parts.find(p => p.type === 'month')?.value;
-  return `${year}-${month}`; // z.B. "2026-05"
-}
-
-function getResetDate() {
-  const periodMonth = getPeriodMonthBerlin();
-  const [year, month] = periodMonth.split('-').map(Number);
-  // Erster Tag des nächsten Monats (month ist 1-basiert, new Date month ist 0-basiert → month selbst = nächster Monat)
-  const nextMonth = new Date(year, month, 1);
-  const d = String(nextMonth.getDate()).padStart(2, '0');
-  const m = String(nextMonth.getMonth() + 1).padStart(2, '0');
-  const y = nextMonth.getFullYear();
-  return `${d}.${m}.${y}`;
-}
-
-function MonthlyLeadQuotaCard({ usageLog, usageSummary, plan, subscription }) {
+function MonthlyLeadQuotaCard({ usageSummary, plan, subscription }) {
   const maxLeads = usageSummary?.monthly_limit ?? plan?.max_leads_per_month ?? -1;
-  const usedLeads = usageSummary?.monthly_used ?? (usageLog?.leads_created || 0);
+  const usedLeads = usageSummary?.monthly_used || 0;
   const remaining = usageSummary?.monthly_remaining ?? (maxLeads === -1 ? null : Math.max(0, maxLeads - usedLeads));
   const isOverLimit = usageSummary?.is_over_limit ?? false;
   const pct = maxLeads === -1 ? 0 : Math.min(100, Math.round((usedLeads / maxLeads) * 100));
   const isWarning = maxLeads !== -1 && pct >= 80;
   const isDanger = maxLeads !== -1 && pct >= 95 || isOverLimit;
 
-  const resetDate = usageSummary?.reset_date || getResetDate();
+  const resetDate = usageSummary?.reset_date;
   const crmTotal = usageSummary?.crm_total || null;
 
   return (
@@ -165,7 +140,7 @@ export default function BillingSettings({ org: orgProp, user }) {
   const [org, setOrg] = useState(orgProp);
   const [plan, setPlan] = useState(null);
   const [subscription, setSubscription] = useState(null);
-  const [usageLog, setUsageLog] = useState(null);
+  const [usageSummary, setUsageSummary] = useState(null); // Echter usageSummary-State
   const [usageHistory, setUsageHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -202,15 +177,9 @@ export default function BillingSettings({ org: orgProp, user }) {
         .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       setAllPlans(plansWithPrice);
 
-      // Usage aus zentraler Summary
-      const usageSummary = usageRes?.data?.usage_summary || null;
-      setUsageLog(usageSummary ? {
-        leads_created: usageSummary.monthly_used,
-        lead_generations_used: usageSummary.research_runs_used,
-        ai_actions_used: usageSummary.ai_actions_used,
-        manual_emails_logged: usageSummary.manual_emails_logged,
-        period_month: usageSummary.period_month,
-      } : null);
+      // usageSummary direkt speichern (nicht in usageLog umwandeln)
+      const centralSummary = usageRes?.data?.usage_summary || null;
+      setUsageSummary(centralSummary);
 
       // Historie laden (letzte 6 Monate)
       const allUsageLogs = await base44.entities.UsageLog.filter(
@@ -225,6 +194,19 @@ export default function BillingSettings({ org: orgProp, user }) {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  // Helper: Reset-Datum aus usageSummary oder defensiver Fallback
+  const getResetDateFallback = () => {
+    if (usageSummary?.reset_date) return usageSummary.reset_date;
+    // Defensiver Fallback (nur wenn backend nicht liefert)
+    const now = new Date();
+    const periodParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit' }).formatToParts(now);
+    const yearPart = periodParts.find(p => p.type === 'year');
+    const monthPart = periodParts.find(p => p.type === 'month');
+    const [py, pm] = [parseInt(yearPart?.value || 2026), parseInt(monthPart?.value || 1)];
+    const resetDate = new Date(Date.UTC(py, pm, 1));
+    return resetDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' });
   };
 
   useEffect(() => { loadData(); }, []);
@@ -498,16 +480,9 @@ export default function BillingSettings({ org: orgProp, user }) {
       )}
 
       {/* Monatskontingent – Lead-Quota */}
-      {plan && (
+      {plan && usageSummary && (
       <MonthlyLeadQuotaCard
-        usageLog={usageLog}
-        usageSummary={usageLog ? {
-          monthly_limit: plan.max_leads_per_month ?? -1,
-          monthly_used: usageLog.leads_created || 0,
-          monthly_remaining: plan.max_leads_per_month === -1 ? null : Math.max(0, plan.max_leads_per_month - (usageLog.leads_created || 0)),
-          reset_date: getResetDate(),
-          crm_total: null, // Wird nicht in BillingSettings angezeigt
-        } : null}
+        usageSummary={usageSummary}
         plan={plan}
         subscription={subscription}
       />
@@ -522,26 +497,26 @@ export default function BillingSettings({ org: orgProp, user }) {
         <UsageBar
           label="Recherche-Läufe"
           icon={Search}
-          used={usageLog?.lead_generations_used || 0}
+          used={usageSummary?.research_runs_used || 0}
           max={plan?.max_lead_generations_per_month ?? -1}
           color="bg-indigo-500"
         />
         <UsageBar
           label="KI-Aktionen"
           icon={Brain}
-          used={usageLog?.ai_actions_used || 0}
+          used={usageSummary?.ai_actions_used || 0}
           max={plan?.max_ai_scorings_per_month ?? -1}
           color="bg-purple-500"
         />
         <UsageBar
           label="E-Mails dokumentiert"
           icon={Mail}
-          used={usageLog?.manual_emails_logged || 0}
+          used={usageSummary?.manual_emails_logged || 0}
           max={-1}
           color="bg-green-500"
         />
       </div>
-      {!usageLog && (
+      {!usageSummary && (
         <p className="text-sm text-center text-slate-500 pt-4">Noch kein Verbrauch in diesem Monat erfasst.</p>
       )}
       </div>

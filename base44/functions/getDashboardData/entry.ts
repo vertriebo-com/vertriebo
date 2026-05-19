@@ -302,12 +302,36 @@ Deno.serve(async (req) => {
 
     // ── USAGE_SUMMARY (Single Source of Truth) ─────────────────────────────
     // Zentrale Usage-Berechnung via getUsageSummary – NICHT lokal berechnen!
+    // Fallback nur bei Fehler: Planlimit dynamisch laden, kein hardcoded 300
     const usageSummaryRes = await base44.functions.invoke('getUsageSummary', { org_id: orgId });
-    const usage_summary = usageSummaryRes?.data?.usage_summary || {
-      period_month: new Intl.DateTimeFormat('de-DE', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit' }).format(now).split('.').reverse().join('-'),
-      monthly_limit: 300, monthly_used: 0, monthly_remaining: 300, crm_total: allCompanies.length,
-      reset_date: '01.' + new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('de-DE', { month: '2-digit', year: 'numeric' }),
-    };
+    let usage_summary = usageSummaryRes?.data?.usage_summary || null;
+    
+    if (!usage_summary && org.plan_id) {
+      // Defensiver Fallback: Planlimit dynamisch laden (Multi-Tenant-safe)
+      const plan = (await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id }))?.[0];
+      const monthlyLimit = plan?.max_leads_per_month ?? -1;
+      const periodParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit' }).formatToParts(now);
+      const yearPart = periodParts.find(p => p.type === 'year');
+      const monthPart = periodParts.find(p => p.type === 'month');
+      const periodMonth = `${yearPart?.value}-${monthPart?.value}`;
+      const [py, pm] = [parseInt(yearPart?.value || 2026), parseInt(monthPart?.value || 1)];
+      const resetDate = new Date(Date.UTC(py, pm, 1));
+      
+      usage_summary = {
+        period_month: periodMonth,
+        monthly_limit: monthlyLimit,
+        monthly_used: 0,
+        monthly_remaining: monthlyLimit === -1 ? null : monthlyLimit,
+        crm_total: allCompanies.length,
+        reset_date: resetDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }),
+        is_over_limit: false,
+        explanation: {
+          monthly_used_description: "Automatisch generierte neue Leads in diesem Kalendermonat",
+          crm_total_description: "Aktuell gespeicherte Firmenkontakte",
+          why_different: null,
+        },
+      };
+    }
 
     return Response.json({
       org,

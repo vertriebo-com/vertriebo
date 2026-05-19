@@ -53,17 +53,21 @@ Deno.serve(async (req) => {
     const orgId = org.id;
 
     // ── KANONISCHE PERIOD_MONTH-BERECHNUNG (Europe/Berlin) ─────────────────
-    // Identisch zu processResearchRun/startResearchRun/getDashboardData/BillingSettings
+    // Robuste Implementierung via formatToParts (vermeidet Invalid Date / Split-Fehler)
     const now = new Date();
-    const periodMonth = new Intl.DateTimeFormat('de-DE', {
+    const periodParts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'Europe/Berlin',
       year: 'numeric',
       month: '2-digit',
-    }).format(now).split('.').reverse().join('-');
+    }).formatToParts(now);
+    const yearPart = periodParts.find(p => p.type === 'year');
+    const monthPart = periodParts.find(p => p.type === 'month');
+    const periodMonth = `${yearPart?.value}-${monthPart?.value}`; // z.B. "2026-05"
 
     // ── RESET-DATUM (erster Tag nächster Kalendermonat Berlin) ─────────────
-    const [py, pm] = periodMonth.split('-').map(Number);
-    const resetDate = new Date(Date.UTC(py, pm, 1));
+    const py = parseInt(yearPart?.value || new Date().getFullYear());
+    const pm = parseInt(monthPart?.value || 1);
+    const resetDate = new Date(Date.UTC(py, pm, 1)); // pm ist 1-basiert → nächster Monat
     const resetDateFormatted = resetDate.toLocaleDateString('de-DE', { 
       day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' 
     });
