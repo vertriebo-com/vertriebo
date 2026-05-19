@@ -1,10 +1,12 @@
 /**
  * Zentrale Utility für Lead-Temperatur-Bewertung
  * 
- * KANONISCHE LOGIK:
- * 1. Primär: Company.lead_temperature ('hot' | 'warm' | 'cold' | 'unknown')
- * 2. Fallback (wenn unknown/null/fehlt): priority_score >= 60 => hot, >= 30 => warm
- * 3. is_hot ist LEGACY und wird nur als letztes Fallback genutzt
+ * KANONISCHE LOGIK (identisch zu getDashboardData/getLeadTemperatureCanonical):
+ * 1. Primär: Company.lead_temperature ('hot' | 'warm' | 'cold')
+ * 2. Fallback Score: lead_temperature_score (Engine-Score) – hat Vorrang vor priority_score
+ * 3. Fallback Score: priority_score
+ * 4. Legacy: is_hot === true
+ * Schwelle: >= 60 → hot, >= 30 → warm
  */
 
 /**
@@ -21,8 +23,8 @@ export function getLeadTemperature(company) {
     return temp;
   }
   
-  // 2. Fallback: priority_score
-  const score = company.priority_score || company.lead_temperature_score || 0;
+  // 2. Fallback Score: lead_temperature_score zuerst, dann priority_score
+  const score = (company.lead_temperature_score != null ? company.lead_temperature_score : 0) || (company.priority_score || 0);
   if (score >= 60) return 'hot';
   if (score >= 30) return 'warm';
   
