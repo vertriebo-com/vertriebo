@@ -390,37 +390,50 @@ Deno.serve(async (req) => {
   const MAX_RUN_SECONDS = 180;
   const LOCK_DURATION_MS = 25000;
 
+  // research_run_id außerhalb des try-Blocks: wird im catch-Error-Handler benötigt
+  // Wird nur gesetzt wenn der Request gültig ist und der User-Check bestanden hat.
+  let research_run_id = null;
+
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Nicht eingeloggt', success: false }, { status: 401 });
 
     const body = await req.json();
-    // HINWEIS: organization_id wird NICHT aus dem Body gelesen – immer aus dem ResearchRun ermittelt
-    const { research_run_id, force_finish } = body;
-    if (!research_run_id) {
+    // SICHERHEIT: organization_id wird NICHT aus dem Body gelesen – immer aus dem validierten ResearchRun ermittelt
+    const { research_run_id: run_id_from_body, force_finish } = body;
+    if (!run_id_from_body) {
       return Response.json({ error: 'research_run_id erforderlich', success: false }, { status: 400 });
     }
 
     // ── ResearchRun laden ────────────────────────────────────────────────────
-    const runs = await base44.asServiceRole.entities.ResearchRun.filter({ id: research_run_id }).catch(() => []);
+    const runs = await base44.asServiceRole.entities.ResearchRun.filter({ id: run_id_from_body }).catch(() => []);
     const run = runs[0];
     if (!run) return Response.json({ error: 'Nicht gefunden', success: false }, { status: 404 });
 
     // ── Tenant-sicherer Ownership-Check ──────────────────────────────────────
-    // organization_id IMMER aus dem validierten ResearchRun nehmen, nie aus dem Request-Body
+    // SICHERHEIT: organization_id IMMER aus dem validierten ResearchRun, nie aus dem Request-Body
     const organization_id = run.organization_id;
     const isPlatformAdmin = ["admin","platform_owner","platform_admin"].includes(user.role);
 
     if (!isPlatformAdmin) {
-      const orgsOwned = await base44.asServiceRole.entities.Organization.filter({ id: organization_id, owner_email: user.email }).catch(() => []);
-      const isOwner = orgsOwned.length > 0;
+      // Org laden um owner_email direkt zu vergleichen (kein Filter-Bypass möglich)
+      const orgRecords = await base44.asServiceRole.entities.Organization.filter({ id: organization_id }).catch(() => []);
+      const orgRecord = orgRecords[0];
+      if (!orgRecord) return Response.json({ error: 'Nicht gefunden', success: false }, { status: 404 });
+
+      const isOwner = orgRecord.owner_email === user.email; // Direktvergleich: kein Filter-Vertrauensproblem
       const memberships = await base44.asServiceRole.entities.OrganizationMember.filter({ organization_id, user_email: user.email, status: 'active' }).catch(() => []);
       const isMember = memberships.length > 0;
+
       if (!isOwner && !isMember) {
+        // 403: Zugriff verweigert. Keine Details über den fremden Run.
         return Response.json({ error: 'Kein Zugriff', success: false }, { status: 403 });
       }
     }
+
+    // research_run_id für den error-handler setzen – erst NACH bestandenem Tenant-Check
+    research_run_id = run.id;
 
     // ── Bereits abgeschlossen ────────────────────────────────────────────────
     if (['completed', 'failed', 'partial'].includes(run.status)) {
@@ -819,22 +832,27 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('[processResearchRun] Error:', error?.message, error?.stack);
     try {
-      const base44b = createClientFromRequest(req);
-      const body2 = await req.clone().json().catch(() => ({}));
-      if (body2.research_run_id) {
-        const existingRuns = await base44b.asServiceRole.entities.ResearchRun.filter({ id: body2.research_run_id }).catch(() => []);
+      // Error-Handler: research_run_id aus Body nur für Run-Status-Update (kein Daten-Leak)
+      // Kein erneuter Tenant-Check nötig: Der Run wurde oben bereits validiert und in dieser Scope
+      // existiert research_run_id nur wenn der User-Check vorher erfolgreich war.
+      // Falls der Fehler VOR dem User-Check auftrat, ist research_run_id noch nicht gesetzt → kein Update.
+      if (research_run_id) {
+        const base44b = createClientFromRequest(req);
+        const existingRuns = await base44b.asServiceRole.entities.ResearchRun.filter({ id: research_run_id }).catch(() => []);
         const existingRun = existingRuns[0];
-        const finishStatus = (existingRun?.leads_saved || 0) > 0 ? 'partial' : 'failed';
-        await base44b.asServiceRole.entities.ResearchRun.update(body2.research_run_id, {
-          status: finishStatus,
-          error_message: error?.message,
-          current_step: finishStatus === 'partial'
-            ? `Recherche teilweise abgeschlossen: ${existingRun?.leads_saved || 0} Kontakte gefunden`
-            : 'Recherche fehlgeschlagen',
-          finished_at: new Date().toISOString(),
-          stop_reason: 'exception',
-          processing_lock_until: null, processing_by: null,
-        });
+        if (existingRun) {
+          const finishStatus = (existingRun?.leads_saved || 0) > 0 ? 'partial' : 'failed';
+          await base44b.asServiceRole.entities.ResearchRun.update(research_run_id, {
+            status: finishStatus,
+            error_message: error?.message,
+            current_step: finishStatus === 'partial'
+              ? `Recherche teilweise abgeschlossen: ${existingRun?.leads_saved || 0} Kontakte gefunden`
+              : 'Recherche fehlgeschlagen',
+            finished_at: new Date().toISOString(),
+            stop_reason: 'exception',
+            processing_lock_until: null, processing_by: null,
+          });
+        }
       }
     } catch {}
     return Response.json({ error: error?.message || 'Unbekannter Fehler', success: false }, { status: 500 });
