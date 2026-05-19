@@ -49,11 +49,13 @@ export default function Leads() {
   const [showOnboardingFailed, setShowOnboardingFailed] = useState(false);
 
   // ═ Effects
-  // Parse query parameters: new_run, onboarding_zero_leads, onboarding_failed
+  // Parse query parameters: new_run, search, onboarding_zero_leads, onboarding_failed
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const newRun = params.get("new_run");
     setNewRunFilter(newRun);
+    const searchParam = params.get("search");
+    if (searchParam) setSearch(searchParam);
     
     // Onboarding-Zustände anzeigen
     const onboardingZeroLeads = params.get("onboarding_zero_leads");
