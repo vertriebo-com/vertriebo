@@ -45,10 +45,10 @@ function MonthlyLeadQuotaCard({ usageLog, plan, subscription }) {
   const isWarning = maxLeads !== -1 && pct >= 80;
   const isDanger = maxLeads !== -1 && pct >= 95;
 
-  // Reset-Datum: aus Subscription-Periode oder Kalendermonat
-  const resetDate = subscription?.current_period_end
-    ? formatDate(subscription.current_period_end)
-    : getResetDate();
+  // Reset-Datum: Lead-Kontingent ist kalendermonatsbasiert (period_month = YYYY-MM).
+  // Stripe billing cycle und Lead-Kontingent laufen unabhängig.
+  // Anzeige: immer erster Tag des nächsten Kalendermonats.
+  const resetDate = getResetDate();
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
@@ -132,7 +132,6 @@ function UsageBar({ label, icon: Icon, used, max, color = "bg-blue-500" }) {
 }
 
 export default function BillingSettings({ org: orgProp, user }) {
-  console.log('[BillingSettings] COMPONENT LOADED with orgProp:', orgProp?.trial_stage, orgProp?.billing_status);
   const [org, setOrg] = useState(orgProp);
   const [plan, setPlan] = useState(null);
   const [subscription, setSubscription] = useState(null);
@@ -184,7 +183,6 @@ export default function BillingSettings({ org: orgProp, user }) {
       setUsageLog(currentLog);
       // Letzte 6 Monate als Historie (ohne aktuellen Monat)
       setUsageHistory(allUsageLogs.filter(l => l.period_month !== periodMonth));
-      console.log(`[BillingSettings] UsageLog für ${periodMonth}:`, currentLog || "nicht gefunden");
     } catch (e) {
       toast.error("Fehler beim Laden der Billing-Daten: " + e.message);
     } finally {
@@ -209,11 +207,7 @@ export default function BillingSettings({ org: orgProp, user }) {
           const freshOrg = orgs[0];
           if (freshOrg) {
             setOrg(freshOrg);
-            console.log(`[BillingSettings] Poll ${pollCount}/${maxPolls}: billing_status="${freshOrg.billing_status}" trial_stage="${freshOrg.trial_stage}"`);
-            // Webhook hat "active" + "paid" gesetzt → wir sind fertig
             if (freshOrg.billing_status === 'active' && freshOrg.trial_stage === 'paid') {
-              console.log('[BillingSettings] Webhook OK, billing_status=active + trial_stage=paid');
-              // Vollständiger Refresh (loadData) um Plan/Subscription zu laden
               await loadData(true);
               window.dispatchEvent(new CustomEvent("checkout-success"));
               window.history.replaceState({}, document.title, window.location.pathname + "?tab=billing");
@@ -221,7 +215,6 @@ export default function BillingSettings({ org: orgProp, user }) {
               // Noch nicht bereit, weiterpollen
               setTimeout(doRefresh, 1500);
             } else {
-              console.warn('[BillingSettings] Polling timeout – Webhook hat nicht in Zeit antwortet');
               await loadData(true);
             }
           }
@@ -232,19 +225,12 @@ export default function BillingSettings({ org: orgProp, user }) {
   }, []);
 
   const handleCheckout = async (planId) => {
-    console.log('[Checkout] Button clicked, plan_id:', planId);
-    
     if (window.self !== window.top) {
-      console.warn('[Checkout] Iframe detected – checkout not allowed');
       alert("Der Checkout funktioniert nur in der veröffentlichten App.");
       return;
     }
-    
-    console.log('[Checkout] Iframe check passed');
     setCheckoutLoading(planId);
-    
     try {
-      console.log('[Checkout] Calling createCheckoutSession with org_id:', org.id, 'plan_id:', planId);
       const res = await base44.functions.invoke("createCheckoutSession", {
         organization_id: org.id,
         plan_id: planId,
@@ -252,18 +238,12 @@ export default function BillingSettings({ org: orgProp, user }) {
         cancel_url: window.location.origin + "/settings?tab=billing",
         allow_upgrade: false,
       });
-      console.log('[Checkout] Full response:', res);
-      console.log('[Checkout] Response data:', res.data);
-      
       if (res.data?.url) {
-        console.log('[Checkout] URL received, redirecting:', res.data.url);
         window.location.href = res.data.url;
       } else {
-        console.error('[Checkout] No URL in response. Error:', res.data?.error);
         toast.error(res.data?.error || "Fehler beim Starten des Checkouts.");
       }
     } catch (e) {
-      console.error('[Checkout] Exception caught:', e.message, e);
       toast.error("Fehler: " + e.message);
     } finally {
       setCheckoutLoading(null);
@@ -287,9 +267,6 @@ export default function BillingSettings({ org: orgProp, user }) {
     }
     setPortalLoading(false);
   };
-
-  // DEBUG: Immer loggen welchen trial_stage org hat
-  console.log('[BillingSettings] DEBUG org:', { id: org?.id, trial_stage: org?.trial_stage, billing_status: org?.billing_status, allPlans: allPlans.length });
 
   if (loading) {
     return (
@@ -562,7 +539,7 @@ export default function BillingSettings({ org: orgProp, user }) {
               <tr className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
                 <th className="pb-2">Monat</th>
                 <th className="pb-2 text-right">Neue Leads</th>
-                <th className="pb-2 text-right">Kontingent</th>
+                <th className="pb-2 text-right">Kontingent*</th>
                 <th className="pb-2 text-right">Recherchen</th>
               </tr>
             </thead>
@@ -580,7 +557,7 @@ export default function BillingSettings({ org: orgProp, user }) {
             </tbody>
           </table>
         </div>
-        <p className="text-[11px] text-slate-400 mt-3">Nicht genutzte Leads verfallen am Monatsende und werden nicht übertragen.</p>
+        <p className="text-[11px] text-slate-400 mt-3">* Kontingent = aktuelles Planlimit. Nicht genutzte Leads verfallen am Monatsende – kein Rollover.</p>
       </div>
       )}
 
