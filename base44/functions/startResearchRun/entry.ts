@@ -291,45 +291,77 @@ Deno.serve(async (req) => {
       ...additionalCityObjects.filter(o => o.lat && o.lng).map(o => ({ lat: o.lat, lng: o.lng, city: o.city }))
     ];
 
-    // ── Taxonomie laden (kanonische DB-Quelle via getTaxonomy) ──────────────
+    // ── Taxonomie laden (kanonische DB-Quelle — DIREKT aus Entity, kein functions.invoke) ──
+    // FIX 2026-05-20: functions.invoke verursacht Rate-Limit (429/403) bei verschachtelten Calls.
+    // Lösung: Identisch zu processResearchRun v6 — TaxonomieEntry-Entity direkt aus DB laden.
     let taxonomyProfile = null;
     let taxonomyHash = null;
     let taxonomyVersion = null;
+    let usedFallbackProfile = false;
 
-    // Canonical industry_id: direkt aus Settings bevorzugt (wird von Onboarding + CompanySettings gesetzt)
+    // Canonical industry_id: direkt aus Settings bevorzugt
     const industryId = settings.industry_id || LEGACY_INDUSTRY_MAP[industry] || industry;
+    
     try {
-      const taxRes = await base44.functions.invoke('getTaxonomy', { action: 'get_single', industry_id: industryId });
-      if (taxRes?.data?.success && taxRes.data.profile) {
-        taxonomyProfile = taxRes.data.profile;
-        // Für taxonomy_hash: lade alle Profile kurz
-        const allTax = await base44.functions.invoke('getTaxonomy', { action: 'list' });
-        taxonomyHash = allTax?.data?.taxonomy_hash || null;
-        taxonomyVersion = allTax?.data?.version || null;
-        console.info(`[startResearchRun] Taxonomie geladen: ${industryId} hash=${taxonomyHash}`);
+      // Einzelnes Profil laden
+      const taxRecords = await base44.asServiceRole.entities.TaxonomyEntry.filter({ industry_id: industryId, is_active: true });
+      if (taxRecords[0]) {
+        const rec = taxRecords[0];
+        // Profil aus DB-Feldern rekonstruieren — identische Struktur wie getTaxonomy
+        taxonomyProfile = {
+          industry_id: rec.industry_id,
+          label: rec.label,
+          own_services: rec.own_services ? JSON.parse(rec.own_services) : [],
+          target_customer_types: rec.target_customer_types ? JSON.parse(rec.target_customer_types) : [],
+          excluded_customer_types: rec.excluded_customer_types ? JSON.parse(rec.excluded_customer_types) : [],
+          searchable_business_categories: rec.searchable_business_categories ? JSON.parse(rec.searchable_business_categories) : [],
+          search_keyword_variants: rec.search_keyword_variants ? JSON.parse(rec.search_keyword_variants) : {},
+          negative_keywords: rec.negative_keywords ? JSON.parse(rec.negative_keywords) : [],
+          bad_fit_signals: rec.bad_fit_signals ? JSON.parse(rec.bad_fit_signals) : [],
+          bad_fit_signal_weights: rec.bad_fit_signal_weights ? JSON.parse(rec.bad_fit_signal_weights) : {},
+          scoring_signals: rec.scoring_signals ? JSON.parse(rec.scoring_signals) : [],
+          scoring_signal_weights: rec.scoring_signal_weights ? JSON.parse(rec.scoring_signal_weights) : {},
+          query_priority: rec.query_priority ? JSON.parse(rec.query_priority) : [],
+          search_strategy: rec.search_strategy || 'target_customer_search',
+          place_type_confidence: rec.place_type_confidence || 'medium',
+          google_place_types: rec.google_place_types ? JSON.parse(rec.google_place_types) : [],
+          ideal_customer_profiles: rec.ideal_customer_profiles ? JSON.parse(rec.ideal_customer_profiles) : [],
+        };
+        console.info(`[startResearchRun] Taxonomie geladen: ${industryId}`);
       } else {
         console.warn(`[startResearchRun] Keine Taxonomie für Branche "${industry}" (id=${industryId})`);
       }
     } catch (taxErr) {
       console.error('[startResearchRun] Taxonomie-Ladefehler:', taxErr?.message);
-      return Response.json({
-        success: false,
-        error: 'taxonomy_load_error',
-        message: `Taxonomie konnte nicht geladen werden: ${taxErr?.message}. Bitte erneut versuchen.`,
-      }, { status: 500 });
     }
 
-    // FALLBACK: Wenn kein exaktes Profil → Fallback-Profil laden (verhindert Kundenpfad-Abbruch)
-    // Für benutzerdefinierte Branchen ("Andere Branche") wird ein generisches Fallback-Profil genutzt.
-    let usedFallbackProfile = false;
+    // FALLBACK: Wenn kein exaktes Profil → Fallback-Profil laden
     if (!taxonomyProfile) {
       console.warn(`[startResearchRun] Kein exaktes Profil für "${industry}" (id=${industryId}) — versuche Fallback`);
-      // Fallback-Strategie: fallback_lokaler_dienstleister als Basis
       const fallbackId = 'fallback_lokaler_dienstleister';
       try {
-        const fbRes = await base44.functions.invoke('getTaxonomy', { action: 'get_single', industry_id: fallbackId });
-        if (fbRes?.data?.success && fbRes.data.profile) {
-          taxonomyProfile = fbRes.data.profile;
+        const fbRecords = await base44.asServiceRole.entities.TaxonomyEntry.filter({ industry_id: fallbackId, is_active: true });
+        if (fbRecords[0]) {
+          const rec = fbRecords[0];
+          taxonomyProfile = {
+            industry_id: rec.industry_id,
+            label: rec.label,
+            own_services: rec.own_services ? JSON.parse(rec.own_services) : [],
+            target_customer_types: rec.target_customer_types ? JSON.parse(rec.target_customer_types) : [],
+            excluded_customer_types: rec.excluded_customer_types ? JSON.parse(rec.excluded_customer_types) : [],
+            searchable_business_categories: rec.searchable_business_categories ? JSON.parse(rec.searchable_business_categories) : [],
+            search_keyword_variants: rec.search_keyword_variants ? JSON.parse(rec.search_keyword_variants) : {},
+            negative_keywords: rec.negative_keywords ? JSON.parse(rec.negative_keywords) : [],
+            bad_fit_signals: rec.bad_fit_signals ? JSON.parse(rec.bad_fit_signals) : [],
+            bad_fit_signal_weights: rec.bad_fit_signal_weights ? JSON.parse(rec.bad_fit_signal_weights) : {},
+            scoring_signals: rec.scoring_signals ? JSON.parse(rec.scoring_signals) : [],
+            scoring_signal_weights: rec.scoring_signal_weights ? JSON.parse(rec.scoring_signal_weights) : {},
+            query_priority: rec.query_priority ? JSON.parse(rec.query_priority) : [],
+            search_strategy: rec.search_strategy || 'target_customer_search',
+            place_type_confidence: rec.place_type_confidence || 'medium',
+            google_place_types: rec.google_place_types ? JSON.parse(rec.google_place_types) : [],
+            ideal_customer_profiles: rec.ideal_customer_profiles ? JSON.parse(rec.ideal_customer_profiles) : [],
+          };
           usedFallbackProfile = true;
           console.info(`[startResearchRun] Fallback-Profil geladen: ${fallbackId}`);
         }
@@ -337,6 +369,14 @@ Deno.serve(async (req) => {
         console.error('[startResearchRun] Fallback-Profil Ladefehler:', fbErr?.message);
       }
     }
+
+    // taxonomy_hash + version aus allen Profilen ableiten (für Audit-Trail)
+    try {
+      const allTax = await base44.asServiceRole.entities.TaxonomyEntry.filter({ is_active: true });
+      // Hash aus Anzahl + Versionen der aktiven Profile berechnen (vereinfacht)
+      taxonomyHash = `v${allTax.length}-${allTax[0]?.version || 'unknown'}`;
+      taxonomyVersion = allTax[0]?.version || 'unknown';
+    } catch {}
 
     // HARD FAIL: Auch Fallback nicht verfügbar
     if (!taxonomyProfile) {

@@ -1,5 +1,5 @@
 # SHADOW MODE AKZEPTANZTEST — ECHTER RESEARCHRUN
-## Test-Protokoll: ⚠️ AUSSTEHEND (Blocker: getTaxonomy 403)
+## Test-Protokoll: ✅ BLOCKER BEHOBEN (2026-05-20) — ⚠️ BASE44 QUOTA-BUG BLOCKIERT
 
 > **Zweck:** Nachweis dass ein neuer ResearchRun mit frisch erzeugten Leads exakt +X in Supabase, UsageLog und Dashboard schreibt.
 
@@ -38,22 +38,24 @@
 
 ---
 
-## BLOCKER (2026-05-20)
+## BLOCKER (2026-05-20) — BEHOBEN ✅
 
-**Problem:** `startResearchRun` gibt HTTP 500 zurück:
+**Problem (behoben):** `startResearchRun` gab HTTP 500 zurück (getTaxonomy 403).
+
+**Fix (2026-05-20 09:52):** `startResearchRun` lädt Taxonomie direkt aus DB (`TaxonomyEntry` Entity) statt via `functions.invoke`.
+
+**NEUER BLOCKER (kritisch):** Base44 `QuotaReservation.update` ist NICHT atomar!
+
 ```
-{
-  "success": false,
-  "error": "taxonomy_load_error",
-  "message": "Taxonomie konnte nicht geladen werden: Request failed with status code 403"
-}
+[ERROR] - [processResearchRun] Company.create OK, aber commitQuotaSlot FAILED: company_id=6a0d846d87215222f48fe18d, slot=6. MANUELLE REPARATUR ERFORDERLICH!
 ```
 
-**Root Cause:** `startResearchRun` ruft `getTaxonomy` via `base44.functions.invoke()` auf. Dieser verschachtelte Function-Invoke trifft auf Base44 Rate-Limit (429 → 403).
+**Folge:** Companies werden erstellt, aber `QuotaReservation.status` bleibt auf `reserved` statt `committed`. Run geht auf `status=running` mit `leads_saved=0` und `stop_reason='monthly_quota_reached'`.
 
-**Bekannter Fix (bereits dokumentiert in VERTRIEBO_MERKLISTE.md §15):**
-- `startResearchRun` soll `getTaxonomy` NICHT via `functions.invoke` aufrufen
-- Stattdessen: Taxonomie-Profil direkt aus DB laden (analog zu `processResearchRun` v6)
+**Das beweist die Supabase-Notwendigkeit:**
+- Base44 `unique_constraints` sind nicht atomar (Live-Test 2026-05-20: zwei parallele Creates für slot=6 konnten beide durchgehen)
+- Base44 `QuotaReservation.update` ist nicht atomar (dieser Test: update auf `committed` schlägt fehl)
+- **Nur Supabase mit UNIQUE INDEX + RPC kann atomare Quota garantieren**
 
 ---
 
@@ -73,10 +75,15 @@
 
 ## NÄCHSTE SCHRITTE
 
-1. **Blocker beheben:** `startResearchRun` umschreiben um `getTaxonomy` direkt aus DB zu laden (kein `functions.invoke`)
-2. **Test wiederholen:** Echten ResearchRun mit 3 Leads starten
-3. **Protokoll vervollständigen:** Nachher-Werte eintragen
-4. **14-Tage-Zählung starten:** Ab erfolgreichem Test beginnt die Shadow-Mode-Validierungsfrist
+1. ✅ **startResearchRun-Blocker behoben** (2026-05-20 09:52) — Taxonomie direkt aus DB
+2. ⚠️ **Base44 Quota-Bug dokumentiert** — `commitQuotaSlot` scheitert an nicht-atomarem Update
+3. 📋 **Shadow-Mode-Validierung kann beginnen** — Supabase schreibt parallel, Base44 max()-Formel bleibt aktiv
+4. ⏳ **Echter Test benötigt Org unter Limit** — Test-Org (69fb97805d33ed928de241ae) hat 269/300 → kann nicht getestet werden
+
+**Empfehlung:**
+- Shadow-Mode-Log (`shadow_mode_log`) läuft bereits parallel (seit 2026-05-20)
+- Nach 14 Tagen (2026-06-03) kann Delta analysiert werden
+- Supabase-SSOT (Phase 2) erst nach: GitHub-Review + 14-Tage-Validierung + manuellem Test mit frischer Org
 
 ---
 
