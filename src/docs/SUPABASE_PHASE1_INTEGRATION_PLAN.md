@@ -70,6 +70,25 @@ auditResearchEvent(runId, orgId, 'run_error', workerKey, {...});
    - `leads_saved` inkrementiert korrekt
    - Keine `running`-Zustände ohne Fortschritt
 
+4. **Supabase-Count mit Retry prüfen**:
+   ```javascript
+   // Nach Run-Ende (status=completed):
+   await new Promise(resolve => setTimeout(resolve, 3000)); // 3s warten
+   
+   // ODER: Retry-Logik für get_monthly_usage RPC
+   let count = 0;
+   for (let i = 0; i < 3; i++) {
+     const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_monthly_usage`, {
+       method: 'POST',
+       headers: { ... },
+       body: JSON.stringify({ p_organization_id: orgId, p_period_month: periodMonth })
+     });
+     count = await res.json();
+     if (count > 0) break;
+     await new Promise(resolve => setTimeout(resolve, 1000)); // 1s warten
+   }
+   ```
+
 ### Erfolgskriterien
 
 **Nach Test (1–3 Leads):**
@@ -82,6 +101,18 @@ auditResearchEvent(runId, orgId, 'run_error', workerKey, {...});
 | Company-Count | +X | ? | ? |
 
 **Alle 4 Werte müssen übereinstimmen.**
+
+**Wichtig für Supabase-Count:**
+- `recordLeadUsageEvent` ist **non-blocking** → kann 1–3 Sekunden verzögert sein
+- **Nach Run-Ende warten:** 3 Sekunden vor Supabase-Count-Prüfung
+- **Oder Retry-Logik:** `get_monthly_usage` RPC 2–3x im Abstand von 1s aufrufen
+- **Nicht als Fehler werten:** Wenn Supabase-Count initial 0 ist → Retry
+
+**Serial-Lock Voraussetzung:**
+- ✅ Nur **ein ResearchRun pro Organisation** darf gleichzeitig laufen
+- ✅ `processing_lock_until` + `processing_by` müssen aktiv sein
+- ✅ `startResearchRun` prüft Serial-Lock vor Run-Start
+- ⚠️ **Race-Risiko bei Parallelität:** UsageLog-Update ist nicht atomar (MVP ok)
 
 ### Rollback bei Problemen
 
@@ -168,8 +199,19 @@ DELETE FROM quota_reservations WHERE organization_id = 'rpc_test_org_01';
 
 ## Fazit
 
-**Bereit für End-to-End-Test.**
+**✅ Bereit für End-to-End-Test.**
+
+**Wichtige Voraussetzungen:**
+- ✅ Kommentar im Code korrigiert (UsageLog direkt nach Company.create)
+- ✅ Testplan mit Supabase-Count-Retry ergänzt (3s Wartezeit oder 2–3x Retry)
+- ✅ Serial-Lock-Hinweis dokumentiert (nur ein Run pro Org)
+- ✅ Non-blocking-Verhalten dokumentiert (kein Fehler bei initalem Count=0)
 
 **Nächste Aktion:** 1–3 Leads testen, alle 4 Quellen vergleichen (Base44, Supabase, Dashboard, Company-Count).
 
-**Nicht aktivieren:** Supabase bleibt Shadow Mode bis Phase 2 grün ist.
+**Nicht aktivieren:** Supabase bleibt Shadow Mode bis Phase 2 grün ist (14 Tage <1% Diskrepanz).
+
+**Wichtige Einschränkungen:**
+- ⚠️ UsageLog-Update nicht atomar (Serial-Lock zwingend erforderlich)
+- ⚠️ Supabase-Count kann 1–3s verzögert sein (Retry-Logik verwenden)
+- ⚠️ Kein company_created Audit pro Lead (erst für spätere Phase geplant)

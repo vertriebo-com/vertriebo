@@ -1082,7 +1082,8 @@ Deno.serve(async (req) => {
       ? (rawHitsThisBatch === 0 ? 'no_google_results' : dupSkippedThisBatch > 0 ? 'all_duplicates' : 'no_match_score')
       : null;
 
-    // UsageLog wird pro Lead via commitQuotaSlot synchron gehalten
+    // UsageLog wird direkt nach Company.create pro Lead erhöht (nicht atomar, MVP)
+    // Serial-Run-Lock muss aktiv bleiben um Race Conditions zu verhindern
     // Keine Batch-Aktualisierung nötig
     if (trialStage === 'free_preview' && newLeadsSavedThisBatch > 0) {
       const orgs = await base44.asServiceRole.entities.Organization.filter({ id: organization_id });
