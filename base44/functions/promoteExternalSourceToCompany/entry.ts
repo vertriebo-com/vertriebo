@@ -17,6 +17,38 @@
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
+// ── SUPABASE SHADOW MODE ──────────────────────────────────────────────────────
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_KEY");
+
+async function writeSupabaseUsageEvent(orgId, periodMonth, companyId) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/lead_usage_events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Prefer': 'resolution=ignore-duplicates,return=minimal',
+      },
+      body: JSON.stringify({
+        organization_id: orgId,
+        period_month: periodMonth,
+        company_id: companyId,
+        event_type: 'research_lead_created',
+        source: 'openregister',
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.warn(`[promoteExt][shadow] Supabase write failed: HTTP ${res.status} — ${text.slice(0, 150)}`);
+    }
+  } catch (e) {
+    console.warn(`[promoteExt][shadow] Supabase write error (non-blocking): ${e?.message}`);
+  }
+}
+
 // ── HELPERS ───────────────────────────────────────────────────────────────────
 
 function normStr(s) {
@@ -335,6 +367,9 @@ Deno.serve(async (req) => {
 
     // ── UsageLog +1 ───────────────────────────────────────────────────────────
     const usageResult = await incrementUsageLog(base44, organization_id);
+
+    // ── SHADOW MODE: Supabase lead_usage_event (non-blocking, Phase 1) ────────
+    writeSupabaseUsageEvent(organization_id, getPeriodMonth(), company.id);
     const remainingAfter = monthlyLimit === -1
       ? -1
       : Math.max(0, monthlyLimit - usageResult.monthly_used_after);

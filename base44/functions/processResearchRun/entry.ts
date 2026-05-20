@@ -32,6 +32,42 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const GOOGLE_PLACES_API_KEY = Deno.env.get("GOOGLE_PLACES_API_KEY");
 const SEARCH_ENGINE_VERSION = "v6-weighted-scoring";
 
+// ── SUPABASE SHADOW MODE ──────────────────────────────────────────────────────
+// Phase 1: Schreibt nach jedem Company.create ein lead_usage_event in Supabase.
+// Non-blocking: Fehler werden geloggt aber nie geworfen.
+// Sobald Shadow-Mode validiert ist (< 1% Abweichung, 14 Tage), wird Supabase zur SSOT.
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_KEY");
+
+async function writeSupabaseUsageEvent(orgId, periodMonth, companyId, runId) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return; // Shadow Mode deaktiviert wenn keine Secrets
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/lead_usage_events`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Prefer': 'resolution=ignore-duplicates,return=minimal',
+      },
+      body: JSON.stringify({
+        organization_id: orgId,
+        period_month: periodMonth,
+        company_id: companyId,
+        research_run_id: runId || null,
+        event_type: 'research_lead_created',
+        source: 'research',
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.warn(`[processResearchRun][shadow] Supabase write failed: HTTP ${res.status} — ${text.slice(0, 150)}`);
+    }
+  } catch (e) {
+    console.warn(`[processResearchRun][shadow] Supabase write error (non-blocking): ${e?.message}`);
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function normStr(str) {
@@ -1040,6 +1076,11 @@ Deno.serve(async (req) => {
             
             // Commit: slot → committed, company_id setzen
             await commitQuotaSlot(base44, organization_id, periodMonth, quotaRes.slot_number, companyId);
+
+            // ── SHADOW MODE: Supabase lead_usage_event (non-blocking, Phase 1) ──
+            // Schreibt parallel zu Base44-UsageLog → Validierung über 14 Tage.
+            // MUSS nach commitQuotaSlot stehen: nur gespeicherte Companies zählen.
+            writeSupabaseUsageEvent(organization_id, periodMonth, companyId, research_run_id);
             
             // Dedupe-Sets aktualisieren + Counter erhöhen (NUR HIER!)
             existingNames.add(normStr(place.name || ''));
