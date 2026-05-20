@@ -995,6 +995,9 @@ Deno.serve(async (req) => {
 // ── TRY: Company.create + UsageLog erhöhen ───────────────────────────
           let companyId = null;
           try {
+            // periodMonth für UsageLog + Supabase (kanonisch: Kalendermonat Berlin)
+            const periodMonth = getPeriodMonth();
+            
             // Company erstellen
             const companyRes = await base44.asServiceRole.entities.Company.create({
               organization_id,
