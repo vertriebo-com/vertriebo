@@ -43,10 +43,16 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
       const recentDone = runs.find(r => {
         if (!['completed', 'partial', 'failed'].includes(r.status)) return false;
         const ts = r.finished_at ? new Date(r.finished_at).getTime() : new Date(r.updated_date).getTime();
-        return Date.now() - ts < 30000;
+        return Date.now() - ts < 60000;
       });
 
-      if (running) {
+      // PRIORITÄT: Wenn recentDone existiert und running dasselbe oder ein älterer Run ist → done gewinnt
+      const runningIsSuperseded = running && recentDone && (
+        recentDone.id === running.id ||
+        new Date(recentDone.finished_at || recentDone.updated_date).getTime() > new Date(running.created_date).getTime()
+      );
+
+      if (running && !runningIsSuperseded) {
         // ── Lock-Prüfung: Aktiver Worker läuft bereits (z.B. ResearchDialog) ──
         const lockUntil = running.processing_lock_until ? new Date(running.processing_lock_until).getTime() : 0;
         const isLockActive = lockUntil > Date.now();
@@ -134,9 +140,11 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
             : 'Keine neuen Kontakte gefunden',
         });
         lastLeadsSavedRef.current = 0;
-      } else if (!running && !recentDone) {
-        setActiveRun(null);
-        lastLeadsSavedRef.current = 0;
+      } else if (!running || runningIsSuperseded) {
+        if (!recentDone) {
+          setActiveRun(null);
+          lastLeadsSavedRef.current = 0;
+        }
       }
     } catch (e) {
       console.warn('[ActiveResearchBanner] tick error:', e?.message);
