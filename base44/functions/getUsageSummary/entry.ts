@@ -72,34 +72,50 @@ Deno.serve(async (req) => {
       day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' 
     });
 
-    // ── QUOTA RESERVATION ALS SOURCE OF TRUTH ──────────────────────────────
-    // Zählt committed Slots (tatsächlich erstellte Companies)
-    const quotaSlots = await base44.asServiceRole.entities.QuotaReservation.filter({
-      organization_id: orgId,
-      period_month: periodMonth,
-    });
-    
+    // ── ALLE QUELLEN PARALLEL LADEN ────────────────────────────────────────
+    const [quotaSlots, usageLogs, allCompaniesRaw] = await Promise.all([
+      base44.asServiceRole.entities.QuotaReservation.filter({
+        organization_id: orgId,
+        period_month: periodMonth,
+      }),
+      base44.asServiceRole.entities.UsageLog.filter({ 
+        organization_id: orgId, 
+        period_month: periodMonth 
+      }),
+      base44.asServiceRole.entities.Company.filter({ organization_id: orgId }, '-created_date', 2000),
+    ]);
+
     const committedSlots = quotaSlots.filter(s => s.status === 'committed').length;
     const reservedSlots = quotaSlots.filter(s => s.status === 'reserved').length;
-    const totalCommitted = committedSlots + reservedSlots;
-    
+
+    // ── RECONCILIATION: Tatsächliche Research-Leads diesen Monat ──────────
+    // Primär: QuotaReservation committed (nach Einführung des Systems)
+    // Fallback: Company.created_date im aktuellen Monat + research_run_id vorhanden
+    // → deckt historische Leads ab die vor QuotaReservation erstellt wurden
+    const periodStart = new Date(Date.UTC(py, pm - 1, 1)); // erster Tag dieses Monats UTC
+    const periodEnd = new Date(Date.UTC(py, pm, 1));       // erster Tag nächster Monat UTC
+
+    const companiesThisMonth = allCompaniesRaw.filter(c => {
+      if (!c.research_run_id) return false; // nur automatisch recherchierte
+      const created = new Date(c.created_date);
+      return created >= periodStart && created < periodEnd;
+    }).length;
+
+    // Höchsten Wert aus allen Quellen nehmen (nie eine valide Quelle ignorieren)
+    const usageLogValue = usageLogs?.[0]?.leads_created || 0;
+    const monthlyUsed = Math.max(committedSlots, usageLogValue, companiesThisMonth);
+
+    const usageLog = usageLogs?.[0] || null;
+    const usageLogDiff = usageLogValue - committedSlots;
+
     // ── PLAN LADEN ─────────────────────────────────────────────────────────
     const plan = org.plan_id 
       ? (await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id }))?.[0] 
       : null;
 
     const monthlyLimit = plan?.max_leads_per_month ?? -1;
-    const monthlyUsed = committedSlots; // NUR committed = tatsächlich erstellt
     const monthlyRemaining = monthlyLimit === -1 ? null : Math.max(0, monthlyLimit - monthlyUsed);
     const isOverLimit = monthlyLimit !== -1 && monthlyUsed > monthlyLimit;
-    
-    // UsageLog zum Abgleich laden (für Debugging/Reconciliation)
-    const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ 
-      organization_id: orgId, 
-      period_month: periodMonth 
-    });
-    const usageLog = usageLogs?.[0] || null;
-    const usageLogDiff = usageLog ? (usageLog.leads_created || 0) - committedSlots : 0;
 
     // ── CRM-BESTAND (aktuell gespeicherte Companies, ohne Blacklist) ───────
     const blacklist = await base44.entities.Blacklist.filter({ organization_id: orgId });
@@ -133,12 +149,14 @@ Deno.serve(async (req) => {
       },
       // Reconciliation-Info für Debugging
       reconciliation: {
-        quota_reservation_source: true,
+        quota_reservation_source: committedSlots > 0,
         committed_slots: committedSlots,
         reserved_slots: reservedSlots,
-        usage_log_value: usageLog ? (usageLog.leads_created || 0) : null,
+        usage_log_value: usageLogValue,
+        companies_this_month: companiesThisMonth,
+        source_used: monthlyUsed === committedSlots ? 'quota_reservation' : monthlyUsed === usageLogValue ? 'usage_log' : 'companies_count',
         usage_log_diff: usageLogDiff,
-        note: usageLogDiff !== 0 ? "UsageLog weicht ab - Reconciliation empfohlen" : null,
+        note: usageLogDiff !== 0 ? "UsageLog weicht von QuotaReservation ab" : null,
       },
       // Weitere Usage-Metriken (aus UsageLog für Backwards Compatibility)
       research_runs_used: usageLog?.lead_generations_used || 0,

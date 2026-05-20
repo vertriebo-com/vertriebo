@@ -317,11 +317,20 @@ Deno.serve(async (req) => {
       const [py, pm] = [parseInt(yearPart?.value || new Date().getFullYear()), parseInt(monthPart?.value || 1)];
       const resetDate = new Date(Date.UTC(py, pm, 1));
       
+      // Fallback: zähle Companies diesen Monat mit research_run_id
+      const periodStart = new Date(Date.UTC(py, pm - 1, 1));
+      const periodEnd = new Date(Date.UTC(py, pm, 1));
+      const fallbackMonthlyUsed = allCompanies.filter(c => {
+        if (!c.research_run_id) return false;
+        const created = new Date(c.created_date);
+        return created >= periodStart && created < periodEnd;
+      }).length;
+
       usage_summary = {
         period_month: periodMonth,
         monthly_limit: monthlyLimit,
-        monthly_used: 0,
-        monthly_remaining: monthlyLimit === -1 ? null : monthlyLimit,
+        monthly_used: fallbackMonthlyUsed,
+        monthly_remaining: monthlyLimit === -1 ? null : Math.max(0, monthlyLimit - fallbackMonthlyUsed),
         crm_total: allCompanies.length,
         reset_date: resetDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }),
         is_over_limit: false,
