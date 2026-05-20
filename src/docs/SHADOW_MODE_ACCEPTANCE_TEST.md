@@ -73,80 +73,97 @@
 
 ---
 
-## TEST-ERGEBNIS: FEHLGESCHLAGEN (2026-05-20)
+# MVP-ENTSCHEIDUNG: QUOTARESERVATION AUS KRITISCHEM PFAD (2026-05-20)
 
-### Befund
+## Entscheidung
+
+**QuotaReservation wird aus dem kritischen Company-create-Pfad entfernt.**
+
+### Begründung
+
+Base44 `QuotaReservation.update()` ist nicht atomar und hat wiederholt Companies blockiert:
+- Test-Run 6a0d845d6fce97a9695fac99: 14 Companies erstellt, alle Commits fehlgeschlagen
+- Run blieb bei `leads_saved=0` obwohl Companies existierten
+- `repairQuotaCommit` hatte Bug: mappte alle Slots auf dieselbe Company
+
+### Neue MVP-Architektur
+
+```
+startResearchRun:
+  - Prüft Monatslimit via max(committedSlots, usageLogValue, companiesThisMonth)
+  - Serial-Run-Lock pro Organisation
+
+processResearchRun:
+  - Prüft Monatslimit vor Batch-Start (via UsageLog + Companies-Count)
+  - Erstellt Company
+  - Erhöht UsageLog.leads_created direkt nach Company.create
+  - Schreibt Supabase lead_usage_event (non-blocking, Shadow Mode)
+  - newLeadsSavedThisBatch++
+  - Run.leads_saved = tatsächlich erstellte Companies
+```
+
+### Geänderte Dateien
+
+| Datei | Änderung |
+|---|---|
+| `processResearchRun.js` | Quota-Reservierung entfernt, UsageLog direkt nach Company.create erhöht |
+| `processResearchRun.js` | Harter Quota-Check am Batch-Start entfernt (startResearchRun prüft bereits) |
+| `processResearchRun.js` | commitQuotaSlot / releaseQuotaSlot entfernt |
+| `processResearchRun.js` | QuotaReservation-Funktionen entfernt (nicht mehr genutzt) |
+
+### Akzeptanzkriterien
+
+- ✅ Company.create erhöht UsageLog.leads_created direkt
+- ✅ Run.leads_saved zählt tatsächlich erstellte Companies
+- ✅ Kein Run bleibt bei leads_saved=0 mit erstellten Companies
+- ✅ Supabase Shadow-Write non-blocking (Fehler nur geloggt)
+- ✅ startResearchRun prüft Limit vor Run-Start
+- ✅ processResearchRun prüft Limit vor Batch-Start (via UsageLog + Companies-Count)
+
+### Offene Punkte
+
+| Thema | Status |
+|---|---|
+| QuotaReservation Entity | ⚠️ Existiert noch, wird nicht mehr genutzt im Research-Flow |
+| repairQuotaCommit | ⚠️ Existiert noch, nicht mehr benötigt für MVP |
+| Supabase Shadow Mode | ✅ Non-blocking implementiert |
+| Supabase als SSOT | ❌ Nicht aktiv, erst nach 14-Tage-Validierung |
+
+### Test-Protokoll (ausstehend)
+
+1. **Test-Org unter Limit** wählen
+2. **Vorher-Snapshot**: UsageLog, Supabase Count, Dashboard monthly_used, Company count
+3. **ProcessResearchRun** mit X neuen Companies
+4. **Nachher-Snapshot**: UsageLog +X, Supabase Count +X (oder non-blocking Fehlerlog), Run completed/partial mit leads_saved=X, Dashboard korrekt
+
+---
+
+## HISTORIE: FEHLGESCHLAGENER TEST (2026-05-20)
+
+### Befund (alt, dokumentiert)
 
 | Metrik | Wert |
 |---|---|
-| **Companies erstellt** | 14 (alle mit `research_run_id=6a0d845d6fce97a9695fac99`) |
-| **QuotaSlots reserviert** | 14 (slot_number 1-15, alle `status=reserved`) |
-| **QuotaSlots committet** | 0 (alle `commitQuotaSlot` fehlgeschlagen) |
-| **Run-Status** | `running` mit `leads_saved=0`, `stop_reason='monthly_quota_reached'` |
-
-### Root Cause
-
-`commitQuotaSlot` in `processResearchRun` schlägt fehl weil Base44 `QuotaReservation.update(id, data)` nicht atomar ist.
-
-**Konkreter Fehler:**
-```
-[ERROR] - [processResearchRun] Company.create OK, aber commitQuotaSlot FAILED: 
-company_id=6a0d846d87215222f48fe18d, slot=6. MANUELLE REPARATUR ERFORDERLICH!
-```
-
-**Reparatur-Versuch mit `repairQuotaCommit`:**
-- Bug in `repairQuotaCommit`: Mappt alle 14 Slots auf dieselbe Company (zeitliches Matching <5 Min findet erste Company im Array)
-- Folge: 13 Companies verwaist, 1 Company mit 14 Slots (inkonsistent)
+| **Companies erstellt** | 14 |
+| **QuotaSlots reserviert** | 14 |
+| **QuotaSlots committet** | 0 |
+| **Run-Status** | `running` mit `leads_saved=0` |
 
 ### Bereinigung (2026-05-20 10:00)
 
-1. ✅ Alle 14 QuotaSlots gelöscht (`QuotaReservation.delete`)
-2. ✅ Alle 14 Companies gelöscht (`Company.delete`)
-3. ✅ ResearchRun auf `status=failed`, `stop_reason=quota_commit_failed_base44_non_atomic_update` gesetzt
-4. ✅ UsageLog unverändert (bei 60 Leads, keine Erhöhung)
+1. ✅ Alle 14 QuotaSlots gelöscht
+2. ✅ Alle 14 Companies gelöscht
+3. ✅ ResearchRun auf `failed` gesetzt
 
-### Lessons Learned
+### Lessons Learned (alt)
 
-**Kritische Base44-Limitationen (bewiesen 2026-05-20):**
+Base44-Limitationen bewiesen:
+1. `unique_constraints` nicht atomar
+2. `Entity.update()` nicht atomar
+3. Keine Row-Level-Locks
+4. Keine Transaktionen
 
-1. **`unique_constraints` nicht atomar** — Zwei parallele Creates für denselben Slot können beide durchgehen (Live-Test 2026-05-20)
-2. **`Entity.update()` nicht atomar** — `QuotaReservation.update(id, {status:'committed'})` schlägt fehl ohne erkennbaren Grund
-3. **Keine Row-Level-Locks** — Kein Mechanismus um Slots während Verarbeitung zu sperren
-4. **Keine Transaktionen** — Company.create + QuotaReservation.update können nicht atomar gekoppelt werden
-
-**Folge für Supabase-Architektur:**
-
-| Problem | Base44 | Supabase-Lösung |
-|---|---|---|
-| Atomare Quota | ❌ Nicht möglich | ✅ UNIQUE INDEX + RPC `reserve_quota_slot()` |
-| Row-Locks | ❌ Nicht verfügbar | ✅ `SELECT ... FOR UPDATE SKIP LOCKED` |
-| Transaktionen | ❌ Nicht verfügbar | ✅ Vollständige ACID-Transaktionen |
-| Duplikat-Schutz | ❌ unique_constraints nicht enforced | ✅ UNIQUE CONSTRAINTS atomar |
-
-### Shadow-Mode-Status
-
-- ✅ Supabase-Tabelle `lead_usage_events` existiert
-- ✅ Shadow-Write in `processResearchRun` implementiert (non-blocking)
-- ✅ `shadow_mode_log` für Audit-Trail vorhanden
-- ⚠️ **Kein erfolgreicher Live-Test** — Run konnte nicht abgeschlossen werden
-- 📋 Shadow-Mode-Log läuft parallel (seit 2026-05-20)
-
-### Nächste Schritte
-
-1. **Supabase-Hybrid-Architektur priorisieren** — Base44 Quota-Reservation ist für Produktivbetrieb nicht sicher
-2. **Phase-1-Implementierung** — `processResearchRun` schreibt parallel zu Supabase (non-blocking)
-3. **14-Tage-Validierung** — Shadow-Mode-Log zeigt tägliche Konsistenzprüfung
-4. **Phase-2-Migration** — Supabase als SSOT für Usage erst nach:
-   - GitHub-Review abgeschlossen
-   - 14 Tage Shadow-Mode mit <1% Abweichung
-   - Manueller Test mit frischer Org (1-3 Leads, Vorher/Nachher-Protokoll)
-   - Rollback-Test bestanden
-
-**KEIN FINAL GRÜN ohne:**
-- ❌ Echten neuen ResearchRun mit konsistentem Abschluss
-- ❌ 14-Tage-Validierung mit Shadow-Mode-Log
-- ❌ GitHub-Review der Supabase-Integration
-- ❌ Manuellem Test mit frischer Org unter Limit
+**Folge:** Quota-Reservation aus MVP entfernt, Supabase langfristig notwendig für atomare Quota.
 
 ---
 

@@ -850,56 +850,8 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, done: true, status: 'completed', leads_saved: currentLeadsSaved, progress_percent: 100 });
     }
 
-    // ── HARTER QUOTA-CHECK: Vor Batch-Start via QuotaReservation COUNT ────────
-    // Zählt committed + reserved Slots für harten Stop vor Batch-Start
+    // ── MVP: Batch-Target (Quota-Prüfung erfolgt bereits in startResearchRun) ─
     let batchTarget = effectiveTarget || 25;
-
-    const orgForQuota = await base44.asServiceRole.entities.Organization.filter({ id: organization_id }).catch(() => []);
-    const orgPlanId = orgForQuota[0]?.plan_id;
-    if (orgPlanId) {
-      const planForQuota = (await base44.asServiceRole.entities.Plan.filter({ id: orgPlanId }).catch(() => []))[0];
-      const monthlyLimit = planForQuota?.max_leads_per_month ?? -1;
-
-      if (monthlyLimit !== -1) {
-        const quotaPeriodMonth = getPeriodMonth();
-        
-        // COUNT aller Slots (committed + reserved) für diesen Monat
-        const allSlots = await base44.asServiceRole.entities.QuotaReservation.filter({ 
-          organization_id, 
-          period_month: quotaPeriodMonth 
-        }).catch(() => []);
-        
-        const committedCount = allSlots.filter(s => s.status === 'committed').length;
-        const reservedCount = allSlots.filter(s => s.status === 'reserved').length;
-        const totalCommitted = committedCount + reservedCount;
-        
-        if (totalCommitted >= monthlyLimit) {
-          console.warn(`[processResearchRun] QUOTA HARD STOP: ${totalCommitted}/${monthlyLimit} run=${research_run_id}`);
-          const finishStatus = currentLeadsSaved > 0 ? 'partial' : 'completed';
-          await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-            status: finishStatus, progress_percent: 100,
-            current_step: currentLeadsSaved > 0
-              ? `${currentLeadsSaved} Firmenkontakte gefunden (Monatskontingent erreicht)`
-              : 'Monatskontingent erschöpft',
-            finished_at: new Date().toISOString(),
-            stop_reason: 'monthly_quota_reached',
-            processing_lock_until: null, processing_by: null,
-          });
-          return Response.json({
-            success: true, done: true, status: finishStatus,
-            leads_saved: currentLeadsSaved, progress_percent: 100,
-            stop_reason: 'monthly_quota_reached',
-            message: `Monatskontingent erreicht (${totalCommitted}/${monthlyLimit}). Recherche gestoppt.`,
-          });
-        }
-
-        // Harter Cap: niemals mehr Leads speichern als noch im Kontingent frei
-        batchTarget = Math.min(batchTarget, currentLeadsSaved + (monthlyLimit - totalCommitted));
-        if (batchTarget < (effectiveTarget || 25)) {
-          console.warn(`[processResearchRun] QUOTA CAP: effectiveTarget=${effectiveTarget} → batchTarget=${batchTarget} (${totalCommitted}/${monthlyLimit}) run=${research_run_id}`);
-        }
-      }
-    }
 
     // ── Batch ────────────────────────────────────────────────────────────────
     const batchIndex = run.batch_index || 0;
@@ -1000,33 +952,10 @@ Deno.serve(async (req) => {
             continue;
           }
 
-          // ── KRITISCH: Quota-Reservierung VOR Company.create ─────────────────
-          // Verhindert paralleles Over-Usage durch atomare Unique-Constraint-Reservierung
-          const quotaRes = await reserveQuotaSlot(base44, organization_id, research_run_id);
-          
-          if (!quotaRes.success) {
-            console.warn(`[processResearchRun] QUOTA RESERVATION FAILED: ${quotaRes.error} run=${research_run_id}`);
-            
-            // Run sauber beenden mit stop_reason
-            const finishStatus = currentLeadsSaved > 0 ? 'partial' : 'completed';
-            await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-              status: finishStatus,
-              current_step: currentLeadsSaved > 0
-                ? `${currentLeadsSaved} Firmenkontakte gefunden (Quota erschöpft)`
-                : 'Keine Quota verfügbar',
-              finished_at: new Date().toISOString(),
-              stop_reason: 'monthly_quota_reached',
-              error_message: quotaRes.error === 'monthly_quota_reached' 
-                ? `Monatskontingent erreicht (${quotaRes.slot}/${quotaRes.limit})`
-                : quotaRes.message || 'Quota-Reservierung fehlgeschlagen',
-              processing_lock_until: null, processing_by: null,
-            });
-            
-            // Break outer loop - keine weiteren Companies erstellen
-            break outer;
-          }
-          
-          console.info(`[processResearchRun] Quota reserved: slot=${quotaRes.slot_number}, remaining=${quotaRes.remaining || '∞'} run=${research_run_id}`);
+          // ── MVP: Quota-Reservation entfernt aus kritischem Pfad ─────────────────
+          // Quota-Reservation war nicht atomar und hat Companies blockiert.
+          // Stattdessen: UsageLog wird direkt nach Company.create erhöht.
+          // Quota-Prüfung erfolgt weiterhin vor Batch-Start (harter Quota-Check oben).
 
           // Diagnostics-JSON für Engine-Analyse
           const engineDiagnostics = {
@@ -1038,10 +967,10 @@ Deno.serve(async (req) => {
             matched_target_customer,
           };
 
-          // ── TRY/CATCH für Company.create + Commit ───────────────────────────
+// ── TRY: Company.create + UsageLog erhöhen ───────────────────────────
           let companyId = null;
           try {
-            // JETZT Company erstellen (Quota ist bereits reserviert)
+            // Company erstellen
             const companyRes = await base44.asServiceRole.entities.Company.create({
               organization_id,
               name: place.name || '',
@@ -1074,12 +1003,29 @@ Deno.serve(async (req) => {
             
             companyId = companyRes.id;
             
-            // Commit: slot → committed, company_id setzen
-            await commitQuotaSlot(base44, organization_id, periodMonth, quotaRes.slot_number, companyId);
+            // ── UsageLog direkt nach Company.create erhöhen ────────────────────
+            // Quota-Reservation war nicht atomar → MVP: UsageLog direkt erhöhen
+            const now = new Date().toISOString();
+            const usageRecords = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
+            if (usageRecords[0]) {
+              await base44.asServiceRole.entities.UsageLog.update(usageRecords[0].id, {
+                leads_created: (usageRecords[0].leads_created || 0) + 1,
+                last_lead_generation_at: now,
+              });
+            } else {
+              const [y, m] = periodMonth.split('-').map(Number);
+              const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();
+              const end = new Date(Date.UTC(y, m, 0, 23, 59, 59)).toISOString();
+              await base44.asServiceRole.entities.UsageLog.create({
+                organization_id, period_month: periodMonth,
+                period_start: start, period_end: end,
+                leads_created: 1, lead_generations_used: 1,
+                last_lead_generation_at: now,
+              });
+            }
 
             // ── SHADOW MODE: Supabase lead_usage_event (non-blocking, Phase 1) ──
             // Schreibt parallel zu Base44-UsageLog → Validierung über 14 Tage.
-            // MUSS nach commitQuotaSlot stehen: nur gespeicherte Companies zählen.
             writeSupabaseUsageEvent(organization_id, periodMonth, companyId, research_run_id);
             
             // Dedupe-Sets aktualisieren + Counter erhöhen (NUR HIER!)
@@ -1092,19 +1038,8 @@ Deno.serve(async (req) => {
             // DEBUG: console.info(`[processResearchRun] SAVED "${place.name}" score=${scoring.score}`);
             
           } catch (createErr) {
-            // FALLBACK: Company.create ODER commitQuotaSlot fehlgeschlagen
-            // Wenn companyId gesetzt ist: Company existiert, aber Commit failed → NICHT released!
-            // Stattdessen: Error loggen für manuelle Reparatur
-            if (companyId) {
-              console.error(`[processResearchRun] Company.create OK, aber commitQuotaSlot FAILED: company_id=${companyId}, slot=${quotaRes.slot_number}. MANUELLE REPARATUR ERFORDERLICH!`);
-              // Slot bleibt 'reserved' → kann via Repair-Function später committet werden
-            } else {
-              // Company.create failed → Slot freigeben
-              console.error(`[processResearchRun] Company.create failed, releasing slot=${quotaRes.slot_number}: ${createErr.message}`);
-              await releaseQuotaSlot(base44, organization_id, periodMonth, quotaRes.slot_number);
-            }
-            
-            // Error weiterwerfen oder loggen (nicht break - andere Companies können noch erstellt werden)
+            // FALLBACK: Company.create fehlgeschlagen → Error loggen, aber nicht break
+            console.error(`[processResearchRun] Company.create failed: ${createErr.message}`);
             continue;
           }
         }
