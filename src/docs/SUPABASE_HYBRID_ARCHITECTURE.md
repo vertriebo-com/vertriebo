@@ -286,5 +286,25 @@ Falls Supabase-Integration Probleme macht:
 
 ---
 
-**Status:** ⚠️ PLAN — Noch nicht implementiert. Phase 0 ist Voraussetzung für alle weiteren Schritte.
-**Nächste Aktion:** Supabase-Projekt anlegen + `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` als Base44 Secrets setzen.
+**Status:** ✅ PHASE 0 ABGESCHLOSSEN (2026-05-20) — Migrationen erstellt, bereit für Deployment.
+
+### Abgeschlossene Phase 0 (2026-05-20)
+
+| Migration | Datei | Zweck |
+|---|---|---|
+| `lead_usage_events` | `20260520000001_create_lead_usage_events.sql` | Atomares Usage-Tracking (Shadow Mode Phase 1) |
+| `shadow_mode_log` | `20260520000002_create_shadow_mode_log.sql` | Audit-Trail für Konsistenzprüfung |
+| `quota_reservations` | `20260520000003_create_quota_reservations.sql` | Atomare Quota mit Unique Index |
+| `rpc_functions` | `20260520000004_create_rpc_functions.sql` | `reserve_quota_slot`, `get_monthly_usage`, `record_lead_usage_event`, Lock-RPCs |
+| `research_run_locks` | `20260520000005_create_research_run_locks.sql` | Atomarer Worker-Lock pro Org |
+| `research_run_audit` | `20260520000006_create_research_run_audit.sql` | Unveränderlicher Run-Audit-Trail |
+
+### Nächste Schritte
+
+1. **Supabase-Projekt anlegen** (eu-central-1 für DSGVO)
+2. **Secrets setzen**: `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` in Base44
+3. **Migrationen deployen**: `supabase db push` (local test) → `supabase db push --linked` (prod)
+4. **Verbindungstest**: Base44 Function ruft Supabase REST auf
+5. **Phase 1 starten**: Shadow Mode für `processResearchRun` aktivieren
+
+**Nächste Aktion:** Supabase-Projekt anlegen + Migrationen deployen.
