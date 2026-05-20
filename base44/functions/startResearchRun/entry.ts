@@ -228,7 +228,6 @@ Deno.serve(async (req) => {
     const settings = {};
     settingsRecords.forEach(s => { settings[s.key] = s.value; });
 
-    const industry = settings.industry_name || settings.own_industry || settings.industry || org.industry || '';
     const city = org.service_area_city || settings.service_area_city || settings.lead_plz_city || settings.lead_plz || '';
     if (!city) return Response.json({ error: 'Kein Suchgebiet definiert.', success: false }, { status: 400 });
 
@@ -236,69 +235,6 @@ Deno.serve(async (req) => {
       (org.service_area_radius_km > 0 ? org.service_area_radius_km : null) ||
       settings.service_area_radius_km || settings.lead_radius_km || '25'
     ) || 25;
-
-    // ── Target Customer Types: Settings ODER Taxonomie-Fallback ─────────────
-    // WICHTIG: Wenn Settings leer → Taxonomie-Profil als Fallback nutzen
-    // Verhindert "Keine Suchkategorien"-Fehler bei unvollständigem Onboarding
-    let targetCustomerTypes = (settings.target_customer_types || settings.zielkunden || '').split(/,|, /).map(x => x.trim()).filter(Boolean);
-    const excludedCustomerTypes = (settings.excluded_customer_types || settings.zielkunden_ausschluss || '').split(/,|, /).map(x => x.trim()).filter(Boolean);
-    
-    // Fallback: Wenn Settings leer → Taxonomie-Profil nutzen
-    if (targetCustomerTypes.length === 0 && taxonomyProfile?.target_customer_types?.length > 0) {
-      targetCustomerTypes = taxonomyProfile.target_customer_types.slice(0, 5); // Max 5 für initiale Suche
-      console.info(`[startResearchRun] Fallback: targetCustomerTypes aus Taxonomie (${targetCustomerTypes.length})`);
-    }
-
-    // ── Koordinaten auflösen ─────────────────────────────────────────────────
-    let cityCoords = null;
-    const savedLat = parseFloat(settings.service_area_lat || settings.lead_lat || '0');
-    const savedLng = parseFloat(settings.service_area_lng || settings.lead_lng || '0');
-    if (savedLat && savedLng && Math.abs(savedLat) > 0.001) {
-      cityCoords = { lat: savedLat, lng: savedLng };
-    } else {
-      if (!GOOGLE_PLACES_API_KEY) return Response.json({ error: 'GOOGLE_PLACES_API_KEY fehlt', success: false }, { status: 500 });
-      const geoRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(city + ' Deutschland')}&key=${GOOGLE_PLACES_API_KEY}&language=de`);
-      const geoData = await geoRes.json();
-      const loc = geoData.results?.[0]?.geometry?.location;
-      if (!loc) return Response.json({ error: `Stadt "${city}" nicht gefunden.`, success: false }, { status: 400 });
-      cityCoords = { lat: loc.lat, lng: loc.lng };
-    }
-
-    // ── Zusatzorte ───────────────────────────────────────────────────────────
-    let additionalCityObjects = [];
-    if (settings.target_locations_json) {
-      try {
-        const parsed = JSON.parse(settings.target_locations_json);
-        if (Array.isArray(parsed)) additionalCityObjects = parsed.filter(o => o && o.city);
-      } catch {}
-    }
-
-    // ── Suchplan zusammenbauen ───────────────────────────────────────────────
-    // effectiveTarget: verhindert Überbuchung bei knappem Kontingent (z.B. 299/300 → max 1 neuer Lead)
-    const effectiveTarget = trialStage === 'free_preview'
-      ? Math.min(remainingPreviewLeads, 10)
-      : monthlyRemaining === -1
-        ? Math.min(target_count, 25)
-        : Math.min(target_count, 25, monthlyRemaining);
-
-    // Grid-Punkte für alle Such-Zentren
-    const mainGrid = generateSearchGrid(cityCoords.lat, cityCoords.lng, radiusKm, trialStage).map(p => ({
-      ...p, centerLat: cityCoords.lat, centerLng: cityCoords.lng, centerCity: city
-    }));
-
-    const additionalPoints = [];
-    for (const loc of additionalCityObjects.filter(o => o.lat && o.lng).slice(0, 4)) {
-      const grid = generateSearchGrid(loc.lat, loc.lng, radiusKm, trialStage);
-      for (const p of grid) {
-        additionalPoints.push({ ...p, label: `extra_${loc.city}_${p.label}`, centerLat: loc.lat, centerLng: loc.lng, centerCity: loc.city });
-      }
-    }
-
-    const allPoints = [...mainGrid, ...additionalPoints];
-    const allCenters = [
-      { lat: cityCoords.lat, lng: cityCoords.lng, city },
-      ...additionalCityObjects.filter(o => o.lat && o.lng).map(o => ({ lat: o.lat, lng: o.lng, city: o.city }))
-    ];
 
     // ── INDUSTRY SOURCE-OF-TRUTH (Priorisierung) ──────────────────────────────
     // 1. OrganizationSettings.industry_id (kanonisch, z.B. "gebaeudereinigung")
@@ -428,6 +364,69 @@ Deno.serve(async (req) => {
         message: `Kein Taxonomie-Profil für Branche "${industry}" (id="${industryId}"). Bitte Branche in den Einstellungen prüfen.`,
       }, { status: 400 });
     }
+
+    // ── Target Customer Types: Settings ODER Taxonomie-Fallback ─────────────
+    // WICHTIG: Wenn Settings leer → Taxonomie-Profil als Fallback nutzen
+    // Verhindert "Keine Suchkategorien"-Fehler bei unvollständigem Onboarding
+    let targetCustomerTypes = (settings.target_customer_types || settings.zielkunden || '').split(/,|, /).map(x => x.trim()).filter(Boolean);
+    const excludedCustomerTypes = (settings.excluded_customer_types || settings.zielkunden_ausschluss || '').split(/,|, /).map(x => x.trim()).filter(Boolean);
+    
+    // Fallback: Wenn Settings leer → Taxonomie-Profil nutzen (JETZT SICHER: taxonomyProfile ist geladen)
+    if (targetCustomerTypes.length === 0 && taxonomyProfile?.target_customer_types?.length > 0) {
+      targetCustomerTypes = taxonomyProfile.target_customer_types.slice(0, 5); // Max 5 für initiale Suche
+      console.info(`[startResearchRun] Fallback: targetCustomerTypes aus Taxonomie (${targetCustomerTypes.length})`);
+    }
+
+    // ── Koordinaten auflösen ─────────────────────────────────────────────────
+    let cityCoords = null;
+    const savedLat = parseFloat(settings.service_area_lat || settings.lead_lat || '0');
+    const savedLng = parseFloat(settings.service_area_lng || settings.lead_lng || '0');
+    if (savedLat && savedLng && Math.abs(savedLat) > 0.001) {
+      cityCoords = { lat: savedLat, lng: savedLng };
+    } else {
+      if (!GOOGLE_PLACES_API_KEY) return Response.json({ error: 'GOOGLE_PLACES_API_KEY fehlt', success: false }, { status: 500 });
+      const geoRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(city + ' Deutschland')}&key=${GOOGLE_PLACES_API_KEY}&language=de`);
+      const geoData = await geoRes.json();
+      const loc = geoData.results?.[0]?.geometry?.location;
+      if (!loc) return Response.json({ error: `Stadt "${city}" nicht gefunden.`, success: false }, { status: 400 });
+      cityCoords = { lat: loc.lat, lng: loc.lng };
+    }
+
+    // ── Zusatzorte ───────────────────────────────────────────────────────────
+    let additionalCityObjects = [];
+    if (settings.target_locations_json) {
+      try {
+        const parsed = JSON.parse(settings.target_locations_json);
+        if (Array.isArray(parsed)) additionalCityObjects = parsed.filter(o => o && o.city);
+      } catch {}
+    }
+
+    // ── Suchplan zusammenbauen ───────────────────────────────────────────────
+    // effectiveTarget: verhindert Überbuchung bei knappem Kontingent (z.B. 299/300 → max 1 neuer Lead)
+    const effectiveTarget = trialStage === 'free_preview'
+      ? Math.min(remainingPreviewLeads, 10)
+      : monthlyRemaining === -1
+        ? Math.min(target_count, 25)
+        : Math.min(target_count, 25, monthlyRemaining);
+
+    // Grid-Punkte für alle Such-Zentren
+    const mainGrid = generateSearchGrid(cityCoords.lat, cityCoords.lng, radiusKm, trialStage).map(p => ({
+      ...p, centerLat: cityCoords.lat, centerLng: cityCoords.lng, centerCity: city
+    }));
+
+    const additionalPoints = [];
+    for (const loc of additionalCityObjects.filter(o => o.lat && o.lng).slice(0, 4)) {
+      const grid = generateSearchGrid(loc.lat, loc.lng, radiusKm, trialStage);
+      for (const p of grid) {
+        additionalPoints.push({ ...p, label: `extra_${loc.city}_${p.label}`, centerLat: loc.lat, centerLng: loc.lng, centerCity: loc.city });
+      }
+    }
+
+    const allPoints = [...mainGrid, ...additionalPoints];
+    const allCenters = [
+      { lat: cityCoords.lat, lng: cityCoords.lng, city },
+      ...additionalCityObjects.filter(o => o.lat && o.lng).map(o => ({ lat: o.lat, lng: o.lng, city: o.city }))
+    ];
 
     // Custom-Industry-Tracking: Speichern wenn Nutzer "Andere Branche" oder unbekannte Branche nutzt
     if (usedFallbackProfile || industry === 'Andere Branche / Sonstiges' || !industryId) {
