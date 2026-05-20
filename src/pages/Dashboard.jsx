@@ -391,7 +391,9 @@ export default function Dashboard() {
         if (!usage) return null;
         const isUnlimited = usage.is_unlimited || usage.monthly_limit === -1;
         const isOverLimit = usage.is_over_limit;
-        const isFallback = usage.reconciliation?.source_used === 'companies_count' && !usage.reconciliation?.committed_slots;
+        // "(geschätzt)" nur wenn source_used=companies_count — unabhängig von committed_slots-Wert.
+        // Nicht über !committed_slots entscheiden: usageLog kann korrekt sein auch wenn slots=0.
+        const isFallback = usage.reconciliation?.source_used === 'companies_count';
         const barWidth = isUnlimited ? 0 : Math.min(100, Math.round((usage.monthly_used || 0) / (usage.monthly_limit || 1) * 100));
         const barColor = isOverLimit ? 'bg-red-500' : barWidth >= 90 ? 'bg-amber-500' : 'bg-blue-500';
         const crmTotal = usage.crm_total ?? totalLeads;

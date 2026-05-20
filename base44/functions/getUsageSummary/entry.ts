@@ -92,10 +92,13 @@ Deno.serve(async (req) => {
     // SSOT-Formel (§E Merkliste): monthly_used = Math.max(committedSlots, usageLogValue, companiesThisMonth)
     // Alle drei Quellen werden reconciliert — niemals nur eine Quelle allein verwenden.
     //
-    // periodStart/periodEnd aus py/pm (Berlin-Kalendermonat) abgeleitet.
-    // Date.UTC(py, pm-1, 1) = erster Tag dieses Monats UTC-Mitternacht
-    // Date.UTC(py, pm, 1)   = erster Tag nächsten Monats UTC-Mitternacht
-    // Da period_month via Europe/Berlin berechnet wird, ist UTC-Mitternacht der korrekte Schnitt.
+    // ⚠️ MVP-RISIKO: periodStart/periodEnd als UTC-Mitternacht des Kalendermonats.
+    // Berlin-Mitternacht ≠ UTC-Mitternacht: Differenz je nach Sommer-/Winterzeit +1h oder +2h.
+    // Am Monatswechsel können Companies in den letzten 1-2h des Berlin-Monats noch in
+    // period_month des Vormonats fallen (Berlin sagt "1. Juni", UTC sagt noch "31. Mai").
+    // → companiesThisMonth kann am Monatswechsel um bis zu 2h Drift haben.
+    // → max()-Formel kompensiert via usageLogValue (korrekte Berlin-Quelle).
+    // Langfristig: Berlin-Grenzen exakt berechnen oder UsageEvent als SSOT verwenden.
     const periodStart = new Date(Date.UTC(py, pm - 1, 1));
     const periodEnd   = new Date(Date.UTC(py, pm, 1));
 

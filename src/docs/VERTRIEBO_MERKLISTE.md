@@ -1,8 +1,52 @@
 # VERTRIEBO ARCHITEKTUR-MERKLISTE
-## Stand: 2026-05-18 | v6-weighted-scoring-b7b — 41/41 ALLE PROFILE VALIDIERT ✅
+## Stand: 2026-05-20 | v6-weighted-scoring-b7b — 41/41 ALLE PROFILE VALIDIERT ✅
 
 > **PFLICHTREGEL: Nicht "akzeptabel" — produktionsreif, kundenreif, robust.**
 > Jede Entscheidung muss diese Standards erfüllen. Keine Dummy-Logik, keine doppelte Wahrheit, keine technischen Schulden an der Kernfunktion.
+
+---
+
+## AKTUELLE WAHRHEIT (2026-05-20) — PFLICHTLEKTÜRE VOR JEDER ÄNDERUNG
+
+> Dieser Abschnitt wird nach jedem signifikanten Fix aktualisiert.
+> Er ersetzt NICHT die Detailabschnitte unten, sondern fasst den tatsächlichen IST-Stand zusammen.
+
+### Usage-/Billing-SSOT (Stand 2026-05-20)
+
+| Thema | Aktueller Stand | Bekannte Einschränkung |
+|---|---|---|
+| **monthly_used Formel** | `Math.max(committedSlots, usageLogValue, companiesThisMonth)` in `getUsageSummary` | Keine einzelne Quelle ist allein SSOT — alle drei werden reconciliert |
+| **QuotaReservation** | Wird gezählt (committed), aber ist für viele Orgs noch 0 (historisch nicht befüllt) | Allein als SSOT nicht ausreichend |
+| **UsageLog** | Primäre Quelle für Orgs ohne QuotaReservation | Kann durch Race Conditions oder Legacy-Writes abweichen |
+| **Company-Zählung** | Letztes Sicherheitsnetz, filtert Manuell/CSV/Import-Einträge aus | Company.filter Limit=2000 — bei >2000 Companies/Monat unvollständig (MVP-Risiko) |
+| **period_month Zeitzone** | Europe/Berlin via `Intl.DateTimeFormat` in allen Backend-Functions und BillingSettings | `companiesThisMonth` nutzt `Date.UTC(py, pm-1, 1)` als Periodengrenze — UTC-Mitternacht ist nicht exakt Berlin-Mitternacht (±1h je Sommer-/Winterzeit). Am Monatswechsel bis zu 1h Drift möglich. Dokumentiertes MVP-Risiko, kein akuter Bug. |
+| **Dashboard-Anzeige** | `meta.usage_summary` aus `getDashboardData` → `getUsageSummary` intern | Fallback-Quelle (`source_used=companies_count`) wird als "(geschätzt)" markiert |
+
+### Bekannte offene Risiken (nicht akut, dokumentiert)
+
+| Risiko | Schwere | Langfristige Lösung |
+|---|---|---|
+| Company.filter Limit 2000 | Mittel — bei >2000 monatlichen Research-Leads unvollständig | UsageEvent/LeadUsageEvent als SSOT einführen |
+| UTC vs. Berlin Monatsgrenzen bei `companiesThisMonth` | Niedrig — max. 1h Drift am Monatswechsel | Berlin-Grenzen explizit berechnen oder UsageEvent verwenden |
+| QuotaReservation historisch unvollständig | Niedrig — max()-Formel kompensiert | Automatisch selbstheilend durch max() |
+
+### Aktuelle No-Gos (Ergänzung zu §8)
+
+- ❌ **QuotaReservation allein als monatliche Zählung** — historisch 0 für viele Orgs
+- ❌ **UsageLog allein als SSOT** — kann abweichen
+- ❌ **Company-Zählung allein** — enthält evtl. Manuell/CSV wenn Filter fehlt
+- ❌ **`isFallback` über `!committed_slots`** — falsch wenn usageLog korrekt ist aber slots=0; nutze `source_used === 'companies_count'`
+- ❌ **Date.UTC als "perfekte Berlin-Monatsgrenzen" verkaufen** — ist UTC-Mitternacht, nicht Berlin-Mitternacht
+- ❌ **FINAL GRÜN ohne Live-Test** — kein Status-Flag ohne nachgewiesene Verifikation
+- ❌ **`usageInfo={meta.currentUsage}`** — altes Feld existiert nicht mehr; nutze `meta.usage_summary`
+
+### Live-Test-Status (2026-05-20)
+
+| Komponente | Letzter Test | Ergebnis |
+|---|---|---|
+| `getUsageSummary` | 2026-05-20 via test_backend_function | `monthly_used=324, source=usage_log` — korrekt, kein 0/300 |
+| `getDashboardData` | 2026-05-20 | 200 OK, usage_summary vorhanden |
+| Dashboard-UI | ⚠️ Ausstehend — Live-Refresh im Browser noch nicht verifiziert | Bitte als nächstes im Browser prüfen |
 
 ---
 
