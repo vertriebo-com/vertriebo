@@ -41,6 +41,22 @@
 - ❌ **`usageInfo={meta.currentUsage}`** — altes Feld existiert nicht mehr; nutze `meta.usage_summary`
 - ❌ **`startResearchRun` nur QuotaReservation für Limit-Check** — historisch 0 für viele Orgs → würde Recherche trotz 324/300 starten
 - ❌ **`functions.invoke` innerhalb von `getDashboardData` oder `startResearchRun`** — Rate-Limit-Risiko (429 → Fallback → 0)
+- ❌ **Base44 `unique_constraints` als atomar bezeichnen** — Live-Test bewiesen: zwei parallele Creates können beide durchgehen
+- ❌ **Supabase Key im Frontend verwenden** — `SUPABASE_SERVICE_KEY` ausschließlich in Backend Functions
+- ❌ **Supabase als vollständige Base44-Migration** — nur für kritische atomare Kernlogik (Usage, Quota)
+- ❌ **Supabase-SSOT aktivieren ohne Shadow-Mode-Validierung** — erst 14 Tage paralleles Schreiben + Vergleich
+- ❌ **Zwei widersprüchliche Usage-Wahrheiten betreiben** — Supabase und Base44 müssen < 1% Abweichung zeigen bevor Supabase primär wird
+
+### Usage-SSOT: aktuelle Formel vs. Zielzustand
+
+| Schicht | IST (2026-05-20) | SOLL (nach Supabase-Migration) |
+|---|---|---|
+| **monthly_used** | `Math.max(committedSlots, usageLogValue, companiesThisMonth)` | `SELECT COUNT(*) FROM lead_usage_events WHERE org+period` |
+| **Limit-Check** | inline in `startResearchRun`, identische max()-Formel | Supabase COUNT ≥ limit → HTTP 402 |
+| **Atomic Quota** | Serial-Lock via `processing_lock_until` (nicht atomar) | `reserve_quota_slot()` RPC mit UNIQUE INDEX |
+| **Base44 Fallback** | Primäre Quelle | Fallback wenn Supabase nicht erreichbar |
+
+Details: `docs/SUPABASE_HYBRID_ARCHITECTURE.md`
 
 ### Live-Test-Status (2026-05-20)
 
@@ -1913,6 +1929,41 @@ Sicherheit: `testLeadSearchEngine` ist bereits auf Platform-Admins (`admin/platf
 ## 25. ARBEITSREGELN & NO-GOs — siehe §A–§I oben (Pflichtbereich)
 
 **Stand:** 2026-05-20 | Alle Regeln jetzt in §A–§I oben.
+
+---
+
+## 27. SUPABASE HYBRID-ARCHITEKTUR — PLAN (2026-05-20)
+
+### Status: ⚠️ PLAN — noch nicht implementiert
+
+**Root Cause:** Base44 `unique_constraints` sind nicht atomar enforced (Live-Test: zwei parallele Creates für denselben Slot konnten beide erfolgreich sein). Die aktuelle max()-Workaround-Formel ist für MVP brauchbar, aber nicht langfristig produktionssicher.
+
+### Entscheidung: Hybrid-Architektur
+
+| Bereich | Plattform |
+|---|---|
+| UI, Admin, Leads, Tasks, Onboarding | Base44 (unverändert) |
+| `lead_usage_events` (atomares Schreiben) | **Supabase** (Prio 1) |
+| `quota_reservations` (atomic slot lock) | **Supabase** (Prio 2, optional) |
+| Taxonomie, Companies, Settings | Base44 (unverändert) |
+
+### MVP-Reihenfolge
+
+1. **Phase 0:** Supabase-Projekt anlegen + Secrets setzen (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`)
+2. **Phase 1:** Shadow Mode — `processResearchRun` schreibt parallel in `lead_usage_events` (non-blocking)
+3. **Validierung:** 14 Tage Supabase COUNT vs. UsageLog.leads_created vergleichen (< 1% Abweichung)
+4. **Phase 2:** Usage-SSOT migrieren — `getUsageSummary`/`getDashboardData`/`startResearchRun` lesen aus Supabase
+5. **Phase 3 (optional):** Atomare Quota via `reserve_quota_slot()` RPC
+
+### Vollständiger Plan: `docs/SUPABASE_HYBRID_ARCHITECTURE.md`
+
+### Akzeptanzkriterien (Pflicht vor Phase 2)
+
+- [ ] Shadow Mode ≥ 14 Tage aktiv, Abweichung < 1%
+- [ ] `startResearchRun` HTTP 402 bei Supabase COUNT ≥ limit
+- [ ] Rollback-Mechanismus (SUPABASE_WRITE_ENABLED=false) getestet
+- [ ] Kein `SUPABASE_SERVICE_KEY` im Frontend oder in Base44 Entities
+- [ ] Dashboard + BillingSettings zeigen identischen Wert wie Supabase COUNT
 
 ---
 
