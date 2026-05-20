@@ -1955,15 +1955,24 @@ Sicherheit: `testLeadSearchEngine` ist bereits auf Platform-Admins (`admin/platf
 4. **Phase 2:** Usage-SSOT migrieren — `getUsageSummary`/`getDashboardData`/`startResearchRun` lesen aus Supabase
 5. **Phase 3 (optional):** Atomare Quota via `reserve_quota_slot()` RPC
 
-### Vollständiger Plan: `docs/SUPABASE_HYBRID_ARCHITECTURE.md`
+### Vollständiger Stand: `docs/SUPABASE_SHADOW_MODE_STATUS.md` (neu, 2026-05-20)
+### Architekturplan: `docs/SUPABASE_HYBRID_ARCHITECTURE.md`
+
+### Shadow Mode — Aktuelle No-Gos (ergänzend zu §8)
+
+- ❌ Supabase jetzt als SSOT aktivieren — erst nach GitHub-Review + 14-Tage + Test-Run
+- ❌ Base44 max()-Formel entfernen
+- ❌ processResearchRun wegen Supabase-Fehler blockieren (immer non-blocking)
+- ❌ SUPABASE_SERVICE_KEY im Frontend oder Base44 Entities
+- ❌ FINAL GRÜN ohne vollständige Validierung
 
 ### Akzeptanzkriterien (Pflicht vor Phase 2)
 
-- [ ] Shadow Mode ≥ 14 Tage aktiv, Abweichung < 1%
-- [ ] `startResearchRun` HTTP 402 bei Supabase COUNT ≥ limit
-- [ ] Rollback-Mechanismus (SUPABASE_WRITE_ENABLED=false) getestet
+- [ ] GitHub-Review abgeschlossen: setupSupabase, supabaseUsage, processResearchRun, promoteExternalSourceToCompany
+- [ ] Neuer Test-Run mit 1-3 Leads: Supabase count vorher/nachher korrekt +X
+- [ ] Shadow Mode ≥ 14 Tage aktiv, neue Abweichung (ab 2026-05-20) < 1%
+- [ ] Rollback-Test: SUPABASE_URL leer → processResearchRun läuft normal weiter
 - [ ] Kein `SUPABASE_SERVICE_KEY` im Frontend oder in Base44 Entities
-- [ ] Dashboard + BillingSettings zeigen identischen Wert wie Supabase COUNT
 
 ---
 

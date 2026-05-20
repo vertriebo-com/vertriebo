@@ -151,13 +151,15 @@ Deno.serve(async (req) => {
       const diffPct = base44Count > 0 ? Math.abs(diff / base44Count * 100).toFixed(1) : 'n/a';
       const isValid = Math.abs(diff) <= Math.max(1, base44Count * 0.01); // < 1% Abweichung
 
-      // Shadow-Mode-Log schreiben
+      // Shadow-Mode-Log schreiben (inkl. diff + checked_at für Audit-Trail)
       if (supabaseCount !== null) {
         await supabaseFetch('/shadow_mode_log', 'POST', {
           organization_id: org_id,
           period_month: periodMonth,
           supabase_count: supabaseCount,
           base44_count: base44Count,
+          diff: diff,
+          checked_at: new Date().toISOString(),
         }, { 'Prefer': 'return=minimal' }).catch(e => console.warn('[supabaseUsage] shadow_log write failed:', e?.message));
       }
 
