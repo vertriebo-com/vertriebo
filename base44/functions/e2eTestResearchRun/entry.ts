@@ -84,7 +84,26 @@ async function getSupabaseMonthlyCount(orgId, periodMonth, retries = 3) {
   return null;
 }
 
-// Cleanup aller Test-Daten
+// Cleanup nur eines spezifischen Runs + seiner Companies (echte Org bleibt erhalten)
+async function cleanupTestRun(base44, orgId, runId) {
+  console.info(`[e2eTest] Cleanup run ${runId} in org ${orgId}`);
+  const companies = await base44.asServiceRole.entities.Company.filter({ organization_id: orgId, research_run_id: runId }).catch(() => []);
+  await Promise.all([
+    ...companies.map(c => base44.asServiceRole.entities.Company.delete(c.id).catch(() => {})),
+    base44.asServiceRole.entities.ResearchRun.delete(runId).catch(() => {}),
+  ]);
+  if (SUPABASE_URL && SUPABASE_SERVICE_KEY && companies.length > 0) {
+    for (const c of companies) {
+      await fetch(`${SUPABASE_URL}/rest/v1/lead_usage_events?organization_id=eq.${orgId}&company_id=eq.${c.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`, 'apikey': SUPABASE_SERVICE_KEY, 'Prefer': 'return=minimal' },
+      }).catch(() => {});
+    }
+  }
+  console.info(`[e2eTest] Cleanup done: ${companies.length} Companies + Run ${runId} gelöscht`);
+}
+
+// Cleanup aller Test-Daten (dedizierte Test-Org)
 async function cleanupTestOrg(base44, orgId) {
   console.info(`[e2eTest] Cleanup: ${orgId}`);
   const [companies, runs, usageLogs, settings] = await Promise.all([
@@ -131,8 +150,16 @@ Deno.serve(async (req) => {
     const { cleanup_only, org_id_to_cleanup } = body;
 
     if (cleanup_only && org_id_to_cleanup) {
-      await cleanupTestOrg(base44, org_id_to_cleanup);
-      return Response.json({ success: true, message: `Cleanup abgeschlossen für ${org_id_to_cleanup}` });
+      const { run_id_to_cleanup } = body;
+      if (run_id_to_cleanup) {
+        // Option C: Nur den spezifischen Run + seine Companies löschen, NICHT die Org
+        await cleanupTestRun(base44, org_id_to_cleanup, run_id_to_cleanup);
+        return Response.json({ success: true, message: `Run ${run_id_to_cleanup} und zugehörige Companies bereinigt (Org bleibt erhalten)` });
+      } else {
+        // Legacy: komplette Test-Org löschen (nur wenn es eine dedizierte Test-Org war)
+        await cleanupTestOrg(base44, org_id_to_cleanup);
+        return Response.json({ success: true, message: `Cleanup abgeschlossen für ${org_id_to_cleanup}` });
+      }
     }
 
     // ── VALIDATE: Counts nach Browser-Run prüfen ──────────────────────────────
@@ -220,33 +247,31 @@ Deno.serve(async (req) => {
     const periodMonth = getPeriodMonth();
     console.info(`[e2eTest] Start: user=${user.email} role=${user.role} period=${periodMonth}`);
 
-    // ── SCHRITT 1: Test-Organisation erstellen ────────────────────────────────
-    console.info('[e2eTest] Schritt 1: Erstelle Test-Organisation...');
-    // owner_email = user.email (Admin) damit processResearchRun Ownership-Check besteht
-    const testOrg = await base44.asServiceRole.entities.Organization.create({
-      name: `E2E Test Org ${timestamp}`,
-      owner_email: user.email,
-      organization_type: 'direct_customer',
-      billing_status: 'active',
-      platform_status: 'active',
-      industry: 'Gebäudereinigung',
-      service_area_city: 'München',
-      service_area_radius_km: 25,
-      onboarding_done: true,
-      trial_stage: 'paid',
-    });
-    console.info(`[e2eTest] ✅ Org erstellt: ${testOrg.id}`);
+    // ── OPTION C: Aktuelle Org des Admins verwenden ───────────────────────────
+    // useOrganization im Browser löst owner_email=user.email → erste Org auf.
+    // Test-Org in separater Org ist für den Browser unsichtbar (kein Org-Switcher).
+    // Lösung: Wir nutzen die tatsächlich aktive Org des Admins und bereinigen nach dem Test.
+    console.info('[e2eTest] Schritt 1: Lade aktuelle Admin-Org...');
+    const adminOrgs = await base44.asServiceRole.entities.Organization.filter({ owner_email: user.email });
+    const testOrg = adminOrgs?.[0] || null;
+    if (!testOrg) {
+      return Response.json({ error: `Keine Organisation für ${user.email} gefunden. Admin muss Owner einer Org sein.`, success: false }, { status: 400 });
+    }
+    const isRealOrg = true; // Echte Org — Cleanup nur den Run + angelegte Companies, NICHT die Org selbst
+    console.info(`[e2eTest] ✅ Aktive Org gefunden: ${testOrg.id} (${testOrg.name})`);
 
-    // ── SCHRITT 2: Settings setzen ────────────────────────────────────────────
-    console.info('[e2eTest] Schritt 2: Setze Settings...');
-    await Promise.all([
-      base44.asServiceRole.entities.OrganizationSettings.create({ organization_id: testOrg.id, key: 'industry_id', value: 'gebaeudereinigung' }),
-      base44.asServiceRole.entities.OrganizationSettings.create({ organization_id: testOrg.id, key: 'industry_name', value: 'Gebäudereinigung' }),
-      base44.asServiceRole.entities.OrganizationSettings.create({ organization_id: testOrg.id, key: 'target_customer_types', value: 'Hausverwaltungen, Immobilienverwaltungen, Facility Manager' }),
-      base44.asServiceRole.entities.OrganizationSettings.create({ organization_id: testOrg.id, key: 'service_area_city', value: 'München' }),
-      base44.asServiceRole.entities.OrganizationSettings.create({ organization_id: testOrg.id, key: 'service_area_radius_km', value: '25' }),
-    ]);
-    console.info('[e2eTest] ✅ Settings gesetzt');
+    // ── SCHRITT 2: Settings prüfen (keine Überschreibung der echten Settings) ─
+    // Wir prüfen nur ob genug Konfiguration vorhanden ist. Settings werden NICHT geändert.
+    console.info('[e2eTest] Schritt 2: Prüfe Org-Settings...');
+    const settingsRecords = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id: testOrg.id });
+    const settingsMap = {};
+    settingsRecords.forEach(s => { settingsMap[s.key] = s.value; });
+    const hasCity = !!(testOrg.service_area_city || settingsMap.service_area_city || settingsMap.lead_plz_city);
+    const hasIndustry = !!(settingsMap.industry_id || settingsMap.industry_name || testOrg.industry);
+    if (!hasCity) {
+      return Response.json({ error: 'Org hat kein Suchgebiet (service_area_city). Bitte Einstellungen prüfen.', success: false }, { status: 400 });
+    }
+    console.info(`[e2eTest] ✅ Settings OK: city=${hasCity}, industry=${hasIndustry}`);
 
     // ── SCHRITT 3: Baseline erfassen (echte Abfragen) ─────────────────────────
     console.info('[e2eTest] Schritt 3: Baseline erfassen...');
@@ -255,8 +280,15 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.UsageLog.filter({ organization_id: testOrg.id, period_month: periodMonth }),
       getSupabaseMonthlyCount(testOrg.id, periodMonth, 1),
     ]);
+    // Nur Research-Leads zählen (kein Manuell/CSV)
+    const nonQuota = new Set(['manual_setup', 'csv_import', 'manual', 'import']);
+    const baselineResearchCompanies = blCompanies.filter(c =>
+      c.research_run_id && !nonQuota.has(c.research_run_id) &&
+      c.quelle !== 'Manuell' && c.quelle !== 'CSV Import' &&
+      c.source_provider !== 'manual' && c.source_provider !== 'csv_import'
+    );
     const baseline = {
-      companies: blCompanies.length,
+      companies: baselineResearchCompanies.length,
       usageLog_leads_created: blUsage[0]?.leads_created || 0,
       supabase_monthly_used: blSupabase || 0,
     };
@@ -264,10 +296,11 @@ Deno.serve(async (req) => {
 
     // ── SCHRITT 4: Taxonomie laden + ResearchRun direkt erstellen ─────────────
     console.info('[e2eTest] Schritt 4: Taxonomie + ResearchRun...');
-    const industryId = 'gebaeudereinigung';
-    const city = 'München';
-    const radiusKm = 25;
-    const targetCustomerTypes = ['Hausverwaltungen', 'Immobilienverwaltungen', 'Facility Manager'];
+    // Industry aus echten Settings der Org
+    const industryId = settingsMap.industry_id || 'gebaeudereinigung';
+    const city = testOrg.service_area_city || settingsMap.service_area_city || settingsMap.lead_plz_city || 'München';
+    const radiusKm = parseFloat(testOrg.service_area_radius_km || settingsMap.service_area_radius_km || '25') || 25;
+    const targetCustomerTypes = (settingsMap.target_customer_types || settingsMap.zielkunden || 'Hausverwaltungen, Immobilienverwaltungen').split(/,\s*/).filter(Boolean);
 
     let taxonomyProfile = null;
     const taxRecords = await base44.asServiceRole.entities.TaxonomyEntry.filter({ industry_id: industryId, is_active: true });
@@ -363,7 +396,8 @@ Deno.serve(async (req) => {
       research_run_id: run.id,
       period_month: periodMonth,
       baseline,
-      cleanup_note: `Cleanup: POST {cleanup_only: true, org_id_to_cleanup: "${testOrg.id}"}`,
+      cleanup_note: `Cleanup: POST {cleanup_only: true, org_id_to_cleanup: "${testOrg.id}", run_id_to_cleanup: "${run.id}"}`,
+      note: 'Echte Admin-Org wird verwendet — Cleanup löscht nur den Test-Run + Companies, nicht die Org.',
     });
 
   } catch (error) {
