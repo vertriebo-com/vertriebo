@@ -9,7 +9,7 @@
  *   → Status-Gate (nur ready_for_review standard, needs_review nur mit force_promote)
  *   → Dedupe gegen Company (Name+Ort, google_place_id, Website, Telefon)
  *   → Blacklist-Check
- *   → Monatslimit-Check
+ *   → Monatslimit-Check (max()-Formel, HTTP 402 bei Überschreitung)
  *   → Company erstellen
  *   → ExternalCompanySource auf promoted_to_company setzen
  *   → UsageLog.leads_created +1
@@ -344,16 +344,23 @@ Deno.serve(async (req) => {
       const currentUsed = Math.max(committedSlots, usageLogValue, companiesThisMonth);
 
       if (currentUsed >= monthlyLimit) {
+        const [y2, m2] = periodMonth.split('-').map(Number);
+        const resetDate = new Date(Date.UTC(y2, m2, 1)).toLocaleDateString('de-DE', {
+          day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin',
+        });
         return Response.json({
           success: false,
-          error: 'monthly_contact_limit_reached',
+          error: 'monthly_lead_quota_reached',
+          reason: 'monthly_lead_quota_reached',
+          message: `Monatliches Lead-Kontingent erreicht: ${currentUsed} von ${monthlyLimit} Leads genutzt. Reset am ${resetDate}.`,
           monthly_usage: {
             monthly_limit: monthlyLimit,
             monthly_used: currentUsed,
             remaining: 0,
+            reset_date: resetDate,
             source: 'max(committedSlots, usageLogValue, companiesThisMonth)',
           },
-        }, { status: 429 });
+        }, { status: 402 });
       }
     }
 
