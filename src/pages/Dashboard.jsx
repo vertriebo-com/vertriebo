@@ -174,7 +174,6 @@ export default function Dashboard() {
           trial_leads_granted={org.trial_leads_granted || 0}
           onUpgrade={handleUpgrade}
           onManagePlan={handleManagePlan}
-          usageInfo={meta.currentUsage}
         />
       )}
 
@@ -388,17 +387,21 @@ export default function Dashboard() {
       {/* Usage-Info aus usage_summary */}
       {(() => {
         const usage = meta?.usage_summary;
+        // Kein usage_summary → kein falscher 0-Wert anzeigen (§I Merkliste)
         if (!usage) return null;
         const isUnlimited = usage.is_unlimited || usage.monthly_limit === -1;
         const isOverLimit = usage.is_over_limit;
+        const isFallback = usage.reconciliation?.source_used === 'companies_count' && !usage.reconciliation?.committed_slots;
         const barWidth = isUnlimited ? 0 : Math.min(100, Math.round((usage.monthly_used || 0) / (usage.monthly_limit || 1) * 100));
         const barColor = isOverLimit ? 'bg-red-500' : barWidth >= 90 ? 'bg-amber-500' : 'bg-blue-500';
+        const crmTotal = usage.crm_total ?? totalLeads;
         return (
           <div className={`border rounded-xl px-5 py-4 ${isOverLimit ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold text-slate-700">
                   {usage.plan_name || "Plan"} · <span className="font-normal text-slate-500">Monatskontingent</span>
+                  {isFallback && <span className="ml-1 text-[10px] text-amber-600 font-normal">(geschätzt)</span>}
                 </p>
                 {isUnlimited ? (
                   <p className="text-sm font-bold text-slate-900 mt-0.5">
@@ -413,7 +416,11 @@ export default function Dashboard() {
                 <p className="text-[10px] text-slate-400 mt-0.5">
                   {!isUnlimited && `${usage.monthly_remaining ?? 0} verbleibend`}
                   {!isUnlimited && usage.reset_date && ` · Reset am ${usage.reset_date}`}
-                  {(isUnlimited || !usage.reset_date) && `Gesamtbestand: ${usage.crm_total ?? totalLeads} Leads im CRM`}
+                  {isUnlimited && `${usage.monthly_used || 0} neue Leads diesen Monat`}
+                </p>
+                {/* Gesamtbestand immer sichtbar (§F Merkliste) */}
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  Gesamtbestand: {crmTotal} Leads im CRM
                 </p>
               </div>
               {!isUnlimited && (

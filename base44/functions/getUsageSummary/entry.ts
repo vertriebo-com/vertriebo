@@ -89,14 +89,26 @@ Deno.serve(async (req) => {
     const reservedSlots = quotaSlots.filter(s => s.status === 'reserved').length;
 
     // ── RECONCILIATION: Tatsächliche Research-Leads diesen Monat ──────────
-    // Primär: QuotaReservation committed (nach Einführung des Systems)
-    // Fallback: Company.created_date im aktuellen Monat + research_run_id vorhanden
-    // → deckt historische Leads ab die vor QuotaReservation erstellt wurden
-    const periodStart = new Date(Date.UTC(py, pm - 1, 1)); // erster Tag dieses Monats UTC
-    const periodEnd = new Date(Date.UTC(py, pm, 1));       // erster Tag nächster Monat UTC
+    // SSOT-Formel (§E Merkliste): monthly_used = Math.max(committedSlots, usageLogValue, companiesThisMonth)
+    // Alle drei Quellen werden reconciliert — niemals nur eine Quelle allein verwenden.
+    //
+    // periodStart/periodEnd aus py/pm (Berlin-Kalendermonat) abgeleitet.
+    // Date.UTC(py, pm-1, 1) = erster Tag dieses Monats UTC-Mitternacht
+    // Date.UTC(py, pm, 1)   = erster Tag nächsten Monats UTC-Mitternacht
+    // Da period_month via Europe/Berlin berechnet wird, ist UTC-Mitternacht der korrekte Schnitt.
+    const periodStart = new Date(Date.UTC(py, pm - 1, 1));
+    const periodEnd   = new Date(Date.UTC(py, pm, 1));
+
+    // NON_QUOTA_RUN_IDS: research_run_id-Werte die KEIN echtes Monatskontingent verbrauchen.
+    // Erweitern wenn neue Sonderwerte hinzukommen (§I Merkliste: Manuelle/Import-Leads nicht mischen).
+    const NON_QUOTA_RUN_IDS = new Set(['manual_setup', 'csv_import', 'manual', 'import']);
 
     const companiesThisMonth = allCompaniesRaw.filter(c => {
-      if (!c.research_run_id) return false; // nur automatisch recherchierte
+      if (!c.research_run_id) return false;
+      if (NON_QUOTA_RUN_IDS.has(c.research_run_id)) return false;
+      // Doppelabsicherung via quelle/source_provider
+      if (c.quelle === 'Manuell' || c.quelle === 'CSV Import') return false;
+      if (c.source_provider === 'manual' || c.source_provider === 'csv_import') return false;
       const created = new Date(c.created_date);
       return created >= periodStart && created < periodEnd;
     }).length;
@@ -114,10 +126,12 @@ Deno.serve(async (req) => {
       : null;
 
     const monthlyLimit = plan?.max_leads_per_month ?? -1;
-    const monthlyRemaining = monthlyLimit === -1 ? null : Math.max(0, monthlyLimit - monthlyUsed);
-    const isOverLimit = monthlyLimit !== -1 && monthlyUsed > monthlyLimit;
+    const isUnlimited = monthlyLimit === -1;
+    const monthlyRemaining = isUnlimited ? null : Math.max(0, monthlyLimit - monthlyUsed);
+    const isOverLimit = !isUnlimited && monthlyUsed > monthlyLimit;
 
     // ── CRM-BESTAND (aktuell gespeicherte Companies, ohne Blacklist) ───────
+    // allCompaniesRaw wird wiederverwendet — kein zweiter DB-Call
     const blacklist = await base44.entities.Blacklist.filter({ organization_id: orgId });
     const blacklistNames = blacklist.map(b => b.firmenname?.toLowerCase().trim());
     const isBlacklisted = (name) => {
@@ -125,40 +139,49 @@ Deno.serve(async (req) => {
       const normalized = name.toLowerCase().trim();
       return blacklistNames.some(bl => normalized.includes(bl) || bl.includes(normalized));
     };
+    const crmTotal = allCompaniesRaw.filter(c => !isBlacklisted(c.name)).length;
 
-    const allCompanies = await base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 2000);
-    const crmTotal = allCompanies.filter(c => !isBlacklisted(c.name)).length;
+    // ── ZENTRALE USAGE_SUMMARY ─────────────────────────────────────────────
+    // SSOT-Formel (§E Merkliste): monthly_used = Math.max(committedSlots, usageLogValue, companiesThisMonth)
+    const sourceUsed = monthlyUsed === committedSlots && committedSlots >= usageLogValue && committedSlots >= companiesThisMonth
+      ? 'quota_reservation'
+      : monthlyUsed === usageLogValue && usageLogValue >= companiesThisMonth
+      ? 'usage_log'
+      : 'companies_count';
 
-    // ── ZENTRALE USAGE_SUMMARY (Single Source of Truth: QuotaReservation) ──
+    // ⚠️ MVP-Risiko: Company.filter limit=2000 — bei > 2000 Companies/Monat kann companiesThisMonth unvollständig sein
+    const limitWarning = allCompaniesRaw.length >= 2000
+      ? "ACHTUNG: Company-Filter hat Limit 2000 erreicht — companiesThisMonth könnte unvollständig sein."
+      : null;
+
     const usage_summary = {
       period_month: periodMonth,
       plan_name: plan?.name || null,
       monthly_limit: monthlyLimit,
-      monthly_used: monthlyUsed, // committed slots = tatsächlich erstellte Companies
+      monthly_used: monthlyUsed,
       monthly_remaining: monthlyRemaining,
       is_over_limit: isOverLimit,
+      is_unlimited: isUnlimited,
       reset_date: resetDateFormatted,
       crm_total: crmTotal,
-      // Erklärung warum monthly_used ≠ crm_total sein kann:
       explanation: {
-        monthly_used_description: "Automatisch generierte neue Leads in diesem Kalendermonat (committed slots)",
-        crm_total_description: "Aktuell gespeicherte Firmenkontakte (kann auch manuell angelegte enthalten)",
-        why_different: monthlyUsed !== crmTotal ? 
-          "Der Monatsverbrauch zählt nur automatisch recherchierte Leads. Der CRM-Bestand enthält auch manuell angelegte Kontakte und kann sich durch Löschen/Archivieren unterscheiden." : 
-          null,
+        monthly_used_description: "Automatisch recherchierte Leads in diesem Kalendermonat (max aus QuotaReservation, UsageLog und Company-Zählung)",
+        crm_total_description: "Aktuell gespeicherte Firmenkontakte (inkl. manuell angelegte)",
+        why_different: monthlyUsed !== crmTotal
+          ? "Monatsverbrauch = nur automatisch recherchierte Leads. CRM-Bestand enthält auch manuell angelegte Kontakte." 
+          : null,
       },
-      // Reconciliation-Info für Debugging
       reconciliation: {
-        quota_reservation_source: committedSlots > 0,
         committed_slots: committedSlots,
         reserved_slots: reservedSlots,
         usage_log_value: usageLogValue,
         companies_this_month: companiesThisMonth,
-        source_used: monthlyUsed === committedSlots ? 'quota_reservation' : monthlyUsed === usageLogValue ? 'usage_log' : 'companies_count',
+        source_used: sourceUsed,
         usage_log_diff: usageLogDiff,
-        note: usageLogDiff !== 0 ? "UsageLog weicht von QuotaReservation ab" : null,
+        note: usageLogDiff !== 0 ? "UsageLog weicht von QuotaReservation ab — max()-Formel kompensiert." : null,
+        limit_warning: limitWarning,
       },
-      // Weitere Usage-Metriken (aus UsageLog für Backwards Compatibility)
+      // Weitere Usage-Metriken (aus UsageLog)
       research_runs_used: usageLog?.lead_generations_used || 0,
       ai_actions_used: usageLog?.ai_actions_used || 0,
       manual_emails_logged: usageLog?.manual_emails_logged || 0,

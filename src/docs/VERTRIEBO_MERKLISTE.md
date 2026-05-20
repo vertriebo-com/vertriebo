@@ -1853,3 +1853,17 @@ Sicherheit: `testLeadSearchEngine` ist bereits auf Platform-Admins (`admin/platf
 ## 25. ARBEITSREGELN & NO-GOs — siehe §A–§I oben (Pflichtbereich)
 
 **Stand:** 2026-05-20 | Alle Regeln jetzt in §A–§I oben.
+
+---
+
+## 26. GETUSAGESUMMARY — RECONCILIATION-FIX (2026-05-20) ✅
+
+- `monthly_used = Math.max(committedSlots, usageLogValue, companiesThisMonth)` — alle drei Quellen
+- `companiesThisMonth` schließt explizit aus: `research_run_id ∈ {manual_setup, csv_import, manual, import}` + `quelle ∈ {Manuell, CSV Import}` + `source_provider ∈ {manual, csv_import}`
+- `is_unlimited` Feld ergänzt
+- `reconciliation.limit_warning` bei Company.filter >= 2000 gesetzt (MVP-Risiko dokumentiert)
+- Kommentar und `explanation.monthly_used_description` korrigiert (nicht mehr "committed slots allein")
+- Dashboard: `usageInfo={meta.currentUsage}` entfernt (altes Feld) → `TrialStatusBanner` ohne usageInfo
+- Dashboard: Gesamtbestand immer als zweite Zeile sichtbar (§F)
+- Dashboard: Fallback-Anzeige "(geschätzt)" wenn `source_used === companies_count` und keine committed_slots
+- Live-Test: `monthly_used=324, source=usage_log, companies_this_month=174` — kein 0/300 mehr ✅
