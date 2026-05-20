@@ -385,36 +385,55 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Usage-Info (nur wenn Plan vorhanden) */}
-      {activeOrg?.plan_id && meta?.currentUsage && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-slate-700">
-              {meta.planName || "Plan"} · <span className="font-normal text-slate-500">Monatskontingent</span>
-            </p>
-            <p className="text-sm font-bold text-slate-900 mt-0.5">
-              {meta.currentUsage?.leads_created || 0}
-              {meta.maxContacts && meta.maxContacts !== -1 && (
-                <span className="font-normal text-slate-500"> von {meta.maxContacts} neuen Leads genutzt</span>
-              )}
-            </p>
-            <p className="text-[10px] text-slate-400 mt-0.5">Gesamtbestand: {totalLeads} Leads im CRM</p>
-          </div>
-          {meta.maxContacts && meta.maxContacts !== -1 && (
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
-                <div
-                  className="h-2 bg-blue-500 rounded-full transition-all"
-                  style={{ width: `${Math.min(100, ((meta.currentUsage?.leads_created || 0) / meta.maxContacts) * 100)}%` }}
-                />
+      {/* Usage-Info aus usage_summary */}
+      {(() => {
+        const usage = meta?.usage_summary;
+        if (!usage) return null;
+        const isUnlimited = usage.is_unlimited || usage.monthly_limit === -1;
+        const isOverLimit = usage.is_over_limit;
+        const barWidth = isUnlimited ? 0 : Math.min(100, Math.round((usage.monthly_used || 0) / (usage.monthly_limit || 1) * 100));
+        const barColor = isOverLimit ? 'bg-red-500' : barWidth >= 90 ? 'bg-amber-500' : 'bg-blue-500';
+        return (
+          <div className={`border rounded-xl px-5 py-4 ${isOverLimit ? 'bg-red-50 border-red-200' : 'bg-slate-50 border-slate-200'}`}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-slate-700">
+                  {usage.plan_name || "Plan"} · <span className="font-normal text-slate-500">Monatskontingent</span>
+                </p>
+                {isUnlimited ? (
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">
+                    Unbegrenzt · <span className="font-normal text-slate-500">{usage.monthly_used || 0} neue Leads diesen Monat</span>
+                  </p>
+                ) : (
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">
+                    {usage.monthly_used || 0}
+                    <span className="font-normal text-slate-500"> von {usage.monthly_limit} neuen Leads genutzt</span>
+                  </p>
+                )}
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  {!isUnlimited && `${usage.monthly_remaining ?? 0} verbleibend`}
+                  {!isUnlimited && usage.reset_date && ` · Reset am ${usage.reset_date}`}
+                  {(isUnlimited || !usage.reset_date) && `Gesamtbestand: ${usage.crm_total ?? totalLeads} Leads im CRM`}
+                </p>
               </div>
-              <span className="text-xs text-slate-500 whitespace-nowrap">
-                {Math.max(0, meta.maxContacts - (meta.currentUsage?.leads_created || 0))} verbleibend
-              </span>
+              {!isUnlimited && (
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="w-32 h-2 bg-slate-200 rounded-full overflow-hidden">
+                    <div className={`h-2 ${barColor} rounded-full transition-all`} style={{ width: `${barWidth}%` }} />
+                  </div>
+                  <span className="text-xs text-slate-500 whitespace-nowrap">{barWidth}%</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
+            {isOverLimit && (
+              <p className="text-xs font-semibold text-red-700 mt-2 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                Kontingent überschritten – weitere Recherche blockiert bis Reset oder Upgrade.
+              </p>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }
