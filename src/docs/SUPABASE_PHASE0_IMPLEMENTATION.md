@@ -339,5 +339,31 @@ Falls Supabase Probleme macht:
 ---
 
 **Datum:** 2026-05-20  
-**Status:** ✅ PHASE 0 ABGESCHLOSSEN — Migrationen erstellt, bereit für Deployment  
+**Status:** ✅ PHASE 0 ABGESCHLOSSEN — Alle 6 Migrationen im Repo sichtbar  
 **Nächste Aktion:** Supabase-Projekt anlegen + Migrationen deployen
+
+### GitHub-Verifikation (2026-05-20)
+
+Alle Migrationen sind jetzt im Repo sichtbar:
+
+| # | Datei | GitHub-Status |
+|---|---|---|
+| 1 | `20260520000001_create_lead_usage_events.sql` | ✅ Vorhanden |
+| 2 | `20260520000002_create_shadow_mode_log.sql` | ✅ Vorhanden |
+| 3 | `20260520000003_create_quota_reservations.sql` | ✅ **Neu erstellt** |
+| 4 | `20260520000004_create_rpc_functions.sql` | ✅ **Neu erstellt** |
+| 5 | `20260520000005_create_research_run_locks.sql` | ✅ **Neu erstellt** |
+| 6 | `20260520000006_create_research_run_audit.sql` | ✅ **Neu erstellt** |
+
+**Verifizierte RPCs in Migration 04:**
+- `reserve_quota_slot()` — Atomare Quota-Reservierung
+- `get_monthly_usage()` — Exakter Usage-Count
+- `record_lead_usage_event()` — Idempotentes Writing
+- `acquire_org_run_lock()` — Worker-Lock
+- `release_org_run_lock()` — Lock-Release
+- `audit_research_event()` — Audit-Trail
+
+**Keine Secrets in Migrationen:**
+- ✅ Keine API-Keys oder Credentials in SQL-Dateien
+- ✅ `SECURITY DEFINER` für RPCs (umgeht RLS für Service-Key-Calls)
+- ✅ Alle Secrets ausschließlich in Base44 (`SUPABASE_URL`, `SUPABASE_SERVICE_KEY`)

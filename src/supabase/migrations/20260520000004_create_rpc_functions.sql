@@ -14,7 +14,7 @@ CREATE OR REPLACE FUNCTION reserve_quota_slot(
   p_research_run_id text
 ) RETURNS int
 LANGUAGE plpgsql
-SECURITY DEFINER -- Wichtig: Umgeht RLS für Service-Key-Calls
+SECURITY DEFINER
 AS $$
 DECLARE
   v_current_count   int;
