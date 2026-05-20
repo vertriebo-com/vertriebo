@@ -73,17 +73,80 @@
 
 ---
 
-## NÄCHSTE SCHRITTE
+## TEST-ERGEBNIS: FEHLGESCHLAGEN (2026-05-20)
 
-1. ✅ **startResearchRun-Blocker behoben** (2026-05-20 09:52) — Taxonomie direkt aus DB
-2. ⚠️ **Base44 Quota-Bug dokumentiert** — `commitQuotaSlot` scheitert an nicht-atomarem Update
-3. 📋 **Shadow-Mode-Validierung kann beginnen** — Supabase schreibt parallel, Base44 max()-Formel bleibt aktiv
-4. ⏳ **Echter Test benötigt Org unter Limit** — Test-Org (69fb97805d33ed928de241ae) hat 269/300 → kann nicht getestet werden
+### Befund
 
-**Empfehlung:**
-- Shadow-Mode-Log (`shadow_mode_log`) läuft bereits parallel (seit 2026-05-20)
-- Nach 14 Tagen (2026-06-03) kann Delta analysiert werden
-- Supabase-SSOT (Phase 2) erst nach: GitHub-Review + 14-Tage-Validierung + manuellem Test mit frischer Org
+| Metrik | Wert |
+|---|---|
+| **Companies erstellt** | 14 (alle mit `research_run_id=6a0d845d6fce97a9695fac99`) |
+| **QuotaSlots reserviert** | 14 (slot_number 1-15, alle `status=reserved`) |
+| **QuotaSlots committet** | 0 (alle `commitQuotaSlot` fehlgeschlagen) |
+| **Run-Status** | `running` mit `leads_saved=0`, `stop_reason='monthly_quota_reached'` |
+
+### Root Cause
+
+`commitQuotaSlot` in `processResearchRun` schlägt fehl weil Base44 `QuotaReservation.update(id, data)` nicht atomar ist.
+
+**Konkreter Fehler:**
+```
+[ERROR] - [processResearchRun] Company.create OK, aber commitQuotaSlot FAILED: 
+company_id=6a0d846d87215222f48fe18d, slot=6. MANUELLE REPARATUR ERFORDERLICH!
+```
+
+**Reparatur-Versuch mit `repairQuotaCommit`:**
+- Bug in `repairQuotaCommit`: Mappt alle 14 Slots auf dieselbe Company (zeitliches Matching <5 Min findet erste Company im Array)
+- Folge: 13 Companies verwaist, 1 Company mit 14 Slots (inkonsistent)
+
+### Bereinigung (2026-05-20 10:00)
+
+1. ✅ Alle 14 QuotaSlots gelöscht (`QuotaReservation.delete`)
+2. ✅ Alle 14 Companies gelöscht (`Company.delete`)
+3. ✅ ResearchRun auf `status=failed`, `stop_reason=quota_commit_failed_base44_non_atomic_update` gesetzt
+4. ✅ UsageLog unverändert (bei 60 Leads, keine Erhöhung)
+
+### Lessons Learned
+
+**Kritische Base44-Limitationen (bewiesen 2026-05-20):**
+
+1. **`unique_constraints` nicht atomar** — Zwei parallele Creates für denselben Slot können beide durchgehen (Live-Test 2026-05-20)
+2. **`Entity.update()` nicht atomar** — `QuotaReservation.update(id, {status:'committed'})` schlägt fehl ohne erkennbaren Grund
+3. **Keine Row-Level-Locks** — Kein Mechanismus um Slots während Verarbeitung zu sperren
+4. **Keine Transaktionen** — Company.create + QuotaReservation.update können nicht atomar gekoppelt werden
+
+**Folge für Supabase-Architektur:**
+
+| Problem | Base44 | Supabase-Lösung |
+|---|---|---|
+| Atomare Quota | ❌ Nicht möglich | ✅ UNIQUE INDEX + RPC `reserve_quota_slot()` |
+| Row-Locks | ❌ Nicht verfügbar | ✅ `SELECT ... FOR UPDATE SKIP LOCKED` |
+| Transaktionen | ❌ Nicht verfügbar | ✅ Vollständige ACID-Transaktionen |
+| Duplikat-Schutz | ❌ unique_constraints nicht enforced | ✅ UNIQUE CONSTRAINTS atomar |
+
+### Shadow-Mode-Status
+
+- ✅ Supabase-Tabelle `lead_usage_events` existiert
+- ✅ Shadow-Write in `processResearchRun` implementiert (non-blocking)
+- ✅ `shadow_mode_log` für Audit-Trail vorhanden
+- ⚠️ **Kein erfolgreicher Live-Test** — Run konnte nicht abgeschlossen werden
+- 📋 Shadow-Mode-Log läuft parallel (seit 2026-05-20)
+
+### Nächste Schritte
+
+1. **Supabase-Hybrid-Architektur priorisieren** — Base44 Quota-Reservation ist für Produktivbetrieb nicht sicher
+2. **Phase-1-Implementierung** — `processResearchRun` schreibt parallel zu Supabase (non-blocking)
+3. **14-Tage-Validierung** — Shadow-Mode-Log zeigt tägliche Konsistenzprüfung
+4. **Phase-2-Migration** — Supabase als SSOT für Usage erst nach:
+   - GitHub-Review abgeschlossen
+   - 14 Tage Shadow-Mode mit <1% Abweichung
+   - Manueller Test mit frischer Org (1-3 Leads, Vorher/Nachher-Protokoll)
+   - Rollback-Test bestanden
+
+**KEIN FINAL GRÜN ohne:**
+- ❌ Echten neuen ResearchRun mit konsistentem Abschluss
+- ❌ 14-Tage-Validierung mit Shadow-Mode-Log
+- ❌ GitHub-Review der Supabase-Integration
+- ❌ Manuellem Test mit frischer Org unter Limit
 
 ---
 
