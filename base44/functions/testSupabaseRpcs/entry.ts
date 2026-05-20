@@ -75,6 +75,30 @@ async function checkTablesExist() {
   return results;
 }
 
+// ── Direkter INSERT-Test um genauen Fehler sichtbar zu machen ───────────────
+async function directInsertDiagnose() {
+  // Direkt via REST POST einfügen — Fehler werden nicht durch EXCEPTION verschluckt
+  const res = await supabaseRest('/lead_usage_events', 'POST', {
+    organization_id: TEST_ORG_ID,
+    period_month: TEST_PERIOD,
+    company_id: 'diag_company_001',
+    research_run_id: TEST_RUN_ID,
+    event_type: 'research_lead_created',
+    source: 'research',
+  }, { 'Prefer': 'return=minimal' });
+
+  // Cleanup
+  await supabaseRest(`/lead_usage_events?organization_id=eq.${TEST_ORG_ID}&company_id=eq.diag_company_001`, 'DELETE', null, { 'Prefer': 'return=minimal' });
+
+  return {
+    step: 'direct_insert_diagnose',
+    status: res.status,
+    ok: res.ok,
+    data: res.data,
+    note: res.ok ? '✅ Direkt-INSERT funktioniert — ON CONFLICT-Key stimmt überein' : `❌ Insert fehlgeschlagen: ${JSON.stringify(res.data)}`,
+  };
+}
+
 // ── RPC 1: record_lead_usage_event ──────────────────────────────────────────
 async function testRecordLeadUsageEvent() {
   const test = {
@@ -357,6 +381,9 @@ Deno.serve(async (req) => {
     // Auch wenn Tabellen fehlen: RPCs für vorhandene Tabellen testen
     // (kein harter Abbruch — Testergebnisse pro RPC zeigen was fehlt)
 
+    // ── Schritt 1b: Direkt-INSERT Diagnose ───────────────────────────────────
+    const directInsert = await directInsertDiagnose();
+
     // ── Schritt 2: RPCs sequenziell testen ───────────────────────────────────
     // Reihenfolge wichtig: record_event → get_count, acquire → release
     const results = [];
@@ -392,6 +419,7 @@ Deno.serve(async (req) => {
 
     return Response.json({
       success: allPassed,
+      direct_insert_diagnose: directInsert,
       summary: allPassed
         ? `✅ Alle ${passed} RPCs erfolgreich getestet`
         : `❌ ${failed} von ${results.length} RPCs fehlgeschlagen`,
