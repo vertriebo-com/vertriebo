@@ -1,64 +1,54 @@
+/**
+ * useLeadsFilter – nutzt useOrganization für den Org-Kontext.
+ * Kein duplikater Org-Load-Code mehr.
+ */
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { useOrganization } from "./useOrganization";
 
 export function useLeadsFilter() {
+  const { org, user: orgUser, loading: orgLoading, error: orgError, allOrgs, setActiveOrgId } = useOrganization();
   const [user, setUser] = useState(null);
-  const [org, setOrg] = useState(null);
   const [blacklist, setBlacklist] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [blacklistLoading, setBlacklistLoading] = useState(true);
 
+  // User mit org_role anreichern sobald Org geladen
   useEffect(() => {
-    (async () => {
-      try {
-        const u = await base44.auth.me();
-        if (!u) {
-          setError("Nicht angemeldet");
-          setLoading(false);
-          return;
-        }
-        setUser(u);
+    if (!orgUser || !org) {
+      setUser(orgUser);
+      return;
+    }
+    let enriched = { ...orgUser };
+    if (org.owner_email === orgUser.email) {
+      enriched.org_role = "organization_admin";
+    }
+    setUser(enriched);
 
-        // Eigene Organisation laden
-        let organization = null;
-        const orgs = await base44.entities.Organization.filter({ owner_email: u.email });
-        organization = orgs?.[0] || null;
-        if (!organization) {
-          const memberships = await base44.entities.OrganizationMember.filter({ user_email: u.email, status: "active" });
-          if (memberships?.[0]?.organization_id) {
-            const memberOrgs = await base44.entities.Organization.filter({ id: memberships[0].organization_id });
-            organization = memberOrgs?.[0] || null;
-          }
-        }
-        setOrg(organization);
-
-        // Org-Rolle ermitteln
-        if (organization && u.role !== "admin") {
-          const memberships2 = await base44.entities.OrganizationMember.filter({ user_email: u.email, organization_id: organization.id });
-          const member = memberships2?.[0];
+    // Membership-Rolle laden (für Sales-Reps)
+    if (!["admin", "platform_owner", "platform_admin"].includes(orgUser.role)) {
+      base44.entities.OrganizationMember.filter({ user_email: orgUser.email, organization_id: org.id })
+        .then(memberships => {
+          const member = memberships?.[0];
           if (member) {
-            // Setze role auf user-Objekt damit isAdmin-Check funktioniert
-            setUser(prev => ({ ...prev, org_role: member.role }));
-          } else if (organization.owner_email === u.email) {
-            setUser(prev => ({ ...prev, org_role: "organization_admin" }));
+            setUser(prev => prev ? { ...prev, org_role: member.role } : prev);
           }
-        } else if (organization && organization.owner_email === u.email) {
-          setUser(prev => ({ ...prev, org_role: "organization_admin" }));
-        }
+        })
+        .catch(() => {});
+    }
+  }, [orgUser?.email, org?.id]);
 
-        // Blacklist nur für diese Organisation laden
-        if (organization) {
-          const bl = await base44.entities.Blacklist.filter({ organization_id: organization.id }, "-created_date", 500);
-          setBlacklist(bl);
-        }
-      } catch (e) {
-        console.error("useLeadsFilter error:", e);
-        setError(e.message || "Fehler beim Laden");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+  // Blacklist für aktive Org laden
+  useEffect(() => {
+    if (!org?.id) {
+      setBlacklistLoading(false);
+      return;
+    }
+    setBlacklistLoading(true);
+    base44.entities.Blacklist.filter({ organization_id: org.id }, "-created_date", 500)
+      .then(bl => setBlacklist(bl))
+      .catch(() => setBlacklist([]))
+      .finally(() => setBlacklistLoading(false));
+  }, [org?.id]);
 
   const normalize = (name = "") =>
     name.toLowerCase().trim()
@@ -75,5 +65,14 @@ export function useLeadsFilter() {
       return true;
     });
 
-  return { user, org, filterCompanies, blacklist, loading, error };
+  return {
+    user,
+    org,
+    filterCompanies,
+    blacklist,
+    loading: orgLoading || blacklistLoading,
+    error: orgError,
+    allOrgs,
+    setActiveOrgId,
+  };
 }

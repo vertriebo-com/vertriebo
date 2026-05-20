@@ -390,6 +390,11 @@ Deno.serve(async (req) => {
     // Für jetzt: Org behalten damit Browser sie verarbeiten kann
     console.info('[e2eTest] ℹ️  Test-Org wird NICHT bereinigt — wird später manuell gelöscht.');
 
+    // Browser-Test-URL: öffne Dashboard mit dieser Test-Org als aktiver Org
+    // useOrganization liest ?org_id= → lädt genau diese Org → ActiveResearchBanner verarbeitet den Run
+    const appOrigin = req.headers.get('origin') || req.headers.get('referer')?.replace(/\/[^/]*$/, '') || 'https://app.vertriebo.com';
+    const browserTestUrl = `${appOrigin}/dashboard?org_id=${testOrg.id}`;
+
     return Response.json({
       success: setupSuccess,
       verdict,
@@ -399,7 +404,8 @@ Deno.serve(async (req) => {
       period_month: periodMonth,
       test_org_id: testOrg.id,
       research_run_id: run.id,
-      note: 'Setup erfolgreich. Test-Org ist aktiv und wartet auf Browser-Verarbeitung. Mit validate_run=true nach der Verarbeitung prüfen.',
+      browser_test_url: browserTestUrl,
+      note: 'Setup erfolgreich. Browser-Test-URL öffnen → ActiveResearchBanner verarbeitet den queued Run → dann validate_run=true aufrufen.',
     });
 
   } catch (error) {
