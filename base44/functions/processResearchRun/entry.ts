@@ -760,6 +760,38 @@ Deno.serve(async (req) => {
       worker_attempts: (run.worker_attempts || 0) + 1,
     });
 
+    // ── ATOMARER LOCK-CHECK: Run nach Lock-Write nochmal lesen ────────────────
+    // Wenn zwei Workers gleichzeitig den Lock-Check passieren, gewinnt der erste
+    // der geschrieben hat. Der zweite sieht processing_by !== workerKey → raus.
+    await new Promise(r => setTimeout(r, 150)); // kurz warten damit DB schreibt
+    const lockedRuns = await base44.asServiceRole.entities.ResearchRun.filter({ id: research_run_id });
+    const lockedRun = lockedRuns[0];
+    if (!lockedRun || lockedRun.processing_by !== workerKey) {
+      console.warn(`[processResearchRun] Lost lock race, another worker owns this run: ${lockedRun?.processing_by}`);
+      return Response.json({
+        success: true, done: false, already_processing: true,
+        status: lockedRun?.status || run.status,
+        leads_saved: lockedRun?.leads_saved || run.leads_saved || 0,
+        progress_percent: lockedRun?.progress_percent || run.progress_percent || 5,
+        current_step: lockedRun?.current_step || run.current_step || 'Recherche läuft…',
+        message: lockedRun?.current_step || run.current_step || 'Recherche läuft…',
+      });
+    }
+    // Auch hier: falls der Run inzwischen completed/failed wurde → nicht weiterverarbeiten
+    if (['completed', 'partial', 'failed'].includes(lockedRun.status)) {
+      await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+        processing_lock_until: null, processing_by: null,
+      });
+      return Response.json({
+        success: true, done: true, status: lockedRun.status,
+        leads_saved: lockedRun.leads_saved || 0,
+        progress_percent: 100,
+        message: lockedRun.status === 'completed'
+          ? `Recherche abgeschlossen: ${lockedRun.leads_saved || 0} neue Firmenkontakte gefunden.`
+          : `Recherche teilweise/fehlgeschlagen: ${lockedRun.leads_saved || 0} Kontakte gefunden.`,
+      });
+    }
+
     // ── Suchplan lesen ───────────────────────────────────────────────────────
     let searchPlan;
     try {
