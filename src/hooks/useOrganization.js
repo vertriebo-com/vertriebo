@@ -18,11 +18,13 @@ import { base44 } from "@/api/base44Client";
 const STORAGE_KEY = "active_organization_id";
 const PLATFORM_ADMIN_ROLES = ["admin", "platform_owner", "platform_admin", "support_agent", "readonly_support"];
 
-// Liest die aktive Org-ID aus URL oder localStorage
+// Liest die aktive Org-ID — Priorität: URL → sessionStorage → localStorage
 function getRequestedOrgId() {
   const params = new URLSearchParams(window.location.search);
   const fromUrl = params.get("org_id");
   if (fromUrl) return { id: fromUrl, source: "url" };
+  const fromSession = sessionStorage.getItem(STORAGE_KEY);
+  if (fromSession) return { id: fromSession, source: "session" };
   const fromStorage = localStorage.getItem(STORAGE_KEY);
   if (fromStorage) return { id: fromStorage, source: "storage" };
   return null;
@@ -94,15 +96,20 @@ export function useOrganization() {
           }
 
           if (chosenOrg) {
-            // Gültige angefragte Org → in localStorage persistieren
-            persistActiveOrgId(chosenOrg.id);
             setActiveOrgIdState(chosenOrg.id);
 
-            // URL-Param entfernen (damit Bookmarks/Shares sauber bleiben)
             if (requested.source === "url") {
+              // URL-Param: NUR sessionStorage — gilt nur für diesen Tab.
+              // Beim Tab-Schließen automatisch gelöscht → keine Kontamination anderer Sessions.
+              sessionStorage.setItem(STORAGE_KEY, chosenOrg.id);
               const url = new URL(window.location.href);
               url.searchParams.delete("org_id");
               window.history.replaceState({}, "", url.toString());
+            } else if (requested.source === "session") {
+              // sessionStorage: bereits gesetzt, nichts tun
+            } else {
+              // localStorage-Quelle: normal persistieren
+              persistActiveOrgId(chosenOrg.id);
             }
           } else {
             // Ungültige ID → ignorieren, auf Default zurückfallen
@@ -115,7 +122,11 @@ export function useOrganization() {
         if (!chosenOrg) {
           chosenOrg = ownedOrgs[0] || memberOrgs[0] || null;
           if (chosenOrg) {
-            persistActiveOrgId(chosenOrg.id);
+            // Nur in localStorage schreiben wenn kein URL-Param aktiv war
+            // (URL-Param-Fehler soll nicht die Default-Org überschreiben)
+            if (!requested || requested.source !== "url") {
+              persistActiveOrgId(chosenOrg.id);
+            }
             setActiveOrgIdState(chosenOrg.id);
           }
         }
