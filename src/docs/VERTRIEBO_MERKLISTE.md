@@ -39,6 +39,8 @@
 - ❌ **Date.UTC als "perfekte Berlin-Monatsgrenzen" verkaufen** — ist UTC-Mitternacht, nicht Berlin-Mitternacht
 - ❌ **FINAL GRÜN ohne Live-Test** — kein Status-Flag ohne nachgewiesene Verifikation
 - ❌ **`usageInfo={meta.currentUsage}`** — altes Feld existiert nicht mehr; nutze `meta.usage_summary`
+- ❌ **`startResearchRun` nur QuotaReservation für Limit-Check** — historisch 0 für viele Orgs → würde Recherche trotz 324/300 starten
+- ❌ **`functions.invoke` innerhalb von `getDashboardData` oder `startResearchRun`** — Rate-Limit-Risiko (429 → Fallback → 0)
 
 ### Live-Test-Status (2026-05-20)
 
@@ -46,6 +48,7 @@
 |---|---|---|
 | `getUsageSummary` | 2026-05-20 | `monthly_used=324, source=usage_log` — korrekt |
 | `getDashboardData` (inline, kein functions.invoke) | 2026-05-20 | `monthly_used=324, committed=0, usage_log=324, companies_this_month=174` — korrekt |
+| `startResearchRun` Limit-Check | 2026-05-20 | HTTP 402, `monthly_used=324 von 300` — korrekt, kein Durchstarten bei Überschreitung |
 | Dashboard-UI | ⚠️ Ausstehend — Live-Refresh im Browser noch nicht verifiziert | Bitte als nächstes im Browser prüfen |
 
 ### Root Cause: functions.invoke Rate-Limit (2026-05-20) — BEHOBEN

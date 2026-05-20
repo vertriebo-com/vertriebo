@@ -167,29 +167,58 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Monthly Limit Check (Source of Truth: QuotaReservation) ─────────────
+    // ── Monthly Limit Check — SSOT: max(committedSlots, usageLogValue, companiesThisMonth) ──────
+    // IDENTISCH zu getDashboardData und getUsageSummary — keine einzelne Quelle allein!
+    // Kein functions.invoke → kein Rate-Limit-Risiko.
     let monthlyContactLimit = -1;
     if (org.plan_id) {
       const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
       if (plans[0]) monthlyContactLimit = plans[0].max_leads_per_month ?? 300;
     }
     let monthlyRemaining = -1; // -1 = unbegrenzt
+    let monthlyUsedForCheck = 0;
     if (monthlyContactLimit !== -1) {
       const periodMonth = getPeriodMonth();
-      // QuotaReservation als Source of Truth (nicht UsageLog, der kann abweichen)
-      const quotaSlots = await base44.asServiceRole.entities.QuotaReservation.filter({ organization_id, period_month: periodMonth });
-      const used = quotaSlots.filter(s => s.status === 'committed').length;
-      monthlyRemaining = Math.max(0, monthlyContactLimit - used);
-      if (used >= monthlyContactLimit) {
-        const [py, pm] = periodMonth.split('-').map(Number);
+      const [py, pm] = periodMonth.split('-').map(Number);
+
+      // Alle 3 Quellen parallel laden
+      const [quotaSlots, usageLogs, companiesRaw] = await Promise.all([
+        base44.asServiceRole.entities.QuotaReservation.filter({ organization_id, period_month: periodMonth }),
+        base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth }),
+        base44.asServiceRole.entities.Company.filter({ organization_id }, '-created_date', 2000),
+      ]);
+
+      const committedSlots = quotaSlots.filter(s => s.status === 'committed').length;
+      const usageLogValue = usageLogs?.[0]?.leads_created || 0;
+
+      // Manuell/Import-Leads ausschließen — identisch zu getDashboardData
+      const NON_QUOTA_RUN_IDS = new Set(['manual_setup', 'csv_import', 'manual', 'import']);
+      const periodStart = new Date(Date.UTC(py, pm - 1, 1));
+      const periodEnd   = new Date(Date.UTC(py, pm, 1));
+      const companiesThisMonth = companiesRaw.filter(c => {
+        if (!c.research_run_id) return false;
+        if (NON_QUOTA_RUN_IDS.has(c.research_run_id)) return false;
+        if (c.quelle === 'Manuell' || c.quelle === 'CSV Import') return false;
+        if (c.source_provider === 'manual' || c.source_provider === 'csv_import') return false;
+        const created = new Date(c.created_date);
+        return created >= periodStart && created < periodEnd;
+      }).length;
+
+      // SSOT-Formel: höchsten Wert nehmen
+      monthlyUsedForCheck = Math.max(committedSlots, usageLogValue, companiesThisMonth);
+      monthlyRemaining = Math.max(0, monthlyContactLimit - monthlyUsedForCheck);
+
+      console.info(`[startResearchRun] Monthly limit check: committed=${committedSlots} usageLog=${usageLogValue} companies=${companiesThisMonth} → used=${monthlyUsedForCheck}/${monthlyContactLimit}`);
+
+      if (monthlyUsedForCheck >= monthlyContactLimit) {
         const resetDate = new Date(Date.UTC(py, pm, 1));
         const resetDateFormatted = resetDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' });
         return Response.json({
           success: false,
           error: 'monthly_contact_limit_reached',
           reason: 'monthly_lead_quota_reached',
-          message: `Monatskontingent erreicht: ${used} von ${monthlyContactLimit} Leads genutzt.`,
-          monthly_usage: { monthly_limit: monthlyContactLimit, monthly_used: used, remaining: 0, reset_date: resetDateFormatted }
+          message: `Monatskontingent erreicht: ${monthlyUsedForCheck} von ${monthlyContactLimit} Leads genutzt.`,
+          monthly_usage: { monthly_limit: monthlyContactLimit, monthly_used: monthlyUsedForCheck, remaining: 0, reset_date: resetDateFormatted }
         }, { status: 402 });
       }
     }
