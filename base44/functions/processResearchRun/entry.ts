@@ -652,7 +652,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── PROCESSING LOCK ──────────────────────────────────────────────────────
+    // ── PROCESSING LOCK (Run-Level) ───────────────────────────────────────────
     const lockUntil = run.processing_lock_until ? new Date(run.processing_lock_until).getTime() : 0;
     const lockBy = run.processing_by || null;
     const workerKey = `${user.email}:${Date.now()}`;
@@ -666,6 +666,28 @@ Deno.serve(async (req) => {
         progress_percent: run.progress_percent || 5,
         current_step: run.current_step || 'Recherche läuft…',
         message: run.current_step || 'Recherche läuft…',
+      });
+    }
+
+    // ── SERIAL LOCK: Keine anderen aktiven Runs dieser Org verarbeiten ────────
+    // Verhindert parallele Quota-Reservierungen über verschiedene Runs.
+    // Ein queued Run darf starten; ein anderer running Run blockiert.
+    const otherRunningRuns = await base44.asServiceRole.entities.ResearchRun.filter({ organization_id }, '-created_date', 5);
+    const conflictRun = otherRunningRuns.find(r => 
+      r.id !== research_run_id && 
+      r.status === 'running' && 
+      r.processing_lock_until && 
+      new Date(r.processing_lock_until).getTime() > Date.now()
+    );
+    if (conflictRun) {
+      console.warn(`[processResearchRun] Serial-Lock: Another run is active: ${conflictRun.id} for org=${organization_id}`);
+      return Response.json({
+        success: true, done: false, already_processing: true,
+        status: run.status,
+        leads_saved: run.leads_saved || 0,
+        progress_percent: run.progress_percent || 5,
+        current_step: run.current_step || 'Warte auf anderen Recherche-Lauf…',
+        message: 'Ein anderer Recherche-Lauf läuft gerade. Bitte warten.',
       });
     }
 

@@ -138,23 +138,51 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Monthly Limit Check ──────────────────────────────────────────────────
+    // ── SERIAL RUN LOCK: Nur ein aktiver Run pro Organisation ───────────────
+    // Da Base44 keine atomaren DB-Operationen bietet, verhindert dieser Lock parallele
+    // ResearchRuns auf Org-Ebene. Das eliminiert den kritischsten Race-Condition-Pfad.
+    const activeRuns = await base44.asServiceRole.entities.ResearchRun.filter({ organization_id }, '-created_date', 10);
+    const activeRun = activeRuns.find(r => ['queued', 'running'].includes(r.status));
+    if (activeRun) {
+      // Stale-Check: Run älter als 5 Minuten ohne Fortschritt gilt als stale
+      const runAge = activeRun.started_at ? (Date.now() - new Date(activeRun.started_at).getTime()) / 1000 : 999;
+      if (runAge < 300) {
+        return Response.json({
+          success: false,
+          error: 'research_run_already_active',
+          message: 'Eine Recherche läuft bereits. Bitte warten bis diese abgeschlossen ist.',
+          active_run_id: activeRun.id,
+          active_run_status: activeRun.status,
+        }, { status: 409 });
+      }
+      // Stale Run: als failed markieren damit neuer Run starten kann
+      console.warn(`[startResearchRun] Stale run detected (${Math.round(runAge)}s old), marking as failed: ${activeRun.id}`);
+      await base44.asServiceRole.entities.ResearchRun.update(activeRun.id, {
+        status: 'failed',
+        error_message: 'Run durch Serial-Lock als stale markiert (>5min ohne Abschluss)',
+        stop_reason: 'stale_serial_lock',
+        finished_at: new Date().toISOString(),
+        processing_lock_until: null,
+        processing_by: null,
+      });
+    }
+
+    // ── Monthly Limit Check (Source of Truth: QuotaReservation) ─────────────
     let monthlyContactLimit = -1;
     if (org.plan_id) {
       const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
       if (plans[0]) monthlyContactLimit = plans[0].max_leads_per_month ?? 300;
     }
-    // monthlyRemaining wird für effectiveTarget weiter unten genutzt (verhindert Überbuchung)
     let monthlyRemaining = -1; // -1 = unbegrenzt
     if (monthlyContactLimit !== -1) {
       const periodMonth = getPeriodMonth();
-      const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
-      const used = usageLogs[0]?.leads_created || 0;
+      // QuotaReservation als Source of Truth (nicht UsageLog, der kann abweichen)
+      const quotaSlots = await base44.asServiceRole.entities.QuotaReservation.filter({ organization_id, period_month: periodMonth });
+      const used = quotaSlots.filter(s => s.status === 'committed').length;
       monthlyRemaining = Math.max(0, monthlyContactLimit - used);
       if (used >= monthlyContactLimit) {
-        // Reset-Datum: erster Tag des nächsten Kalendermonats (Europe/Berlin)
         const [py, pm] = periodMonth.split('-').map(Number);
-        const resetDate = new Date(Date.UTC(py, pm, 1)); // pm ist 1-basiert → pm = nächster Monat
+        const resetDate = new Date(Date.UTC(py, pm, 1));
         const resetDateFormatted = resetDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' });
         return Response.json({
           success: false,
@@ -162,7 +190,7 @@ Deno.serve(async (req) => {
           reason: 'monthly_lead_quota_reached',
           message: `Monatskontingent erreicht: ${used} von ${monthlyContactLimit} Leads genutzt.`,
           monthly_usage: { monthly_limit: monthlyContactLimit, monthly_used: used, remaining: 0, reset_date: resetDateFormatted }
-        }, { status: 402 }); // 402 = semantisch korrekt für Plan/Quota-Limit
+        }, { status: 402 });
       }
     }
 
