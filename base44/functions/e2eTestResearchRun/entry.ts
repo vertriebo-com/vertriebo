@@ -135,6 +135,87 @@ Deno.serve(async (req) => {
       return Response.json({ success: true, message: `Cleanup abgeschlossen für ${org_id_to_cleanup}` });
     }
 
+    // ── VALIDATE: Counts nach Browser-Run prüfen ──────────────────────────────
+    const { validate_run, validate_org_id, validate_run_id, validate_baseline } = body;
+    if (validate_run && validate_org_id && validate_run_id) {
+      const periodMonth = getPeriodMonth();
+      const baseline = validate_baseline || { companies: 0, usageLog_leads_created: 0, supabase_monthly_used: 0 };
+
+      const [finalCompanies, finalRunRecords, finalUsage, finalSupabase] = await Promise.all([
+        base44.asServiceRole.entities.Company.filter({ organization_id: validate_org_id }),
+        base44.asServiceRole.entities.ResearchRun.filter({ id: validate_run_id }),
+        base44.asServiceRole.entities.UsageLog.filter({ organization_id: validate_org_id, period_month: periodMonth }),
+        getSupabaseMonthlyCount(validate_org_id, periodMonth, 3),
+      ]);
+
+      const finalRun = finalRunRecords[0];
+      const nonQuota = new Set(['manual_setup', 'csv_import', 'manual', 'import']);
+      const researchCompanies = finalCompanies.filter(c =>
+        c.research_run_id && !nonQuota.has(c.research_run_id) &&
+        c.quelle !== 'Manuell' && c.quelle !== 'CSV Import' &&
+        c.source_provider !== 'manual' && c.source_provider !== 'csv_import'
+      );
+
+      const final = {
+        companies_count: researchCompanies.length,
+        research_run_leads_saved: finalRun?.leads_saved || 0,
+        research_run_status: finalRun?.status || 'unknown',
+        usageLog_leads_created: finalUsage[0]?.leads_created || 0,
+        supabase_monthly_used: finalSupabase ?? 'unavailable',
+      };
+
+      const delta = {
+        companies: final.companies_count - (baseline.companies || 0),
+        usageLog: final.usageLog_leads_created - (baseline.usageLog_leads_created || 0),
+        supabase: typeof final.supabase_monthly_used === 'number'
+          ? final.supabase_monthly_used - (baseline.supabase_monthly_used || 0)
+          : 'unavailable',
+      };
+
+      const expectedLeads = final.research_run_leads_saved;
+      const supabaseDelta = typeof delta.supabase === 'number' ? delta.supabase : null;
+      const companiesMatch = delta.companies === expectedLeads;
+      const runDone = ['completed', 'partial'].includes(final.research_run_status);
+      const usageMatch = delta.usageLog === expectedLeads;
+      const supabaseMatch = supabaseDelta === null || supabaseDelta === expectedLeads;
+      const allMatch = companiesMatch && runDone && usageMatch && supabaseMatch && expectedLeads > 0;
+
+      let verdict;
+      if (!runDone) {
+        verdict = { status: '⏳ NOT_DONE', message: `Run status: ${final.research_run_status} — noch nicht abgeschlossen` };
+      } else if (expectedLeads === 0) {
+        verdict = {
+          status: '⚠️ NO_LEADS',
+          message: 'Run abgeschlossen aber 0 Leads',
+          details: [`zero_result_cause: ${finalRun?.zero_result_cause || 'none'}`, `error: ${finalRun?.error_message || 'none'}`],
+        };
+      } else if (allMatch) {
+        verdict = {
+          status: '✅ PASS',
+          message: `Alle Quellen übereinstimmend: ${expectedLeads} Leads`,
+          details: [
+            `✅ Companies (delta): +${delta.companies}`,
+            `✅ ResearchRun.leads_saved: ${final.research_run_leads_saved}`,
+            `✅ UsageLog (delta): +${delta.usageLog}`,
+            supabaseDelta !== null ? `✅ Supabase (delta): +${supabaseDelta}` : '⚠️ Supabase: unavailable (non-blocking)',
+          ],
+        };
+      } else {
+        verdict = {
+          status: '❌ FAIL',
+          message: 'Quellen stimmen NICHT überein',
+          details: [
+            `${companiesMatch ? '✅' : '❌'} Companies (delta): +${delta.companies} (erwartet +${expectedLeads})`,
+            `✅ ResearchRun.leads_saved: ${expectedLeads} (${final.research_run_status})`,
+            `${usageMatch ? '✅' : '❌'} UsageLog (delta): +${delta.usageLog} (erwartet +${expectedLeads})`,
+            `${supabaseDelta !== null ? (supabaseMatch ? '✅' : '❌') : '⚠️'} Supabase: ${supabaseDelta !== null ? `+${supabaseDelta}` : 'unavailable'}`,
+          ],
+        };
+      }
+
+      return Response.json({ success: allMatch, verdict, final, delta, period_month: periodMonth });
+    }
+
     const timestamp = Date.now();
     const periodMonth = getPeriodMonth();
     console.info(`[e2eTest] Start: user=${user.email} role=${user.role} period=${periodMonth}`);
@@ -256,168 +337,32 @@ Deno.serve(async (req) => {
     });
     console.info(`[e2eTest] ✅ ResearchRun erstellt: ${run.id}`);
 
-    // ── SCHRITT 5: processResearchRun aufrufen ────────────────────────────────
-    // Wir nutzen einen HTTP-Direktaufruf mit dem Service-Role-Token.
-    // Das umgeht das Problem mit base44.functions.invoke Auth-Forwarding zwischen Backend Functions.
-    console.info('[e2eTest] Schritt 5: Verarbeite ResearchRun...');
-    const maxIterations = 20;
-    const maxNoProgress = 4;
-    let iteration = 0, noProgressCount = 0, lastLeadsSaved = -1;
-    let runStatus = 'queued', leadsSaved = 0;
+    // ── SCHRITT 5: Setup abgeschlossen — ResearchRun wartet auf Browser-Trigger ─
+    // processResearchRun benötigt echten User-Auth-Kontext (isPlatformAdmin-Check).
+    // Backend-zu-Backend-Invoke ist nicht möglich ohne Auth-Schwächung.
+    // Korrekte Test-Strategie: Setup hier, processResearchRun über Browser/UI ausführen.
+    console.info(`[e2eTest] ✅ Setup komplett. ResearchRun ${run.id} ist queued und wartet auf Browser-Trigger.`);
+    console.info(`[e2eTest] → Nächster Schritt: Im Browser als Admin ResearchRun ${run.id} über ActiveResearchBanner oder Dashboard starten.`);
 
-    // Base44 App-ID für Function-URL
-    const appId = Deno.env.get("BASE44_APP_ID");
-    const processRunUrl = `https://api.base44.com/api/apps/${appId}/functions/processResearchRun`;
-
-    while (iteration < maxIterations && !['completed', 'partial', 'failed'].includes(runStatus)) {
-      iteration++;
-
-      // HTTP-Aufruf mit asServiceRole — wir nutzen den base44 Service Role Token
-      // Alternativ: direkt processResearchRun-Logik inline (aber zu viel Duplikation)
-      // Hier: processResearchRun wird direkt via HTTP aufgerufen mit Admin-Bearer-Token
-      let processRes = null;
-      try {
-        // Wir brauchen den Auth-Token. base44.functions.invoke hängt ihn an.
-        // Da wir in einer Backend-Funktion sind, nutzen wir asServiceRole.functions falls verfügbar.
-        processRes = await base44.asServiceRole.functions.invoke('processResearchRun', {
-          research_run_id: run.id,
-        });
-      } catch (e) {
-        // Fallback: Run direkt aus DB lesen
-        const dbRun = await base44.asServiceRole.entities.ResearchRun.filter({ id: run.id }).then(r => r[0]);
-        console.warn(`[e2eTest] invoke error: ${e?.message} | DB status: ${dbRun?.status}`);
-        // Wenn der Run noch queued ist, versuchen wir ihn manuell zu aktivieren
-        if (dbRun?.status === 'queued' && iteration === 1) {
-          // Trigger: status auf running setzen damit ein manueller processResearchRun-Aufruf klappt
-          await base44.asServiceRole.entities.ResearchRun.update(run.id, { status: 'running', current_step: 'E2E: Manuell gestartet' }).catch(() => {});
-        }
-        runStatus = dbRun?.status || runStatus;
-        leadsSaved = dbRun?.leads_saved || leadsSaved;
-        await new Promise(r => setTimeout(r, 1000));
-        continue;
-      }
-
-      runStatus = processRes?.status || runStatus;
-      leadsSaved = processRes?.leads_saved ?? leadsSaved;
-      const progress = processRes?.progress_percent || 0;
-
-      console.info(`[e2eTest] Iter ${iteration}: status=${runStatus}, leads=${leadsSaved}, progress=${progress}%`);
-
-      if (!processRes?.success && !processRes?.done) {
-        console.warn(`[e2eTest] issue: ${processRes?.error || JSON.stringify(processRes).slice(0, 100)}`);
-      }
-
-      // Abbruch nur wenn mehrfach kein Fortschritt
-      if (leadsSaved === lastLeadsSaved && runStatus === 'running') {
-        noProgressCount++;
-        console.warn(`[e2eTest] Kein Fortschritt ${noProgressCount}/${maxNoProgress}`);
-        if (noProgressCount >= maxNoProgress) {
-          console.error('[e2eTest] Abbruch: mehrfach kein Fortschritt');
-          break;
-        }
-      } else {
-        noProgressCount = 0;
-        lastLeadsSaved = leadsSaved;
-      }
-
-      if (!['completed', 'partial', 'failed'].includes(runStatus)) {
-        await new Promise(r => setTimeout(r, 500));
-      }
-    }
-    console.info(`[e2eTest] Run beendet: status=${runStatus}, leads=${leadsSaved}`);
-
-    // ── SCHRITT 6: Alle Quellen vergleichen ───────────────────────────────────
-    console.info('[e2eTest] Schritt 6: Quellen vergleichen...');
-
-    // 1s warten vor finaler Messung, dann Supabase mit 3 Retries
-    await new Promise(r => setTimeout(r, 1000));
-    const [finalCompanies, finalRun, finalUsage, finalSupabase] = await Promise.all([
-      base44.asServiceRole.entities.Company.filter({ organization_id: testOrg.id }),
-      base44.asServiceRole.entities.ResearchRun.filter({ id: run.id }).then(r => r[0]),
-      base44.asServiceRole.entities.UsageLog.filter({ organization_id: testOrg.id, period_month: periodMonth }),
-      getSupabaseMonthlyCount(testOrg.id, periodMonth, 3),
-    ]);
-
-    const nonQuota = new Set(['manual_setup', 'csv_import', 'manual', 'import']);
-    const researchCompanies = finalCompanies.filter(c =>
-      c.research_run_id && !nonQuota.has(c.research_run_id) &&
-      c.quelle !== 'Manuell' && c.quelle !== 'CSV Import' &&
-      c.source_provider !== 'manual' && c.source_provider !== 'csv_import'
-    );
-
-    const final = {
-      companies_count: researchCompanies.length,
-      research_run_leads_saved: finalRun?.leads_saved || 0,
-      research_run_status: finalRun?.status || 'unknown',
-      usageLog_leads_created: finalUsage[0]?.leads_created || 0,
-      supabase_monthly_used: finalSupabase ?? 'unavailable',
-    };
-
-    const delta = {
-      companies: final.companies_count - baseline.companies,
-      usageLog: final.usageLog_leads_created - baseline.usageLog_leads_created,
-      supabase: typeof final.supabase_monthly_used === 'number'
-        ? final.supabase_monthly_used - baseline.supabase_monthly_used
-        : 'unavailable',
-    };
-
-    const expectedLeads = leadsSaved;
-    const supabaseDelta = typeof delta.supabase === 'number' ? delta.supabase : null;
-
-    const companiesMatch = delta.companies === expectedLeads;
-    const runMatch = final.research_run_leads_saved === expectedLeads;
-    const usageMatch = delta.usageLog === expectedLeads;
-    const supabaseMatch = supabaseDelta === null || supabaseDelta === expectedLeads;
-    const allMatch = companiesMatch && runMatch && usageMatch && supabaseMatch;
-
-    let verdict;
-    if (expectedLeads === 0) {
-      verdict = {
-        status: '⚠️ NO_LEADS',
-        message: 'Keine Leads gefunden (Google Places API oder Taxonomie)',
-        details: [
-          `Run status: ${finalRun?.status}`,
-          `Error: ${finalRun?.error_message || 'none'}`,
-          `zero_result_cause: ${finalRun?.zero_result_cause || 'none'}`,
-        ],
-      };
-    } else if (allMatch) {
-      verdict = {
-        status: '✅ PASS',
-        message: `Alle Quellen übereinstimmend: +${expectedLeads} Leads`,
-        details: [
-          `✅ Companies (delta): +${delta.companies}`,
-          `✅ ResearchRun.leads_saved: ${final.research_run_leads_saved}`,
-          `✅ UsageLog (delta): +${delta.usageLog}`,
-          `${supabaseDelta !== null ? `✅ Supabase (delta): +${supabaseDelta}` : '⚠️ Supabase: unavailable (non-blocking)'}`,
-        ],
-      };
-    } else {
-      verdict = {
-        status: '❌ FAIL',
-        message: 'Quellen stimmen NICHT überein',
-        details: [
-          `${companiesMatch ? '✅' : '❌'} Companies (delta): +${delta.companies} (erwartet +${expectedLeads})`,
-          `${runMatch ? '✅' : '❌'} ResearchRun.leads_saved: ${final.research_run_leads_saved} (erwartet ${expectedLeads})`,
-          `${usageMatch ? '✅' : '❌'} UsageLog (delta): +${delta.usageLog} (erwartet +${expectedLeads})`,
-          `${supabaseDelta !== null ? (supabaseMatch ? '✅' : '❌') : '⚠️'} Supabase (delta): ${supabaseDelta !== null ? `+${supabaseDelta}` : 'unavailable'} (erwartet +${expectedLeads})`,
-        ],
-      };
-    }
-
-    console.info(`[e2eTest] ${verdict.status}: ${verdict.message}`);
-    verdict.details.forEach(d => console.info(`[e2eTest]   ${d}`));
-
+    // ── SCHRITT 6: Setup-Response — Bereit für Browser-E2E ────────────────────
     return Response.json({
-      success: allMatch && expectedLeads > 0,
-      verdict,
+      success: true,
+      phase: 'setup_complete',
+      verdict: {
+        status: '⏳ AWAITING_BROWSER_RUN',
+        message: 'Setup abgeschlossen. ResearchRun ist queued. Jetzt im Browser als Admin starten.',
+        next_steps: [
+          `1. Im Browser als Admin einloggen`,
+          `2. ResearchRun ${run.id} wird automatisch via ActiveResearchBanner verarbeitet`,
+          `   ODER: Dashboard → Neue Recherche starten (die bestehende queued Run wird aufgegriffen)`,
+          `3. Nach Abschluss: validate_run=true aufrufen um Counts zu prüfen`,
+          `4. Cleanup: POST {cleanup_only: true, org_id_to_cleanup: "${testOrg.id}"}`,
+        ],
+      },
       test_org_id: testOrg.id,
       research_run_id: run.id,
       period_month: periodMonth,
       baseline,
-      final,
-      delta,
-      iterations_used: iteration,
       cleanup_note: `Cleanup: POST {cleanup_only: true, org_id_to_cleanup: "${testOrg.id}"}`,
     });
 
