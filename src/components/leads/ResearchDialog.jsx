@@ -60,6 +60,9 @@ function getFriendlyResearchError(err, responseData) {
   if (status === 503) {
     return { type: 'maintenance', title: 'Recherche kurz nicht verfügbar', message: responseData?.message || axiosData?.message || 'Die Recherche befindet sich in Wartung. Bitte versuchen Sie es in Kürze erneut.', resetDate: null };
   }
+  if (status === 409 || axiosReason === 'research_run_already_active' || reason === 'research_run_already_active') {
+    return { type: 'already_active', title: 'Recherche läuft bereits', message: 'Für diese Organisation läuft bereits eine Recherche. Bitte warten Sie, bis diese abgeschlossen ist.', resetDate: null };
+  }
   return { type: 'error', title: 'Recherche konnte nicht gestartet werden', message: 'Bitte versuchen Sie es erneut oder kontaktieren Sie den Support.', resetDate: null };
 }
 
@@ -344,6 +347,19 @@ export default function ResearchDialog({ open, orgId, onClose, onSuccess }) {
                       Plan ansehen
                     </Button>
                   </div>
+                </div>
+              ) : errorInfo?.type === 'already_active' ? (
+                <div className="space-y-3">
+                  <div className="flex flex-col items-center gap-2 py-2 text-center">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div className="text-base font-bold text-slate-900">{errorInfo.title}</div>
+                    <div className="text-sm text-slate-600">{errorInfo.message}</div>
+                  </div>
+                  <Button onClick={handleClose} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                    Verstanden
+                  </Button>
                 </div>
               ) : errorInfo?.type === 'ratelimit' ? (
                 <div className="space-y-3">

@@ -143,6 +143,9 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
         if (reason === 'monthly_lead_quota_reached' || reason === 'monthly_contact_limit_reached') {
           setQuotaError({ used: monthly?.monthly_used, limit: monthly?.monthly_limit, resetDate: monthly?.reset_date });
           setIsSearching(false);
+        } else if (reason === 'research_run_already_active') {
+          setIsSearching(false);
+          onLaunch({ error: 'Eine Recherche läuft bereits. Bitte warten Sie, bis diese abgeschlossen ist.' });
         } else {
           setIsSearching(false);
           onLaunch({ error: run.data?.message || 'Recherche konnte nicht gestartet werden.' });
@@ -159,6 +162,9 @@ export default function LaunchStep({ onBack, onLaunch, loading, organization, or
       } else if (e?.response?.status === 429) {
         setIsSearching(false);
         onLaunch({ error: 'Recherche gerade ausgelastet. Bitte in wenigen Minuten erneut versuchen.' });
+      } else if (e?.response?.status === 409 || axiosData?.error === 'research_run_already_active') {
+        setIsSearching(false);
+        onLaunch({ error: 'Eine Recherche läuft bereits. Bitte warten Sie, bis diese abgeschlossen ist.' });
       } else {
         setIsSearching(false);
         onLaunch({ error: 'Recherche konnte nicht gestartet werden. Bitte erneut versuchen.' });
