@@ -992,13 +992,10 @@ Deno.serve(async (req) => {
             matched_target_customer,
           };
 
-// ── TRY: Company.create + UsageLog erhöhen ───────────────────────────
+// ── SCHRITT 1: Company.create (kritisch) ───────────────────────────────
           let companyId = null;
+          let companyCreateError = null;
           try {
-            // periodMonth für UsageLog + Supabase (kanonisch: Kalendermonat Berlin)
-            const periodMonth = getPeriodMonth();
-            
-            // Company erstellen
             const companyRes = await base44.asServiceRole.entities.Company.create({
               organization_id,
               name: place.name || '',
@@ -1022,7 +1019,6 @@ Deno.serve(async (req) => {
               matched_service_context: matchedServiceContext || null,
               google_place_id: place.place_id || null,
               source_provider: 'google_places',
-              // v6: Engine-Diagnostics speichern
               engine_analysis_json: JSON.stringify(engineDiagnostics),
               engine_version: SEARCH_ENGINE_VERSION,
               engine_confidence: scoring.score,
@@ -1030,46 +1026,59 @@ Deno.serve(async (req) => {
             });
             
             companyId = companyRes.id;
+            console.info(`[processResearchRun] ✅ Company erstellt: "${place.name}" (ID: ${companyId})`);
             
-            // ── UsageLog direkt nach Company.create erhöhen ────────────────────
-            // Quota-Reservation war nicht atomar → MVP: UsageLog direkt erhöhen
-            const now = new Date().toISOString();
-            const usageRecords = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
-            if (usageRecords[0]) {
-              await base44.asServiceRole.entities.UsageLog.update(usageRecords[0].id, {
-                leads_created: (usageRecords[0].leads_created || 0) + 1,
-                last_lead_generation_at: now,
-              });
-            } else {
-              const [y, m] = periodMonth.split('-').map(Number);
-              const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();
-              const end = new Date(Date.UTC(y, m, 0, 23, 59, 59)).toISOString();
-              await base44.asServiceRole.entities.UsageLog.create({
-                organization_id, period_month: periodMonth,
-                period_start: start, period_end: end,
-                leads_created: 1, lead_generations_used: 1,
-                last_lead_generation_at: now,
-              });
-            }
-
-            // ── SHADOW MODE: Supabase RPC (non-blocking, Phase 1) ───────────────
-            // Schreibt lead_usage_event via RPC (idempotent, ON CONFLICT DO NOTHING)
-            // Dokumentation: docs/SUPABASE_RPC_TEST_RESULTS_2026_05_20.md
-            recordLeadUsageEvent(organization_id, periodMonth, companyId, research_run_id);
-            
-            // Dedupe-Sets aktualisieren + Counter erhöhen (NUR HIER!)
+          } catch (err) {
+            companyCreateError = err;
+            console.error(`[processResearchRun] ❌ Company.create failed: ${err.message}`);
+          }
+          
+          // ── SCHRITT 2: Wenn Company.create erfolgreich → Counter +1 (kritisch) ──
+          if (companyId && !companyCreateError) {
+            // Dedupe-Sets aktualisieren + Counter erhöhen (IMMER nach erfolgreichem Create!)
             existingNames.add(normStr(place.name || ''));
             existingPlaceIds.add(place.place_id);
             if (ort) existingNameOrt.add(nameOrtKey);
             if (phoneNorm.length >= 6) existingNamePhone.add(namePhoneKey);
             newLeadsSavedThisBatch++;
+            console.info(`[processResearchRun] ✅ Counter erhöht: newLeadsSavedThisBatch=${newLeadsSavedThisBatch}`);
             
-            // DEBUG: console.info(`[processResearchRun] SAVED "${place.name}" score=${scoring.score}`);
+            // ── SCHRITT 3: UsageLog +1 (nicht-kritisch, eigener try/catch) ────────
+            const periodMonth = getPeriodMonth();
+            const now = new Date().toISOString();
+            try {
+              const usageRecords = await base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth });
+              if (usageRecords[0]) {
+                await base44.asServiceRole.entities.UsageLog.update(usageRecords[0].id, {
+                  leads_created: (usageRecords[0].leads_created || 0) + 1,
+                  last_lead_generation_at: now,
+                });
+              } else {
+                const [y, m] = periodMonth.split('-').map(Number);
+                const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();
+                const end = new Date(Date.UTC(y, m, 0, 23, 59, 59)).toISOString();
+                await base44.asServiceRole.entities.UsageLog.create({
+                  organization_id, period_month: periodMonth,
+                  period_start: start, period_end: end,
+                  leads_created: 1, lead_generations_used: 1,
+                  last_lead_generation_at: now,
+                });
+              }
+              console.info(`[processResearchRun] ✅ UsageLog aktualisiert (Periode: ${periodMonth})`);
+            } catch (usageErr) {
+              console.error(`[processResearchRun] ⚠️ UsageLog after create failed: ${usageErr.message} (nicht-blockierend, Company bleibt erhalten)`);
+            }
             
-          } catch (createErr) {
-            // FALLBACK: Company.create fehlgeschlagen → Error loggen, aber nicht break
-            console.error(`[processResearchRun] Company.create failed: ${createErr.message}`);
-            continue;
+            // ── SCHRITT 4: Supabase RPC (nicht-kritisch, non-blocking) ───────────
+            try {
+              recordLeadUsageEvent(organization_id, periodMonth, companyId, research_run_id);
+              console.info(`[processResearchRun] ✅ Supabase shadow write ausgelöst`);
+            } catch (supabaseErr) {
+              console.error(`[processResearchRun] ⚠️ Supabase shadow write failed: ${supabaseErr.message} (nicht-blockierend)`);
+            }
+            
+          } else {
+            console.warn(`[processResearchRun] ⚠️ Company.create fehlgeschlagen, Counter NICHT erhöht`);
           }
         }
       }
