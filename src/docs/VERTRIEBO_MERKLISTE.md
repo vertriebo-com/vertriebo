@@ -1852,68 +1852,85 @@ Sicherheit: `testLeadSearchEngine` ist bereits auf Platform-Admins (`admin/platf
 
 ## 25. ARBEITSREGELN & NO-GOs FÜR BASE44 (ab 2026-05-20, dauerhaft gültig)
 
+> ⚠️ DIESER ABSCHNITT IST VERPFLICHTEND. Er wird VOR jeder neuen Aufgabe gelesen.
+> Verstöße gegen diese Regeln sind keine Kleinigkeiten — sie haben in der Vergangenheit zu Produktionsfehlern geführt.
+
 ### Pflicht-Workflow vor jeder Base44-Aufgabe
 
-1. **Merkliste zuerst lesen** — Keine Änderungen starten, ohne relevante Regeln aus dieser Datei geprüft zu haben.
-2. **Wichtige Entscheidungen dokumentieren** — Neue Architekturregeln, Workarounds, akzeptierte Trade-offs immer hier festhalten.
+1. **Merkliste zuerst lesen** — Keine Änderungen starten, ohne §25 geprüft zu haben.
+2. **Wichtige Entscheidungen dokumentieren** — Neue Architekturregeln, Workarounds, akzeptierte Trade-offs immer hier festhalten — nicht nur im Chat.
 3. **Am Ende jeder Anweisung**: Abschnitt „Merkliste beachten / aktualisieren" + Abschnitt „Was Base44 NICHT tun soll".
 
 ---
 
-### USAGE / QUOTA — AKTUELLE PRODUKTIONSREGELN (2026-05-20)
+---
 
-#### Was gilt
+### AKTUELLE WAHRHEIT — USAGE / QUOTA / DASHBOARD (2026-05-20, nicht überschreiben)
 
-- `Base44 unique_constraints` sind **nicht** atomar enforced (Live-Test widerlegt frühere FINAL-GRÜN-Einträge).
-- Zwei parallele `QuotaReservation.create` für denselben Slot konnten beide erfolgreich sein → `unique_constraints` darf **NICHT** als Race-Condition-Schutz verwendet werden.
-
-#### Akzeptierter MVP-Workaround (bis transaktionale Lösung eingebaut ist)
-
-- Pro `organization_id` darf nur **ein** ResearchRun gleichzeitig `queued` oder `running` sein.
-- `startResearchRun` blockiert parallele Runs mit HTTP 409 (`research_run_already_active`).
-- `ResearchDialog` muss 409 freundlich anzeigen (kein roher Fehlertext).
-
-#### Langfristige Produktionslösung (geplant, noch nicht umgesetzt)
-
-- Quota-/Usage-Reservierung in transaktionalen Dienst auslagern: Supabase/Postgres mit Unique Index/Transaction **oder** Redis/Upstash-Lock.
+| Aussage | Status |
+|---|---|
+| `Base44 unique_constraints` sind atomar enforced | ❌ FALSCH — Live-Test widerlegt. Niemals als Race-Condition-Schutz verwenden. |
+| `QuotaReservation` ist alleinige SSOT für `monthly_used` | ❌ FALSCH — fehlende historische Leads vor Systemeinführung |
+| `UsageLog` ist alleinige SSOT für `monthly_used` | ❌ FALSCH — kann veraltet oder unvollständig sein |
+| Frühere FINAL-GRÜN-Einträge sind aktuelle Wahrheit | ❌ FALSCH — Live-Tests haben einzelne Einträge widerlegt |
+| `getUsageSummary` ist die zentrale Funktion für alle Usage-Werte | ✅ RICHTIG — Dashboard, BillingSettings, ResearchDialog, startResearchRun nutzen alle `getUsageSummary` |
+| `monthly_used` = `Math.max(committedSlots, usageLog.leads_created, companiesThisMonth)` | ✅ RICHTIG — immer den höchsten Wert aus allen Quellen nehmen |
+| Historische Research-Leads zählen via `Company.created_date + research_run_id` | ✅ RICHTIG — niemals ignorieren, auch wenn keine QuotaReservation existiert |
+| Manuelle Leads (AddCompanyDialog, CSV) zählen zum Monatskontingent | ❌ FALSCH — sie dürfen nicht zählen |
+| `0/300` ist ein akzeptabler Fallback wenn Usage nicht geladen wird | ❌ FALSCH — „Kontingent konnte nicht geladen werden" anzeigen |
+| Hardcoded Planwerte wie `300` im Frontend sind ok | ❌ FALSCH — Planlimit immer dynamisch aus `getUsageSummary` / Plan-Entity lesen |
 
 ---
 
-### USAGE / DASHBOARD — ANZEIGEREGELN (2026-05-20)
+### AKTIVER MVP-WORKAROUND: Parallel-Lock (2026-05-20)
 
-- `monthly_used` = `Math.max(committedSlots, usageLog.leads_created, companiesThisMonth)` — immer den höchsten Wert verwenden.
-- Historische Research-Leads (vor Einführung von QuotaReservation) müssen über `Company.created_date + research_run_id` im laufenden Monat gezählt werden — niemals ignorieren.
-- Wenn `usage_summary` nicht geladen werden kann: **„Kontingent konnte nicht geladen werden"** anzeigen — niemals `0/300` als Fallback.
-- Manuelle Leads (AddCompanyDialog, CSV-Import) zählen **nicht** zum Monatskontingent.
+- ✅ Pro `organization_id` darf nur **ein** ResearchRun gleichzeitig `queued` oder `running` sein.
+- ✅ `startResearchRun` blockiert parallele Runs mit HTTP **409** (`research_run_already_active`).
+- ✅ `ResearchDialog` zeigt 409 kundenfreundlich an — kein roher Fehlertext.
+- ⚠️ Dies ist ein **MVP-Workaround**, keine mathematisch korrekte Transaktionslösung.
+- 🔮 Langfristig: Quota-/Usage-Reservierung in Supabase/Postgres (Unique Index + Transaction) oder Redis/Upstash-Lock auslagern.
 
 ---
 
-### WAS BASE44 NICHT TUN SOLL (kumuliert, dauerhaft)
+### LANGFRISTIGE EMPFEHLUNG (noch nicht umgesetzt)
 
-#### Usage / Quota
+- `UsageEvent` / `LeadUsageEvent` als neue echte monatliche Verbrauchsquelle einführen — eine Zeile pro tatsächlich erstelltem Research-Lead, unveränderlich, klar zuordenbar.
 
-- ❌ Nicht mehr `meta.currentUsage`, `meta.maxContacts`, `meta.planName` verwenden.
-- ❌ Keine lokale Usage-Berechnung im Dashboard oder in BillingSettings.
-- ❌ Keine hardcoded Planlimits wie `300` im Frontend oder in Fallback-Logik.
-- ❌ `0/300` (oder beliebige feste Zahl) als Fallback anzeigen — immer „nicht ladbar" kommunizieren.
-- ❌ `UsageLog` allein als Wahrheit verwenden (historische Lücken möglich).
-- ❌ `QuotaReservation` allein als Wahrheit verwenden (fehlende historische Daten möglich).
-- ❌ `Base44 unique_constraints` als atomar behandeln — sie sind es nicht.
-- ❌ Alte FINAL-GRÜN-Einträge als Beweis nehmen, wenn Live-Tests sie widerlegt haben.
+---
+
+### WAS BASE44 NIEMALS TUN DARF (kumuliert, dauerhaft, keine Ausnahmen)
+
+#### Usage / Quota / Berechnung
+
+| Verboten | Begründung |
+|---|---|
+| `meta.currentUsage`, `meta.maxContacts`, `meta.planName` verwenden | Veraltete Felder, ersetzt durch `getUsageSummary` |
+| Lokale Usage-Berechnung im Dashboard oder BillingSettings | Doppelte Logik → divergierende Anzeigen |
+| Hardcoded Planwerte wie `300` im Frontend oder Fallback | Multi-Tenant-Fehler, falsche Limits für andere Pläne |
+| `0/300` oder feste Zahl als Fallback anzeigen | Zeigt falsche Wahrheit wenn Usage nicht geladen ist |
+| `UsageLog` allein als SSOT verwenden | Historische Lücken möglich |
+| `QuotaReservation` allein als SSOT verwenden | Fehlende Daten vor Systemeinführung |
+| `Base44 unique_constraints` als atomar behandeln | Bewiesen falsch durch Live-Test |
+| Manuelle Leads mit Research-Leads vermischen | Verfälscht Monatskontingent |
+| Alte FINAL-GRÜN-Einträge als aktuell behandeln | Live-Tests können sie widerlegen |
 
 #### Dashboard / Research / Billing
 
-- ❌ Dashboard, BillingSettings und ResearchDialog unterschiedlich rechnen lassen — alle müssen dieselbe zentrale Backend-Funktion (`getUsageSummary`) nutzen.
-- ❌ Mehrere widersprüchliche Research-Banner gleichzeitig anzeigen.
-- ❌ `organization_id` aus Request-Body als vertrauenswürdige Quelle verwenden — immer aus validiertem DB-Objekt lesen.
+| Verboten | Begründung |
+|---|---|
+| Dashboard, BillingSettings, ResearchDialog unterschiedlich rechnen lassen | Alle müssen `getUsageSummary` nutzen |
+| Mehrere widersprüchliche Research-Banner gleichzeitig anzeigen | Verwirrend für Nutzer |
+| `organization_id` aus Request-Body als vertrauenswürdig behandeln | Immer aus validiertem DB-Objekt lesen (Mandantensicherheit) |
 
-#### Allgemein / Prozess
+#### Prozess / Dokumentation
 
-- ❌ Wichtige neue Entscheidungen nur im Chat lassen — immer in dieser Merkliste dokumentieren.
-- ❌ Neue Base44-Aufgaben starten, ohne vorher die Merkliste geprüft zu haben.
-- ❌ Neue Logik einbauen, ohne die Entscheidung hier zu dokumentieren.
-- ❌ Widersprüchliche Sources-of-Truth einführen.
-- ❌ Alten Felder oder veraltete Workarounds wiederverwenden, wenn die Merkliste sie verbietet.
+| Verboten | Begründung |
+|---|---|
+| Wichtige Architekturentscheidungen nur im Chat lassen | Chat-Verlauf geht verloren, Merkliste ist SSOT |
+| Neue Aufgaben starten ohne §25 gelesen zu haben | Wiederholungsfehler werden so eingebaut |
+| Neue Logik einbauen ohne Dokumentation hier | Kein Audit-Trail |
+| Widersprüchliche Sources-of-Truth einführen | Erzeugt genau die Bugs die wir beheben wollen |
+| Veraltete Felder / Workarounds wiederverwenden die Merkliste verbietet | Regression |
 
 ---
 
