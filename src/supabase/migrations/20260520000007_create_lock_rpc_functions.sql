@@ -17,38 +17,34 @@ CREATE OR REPLACE FUNCTION acquire_org_run_lock(
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
-DECLARE
-  v_existing_lock   record;
 BEGIN
-  -- Prüfen ob bereits aktiver Lock mit gültigem Ablaufdatum existiert
-  SELECT * INTO v_existing_lock
-  FROM research_run_locks
+  -- Schritt 1: Abgelaufene aktive Locks dieser Org auf 'expired' setzen.
+  -- Damit gibt der Partial Unique Index (status='active') den Slot frei
+  -- bevor wir einen neuen Lock inserieren.
+  UPDATE research_run_locks
+  SET status = 'expired'
   WHERE organization_id = p_organization_id
-    AND locked_until > now()
-    AND status = 'active'
-  LIMIT 1;
+    AND status          = 'active'
+    AND locked_until   <= now();
 
-  IF FOUND THEN
-    -- Aktiver Lock vorhanden → false zurückgeben
-    RETURN false;
-  END IF;
-
-  -- Neuen Lock erstellen (Partial Unique Index verhindert doppelten aktiven Lock)
+  -- Schritt 2: Neuen aktiven Lock inserieren.
+  -- Der Partial Unique Index (organization_id, status) WHERE status='active'
+  -- wirft unique_violation wenn ein anderer Worker bereits einen gültigen Lock hält.
   INSERT INTO research_run_locks
     (organization_id, research_run_id, worker_key, locked_until, status)
   VALUES
     (p_organization_id, p_research_run_id, p_worker_key,
-     now() + (p_lock_duration_ms || ' milliseconds')::interval, 'active')
-  ON CONFLICT ON CONSTRAINT idx_research_run_locks_org_active
-  DO UPDATE SET
-    research_run_id = EXCLUDED.research_run_id,
-    worker_key      = EXCLUDED.worker_key,
-    locked_until    = EXCLUDED.locked_until;
+     now() + (p_lock_duration_ms || ' milliseconds')::interval,
+     'active');
 
   RETURN true;
 
 EXCEPTION
+  WHEN unique_violation THEN
+    -- Anderer Worker hält aktiven Lock → false zurückgeben (kein Fehler)
+    RETURN false;
   WHEN others THEN
+    -- Unerwarteter Fehler → false zurückgeben (Caller nutzt Base44-Fallback)
     RETURN false;
 END;
 $$;
