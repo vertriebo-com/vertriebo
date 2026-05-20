@@ -28,7 +28,7 @@ Atomares Tracking jedes Research-Leads.
 | `event_type` | TEXT | `research_lead_created` |
 | `source` | TEXT | `research` oder `openregister` |
 
-**UNIQUE-Constraint:** `(organization_id, company_id, period_month)` — verhindert Duplikate.
+**UNIQUE-Constraint:** `(organization_id, period_month, company_id, event_type)` — verhindert Duplikate.
 
 ### `shadow_mode_log`
 Täglicher Audit-Trail für Supabase vs. Base44 Vergleiche.

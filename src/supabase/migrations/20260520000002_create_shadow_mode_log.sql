@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS public.shadow_mode_log (
   period_month    TEXT        NOT NULL,   -- Format: YYYY-MM
   supabase_count  INT         NOT NULL,   -- COUNT aus lead_usage_events
   base44_count    INT         NOT NULL,   -- UsageLog.leads_created aus Base44
-  diff            INT         NOT NULL,   -- supabase_count - base44_count
+  diff            INT         GENERATED ALWAYS AS (supabase_count - base44_count) STORED,
   checked_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

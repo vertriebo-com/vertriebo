@@ -14,7 +14,8 @@ CREATE TABLE IF NOT EXISTS public.lead_usage_events (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   -- UNIQUE: verhindert Duplikate bei Retry oder doppeltem Shadow Write
-  CONSTRAINT uq_lead_usage_event UNIQUE (organization_id, company_id, period_month)
+  -- Constraint schließt event_type ein — identisch zur Doku in supabase/README.md
+  CONSTRAINT uq_lead_usage_event UNIQUE (organization_id, period_month, company_id, event_type)
 );
 
 -- Index für monatliche COUNT-Queries (Haupt-Abfrage-Pattern)

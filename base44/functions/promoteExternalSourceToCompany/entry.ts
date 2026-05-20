@@ -299,28 +299,62 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Monatslimit prüfen ────────────────────────────────────────────────────
+    // ── Monatslimit prüfen (max()-Formel — identisch zu startResearchRun/getDashboardData) ──
+    // SSOT-Regel §E: monthly_used = Math.max(committedSlots, usageLogValue, companiesThisMonth)
     let monthlyLimit = -1;
     const org = access.org || (await base44.asServiceRole.entities.Organization.filter({ id: organization_id }))[0];
 
     if (org?.plan_id) {
       const plans = await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id });
-      if (plans[0]) monthlyLimit = plans[0].max_leads_per_month ?? 300;
+      if (plans[0]) monthlyLimit = plans[0].max_leads_per_month ?? -1;
     }
 
     const periodMonth = getPeriodMonth();
-    const usageLogs = await base44.asServiceRole.entities.UsageLog.filter({
-      organization_id,
-      period_month: periodMonth,
-    });
-    const currentUsed = usageLogs[0]?.leads_created || 0;
 
-    if (monthlyLimit !== -1 && currentUsed >= monthlyLimit) {
-      return Response.json({
-        success: false,
-        error: 'monthly_contact_limit_reached',
-        monthly_usage: { monthly_limit: monthlyLimit, monthly_used: currentUsed, remaining: 0 },
-      }, { status: 429 });
+    if (monthlyLimit !== -1) {
+      // Alle drei Quellen parallel laden
+      const now = new Date();
+      const periodParts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit',
+      }).formatToParts(now);
+      const py = parseInt(periodParts.find(p => p.type === 'year')?.value);
+      const pm = parseInt(periodParts.find(p => p.type === 'month')?.value);
+      const periodStart = new Date(Date.UTC(py, pm - 1, 1));
+      const periodEnd   = new Date(Date.UTC(py, pm, 1));
+
+      const [quotaSlots, usageLogs, allCompanies] = await Promise.all([
+        base44.asServiceRole.entities.QuotaReservation.filter({ organization_id, period_month: periodMonth }),
+        base44.asServiceRole.entities.UsageLog.filter({ organization_id, period_month: periodMonth }),
+        base44.asServiceRole.entities.Company.filter({ organization_id }, '-created_date', 2000),
+      ]);
+
+      const committedSlots = quotaSlots.filter(s => s.status === 'committed').length;
+      const usageLogValue  = usageLogs[0]?.leads_created || 0;
+
+      const NON_QUOTA = new Set(['manual_setup', 'csv_import', 'manual', 'import']);
+      const companiesThisMonth = allCompanies.filter(c => {
+        if (!c.research_run_id) return false;
+        if (NON_QUOTA.has(c.research_run_id)) return false;
+        if (c.quelle === 'Manuell' || c.quelle === 'CSV Import') return false;
+        if (c.source_provider === 'manual' || c.source_provider === 'csv_import') return false;
+        const created = new Date(c.created_date);
+        return created >= periodStart && created < periodEnd;
+      }).length;
+
+      const currentUsed = Math.max(committedSlots, usageLogValue, companiesThisMonth);
+
+      if (currentUsed >= monthlyLimit) {
+        return Response.json({
+          success: false,
+          error: 'monthly_contact_limit_reached',
+          monthly_usage: {
+            monthly_limit: monthlyLimit,
+            monthly_used: currentUsed,
+            remaining: 0,
+            source: 'max(committedSlots, usageLogValue, companiesThisMonth)',
+          },
+        }, { status: 429 });
+      }
     }
 
     // ── Company erstellen ─────────────────────────────────────────────────────

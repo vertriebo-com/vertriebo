@@ -113,8 +113,14 @@ Deno.serve(async (req) => {
 
     const periodMonth = period_month || getPeriodMonth();
 
-    // ── ACTION: write_event ───────────────────────────────────────────────────
+    // ── ACTION: write_event — nur PlatformAdmin ───────────────────────────────
+    // Direkter API-Aufruf von write_event ist auf PlatformAdmin beschränkt.
+    // Normale Shadow-Writes laufen intern in processResearchRun/promoteExternalSourceToCompany
+    // via writeSupabaseUsageEvent() direkt über den SUPABASE_SERVICE_KEY — nicht über diese Action.
     if (action === 'write_event') {
+      if (!isPlatformAdmin) {
+        return Response.json({ error: 'Forbidden: write_event nur für Platform Admin' }, { status: 403 });
+      }
       if (!org_id || !company_id) {
         return Response.json({ error: 'org_id und company_id erforderlich' }, { status: 400 });
       }
@@ -151,15 +157,16 @@ Deno.serve(async (req) => {
       const diffPct = base44Count > 0 ? Math.abs(diff / base44Count * 100).toFixed(1) : 'n/a';
       const isValid = Math.abs(diff) <= Math.max(1, base44Count * 0.01); // < 1% Abweichung
 
-      // Shadow-Mode-Log schreiben (inkl. diff + checked_at für Audit-Trail)
+      // Shadow-Mode-Log schreiben
+      // WICHTIG: diff ist GENERATED ALWAYS Spalte in Supabase → NICHT mitsenden
       if (supabaseCount !== null) {
         await supabaseFetch('/shadow_mode_log', 'POST', {
           organization_id: org_id,
           period_month: periodMonth,
           supabase_count: supabaseCount,
           base44_count: base44Count,
-          diff: diff,
           checked_at: new Date().toISOString(),
+          // diff wird von Supabase automatisch berechnet: supabase_count - base44_count
         }, { 'Prefer': 'return=minimal' }).catch(e => console.warn('[supabaseUsage] shadow_log write failed:', e?.message));
       }
 
