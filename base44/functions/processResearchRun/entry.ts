@@ -1069,10 +1069,11 @@ Deno.serve(async (req) => {
               console.error(`[processResearchRun] ⚠️ UsageLog after create failed: ${usageErr.message} (nicht-blockierend, Company bleibt erhalten)`);
             }
             
-            // ── SCHRITT 4: Supabase RPC (nicht-kritisch, non-blocking) ───────────
+            // ── SCHRITT 4: Supabase RPC (nicht-kritisch, aber await + Catch) ─────
+            // Non-blocking: Fehler werden gefangen, aber Aufruf wird erwartet (kein Fire-and-Forget)
             try {
-              recordLeadUsageEvent(organization_id, periodMonth, companyId, research_run_id);
-              console.info(`[processResearchRun] ✅ Supabase shadow write ausgelöst`);
+              await recordLeadUsageEvent(organization_id, periodMonth, companyId, research_run_id);
+              console.info(`[processResearchRun] ✅ Supabase shadow write abgeschlossen`);
             } catch (supabaseErr) {
               console.error(`[processResearchRun] ⚠️ Supabase shadow write failed: ${supabaseErr.message} (nicht-blockierend)`);
             }
@@ -1127,20 +1128,26 @@ Deno.serve(async (req) => {
 
     console.info(`[processResearchRun] Batch ${batchIndex} done: newSaved=${newLeadsSavedThisBatch} totalSaved=${totalLeadsSaved} done=${isDone} engine=${SEARCH_ENGINE_VERSION}`);
 
-    // ── AUDIT: Run-Batch-Complete (nicht-blockierend) ────────────────────────
-    auditResearchEvent(
-      research_run_id,
-      organization_id,
-      'batch_completed',
-      workerKey,
-      {
-        batch_index: nextBatchIndex,
-        leads_saved_this_batch: newLeadsSavedThisBatch,
-        total_leads_saved: totalLeadsSaved,
-        is_done: isDone,
-        engine_version: SEARCH_ENGINE_VERSION,
-      }
-    );
+    // ── AUDIT: Run-Batch-Complete (nicht-blockierend, aber await + Catch) ─────
+    // Non-blocking: Fehler werden gefangen, aber Aufruf wird erwartet (kein Fire-and-Forget)
+    try {
+      await auditResearchEvent(
+        research_run_id,
+        organization_id,
+        'batch_completed',
+        workerKey,
+        {
+          batch_index: nextBatchIndex,
+          leads_saved_this_batch: newLeadsSavedThisBatch,
+          total_leads_saved: totalLeadsSaved,
+          is_done: isDone,
+          engine_version: SEARCH_ENGINE_VERSION,
+        }
+      );
+      console.info(`[processResearchRun] ✅ Audit batch_completed geschrieben`);
+    } catch (auditErr) {
+      console.error(`[processResearchRun] ⚠️ Audit failed: ${auditErr.message} (nicht-blockierend)`);
+    }
 
     return Response.json({
       success: true, done: isDone, status: newStatus,
@@ -1152,20 +1159,26 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('[processResearchRun] Error:', error?.message, error?.stack);
     
-    // ── AUDIT: Run-Error (nicht-blockierend) ─────────────────────────────────
+    // ── AUDIT: Run-Error (nicht-blockierend, aber await + Catch) ─────────────
+    // Non-blocking: Fehler werden gefangen, aber Aufruf wird erwartet
     if (research_run_id && organization_id) {
-      auditResearchEvent(
-        research_run_id,
-        organization_id,
-        'run_error',
-        workerKey || 'unknown',
-        {
-          error_message: error?.message,
-          error_stack: error?.stack,
-          batch_index: run.batch_index || 0,
-          leads_saved: run.leads_saved || 0,
-        }
-      );
+      try {
+        await auditResearchEvent(
+          research_run_id,
+          organization_id,
+          'run_error',
+          workerKey || 'unknown',
+          {
+            error_message: error?.message,
+            error_stack: error?.stack,
+            batch_index: run.batch_index || 0,
+            leads_saved: run.leads_saved || 0,
+          }
+        );
+        console.info(`[processResearchRun] ✅ Audit run_error geschrieben`);
+      } catch (auditErr) {
+        console.error(`[processResearchRun] ⚠️ Audit run_error failed: ${auditErr.message} (nicht-blockierend)`);
+      }
     }
     
     try {

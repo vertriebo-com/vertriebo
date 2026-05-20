@@ -237,8 +237,17 @@ Deno.serve(async (req) => {
       settings.service_area_radius_km || settings.lead_radius_km || '25'
     ) || 25;
 
-    const targetCustomerTypes = (settings.target_customer_types || settings.zielkunden || '').split(/,|, /).map(x => x.trim()).filter(Boolean);
+    // ── Target Customer Types: Settings ODER Taxonomie-Fallback ─────────────
+    // WICHTIG: Wenn Settings leer → Taxonomie-Profil als Fallback nutzen
+    // Verhindert "Keine Suchkategorien"-Fehler bei unvollständigem Onboarding
+    let targetCustomerTypes = (settings.target_customer_types || settings.zielkunden || '').split(/,|, /).map(x => x.trim()).filter(Boolean);
     const excludedCustomerTypes = (settings.excluded_customer_types || settings.zielkunden_ausschluss || '').split(/,|, /).map(x => x.trim()).filter(Boolean);
+    
+    // Fallback: Wenn Settings leer → Taxonomie-Profil nutzen
+    if (targetCustomerTypes.length === 0 && taxonomyProfile?.target_customer_types?.length > 0) {
+      targetCustomerTypes = taxonomyProfile.target_customer_types.slice(0, 5); // Max 5 für initiale Suche
+      console.info(`[startResearchRun] Fallback: targetCustomerTypes aus Taxonomie (${targetCustomerTypes.length})`);
+    }
 
     // ── Koordinaten auflösen ─────────────────────────────────────────────────
     let cityCoords = null;
@@ -291,16 +300,48 @@ Deno.serve(async (req) => {
       ...additionalCityObjects.filter(o => o.lat && o.lng).map(o => ({ lat: o.lat, lng: o.lng, city: o.city }))
     ];
 
-    // ── Taxonomie laden (kanonische DB-Quelle — DIREKT aus Entity, kein functions.invoke) ──
-    // FIX 2026-05-20: functions.invoke verursacht Rate-Limit (429/403) bei verschachtelten Calls.
-    // Lösung: Identisch zu processResearchRun v6 — TaxonomieEntry-Entity direkt aus DB laden.
+    // ── INDUSTRY SOURCE-OF-TRUTH (Priorisierung) ──────────────────────────────
+    // 1. OrganizationSettings.industry_id (kanonisch, z.B. "gebaeudereinigung")
+    // 2. OrganizationSettings.industry_name (Legacy, z.B. "Gebäudereinigung") → Mapping
+    // 3. Organization.industry (Fallback, z.B. "Entrümpelung") → Mapping
+    // KEINE stillen Überschreibungen — explizite Priorisierung
+    const settingsIndustryId = settings.industry_id || null;
+    const settingsIndustryName = settings.industry_name || settings.own_industry || settings.industry || null;
+    const orgIndustry = org.industry || null;
+    
+    // Canonical industry_id ermitteln
+    let industryId = null;
+    let industry = null;
+    let industrySource = null;
+    
+    if (settingsIndustryId) {
+      // Priorität 1: industry_id aus Settings (kanonisch)
+      industryId = settingsIndustryId;
+      industry = settingsIndustryName || orgIndustry || settingsIndustryId;
+      industrySource = 'settings.industry_id';
+    } else if (settingsIndustryName) {
+      // Priorität 2: industry_name aus Settings → Mapping
+      industryId = LEGACY_INDUSTRY_MAP[settingsIndustryName] || settingsIndustryName;
+      industry = settingsIndustryName;
+      industrySource = 'settings.industry_name';
+    } else if (orgIndustry) {
+      // Priorität 3: org.industry → Mapping
+      industryId = LEGACY_INDUSTRY_MAP[orgIndustry] || orgIndustry;
+      industry = orgIndustry;
+      industrySource = 'organization.industry';
+    } else {
+      industry = '';
+      industryId = '';
+      industrySource = 'none';
+    }
+    
+    console.info(`[startResearchRun] Industry: "${industry}" (id=${industryId}, source=${industrySource})`);
+
+    // ── Taxonomie laden (kanonische DB-Quelle — DIREKT aus Entity) ───────────
     let taxonomyProfile = null;
     let taxonomyHash = null;
     let taxonomyVersion = null;
     let usedFallbackProfile = false;
-
-    // Canonical industry_id: direkt aus Settings bevorzugt
-    const industryId = settings.industry_id || LEGACY_INDUSTRY_MAP[industry] || industry;
     
     try {
       // Einzelnes Profil laden
@@ -327,7 +368,7 @@ Deno.serve(async (req) => {
           google_place_types: rec.google_place_types ? JSON.parse(rec.google_place_types) : [],
           ideal_customer_profiles: rec.ideal_customer_profiles ? JSON.parse(rec.ideal_customer_profiles) : [],
         };
-        console.info(`[startResearchRun] Taxonomie geladen: ${industryId}`);
+        console.info(`[startResearchRun] Taxonomie geladen: ${industryId} (source=${industrySource})`);
       } else {
         console.warn(`[startResearchRun] Keine Taxonomie für Branche "${industry}" (id=${industryId})`);
       }
@@ -407,6 +448,7 @@ Deno.serve(async (req) => {
     const searchPlanData = {
       industry,
       industryId,
+      industrySource, // Dokumentiert woher industry kommt
       usedFallbackProfile: usedFallbackProfile || false,
       city,
       radiusKm,
