@@ -1,4 +1,7 @@
 import { useState, useEffect } from "react";
+
+// Module-level cache: survives re-renders, resets only on page reload
+let _cachedIsAdmin = null;
 import { useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { LayoutDashboard, Building2, ListTodo, CalendarCheck, Settings } from "lucide-react";
@@ -15,10 +18,11 @@ export default function MobileBottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // User role for admin-only tabs
-  const [isAdmin, setIsAdmin] = useState(false);
+  // User role for admin-only tabs — cached in module scope to avoid repeated API calls
+  const [isAdmin, setIsAdmin] = useState(_cachedIsAdmin);
 
   useEffect(() => {
+    if (_cachedIsAdmin !== null) return; // already loaded
     (async () => {
       const me = await base44.auth.me();
       if (!me) return;
@@ -26,7 +30,8 @@ export default function MobileBottomNav() {
       let isOrgAdmin = false;
       const memberships = await base44.entities.OrganizationMember.filter({ user_email: me.email, status: "active" });
       if (memberships?.[0]?.role === "organization_admin") isOrgAdmin = true;
-      setIsAdmin(isPlatformAdmin || isOrgAdmin);
+      _cachedIsAdmin = isPlatformAdmin || isOrgAdmin;
+      setIsAdmin(_cachedIsAdmin);
     })();
   }, []);
 
