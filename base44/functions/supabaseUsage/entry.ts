@@ -196,7 +196,15 @@ Deno.serve(async (req) => {
       const periodEnd   = new Date(Date.UTC(py, pm, 1));
 
       const NON_QUOTA = new Set(['manual_setup', 'csv_import', 'manual', 'import']);
-      const companies = await base44.asServiceRole.entities.Company.filter({ organization_id: org_id }, '-created_date', 2000);
+      let companies = [];
+      try {
+        companies = await base44.asServiceRole.entities.Company.filter({ organization_id: org_id }, '-created_date', 2000);
+      } catch (compErr) {
+        console.error(`[supabaseUsage] backfill Company.filter failed: ${compErr?.message}`);
+        return Response.json({ error: `Company.filter failed: ${compErr?.message}` }, { status: 500 });
+      }
+
+      console.info(`[supabaseUsage] backfill loaded ${companies.length} companies total`);
 
       const researchCompanies = companies.filter(c => {
         if (!c.research_run_id) return false;
@@ -207,29 +215,34 @@ Deno.serve(async (req) => {
         return created >= periodStart && created < periodEnd;
       });
 
+      console.info(`[supabaseUsage] backfill filtered to ${researchCompanies.length} research companies`);
+
       let written = 0, skipped = 0, failed = 0;
 
-      // Batch-Insert in Gruppen von 50
-      for (let i = 0; i < researchCompanies.length; i += 50) {
-        const batch = researchCompanies.slice(i, i + 50).map(c => ({
+      // Einzeln inserieren — Batch-Insert bricht bei erstem Duplikat ab (kein partial-skip)
+      for (const c of researchCompanies) {
+        const res = await supabaseFetch('/lead_usage_events', 'POST', {
           organization_id: org_id,
           period_month: periodMonth,
           company_id: c.id,
           research_run_id: c.research_run_id || null,
           event_type: 'research_lead_created',
           source: c.source_provider === 'openregister' ? 'openregister' : 'research',
-        }));
-
-        const res = await supabaseFetch('/lead_usage_events', 'POST', batch, {
+        }, {
           'Prefer': 'resolution=ignore-duplicates,return=minimal',
         });
 
-        if (res.ok) {
-          written += batch.length;
+        if (res.ok || res.status === 204) {
+          written++;
         } else {
-          const err = await res.text();
-          console.error(`[supabaseUsage] backfill batch failed: ${err.slice(0, 200)}`);
-          failed += batch.length;
+          const errText = await res.text();
+          // 409 = Duplikat → zählt als skipped, kein Fehler
+          if (res.status === 409) {
+            skipped++;
+          } else {
+            console.error(`[supabaseUsage] backfill single failed HTTP ${res.status}: ${errText.slice(0, 200)}`);
+            failed++;
+          }
         }
       }
 
