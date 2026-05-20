@@ -32,39 +32,64 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 const GOOGLE_PLACES_API_KEY = Deno.env.get("GOOGLE_PLACES_API_KEY");
 const SEARCH_ENGINE_VERSION = "v6-weighted-scoring";
 
-// ── SUPABASE SHADOW MODE ──────────────────────────────────────────────────────
-// Phase 1: Schreibt nach jedem Company.create ein lead_usage_event in Supabase.
+// ── SUPABASE SHADOW MODE (Phase 1) ───────────────────────────────────────────
+// Schreibt nach jedem Company.create ein lead_usage_event in Supabase (RPC).
 // Non-blocking: Fehler werden geloggt aber nie geworfen.
-// Sobald Shadow-Mode validiert ist (< 1% Abweichung, 14 Tage), wird Supabase zur SSOT.
+// Dokumentation: docs/SUPABASE_RPC_TEST_RESULTS_2026_05_20.md
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_KEY");
 
-async function writeSupabaseUsageEvent(orgId, periodMonth, companyId, runId) {
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return; // Shadow Mode deaktiviert wenn keine Secrets
+async function recordLeadUsageEvent(orgId, periodMonth, companyId, runId) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/lead_usage_events`, {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/record_lead_usage_event`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
         'apikey': SUPABASE_SERVICE_KEY,
-        'Prefer': 'resolution=ignore-duplicates,return=minimal',
       },
       body: JSON.stringify({
-        organization_id: orgId,
-        period_month: periodMonth,
-        company_id: companyId,
-        research_run_id: runId || null,
-        event_type: 'research_lead_created',
-        source: 'research',
+        p_organization_id: orgId,
+        p_period_month: periodMonth,
+        p_company_id: companyId,
+        p_research_run_id: runId || null,
+        p_source: 'research',
       }),
     });
     if (!res.ok) {
       const text = await res.text();
-      console.warn(`[processResearchRun][shadow] Supabase write failed: HTTP ${res.status} — ${text.slice(0, 150)}`);
+      console.warn(`[processResearchRun][supabase] RPC failed: HTTP ${res.status} — ${text.slice(0, 150)}`);
     }
   } catch (e) {
-    console.warn(`[processResearchRun][shadow] Supabase write error (non-blocking): ${e?.message}`);
+    console.warn(`[processResearchRun][supabase] RPC error (non-blocking): ${e?.message}`);
+  }
+}
+
+async function auditResearchEvent(runId, orgId, eventType, workerKey, eventData = {}) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/audit_research_event`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'apikey': SUPABASE_SERVICE_KEY,
+      },
+      body: JSON.stringify({
+        p_research_run_id: runId,
+        p_organization_id: orgId,
+        p_event_type: eventType,
+        p_worker_key: workerKey,
+        p_event_data: eventData,
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      console.warn(`[processResearchRun][audit] RPC failed: HTTP ${res.status} — ${text.slice(0, 150)}`);
+    }
+  } catch (e) {
+    console.warn(`[processResearchRun][audit] RPC error (non-blocking): ${e?.message}`);
   }
 }
 
@@ -1024,9 +1049,10 @@ Deno.serve(async (req) => {
               });
             }
 
-            // ── SHADOW MODE: Supabase lead_usage_event (non-blocking, Phase 1) ──
-            // Schreibt parallel zu Base44-UsageLog → Validierung über 14 Tage.
-            writeSupabaseUsageEvent(organization_id, periodMonth, companyId, research_run_id);
+            // ── SHADOW MODE: Supabase RPC (non-blocking, Phase 1) ───────────────
+            // Schreibt lead_usage_event via RPC (idempotent, ON CONFLICT DO NOTHING)
+            // Dokumentation: docs/SUPABASE_RPC_TEST_RESULTS_2026_05_20.md
+            recordLeadUsageEvent(organization_id, periodMonth, companyId, research_run_id);
             
             // Dedupe-Sets aktualisieren + Counter erhöhen (NUR HIER!)
             existingNames.add(normStr(place.name || ''));
@@ -1088,6 +1114,21 @@ Deno.serve(async (req) => {
 
     console.info(`[processResearchRun] Batch ${batchIndex} done: newSaved=${newLeadsSavedThisBatch} totalSaved=${totalLeadsSaved} done=${isDone} engine=${SEARCH_ENGINE_VERSION}`);
 
+    // ── AUDIT: Run-Batch-Complete (nicht-blockierend) ────────────────────────
+    auditResearchEvent(
+      research_run_id,
+      organization_id,
+      'batch_completed',
+      workerKey,
+      {
+        batch_index: nextBatchIndex,
+        leads_saved_this_batch: newLeadsSavedThisBatch,
+        total_leads_saved: totalLeadsSaved,
+        is_done: isDone,
+        engine_version: SEARCH_ENGINE_VERSION,
+      }
+    );
+
     return Response.json({
       success: true, done: isDone, status: newStatus,
       leads_saved: totalLeadsSaved, leads_saved_this_batch: newLeadsSavedThisBatch,
@@ -1097,11 +1138,24 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error('[processResearchRun] Error:', error?.message, error?.stack);
+    
+    // ── AUDIT: Run-Error (nicht-blockierend) ─────────────────────────────────
+    if (research_run_id && organization_id) {
+      auditResearchEvent(
+        research_run_id,
+        organization_id,
+        'run_error',
+        workerKey || 'unknown',
+        {
+          error_message: error?.message,
+          error_stack: error?.stack,
+          batch_index: run.batch_index || 0,
+          leads_saved: run.leads_saved || 0,
+        }
+      );
+    }
+    
     try {
-      // Error-Handler: research_run_id aus Body nur für Run-Status-Update (kein Daten-Leak)
-      // Kein erneuter Tenant-Check nötig: Der Run wurde oben bereits validiert und in dieser Scope
-      // existiert research_run_id nur wenn der User-Check vorher erfolgreich war.
-      // Falls der Fehler VOR dem User-Check auftrat, ist research_run_id noch nicht gesetzt → kein Update.
       if (research_run_id) {
         const base44b = createClientFromRequest(req);
         const existingRuns = await base44b.asServiceRole.entities.ResearchRun.filter({ id: research_run_id }).catch(() => []);
