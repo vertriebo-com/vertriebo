@@ -14,7 +14,7 @@ import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Loader2, CheckCircle2, X } from "lucide-react";
 
-const POLL_MS = 5000; // Etwas längerer Interval als ResearchDialog (3s), um Kollisionen zu reduzieren
+const POLL_MS = 8000; // Längerer Interval als ResearchDialog (3s), um Lock-Kollisionen zu reduzieren
 const STALE_TIMEOUT_MS = 90000;
 
 export default function ActiveResearchBanner({ orgId, onNewLeads }) {
