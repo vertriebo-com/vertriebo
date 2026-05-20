@@ -92,27 +92,6 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
         }
 
         // ── Kein Lock aktiv → Banner kann selbst verarbeiten (Dialog geschlossen) ──
-        // WICHTIG: Nochmal den aktuellen Run-Status direkt prüfen (frisch aus DB)
-        // bevor wir processResearchRun aufrufen — verhindert Doppel-Batch wenn
-        // ein vorangegangener Aufruf den Run bereits auf completed gesetzt hat
-        // aber der lokale State es noch nicht reflektiert.
-        const freshRuns = await base44.entities.ResearchRun.filter({ id: running.id }, '-created_date', 1).catch(() => []);
-        const freshRun = freshRuns[0] || running;
-        if (['completed', 'partial', 'failed'].includes(freshRun.status)) {
-          setActiveRun({
-            id: freshRun.id,
-            status: freshRun.status,
-            leads_saved: freshRun.leads_saved || 0,
-            progress_percent: 100,
-            message: (freshRun.leads_saved || 0) > 0
-              ? `${freshRun.leads_saved} neue Firmenkontakte gefunden`
-              : 'Keine neuen Kontakte gefunden',
-          });
-          lastLeadsSavedRef.current = 0;
-          onNewLeads?.();
-          return;
-        }
-
         const res = await base44.functions.invoke('processResearchRun', {
           research_run_id: running.id,
           organization_id: orgId,

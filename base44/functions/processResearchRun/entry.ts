@@ -658,20 +658,6 @@ Deno.serve(async (req) => {
     // research_run_id für den error-handler setzen – erst NACH bestandenem Tenant-Check
     research_run_id = run.id;
 
-    // ── Bereits abgeschlossen ────────────────────────────────────────────────
-    if (['completed', 'failed', 'partial'].includes(run.status)) {
-      return Response.json({
-        success: true, done: true, status: run.status,
-        leads_saved: run.leads_saved || 0,
-        progress_percent: run.progress_percent || 100,
-        message: run.status === 'completed'
-          ? `Recherche abgeschlossen: ${run.leads_saved || 0} neue Firmenkontakte gefunden.`
-          : run.status === 'partial'
-          ? `Recherche teilweise abgeschlossen: ${run.leads_saved || 0} Kontakte gefunden.`
-          : `Recherche fehlgeschlagen: ${run.error_message || 'Unbekannter Fehler'}`,
-      });
-    }
-
     // ── force_finish ─────────────────────────────────────────────────────────
     if (force_finish) {
       const finishStatus = (run.leads_saved || 0) > 0 ? 'partial' : 'failed';
@@ -727,6 +713,21 @@ Deno.serve(async (req) => {
         progress_percent: run.progress_percent || 5,
         current_step: run.current_step || 'Recherche läuft…',
         message: run.current_step || 'Recherche läuft…',
+      });
+    }
+
+    // ── VITAL: Wenn Run bereits completed/failed/partial → nicht weiterverarbeiten ──
+    // Diese prüfe NACH dem Lock-Check aber SOFORT danach, damit keine zweite Batch läuft
+    if (['completed', 'partial', 'failed'].includes(run.status)) {
+      return Response.json({
+        success: true, done: true, status: run.status,
+        leads_saved: run.leads_saved || 0,
+        progress_percent: run.progress_percent || 100,
+        message: run.status === 'completed'
+          ? `Recherche abgeschlossen: ${run.leads_saved || 0} neue Firmenkontakte gefunden.`
+          : run.status === 'partial'
+          ? `Recherche teilweise abgeschlossen: ${run.leads_saved || 0} Kontakte gefunden.`
+          : `Recherche fehlgeschlagen: ${run.error_message || 'Unbekannter Fehler'}`,
       });
     }
 
@@ -1121,7 +1122,10 @@ Deno.serve(async (req) => {
       current_step: newStep,
       seen_place_ids: JSON.stringify([...seenPlaceIds].slice(-500)),
       charged_lead_generation: totalLeadsSaved > 0,
-      processing_lock_until: null, processing_by: null,
+      // VITAL: Lock muss AKTIV bleiben solange Run nicht completed ist
+      // Sonst ruft Banner nochmal auf bevor Status-Update committed ist
+      processing_lock_until: isDone ? null : new Date(Date.now() + LOCK_DURATION_MS).toISOString(),
+      processing_by: isDone ? null : workerKey,
       ...(isDone ? { finished_at: new Date().toISOString() } : {}),
       ...(isDone && zeroResultCause ? { zero_result_cause: zeroResultCause } : {}),
     });
