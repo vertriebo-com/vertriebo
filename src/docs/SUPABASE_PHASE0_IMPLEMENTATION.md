@@ -30,9 +30,27 @@ Phase 0 der Supabase-Hybrid-Architektur ist abgeschlossen. Alle kritischen Tabel
 | 1 | `20260520000001_create_lead_usage_events.sql` | `lead_usage_events` | Usage-Events mit Unique Index (Dedup) |
 | 2 | `20260520000002_create_shadow_mode_log.sql` | `shadow_mode_log` | Konsistenz-Audit (Supabase vs. Base44) |
 | 3 | `20260520000003_create_quota_reservations.sql` | `quota_reservations` | Atomare Quota mit Unique Index |
-| 4 | `20260520000004_create_rpc_functions.sql` | 5 RPCs | `reserve_quota_slot`, `get_monthly_usage`, `record_lead_usage_event`, Lock-RPCs |
+| 4 | `20260520000004_create_rpc_functions.sql` | 3 RPCs | `reserve_quota_slot`, `get_monthly_usage`, `record_lead_usage_event` |
 | 5 | `20260520000005_create_research_run_locks.sql` | `research_run_locks` | Worker-Locks pro Org |
 | 6 | `20260520000006_create_research_run_audit.sql` | `research_run_audit` + RPC | Unveränderlicher Audit-Trail |
+| 7 | `20260520000007_create_lock_rpc_functions.sql` | 2 Lock-RPCs | `acquire_org_run_lock`, `release_org_run_lock` (nach Tabelle 05) |
+
+### ⚠️ Pfad-Hinweis: Base44 vs. Supabase CLI
+
+Base44 speichert **alle Projektdateien unter `src/`** im GitHub-Repo. Das bedeutet:
+
+| Pfad im Repo | Pfad wie Base44 ihn erstellt |
+|---|---|
+| `supabase/migrations/` | `src/supabase/migrations/` |
+
+**Konsequenz für Supabase CLI Deployment:**
+- Wenn das Supabase-Arbeitsverzeichnis `supabase/` erwartet, müssen die Dateien aus `src/supabase/migrations/` manuell kopiert oder das `--workdir src/supabase` Flag gesetzt werden.
+- Alternative: Supabase GitHub Integration auf `src/supabase` als `migrations_dir` konfigurieren.
+
+**Empfohlenes Deployment-Kommando:**
+```bash
+supabase db push --db-url "$SUPABASE_DB_URL" --schema-path src/supabase/migrations
+```
 
 ---
 
@@ -339,7 +357,7 @@ Falls Supabase Probleme macht:
 ---
 
 **Datum:** 2026-05-20  
-**Status:** ✅ PHASE 0 ABGESCHLOSSEN — Alle 6 Migrationen im Repo sichtbar  
+**Status:** ✅ PHASE 0 ABGESCHLOSSEN — 7 Migrationen, Abhängigkeitsreihenfolge korrekt  
 **Nächste Aktion:** Supabase-Projekt anlegen + Migrationen deployen
 
 ### GitHub-Verifikation (2026-05-20)

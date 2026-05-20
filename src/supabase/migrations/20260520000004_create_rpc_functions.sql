@@ -113,83 +113,8 @@ COMMENT ON FUNCTION record_lead_usage_event IS
   'Schreibt Usage-Event idempotent (ON CONFLICT DO NOTHING). Non-blocking.';
 
 
--- ── RPC: acquire_org_run_lock ──────────────────────────────────────────────
--- Atomarer Lock für ResearchRun-Verarbeitung (verhindert parallele Worker).
-
-CREATE OR REPLACE FUNCTION acquire_org_run_lock(
-  p_organization_id text,
-  p_research_run_id text,
-  p_worker_key      text,
-  p_lock_duration_ms int DEFAULT 25000
-) RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  v_existing_lock   record;
-BEGIN
-  -- Prüfen ob bereits aktiver Lock existiert
-  SELECT * INTO v_existing_lock
-  FROM research_run_locks
-  WHERE organization_id = p_organization_id
-    AND locked_until > now()
-    AND status = 'active';
-
-  IF v_existing_lock IS NOT NULL THEN
-    -- Lock existiert bereits → false zurückgeben
-    RETURN false;
-  END IF;
-
-  -- Neuen Lock erstellen (INSERT mit ON CONFLICT für atomic upsert)
-  INSERT INTO research_run_locks
-    (organization_id, research_run_id, worker_key, locked_until, status)
-  VALUES
-    (p_organization_id, p_research_run_id, p_worker_key, 
-     now() + (p_lock_duration_ms || ' milliseconds')::interval, 'active')
-  ON CONFLICT (organization_id, status) 
-  WHERE status = 'active'
-  DO UPDATE SET
-    research_run_id = p_research_run_id,
-    worker_key = p_worker_key,
-    locked_until = now() + (p_lock_duration_ms || ' milliseconds')::interval;
-
-  RETURN true;
-
-EXCEPTION
-  WHEN others THEN
-    RETURN false;
-END;
-$$;
-
-COMMENT ON FUNCTION acquire_org_run_lock IS
-  'Atomarer Org-Lock für ResearchRun-Verarbeitung. Verhindert parallele Worker.';
-
-
--- ── RPC: release_org_run_lock ──────────────────────────────────────────────
--- Gibt Lock frei (nach erfolgreicher Verarbeitung).
-
-CREATE OR REPLACE FUNCTION release_org_run_lock(
-  p_organization_id text,
-  p_worker_key      text
-) RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-  UPDATE research_run_locks
-  SET status = 'released',
-      released_at = now()
-  WHERE organization_id = p_organization_id
-    AND worker_key = p_worker_key
-    AND status = 'active';
-
-  RETURN true;
-
-EXCEPTION
-  WHEN others THEN
-    RETURN false;
-END;
-$$;
-
-COMMENT ON FUNCTION release_org_run_lock IS
-  'Gibt Org-Run-Lock frei (nach Verarbeitung).';
+-- HINWEIS: acquire_org_run_lock und release_org_run_lock wurden in
+-- 20260520000007_create_lock_rpc_functions.sql verschoben.
+-- Grund: Diese RPCs referenzieren die Tabelle research_run_locks,
+-- die erst in Migration 05 erstellt wird. Um die Abhängigkeit korrekt
+-- aufzulösen, müssen die Lock-RPCs NACH der Tabellen-Migration laufen.
