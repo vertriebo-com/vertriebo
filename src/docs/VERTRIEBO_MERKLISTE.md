@@ -44,9 +44,22 @@
 
 | Komponente | Letzter Test | Ergebnis |
 |---|---|---|
-| `getUsageSummary` | 2026-05-20 via test_backend_function | `monthly_used=324, source=usage_log` — korrekt, kein 0/300 |
-| `getDashboardData` | 2026-05-20 | 200 OK, usage_summary vorhanden |
+| `getUsageSummary` | 2026-05-20 | `monthly_used=324, source=usage_log` — korrekt |
+| `getDashboardData` (inline, kein functions.invoke) | 2026-05-20 | `monthly_used=324, committed=0, usage_log=324, companies_this_month=174` — korrekt |
 | Dashboard-UI | ⚠️ Ausstehend — Live-Refresh im Browser noch nicht verifiziert | Bitte als nächstes im Browser prüfen |
+
+### Root Cause: functions.invoke Rate-Limit (2026-05-20) — BEHOBEN
+
+**Problem:** `getDashboardData` rief `getUsageSummary` via `base44.functions.invoke()` auf.
+Dieser verschachtelte Function-Invoke lief auf das Base44 Rate-Limit (429), schlug still fehl,
+der Fallback-Pfad griff und berechnete `monthly_used` über einen fehlerhaften Company-Filter → Ergebnis: 0.
+
+**Fix:** Usage-Logik direkt inline in `getDashboardData` eingebettet — keine verschachtelten `functions.invoke` mehr.
+`getUsageSummary` bleibt als eigenständige Funktion für BillingSettings und direkte API-Calls erhalten.
+
+**Regel (neu, ab 2026-05-20):**
+- ❌ **`getDashboardData` ruft NICHT `getUsageSummary` via `functions.invoke`** — Rate-Limit-Risiko
+- ✅ Usage-Logik ist in `getDashboardData` inline dupliziert (bewusst) — identische max()-Formel
 
 ---
 

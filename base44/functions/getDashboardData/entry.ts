@@ -82,6 +82,7 @@ Deno.serve(async (req) => {
     // Companies laden - alle aktiven (kein 500er-Limit damit Zähler mit Leads-Page übereinstimmen)
     const allCompanies = await base44.entities.Company.filter({ organization_id: orgId }, "-created_date", 2000);
     const companies = allCompanies.filter(c => !isBlacklisted(c.name));
+    const crmTotal = companies.length;
 
     // Tasks laden
     const allTasks = await base44.entities.Task.filter({ organization_id: orgId }, "-faellig_am", 100);
@@ -300,47 +301,81 @@ Deno.serve(async (req) => {
     allSettings.forEach(s => { settingsMap[s.key] = s.value; });
     const weeklyGoal = parseInt(settingsMap['weekly_contact_goal'] || '20', 10);
 
-    // ── USAGE_SUMMARY (Single Source of Truth) ─────────────────────────────
-    // Zentrale Usage-Berechnung via getUsageSummary – NICHT lokal berechnen!
-    // Fallback nur bei Fehler: Planlimit dynamisch laden, kein hardcoded 300
-    const usageSummaryRes = await base44.functions.invoke('getUsageSummary', { org_id: orgId });
-    let usage_summary = usageSummaryRes?.data?.usage_summary || null;
-    
-    if (!usage_summary && org.plan_id) {
-      // Defensiver Fallback: Planlimit dynamisch laden (Multi-Tenant-safe)
-      const plan = (await base44.asServiceRole.entities.Plan.filter({ id: org.plan_id }))?.[0];
-      const monthlyLimit = plan?.max_leads_per_month ?? -1;
-      const periodParts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit' }).formatToParts(now);
-      const yearPart = periodParts.find(p => p.type === 'year');
-      const monthPart = periodParts.find(p => p.type === 'month');
-      const periodMonth = `${yearPart?.value}-${monthPart?.value}`;
-      const [py, pm] = [parseInt(yearPart?.value || new Date().getFullYear()), parseInt(monthPart?.value || 1)];
-      const resetDate = new Date(Date.UTC(py, pm, 1));
-      
-      // Fallback: zähle Companies diesen Monat mit research_run_id
-      const periodStart = new Date(Date.UTC(py, pm - 1, 1));
-      const periodEnd = new Date(Date.UTC(py, pm, 1));
-      const fallbackMonthlyUsed = allCompanies.filter(c => {
-        if (!c.research_run_id) return false;
-        const created = new Date(c.created_date);
-        return created >= periodStart && created < periodEnd;
-      }).length;
+    // ── USAGE_SUMMARY — direkt inline berechnet (kein functions.invoke → kein Rate-Limit-Risiko) ──
+    // Identische Logik wie getUsageSummary: monthly_used = Math.max(committedSlots, usageLogValue, companiesThisMonth)
+    const periodParts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit',
+    }).formatToParts(now);
+    const pyU = parseInt(periodParts.find(p => p.type === 'year')?.value || now.getFullYear());
+    const pmU = parseInt(periodParts.find(p => p.type === 'month')?.value || 1);
+    const periodMonthU = `${pyU}-${String(pmU).padStart(2, '0')}`;
+    const resetDateU = new Date(Date.UTC(pyU, pmU, 1));
+    const resetDateFormatted = resetDateU.toLocaleDateString('de-DE', {
+      day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin',
+    });
 
-      usage_summary = {
-        period_month: periodMonth,
-        monthly_limit: monthlyLimit,
-        monthly_used: fallbackMonthlyUsed,
-        monthly_remaining: monthlyLimit === -1 ? null : Math.max(0, monthlyLimit - fallbackMonthlyUsed),
-        crm_total: allCompanies.length,
-        reset_date: resetDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Berlin' }),
-        is_over_limit: false,
-        explanation: {
-          monthly_used_description: "Automatisch generierte neue Leads in diesem Kalendermonat",
-          crm_total_description: "Aktuell gespeicherte Firmenkontakte",
-          why_different: null,
-        },
-      };
-    }
+    const [quotaSlots, usageLogsU, planData] = await Promise.all([
+      base44.asServiceRole.entities.QuotaReservation.filter({ organization_id: orgId, period_month: periodMonthU }),
+      base44.asServiceRole.entities.UsageLog.filter({ organization_id: orgId, period_month: periodMonthU }),
+      org.plan_id ? base44.asServiceRole.entities.Plan.filter({ id: org.plan_id }) : Promise.resolve([]),
+    ]);
+
+    const plan = planData?.[0] || null;
+    const monthlyLimit = plan?.max_leads_per_month ?? -1;
+    const isUnlimited = monthlyLimit === -1;
+
+    const committedSlots = quotaSlots.filter(s => s.status === 'committed').length;
+    const usageLogValue = usageLogsU?.[0]?.leads_created || 0;
+
+    // ⚠️ companiesThisMonth als Sicherheitsnetz — UTC-Grenzen (±1-2h Drift am Monatswechsel)
+    const NON_QUOTA_RUN_IDS = new Set(['manual_setup', 'csv_import', 'manual', 'import']);
+    const periodStartU = new Date(Date.UTC(pyU, pmU - 1, 1));
+    const periodEndU   = new Date(Date.UTC(pyU, pmU, 1));
+    const companiesThisMonth = allCompanies.filter(c => {
+      if (!c.research_run_id) return false;
+      if (NON_QUOTA_RUN_IDS.has(c.research_run_id)) return false;
+      if (c.quelle === 'Manuell' || c.quelle === 'CSV Import') return false;
+      if (c.source_provider === 'manual' || c.source_provider === 'csv_import') return false;
+      const created = new Date(c.created_date);
+      return created >= periodStartU && created < periodEndU;
+    }).length;
+
+    const monthlyUsed = Math.max(committedSlots, usageLogValue, companiesThisMonth);
+    const monthlyRemaining = isUnlimited ? null : Math.max(0, monthlyLimit - monthlyUsed);
+    const isOverLimit = !isUnlimited && monthlyUsed > monthlyLimit;
+
+    const sourceUsed = monthlyUsed === committedSlots && committedSlots >= usageLogValue && committedSlots >= companiesThisMonth
+      ? 'quota_reservation'
+      : monthlyUsed === usageLogValue && usageLogValue >= companiesThisMonth
+      ? 'usage_log'
+      : 'companies_count';
+
+    const usage_summary = {
+      period_month: periodMonthU,
+      plan_name: plan?.name || null,
+      monthly_limit: monthlyLimit,
+      monthly_used: monthlyUsed,
+      monthly_remaining: monthlyRemaining,
+      is_over_limit: isOverLimit,
+      is_unlimited: isUnlimited,
+      reset_date: resetDateFormatted,
+      crm_total: crmTotal,
+      explanation: {
+        monthly_used_description: "Automatisch recherchierte Leads in diesem Kalendermonat (max aus QuotaReservation, UsageLog, Company-Zählung)",
+        crm_total_description: "Aktuell gespeicherte Firmenkontakte (inkl. manuell angelegte)",
+        why_different: monthlyUsed !== crmTotal
+          ? "Monatsverbrauch = nur automatisch recherchierte Leads."
+          : null,
+      },
+      reconciliation: {
+        committed_slots: committedSlots,
+        usage_log_value: usageLogValue,
+        companies_this_month: companiesThisMonth,
+        source_used: sourceUsed,
+        org_id: orgId,
+        period_month: periodMonthU,
+      },
+    };
 
     return Response.json({
       org,
