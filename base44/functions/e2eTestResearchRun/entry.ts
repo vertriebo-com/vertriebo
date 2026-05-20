@@ -1,15 +1,19 @@
 /**
  * e2eTestResearchRun
  * ==================
- * Automatisierter E2E-Test für ResearchRun mit frischer Test-Organisation.
- * Erstellt ResearchRun direkt via asServiceRole (kein externer Function-Aufruf).
+ * Vollständig selbstausführender E2E-Test für den ResearchRun-Workflow.
  *
- * Ablauf:
- * 1. Neue Test-Organisation erstellen (owner_email = eingeloggter Admin)
- * 2. OrganizationSettings setzen
- * 3. Baseline erfassen (Companies, UsageLog, Supabase — echte Abfragen, kein Hard-0)
- * 4. ResearchRun direkt erstellen + verarbeiten mit processResearchRun
- * 5. Alle 5 Quellen vergleichen inkl. Delta zur Baseline
+ * STRATEGIE:
+ * - Erstellt eine frische, isolierte Test-Org (owner_email = Admin)
+ * - Führt processResearchRun direkt über asServiceRole in-process aus
+ * - Kein Browser-Trigger nötig
+ * - Baseline immer 0/0/0 (frische Org)
+ * - Cleanup löscht die Test-Org vollständig (inkl. Supabase)
+ *
+ * MODI:
+ * 1. POST {} → Setup + Run + Validate (alles in einem)
+ * 2. POST { cleanup_only, org_id_to_cleanup } → Cleanup einer Test-Org
+ * 3. POST { validate_run, validate_org_id, validate_run_id, validate_baseline } → nur Validation
  *
  * NUR FÜR PLATFORM ADMINS.
  */
@@ -28,31 +32,6 @@ function getPeriodMonth() {
   return `${y}-${m}`;
 }
 
-function haversineKm(lat1, lng1, lat2, lng2) {
-  const R = 6371, dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
-  return R * 2 * Math.asin(Math.sqrt(a));
-}
-
-function generateSearchGrid(centerLat, centerLng, radiusKm) {
-  const points = [{ lat: centerLat, lng: centerLng, label: 'center' }];
-  const stepKm = 15, rings = radiusKm <= 20 ? 1 : 2;
-  for (let ring = 1; ring <= rings; ring++) {
-    const ringR = ring * stepKm, count = 6 * ring;
-    for (let i = 0; i < count; i++) {
-      const angle = (2 * Math.PI * i) / count;
-      const dLat = (ringR / 111) * Math.cos(angle);
-      const dLng = (ringR / (111 * Math.cos(centerLat * Math.PI / 180))) * Math.sin(angle);
-      const pLat = centerLat + dLat, pLng = centerLng + dLng;
-      if (haversineKm(centerLat, centerLng, pLat, pLng) <= radiusKm * 1.05) {
-        points.push({ lat: pLat, lng: pLng, label: `grid_${ring}_${i}` });
-      }
-    }
-  }
-  return points;
-}
-
-// Supabase monthly count mit Retry
 async function getSupabaseMonthlyCount(orgId, periodMonth, retries = 3) {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -71,76 +50,58 @@ async function getSupabaseMonthlyCount(orgId, periodMonth, retries = 3) {
       if (res.ok) {
         const contentRange = res.headers.get('content-range') || '';
         const total = parseInt(contentRange.split('/')[1] || '0', 10);
-        if (!isNaN(total)) {
-          console.info(`[e2eTest] Supabase count attempt ${attempt}: ${total}`);
-          return total;
-        }
+        if (!isNaN(total)) return total;
       }
     } catch (e) {
       console.warn(`[e2eTest] Supabase attempt ${attempt} error: ${e?.message}`);
     }
-    if (attempt < retries) await new Promise(r => setTimeout(r, 1000));
+    if (attempt < retries) await new Promise(r => setTimeout(r, 1500));
   }
   return null;
 }
 
-// Cleanup nur eines spezifischen Runs + seiner Companies (echte Org bleibt erhalten)
-async function cleanupTestRun(base44, orgId, runId) {
-  console.info(`[e2eTest] Cleanup run ${runId} in org ${orgId}`);
-  const companies = await base44.asServiceRole.entities.Company.filter({ organization_id: orgId, research_run_id: runId }).catch(() => []);
+async function deleteSupabaseOrgData(orgId) {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return;
+  const headers = {
+    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+    'apikey': SUPABASE_SERVICE_KEY,
+    'Prefer': 'return=minimal',
+  };
   await Promise.all([
-    ...companies.map(c => base44.asServiceRole.entities.Company.delete(c.id).catch(() => {})),
-    base44.asServiceRole.entities.ResearchRun.delete(runId).catch(() => {}),
+    fetch(`${SUPABASE_URL}/rest/v1/lead_usage_events?organization_id=eq.${orgId}`, { method: 'DELETE', headers }).catch(() => {}),
+    fetch(`${SUPABASE_URL}/rest/v1/quota_reservations?organization_id=eq.${orgId}`, { method: 'DELETE', headers }).catch(() => {}),
+    fetch(`${SUPABASE_URL}/rest/v1/research_run_audit?organization_id=eq.${orgId}`, { method: 'DELETE', headers }).catch(() => {}),
+    fetch(`${SUPABASE_URL}/rest/v1/research_run_locks?organization_id=eq.${orgId}`, { method: 'DELETE', headers }).catch(() => {}),
   ]);
-  if (SUPABASE_URL && SUPABASE_SERVICE_KEY && companies.length > 0) {
-    for (const c of companies) {
-      await fetch(`${SUPABASE_URL}/rest/v1/lead_usage_events?organization_id=eq.${orgId}&company_id=eq.${c.id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`, 'apikey': SUPABASE_SERVICE_KEY, 'Prefer': 'return=minimal' },
-      }).catch(() => {});
-    }
-  }
-  console.info(`[e2eTest] Cleanup done: ${companies.length} Companies + Run ${runId} gelöscht`);
 }
 
-// Cleanup aller Test-Daten (dedizierte Test-Org)
+// Vollständiger Cleanup einer Test-Org inkl. aller Supabase-Daten
 async function cleanupTestOrg(base44, orgId) {
-  console.info(`[e2eTest] Cleanup: ${orgId}`);
-  const [companies, runs, usageLogs, settings] = await Promise.all([
+  console.info(`[e2eTest] Cleanup start: ${orgId}`);
+  const [companies, runs, usageLogs, settings, members] = await Promise.all([
     base44.asServiceRole.entities.Company.filter({ organization_id: orgId }).catch(() => []),
     base44.asServiceRole.entities.ResearchRun.filter({ organization_id: orgId }).catch(() => []),
     base44.asServiceRole.entities.UsageLog.filter({ organization_id: orgId }).catch(() => []),
     base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id: orgId }).catch(() => []),
+    base44.asServiceRole.entities.OrganizationMember.filter({ organization_id: orgId }).catch(() => []),
   ]);
   await Promise.all([
     ...companies.map(c => base44.asServiceRole.entities.Company.delete(c.id).catch(() => {})),
     ...runs.map(r => base44.asServiceRole.entities.ResearchRun.delete(r.id).catch(() => {})),
     ...usageLogs.map(u => base44.asServiceRole.entities.UsageLog.delete(u.id).catch(() => {})),
     ...settings.map(s => base44.asServiceRole.entities.OrganizationSettings.delete(s.id).catch(() => {})),
+    ...members.map(m => base44.asServiceRole.entities.OrganizationMember.delete(m.id).catch(() => {})),
   ]);
-  if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
-    await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/lead_usage_events?organization_id=eq.${orgId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`, 'apikey': SUPABASE_SERVICE_KEY, 'Prefer': 'return=minimal' },
-      }).catch(() => {}),
-      fetch(`${SUPABASE_URL}/rest/v1/quota_reservations?organization_id=eq.${orgId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`, 'apikey': SUPABASE_SERVICE_KEY, 'Prefer': 'return=minimal' },
-      }).catch(() => {}),
-    ]);
-  }
+  await deleteSupabaseOrgData(orgId);
   await base44.asServiceRole.entities.Organization.delete(orgId).catch(() => {});
-  console.info(`[e2eTest] Cleanup done for ${orgId}`);
+  console.info(`[e2eTest] Cleanup done: ${orgId} — ${companies.length} Companies, ${runs.length} Runs, ${usageLogs.length} UsageLogs gelöscht`);
 }
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (!["admin", "platform_owner", "platform_admin"].includes(user.role)) {
       return Response.json({ error: 'Forbidden: Platform Admin required', user_role: user.role }, { status: 403 });
     }
@@ -149,24 +110,20 @@ Deno.serve(async (req) => {
     try { body = await req.json(); } catch {}
     const { cleanup_only, org_id_to_cleanup } = body;
 
+    // ── MODUS: Cleanup ────────────────────────────────────────────────────────
     if (cleanup_only && org_id_to_cleanup) {
-      const { run_id_to_cleanup } = body;
-      if (run_id_to_cleanup) {
-        // Option C: Nur den spezifischen Run + seine Companies löschen, NICHT die Org
-        await cleanupTestRun(base44, org_id_to_cleanup, run_id_to_cleanup);
-        return Response.json({ success: true, message: `Run ${run_id_to_cleanup} und zugehörige Companies bereinigt (Org bleibt erhalten)` });
-      } else {
-        // Legacy: komplette Test-Org löschen (nur wenn es eine dedizierte Test-Org war)
-        await cleanupTestOrg(base44, org_id_to_cleanup);
-        return Response.json({ success: true, message: `Cleanup abgeschlossen für ${org_id_to_cleanup}` });
-      }
+      await cleanupTestOrg(base44, org_id_to_cleanup);
+      return Response.json({ success: true, message: `Cleanup abgeschlossen für ${org_id_to_cleanup}` });
     }
 
-    // ── VALIDATE: Counts nach Browser-Run prüfen ──────────────────────────────
+    // ── MODUS: Validate ───────────────────────────────────────────────────────
     const { validate_run, validate_org_id, validate_run_id, validate_baseline } = body;
     if (validate_run && validate_org_id && validate_run_id) {
       const periodMonth = getPeriodMonth();
       const baseline = validate_baseline || { companies: 0, usageLog_leads_created: 0, supabase_monthly_used: 0 };
+
+      // Kurz warten damit Supabase async-Schreibungen ankommen
+      await new Promise(r => setTimeout(r, 3000));
 
       const [finalCompanies, finalRunRecords, finalUsage, finalSupabase] = await Promise.all([
         base44.asServiceRole.entities.Company.filter({ organization_id: validate_org_id }),
@@ -209,17 +166,15 @@ Deno.serve(async (req) => {
 
       let verdict;
       if (!runDone) {
-        verdict = { status: '⏳ NOT_DONE', message: `Run status: ${final.research_run_status} — noch nicht abgeschlossen` };
+        verdict = { status: '⏳ NOT_DONE', message: `Run status: ${final.research_run_status}` };
       } else if (expectedLeads === 0) {
         verdict = {
-          status: '⚠️ NO_LEADS',
-          message: 'Run abgeschlossen aber 0 Leads',
+          status: '⚠️ NO_LEADS', message: 'Run abgeschlossen aber 0 Leads',
           details: [`zero_result_cause: ${finalRun?.zero_result_cause || 'none'}`, `error: ${finalRun?.error_message || 'none'}`],
         };
       } else if (allMatch) {
         verdict = {
-          status: '✅ PASS',
-          message: `Alle Quellen übereinstimmend: ${expectedLeads} Leads`,
+          status: '✅ PASS', message: `Alle Quellen übereinstimmend: ${expectedLeads} Leads`,
           details: [
             `✅ Companies (delta): +${delta.companies}`,
             `✅ ResearchRun.leads_saved: ${final.research_run_leads_saved}`,
@@ -229,8 +184,7 @@ Deno.serve(async (req) => {
         };
       } else {
         verdict = {
-          status: '❌ FAIL',
-          message: 'Quellen stimmen NICHT überein',
+          status: '❌ FAIL', message: 'Quellen stimmen NICHT überein',
           details: [
             `${companiesMatch ? '✅' : '❌'} Companies (delta): +${delta.companies} (erwartet +${expectedLeads})`,
             `✅ ResearchRun.leads_saved: ${expectedLeads} (${final.research_run_status})`,
@@ -239,117 +193,114 @@ Deno.serve(async (req) => {
           ],
         };
       }
-
       return Response.json({ success: allMatch, verdict, final, delta, period_month: periodMonth });
     }
 
-    const timestamp = Date.now();
+    // ── MODUS: Vollständiger E2E-Test (Setup + Run + Validate in-process) ─────
     const periodMonth = getPeriodMonth();
-    console.info(`[e2eTest] Start: user=${user.email} role=${user.role} period=${periodMonth}`);
+    const timestamp = Date.now();
+    console.info(`[e2eTest] ═══ VOLLSTÄNDIGER E2E-TEST START ═══`);
+    console.info(`[e2eTest] User: ${user.email} | Periode: ${periodMonth}`);
 
-    // ── OPTION C: Aktuelle Org des Admins verwenden ───────────────────────────
-    // useOrganization im Browser löst owner_email=user.email → erste Org auf.
-    // Test-Org in separater Org ist für den Browser unsichtbar (kein Org-Switcher).
-    // Lösung: Wir nutzen die tatsächlich aktive Org des Admins und bereinigen nach dem Test.
-    console.info('[e2eTest] Schritt 1: Lade aktuelle Admin-Org...');
-    const adminOrgs = await base44.asServiceRole.entities.Organization.filter({ owner_email: user.email });
-    const testOrg = adminOrgs?.[0] || null;
-    if (!testOrg) {
-      return Response.json({ error: `Keine Organisation für ${user.email} gefunden. Admin muss Owner einer Org sein.`, success: false }, { status: 400 });
-    }
-    const isRealOrg = true; // Echte Org — Cleanup nur den Run + angelegte Companies, NICHT die Org selbst
-    console.info(`[e2eTest] ✅ Aktive Org gefunden: ${testOrg.id} (${testOrg.name})`);
+    // ── SCHRITT 1: Frische isolierte Test-Org erstellen ──────────────────────
+    console.info('[e2eTest] Schritt 1: Erstelle frische Test-Org...');
+    const testOrg = await base44.asServiceRole.entities.Organization.create({
+      name: `E2E Test Org ${timestamp}`,
+      owner_email: user.email,
+      industry: 'Gebäudereinigung',
+      service_area_city: 'München',
+      service_area_radius_km: 25,
+      billing_status: 'active',
+      platform_status: 'active',
+      trial_stage: 'paid',
+      onboarding_done: true,
+    });
+    console.info(`[e2eTest] ✅ Test-Org erstellt: ${testOrg.id} (${testOrg.name})`);
 
-    // ── SCHRITT 2: Settings prüfen (keine Überschreibung der echten Settings) ─
-    // Wir prüfen nur ob genug Konfiguration vorhanden ist. Settings werden NICHT geändert.
-    console.info('[e2eTest] Schritt 2: Prüfe Org-Settings...');
-    const settingsRecords = await base44.asServiceRole.entities.OrganizationSettings.filter({ organization_id: testOrg.id });
-    const settingsMap = {};
-    settingsRecords.forEach(s => { settingsMap[s.key] = s.value; });
-    const hasCity = !!(testOrg.service_area_city || settingsMap.service_area_city || settingsMap.lead_plz_city);
-    const hasIndustry = !!(settingsMap.industry_id || settingsMap.industry_name || testOrg.industry);
-    if (!hasCity) {
-      return Response.json({ error: 'Org hat kein Suchgebiet (service_area_city). Bitte Einstellungen prüfen.', success: false }, { status: 400 });
-    }
-    console.info(`[e2eTest] ✅ Settings OK: city=${hasCity}, industry=${hasIndustry}`);
+    // OrganizationSettings für die Test-Org anlegen
+    await base44.asServiceRole.entities.OrganizationSettings.create({
+      organization_id: testOrg.id,
+      key: 'industry_id',
+      value: 'gebaeudereinigung',
+    }).catch(() => {});
 
-    // ── SCHRITT 3: Baseline erfassen (echte Abfragen) ─────────────────────────
-    console.info('[e2eTest] Schritt 3: Baseline erfassen...');
+    // ── SCHRITT 2: Baseline erfassen — MUSS 0/0/0 sein ──────────────────────
+    console.info('[e2eTest] Schritt 2: Baseline erfassen...');
     const [blCompanies, blUsage, blSupabase] = await Promise.all([
       base44.asServiceRole.entities.Company.filter({ organization_id: testOrg.id }),
       base44.asServiceRole.entities.UsageLog.filter({ organization_id: testOrg.id, period_month: periodMonth }),
       getSupabaseMonthlyCount(testOrg.id, periodMonth, 1),
     ]);
-    // Nur Research-Leads zählen (kein Manuell/CSV)
-    const nonQuota = new Set(['manual_setup', 'csv_import', 'manual', 'import']);
-    const baselineResearchCompanies = blCompanies.filter(c =>
-      c.research_run_id && !nonQuota.has(c.research_run_id) &&
-      c.quelle !== 'Manuell' && c.quelle !== 'CSV Import' &&
-      c.source_provider !== 'manual' && c.source_provider !== 'csv_import'
-    );
     const baseline = {
-      companies: baselineResearchCompanies.length,
+      companies: blCompanies.length,
       usageLog_leads_created: blUsage[0]?.leads_created || 0,
       supabase_monthly_used: blSupabase || 0,
     };
     console.info(`[e2eTest] Baseline: ${JSON.stringify(baseline)}`);
 
-    // ── SCHRITT 4: Taxonomie laden + ResearchRun direkt erstellen ─────────────
-    console.info('[e2eTest] Schritt 4: Taxonomie + ResearchRun...');
-    // Industry aus echten Settings der Org
-    const industryId = settingsMap.industry_id || 'gebaeudereinigung';
-    const city = testOrg.service_area_city || settingsMap.service_area_city || settingsMap.lead_plz_city || 'München';
-    const radiusKm = parseFloat(testOrg.service_area_radius_km || settingsMap.service_area_radius_km || '25') || 25;
-    const targetCustomerTypes = (settingsMap.target_customer_types || settingsMap.zielkunden || 'Hausverwaltungen, Immobilienverwaltungen').split(/,\s*/).filter(Boolean);
+    if (baseline.companies !== 0 || baseline.usageLog_leads_created !== 0 || baseline.supabase_monthly_used !== 0) {
+      await cleanupTestOrg(base44, testOrg.id);
+      return Response.json({
+        success: false,
+        error: 'BASELINE_NOT_CLEAN',
+        message: 'Baseline ist nicht 0/0/0 — Test-Org hatte bereits Daten. Test abgebrochen, Org bereinigt.',
+        baseline,
+      }, { status: 409 });
+    }
 
-    let taxonomyProfile = null;
+    // ── SCHRITT 3: Taxonomie laden ────────────────────────────────────────────
+    console.info('[e2eTest] Schritt 3: Taxonomie laden...');
+    const industryId = 'gebaeudereinigung';
     const taxRecords = await base44.asServiceRole.entities.TaxonomyEntry.filter({ industry_id: industryId, is_active: true });
-    if (taxRecords[0]) {
-      const rec = taxRecords[0];
-      const jp = (f) => { try { return f ? JSON.parse(f) : []; } catch { return []; } };
-      const jo = (f) => { try { return f ? JSON.parse(f) : {}; } catch { return {}; } };
-      taxonomyProfile = {
-        industry_id: rec.industry_id, label: rec.label,
-        own_services: jp(rec.own_services), target_customer_types: jp(rec.target_customer_types),
-        excluded_customer_types: jp(rec.excluded_customer_types),
-        searchable_business_categories: jp(rec.searchable_business_categories),
-        search_keyword_variants: jo(rec.search_keyword_variants),
-        negative_keywords: jp(rec.negative_keywords),
-        bad_fit_signals: jp(rec.bad_fit_signals), bad_fit_signal_weights: jo(rec.bad_fit_signal_weights),
-        scoring_signals: jp(rec.scoring_signals), scoring_signal_weights: jo(rec.scoring_signal_weights),
-        query_priority: jp(rec.query_priority),
-        search_strategy: rec.search_strategy || 'target_customer_search',
-        place_type_confidence: rec.place_type_confidence || 'medium',
-        google_place_types: jp(rec.google_place_types),
-        ideal_customer_profiles: jp(rec.ideal_customer_profiles),
-      };
-      console.info(`[e2eTest] ✅ Taxonomie geladen: ${industryId}`);
-    } else {
-      console.warn('[e2eTest] Kein Taxonomie-Profil für gebaeudereinigung — Test wird trotzdem fortgesetzt');
+    if (!taxRecords[0]) {
+      await cleanupTestOrg(base44, testOrg.id);
+      return Response.json({ success: false, error: 'taxonomy_profile_missing', message: `Kein Profil für ${industryId}` }, { status: 400 });
     }
+    const rec = taxRecords[0];
+    const jp = (f) => { try { return f ? JSON.parse(f) : []; } catch { return []; } };
+    const jo = (f) => { try { return f ? JSON.parse(f) : {}; } catch { return {}; } };
+    const taxonomyProfile = {
+      industry_id: rec.industry_id, label: rec.label,
+      own_services: jp(rec.own_services), target_customer_types: jp(rec.target_customer_types),
+      excluded_customer_types: jp(rec.excluded_customer_types),
+      searchable_business_categories: jp(rec.searchable_business_categories),
+      search_keyword_variants: jo(rec.search_keyword_variants),
+      negative_keywords: jp(rec.negative_keywords),
+      bad_fit_signals: jp(rec.bad_fit_signals), bad_fit_signal_weights: jo(rec.bad_fit_signal_weights),
+      scoring_signals: jp(rec.scoring_signals), scoring_signal_weights: jo(rec.scoring_signal_weights),
+      query_priority: jp(rec.query_priority),
+      search_strategy: rec.search_strategy || 'target_customer_search',
+      place_type_confidence: rec.place_type_confidence || 'medium',
+      google_place_types: jp(rec.google_place_types),
+      ideal_customer_profiles: jp(rec.ideal_customer_profiles),
+    };
+    console.info(`[e2eTest] ✅ Taxonomie geladen: ${industryId}`);
 
-    // Geocode
-    let cityCoords = { lat: 48.1351253, lng: 11.5819806 }; // München Fallback
-    const geoRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(city + ' Deutschland')}&key=${GOOGLE_PLACES_API_KEY}&language=de`);
-    const geoData = await geoRes.json();
-    const loc = geoData.results?.[0]?.geometry?.location;
-    if (loc) {
-      cityCoords = { lat: loc.lat, lng: loc.lng };
+    // ── SCHRITT 4: Geocode + ResearchRun erstellen ────────────────────────────
+    console.info('[e2eTest] Schritt 4: Geocode + ResearchRun...');
+    const city = 'München';
+    const radiusKm = 25;
+
+    let cityCoords = { lat: 48.1351253, lng: 11.5819806 };
+    try {
+      const geoRes = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(city + ' Deutschland')}&key=${GOOGLE_PLACES_API_KEY}&language=de`);
+      const geoData = await geoRes.json();
+      const loc = geoData.results?.[0]?.geometry?.location;
+      if (loc) cityCoords = { lat: loc.lat, lng: loc.lng };
       console.info(`[e2eTest] ✅ Geocode: ${city} → ${cityCoords.lat},${cityCoords.lng}`);
-    } else {
-      console.warn('[e2eTest] Geocode failed, using hardcoded München coords');
+    } catch (e) {
+      console.warn(`[e2eTest] Geocode failed, using fallback: ${e?.message}`);
     }
 
-    const mainGrid = generateSearchGrid(cityCoords.lat, cityCoords.lng, radiusKm).map(p => ({
-      ...p, centerLat: cityCoords.lat, centerLng: cityCoords.lng, centerCity: city,
-    }));
+    const targetCustomerTypes = jp(rec.target_customer_types).slice(0, 5);
 
     const searchPlanData = {
       industry: 'Gebäudereinigung', industryId, industrySource: 'e2e_test',
       city, radiusKm, radiusMeters: Math.min(radiusKm * 1000, 50000),
       targetCustomerTypes, excludedCustomerTypes: [],
       trialStage: 'paid', cityCoords,
-      allPoints: mainGrid, allCenters: [{ lat: cityCoords.lat, lng: cityCoords.lng, city }],
+      allPoints: [{ lat: cityCoords.lat, lng: cityCoords.lng, label: 'center', centerLat: cityCoords.lat, centerLng: cityCoords.lng, centerCity: city }],
+      allCenters: [{ lat: cityCoords.lat, lng: cityCoords.lng, city }],
       effectiveTarget: 5, remainingPreviewLeads: 0,
       taxonomyProfile, taxonomyHash: 'e2e-test', taxonomyVersion: 'e2e-test',
     };
@@ -370,38 +321,135 @@ Deno.serve(async (req) => {
     });
     console.info(`[e2eTest] ✅ ResearchRun erstellt: ${run.id}`);
 
-    // ── SCHRITT 5: Setup abgeschlossen — ResearchRun wartet auf Browser-Trigger ─
-    // processResearchRun benötigt echten User-Auth-Kontext (isPlatformAdmin-Check).
-    // Backend-zu-Backend-Invoke ist nicht möglich ohne Auth-Schwächung.
-    // Korrekte Test-Strategie: Setup hier, processResearchRun über Browser/UI ausführen.
-    console.info(`[e2eTest] ✅ Setup komplett. ResearchRun ${run.id} ist queued und wartet auf Browser-Trigger.`);
-    console.info(`[e2eTest] → Nächster Schritt: Im Browser als Admin ResearchRun ${run.id} über ActiveResearchBanner oder Dashboard starten.`);
+    // ── SCHRITT 5: processResearchRun aufrufen (bis abgeschlossen) ────────────
+    // Ruft die Funktion als Backend-Call über base44.functions.invoke auf.
+    // Kein Browser nötig — läuft vollständig server-seitig.
+    console.info('[e2eTest] Schritt 5: processResearchRun ausführen...');
+    let processResult = null;
+    let batchCount = 0;
+    const MAX_BATCHES = 10;
 
-    // ── SCHRITT 6: Setup-Response — Bereit für Browser-E2E ────────────────────
-    return Response.json({
-      success: true,
-      phase: 'setup_complete',
-      verdict: {
-        status: '⏳ AWAITING_BROWSER_RUN',
-        message: 'Setup abgeschlossen. ResearchRun ist queued. Jetzt im Browser als Admin starten.',
-        next_steps: [
-          `1. Im Browser als Admin einloggen`,
-          `2. ResearchRun ${run.id} wird automatisch via ActiveResearchBanner verarbeitet`,
-          `   ODER: Dashboard → Neue Recherche starten (die bestehende queued Run wird aufgegriffen)`,
-          `3. Nach Abschluss: validate_run=true aufrufen um Counts zu prüfen`,
-          `4. Cleanup: POST {cleanup_only: true, org_id_to_cleanup: "${testOrg.id}"}`,
+    while (batchCount < MAX_BATCHES) {
+      batchCount++;
+      console.info(`[e2eTest] → Batch ${batchCount}/${MAX_BATCHES}...`);
+
+      try {
+        const res = await base44.asServiceRole.functions.invoke('processResearchRun', {
+          research_run_id: run.id,
+          organization_id: testOrg.id,
+        });
+        processResult = res;
+        console.info(`[e2eTest] Batch ${batchCount} result: done=${res?.done} status=${res?.status} leads_saved=${res?.leads_saved}`);
+
+        if (res?.done || ['completed', 'partial', 'failed'].includes(res?.status)) {
+          console.info(`[e2eTest] ✅ Run abgeschlossen nach ${batchCount} Batches: ${res?.status} (${res?.leads_saved} Leads)`);
+          break;
+        }
+      } catch (batchErr) {
+        console.error(`[e2eTest] Batch ${batchCount} error: ${batchErr?.message}`);
+        break;
+      }
+
+      // Kurze Pause zwischen Batches
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    // ── SCHRITT 6: Auf Supabase-Propagation warten, dann Counts laden ────────
+    console.info('[e2eTest] Schritt 6: Counts prüfen (warte 3s auf Supabase-Propagation)...');
+    await new Promise(r => setTimeout(r, 3000));
+
+    const [finalCompanies, finalRunRecords, finalUsage, finalSupabase] = await Promise.all([
+      base44.asServiceRole.entities.Company.filter({ organization_id: testOrg.id }),
+      base44.asServiceRole.entities.ResearchRun.filter({ id: run.id }),
+      base44.asServiceRole.entities.UsageLog.filter({ organization_id: testOrg.id, period_month: periodMonth }),
+      getSupabaseMonthlyCount(testOrg.id, periodMonth, 3),
+    ]);
+
+    const finalRun = finalRunRecords[0];
+    const nonQuota = new Set(['manual_setup', 'csv_import', 'manual', 'import']);
+    const researchCompanies = finalCompanies.filter(c =>
+      c.research_run_id && !nonQuota.has(c.research_run_id) &&
+      c.quelle !== 'Manuell' && c.quelle !== 'CSV Import' &&
+      c.source_provider !== 'manual' && c.source_provider !== 'csv_import'
+    );
+
+    const final = {
+      companies_count: researchCompanies.length,
+      research_run_leads_saved: finalRun?.leads_saved || 0,
+      research_run_status: finalRun?.status || 'unknown',
+      usageLog_leads_created: finalUsage[0]?.leads_created || 0,
+      supabase_monthly_used: finalSupabase ?? 'unavailable',
+    };
+
+    const delta = {
+      companies: final.companies_count - baseline.companies,
+      usageLog: final.usageLog_leads_created - baseline.usageLog_leads_created,
+      supabase: typeof final.supabase_monthly_used === 'number'
+        ? final.supabase_monthly_used - baseline.supabase_monthly_used
+        : 'unavailable',
+    };
+
+    const expectedLeads = final.research_run_leads_saved;
+    const supabaseDelta = typeof delta.supabase === 'number' ? delta.supabase : null;
+    const companiesMatch = delta.companies === expectedLeads;
+    const runDone = ['completed', 'partial'].includes(final.research_run_status);
+    const usageMatch = delta.usageLog === expectedLeads;
+    const supabaseMatch = supabaseDelta === null || supabaseDelta === expectedLeads;
+    const allMatch = companiesMatch && runDone && usageMatch && supabaseMatch && expectedLeads > 0;
+
+    let verdict;
+    if (!runDone) {
+      verdict = { status: '❌ FAIL', message: `Run nicht abgeschlossen: ${final.research_run_status}` };
+    } else if (expectedLeads === 0) {
+      verdict = {
+        status: '⚠️ NO_LEADS', message: 'Run abgeschlossen aber 0 Leads',
+        details: [`zero_result_cause: ${finalRun?.zero_result_cause || 'none'}`, `error: ${finalRun?.error_message || 'none'}`],
+      };
+    } else if (allMatch) {
+      verdict = {
+        status: '✅ PASS', message: `Alle Quellen übereinstimmend: ${expectedLeads} Leads (Baseline war 0/0/0)`,
+        details: [
+          `✅ Companies (delta): +${delta.companies}`,
+          `✅ ResearchRun.leads_saved: ${final.research_run_leads_saved}`,
+          `✅ UsageLog (delta): +${delta.usageLog}`,
+          supabaseDelta !== null ? `✅ Supabase (delta): +${supabaseDelta}` : '⚠️ Supabase: unavailable (non-blocking)',
         ],
-      },
+      };
+    } else {
+      verdict = {
+        status: '❌ FAIL', message: 'Quellen stimmen NICHT überein',
+        details: [
+          `${companiesMatch ? '✅' : '❌'} Companies (delta): +${delta.companies} (erwartet +${expectedLeads})`,
+          `✅ ResearchRun.leads_saved: ${expectedLeads} (${final.research_run_status})`,
+          `${usageMatch ? '✅' : '❌'} UsageLog (delta): +${delta.usageLog} (erwartet +${expectedLeads})`,
+          `${supabaseDelta !== null ? (supabaseMatch ? '✅' : '❌') : '⚠️'} Supabase: ${supabaseDelta !== null ? `+${supabaseDelta}` : 'unavailable'}`,
+        ],
+      };
+    }
+
+    console.info(`[e2eTest] ═══ ERGEBNIS: ${verdict.status} ═══`);
+    verdict.details?.forEach(d => console.info(`[e2eTest]   ${d}`));
+
+    // ── SCHRITT 7: Cleanup — Test-Org vollständig löschen ────────────────────
+    console.info('[e2eTest] Schritt 7: Cleanup Test-Org...');
+    await cleanupTestOrg(base44, testOrg.id);
+    console.info('[e2eTest] ✅ Cleanup abgeschlossen. Test-Org vollständig gelöscht.');
+
+    return Response.json({
+      success: allMatch,
+      verdict,
+      baseline,
+      final,
+      delta,
+      period_month: periodMonth,
       test_org_id: testOrg.id,
       research_run_id: run.id,
-      period_month: periodMonth,
-      baseline,
-      cleanup_note: `Cleanup: POST {cleanup_only: true, org_id_to_cleanup: "${testOrg.id}", run_id_to_cleanup: "${run.id}"}`,
-      note: 'Echte Admin-Org wird verwendet — Cleanup löscht nur den Test-Run + Companies, nicht die Org.',
+      batches_run: batchCount,
+      note: 'Test-Org wurde nach dem Test vollständig bereinigt.',
     });
 
   } catch (error) {
-    console.error('[e2eTest] Error:', error?.message, error?.stack);
+    console.error('[e2eTest] Fatal error:', error?.message, error?.stack);
     return Response.json({ error: error?.message, success: false }, { status: 500 });
   }
 });
