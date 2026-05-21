@@ -78,17 +78,12 @@ export default function Dashboard() {
       return response.data;
     },
     enabled: !orgLoading && !!activeOrg?.id,
-    staleTime: 0,
-    refetchOnWindowFocus: true,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
     placeholderData: null,
   });
 
-  // Auto-Refresh beim Fokus
-  useEffect(() => {
-    const handleFocus = () => refetch();
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [refetch]);
+
 
   // Personalisierter Vorname
   const [displayName, setDisplayName] = useState("");
@@ -117,7 +112,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-red-600 font-semibold mb-2">Fehler beim Laden</p>
-          <Button onClick={() => window.location.reload()} size="sm">Neu laden</Button>
+          <Button onClick={() => refetch()} size="sm">Neu laden</Button>
         </div>
       </div>
     );
