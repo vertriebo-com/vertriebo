@@ -91,15 +91,42 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
           return;
         }
 
+        // ── PUNKT 5: Vor invoke nochmal frisch aus DB lesen ─────────────────
+        // Verhindert, dass ein abgeschlossener Run nochmal aufgerufen wird.
+        const freshRuns = await base44.entities.ResearchRun.filter({ id: running.id });
+        const freshRun = freshRuns[0];
+        if (!freshRun) return;
+
+        if (['completed', 'partial', 'failed'].includes(freshRun.status)) {
+          // Run bereits abgeschlossen → nur anzeigen, nicht verarbeiten
+          const finalLeads = freshRun.leads_saved || 0;
+          setActiveRun({
+            id: freshRun.id,
+            status: freshRun.status,
+            leads_saved: finalLeads,
+            progress_percent: 100,
+            // PUNKT 6: einheitliche Zählquelle = ResearchRun.leads_saved
+            message: finalLeads > 0 ? `${finalLeads} neue Firmenkontakte gefunden` : 'Keine neuen Kontakte gefunden',
+            research_run_id: freshRun.id,
+          });
+          if (finalLeads > lastLeadsSavedRef.current) {
+            lastLeadsSavedRef.current = finalLeads;
+            onNewLeads?.();
+          }
+          return;
+        }
+
         // ── Kein Lock aktiv → Banner kann selbst verarbeiten (Dialog geschlossen) ──
         const res = await base44.functions.invoke('processResearchRun', {
-          research_run_id: running.id,
-          organization_id: orgId,
+          research_run_id: freshRun.id,
         });
         const data = res?.data;
 
-        if (data?.leads_saved > lastLeadsSavedRef.current) {
-          lastLeadsSavedRef.current = data.leads_saved;
+        // PUNKT 6: einheitliche Zählquelle = immer ResearchRun.leads_saved aus DB, nicht lokaler Ref
+        const leadsFromResponse = data?.leads_saved ?? freshRun.leads_saved ?? 0;
+
+        if (leadsFromResponse > lastLeadsSavedRef.current) {
+          lastLeadsSavedRef.current = leadsFromResponse;
           retryCountRef.current = 0;
           onNewLeads?.();
         } else if (!isStale && !data?.already_processing) {
@@ -107,14 +134,15 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
         }
 
         if (data?.done || ['completed', 'partial', 'failed'].includes(data?.status)) {
+          const finalLeads = data?.leads_saved ?? leadsFromResponse;
           setActiveRun({
-            id: running.id,
-            status: data.status || 'completed',
-            leads_saved: data.leads_saved || running.leads_saved || 0,
+            id: freshRun.id,
+            status: data?.status || 'completed',
+            leads_saved: finalLeads,
             progress_percent: 100,
-            message: (data.leads_saved || 0) > 0
-              ? `${data.leads_saved} neue Firmenkontakte gefunden`
-              : 'Keine neuen Kontakte gefunden',
+            // PUNKT 6: einheitliche Nachricht
+            message: finalLeads > 0 ? `${finalLeads} neue Firmenkontakte gefunden` : 'Keine neuen Kontakte gefunden',
+            research_run_id: freshRun.id,
           });
           lastLeadsSavedRef.current = 0;
           onNewLeads?.();
@@ -122,22 +150,24 @@ export default function ActiveResearchBanner({ orgId, onNewLeads }) {
         }
 
         setActiveRun({
-          id: running.id,
-          status: running.status,
-          leads_saved: data?.leads_saved ?? running.leads_saved ?? 0,
-          progress_percent: data?.progress_percent ?? running.progress_percent ?? 0,
-          message: data?.current_step || running.current_step || 'Recherche läuft…',
+          id: freshRun.id,
+          status: freshRun.status,
+          leads_saved: leadsFromResponse,
+          progress_percent: data?.progress_percent ?? freshRun.progress_percent ?? 0,
+          message: data?.current_step || freshRun.current_step || 'Recherche läuft…',
+          research_run_id: freshRun.id,
         });
 
       } else if (recentDone && recentDone.id !== dismissed) {
+        // PUNKT 6: einheitliche Zählquelle = ResearchRun.leads_saved
+        const doneLeads = recentDone.leads_saved || 0;
         setActiveRun({
           id: recentDone.id,
           status: recentDone.status,
-          leads_saved: recentDone.leads_saved || 0,
+          leads_saved: doneLeads,
           progress_percent: 100,
-          message: (recentDone.leads_saved || 0) > 0
-            ? `${recentDone.leads_saved} neue Firmenkontakte gefunden`
-            : 'Keine neuen Kontakte gefunden',
+          message: doneLeads > 0 ? `${doneLeads} neue Firmenkontakte gefunden` : 'Keine neuen Kontakte gefunden',
+          research_run_id: recentDone.id,
         });
         lastLeadsSavedRef.current = 0;
       } else if (!running || runningIsSuperseded) {

@@ -790,10 +790,32 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── PUNKT 1+3: Frischer DB-Read nach Lock-Gewinn (Source of Truth) ───────
+    // Nach dem Optimistic-Lock-Gewinn nochmal frisch lesen.
+    // Verhindert: Worker liest alten batch_index/leads_saved aus cache-warmem Objekt.
+    const freshRuns = await base44.asServiceRole.entities.ResearchRun.filter({ id: research_run_id });
+    const freshRun = freshRuns[0];
+    if (!freshRun) {
+      return Response.json({ error: 'Run verschwunden nach Lock', success: false }, { status: 404 });
+    }
+
+    // Punkt 2: Nochmal Status prüfen (könnte sich zwischen Lock-Write und jetzt geändert haben)
+    if (['completed', 'partial', 'failed'].includes(freshRun.status)) {
+      await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+        processing_lock_until: null, processing_by: null,
+      });
+      console.info(`[processResearchRun] Fresh-read: Run already ${freshRun.status}, releasing lock`);
+      return Response.json({
+        success: true, done: true, status: freshRun.status,
+        leads_saved: freshRun.leads_saved || 0, progress_percent: 100,
+        message: `Recherche abgeschlossen: ${freshRun.leads_saved || 0} Kontakte gefunden.`,
+      });
+    }
+
     // ── Suchplan lesen ───────────────────────────────────────────────────────
     let searchPlan;
     try {
-      searchPlan = JSON.parse(run.search_plan_json || '{}');
+      searchPlan = JSON.parse(freshRun.search_plan_json || '{}');
     } catch {
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
         status: 'failed', error_message: 'Suchplan ungültig', finished_at: new Date().toISOString(),
@@ -808,6 +830,12 @@ Deno.serve(async (req) => {
       trialStage, cityCoords, allPoints = [], allCenters = [],
       effectiveTarget, taxonomyProfile, taxonomyHash, taxonomyVersion,
     } = searchPlan;
+
+    // ── PUNKT 3: Batch-Index und Target frisch aus DB lesen ──────────────────
+    // freshRun enthält den aktuellen Stand NACH dem Lock-Gewinn.
+    // Nicht mehr aus dem alten `run`-Objekt lesen.
+    const freshBatchIndex = freshRun.batch_index || 0;
+    const freshLeadsSaved = freshRun.leads_saved || 0;
 
     const hasGeoCoords = !!(cityCoords?.lat && cityCoords?.lng);
 
@@ -867,7 +895,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Status auf running setzen ────────────────────────────────────────────
-    if (run.status === 'queued') {
+    if (freshRun.status === 'queued') {
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
         status: 'running', current_step: 'Firmenprofile werden gesucht…', progress_percent: 5,
         started_at: new Date().toISOString(),
@@ -882,9 +910,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // ── Bereits gesehene Place-IDs ───────────────────────────────────────────
+    // ── Bereits gesehene Place-IDs (aus freshRun lesen!) ────────────────────
     let seenPlaceIds = new Set();
-    try { seenPlaceIds = new Set(JSON.parse(run.seen_place_ids || '[]')); } catch {}
+    try { seenPlaceIds = new Set(JSON.parse(freshRun.seen_place_ids || '[]')); } catch {}
 
     // ── Intra-Batch-Dedupe ───────────────────────────────────────────────────
     const existing = await base44.asServiceRole.entities.Company.filter({ organization_id }, '-created_date', 1000);
@@ -897,22 +925,44 @@ Deno.serve(async (req) => {
         .map(c => `${normStr(c.name)}|${normStr(c.telefon)}`)
     );
 
-    const currentLeadsSaved = run.leads_saved || 0;
-    if ((effectiveTarget || 25) - currentLeadsSaved <= 0) {
+    // ── PUNKT 4: Run-spezifische Place-IDs deduplizieren ────────────────────
+    // Verhindert, dass derselbe Place innerhalb desselben Runs zweimal gespeichert wird,
+    // auch wenn zwei Worker kurz parallel liefen.
+    const runCompanies = existing.filter(c => c.research_run_id === research_run_id && c.google_place_id);
+    const runPlaceIds = new Set(runCompanies.map(c => c.google_place_id));
+    console.info(`[processResearchRun] Run-Dedupe: ${runPlaceIds.size} Places bereits in diesem Run`);
+
+    // ── PUNKT 3: currentLeadsSaved + batchIndex aus freshRun (nicht aus cache) ─
+    const currentLeadsSaved = freshLeadsSaved;
+    const batchTarget = effectiveTarget || 25;
+
+    if (currentLeadsSaved >= batchTarget) {
       await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
-        status: 'completed', progress_percent: 100, current_step: 'Recherche abgeschlossen',
+        status: 'completed', progress_percent: 100, current_step: `${currentLeadsSaved} Firmenkontakte gefunden`,
         finished_at: new Date().toISOString(), processing_lock_until: null, processing_by: null,
       });
+      console.info(`[processResearchRun] GUARD: leads_saved(${currentLeadsSaved}) >= target(${batchTarget}), completing`);
       return Response.json({ success: true, done: true, status: 'completed', leads_saved: currentLeadsSaved, progress_percent: 100 });
     }
 
-    // ── MVP: Batch-Target (Quota-Prüfung erfolgt bereits in startResearchRun) ─
-    let batchTarget = effectiveTarget || 25;
-
     // ── Batch ────────────────────────────────────────────────────────────────
-    const batchIndex = run.batch_index || 0;
+    const batchIndex = freshBatchIndex;
     const QUERIES_PER_BATCH = trialStage === 'free_preview' ? 2 : 3;
     const PLACE_DETAILS_PER_BATCH = 15;
+    const totalBatches = Math.ceil(allQueries.length / QUERIES_PER_BATCH);
+
+    // PUNKT 3: batch_index >= total_batches → completed
+    if (batchIndex >= totalBatches) {
+      await base44.asServiceRole.entities.ResearchRun.update(research_run_id, {
+        status: 'completed', progress_percent: 100,
+        current_step: currentLeadsSaved > 0 ? `${currentLeadsSaved} Firmenkontakte gefunden` : 'Keine neuen Kontakte gefunden',
+        finished_at: new Date().toISOString(), processing_lock_until: null, processing_by: null,
+        ...(currentLeadsSaved === 0 ? { zero_result_cause: 'all_queries_exhausted' } : {}),
+      });
+      console.info(`[processResearchRun] GUARD: batchIndex(${batchIndex}) >= totalBatches(${totalBatches}), completing`);
+      return Response.json({ success: true, done: true, status: 'completed', leads_saved: currentLeadsSaved, progress_percent: 100 });
+    }
+
     const batchStart = batchIndex * QUERIES_PER_BATCH;
     const batchQueries = allQueries.slice(batchStart, batchStart + QUERIES_PER_BATCH);
 
@@ -998,13 +1048,21 @@ Deno.serve(async (req) => {
           const namePhoneKey = `${normStr(place.name)}|${phoneNorm}`;
           if (phoneNorm.length >= 6 && existingNamePhone.has(namePhoneKey)) { dupSkippedThisBatch++; continue; }
 
-          // Pre-Create Final DB Check
+          // Pre-Create Final DB Check (org-weit)
           const alreadyExists = await base44.asServiceRole.entities.Company.filter({
             organization_id, google_place_id: place.place_id,
           });
           if (alreadyExists && alreadyExists.length > 0) {
             dupSkippedThisBatch++;
             existingPlaceIds.add(place.place_id);
+            runPlaceIds.add(place.place_id);
+            continue;
+          }
+
+          // PUNKT 4: Run-spezifischer Dedupe-Check (verhindert Doppelschreiben bei Race)
+          if (runPlaceIds.has(place.place_id)) {
+            console.warn(`[processResearchRun] Run-Dedupe: place_id ${place.place_id} bereits in diesem Run gespeichert`);
+            dupSkippedThisBatch++;
             continue;
           }
 
@@ -1069,6 +1127,7 @@ Deno.serve(async (req) => {
             // Dedupe-Sets aktualisieren + Counter erhöhen (IMMER nach erfolgreichem Create!)
             existingNames.add(normStr(place.name || ''));
             existingPlaceIds.add(place.place_id);
+            runPlaceIds.add(place.place_id); // PUNKT 4: Run-Dedupe aktualisieren
             if (ort) existingNameOrt.add(nameOrtKey);
             if (phoneNorm.length >= 6) existingNamePhone.add(namePhoneKey);
             newLeadsSavedThisBatch++;
@@ -1119,7 +1178,6 @@ Deno.serve(async (req) => {
     // ── Fortschritt + Update ─────────────────────────────────────────────────
     const totalLeadsSaved = currentLeadsSaved + newLeadsSavedThisBatch;
     const nextBatchIndex = batchIndex + 1;
-    const totalBatches = Math.ceil(allQueries.length / QUERIES_PER_BATCH);
     const progressPercent = Math.min(95, Math.round((nextBatchIndex / totalBatches) * 90) + 5);
     const isDone = nextBatchIndex >= totalBatches || totalLeadsSaved >= batchTarget;
     const zeroResultCause = isDone && totalLeadsSaved === 0
@@ -1135,6 +1193,8 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.Organization.update(organization_id, { trial_leads_granted: (orgs[0].trial_leads_granted || 0) + newLeadsSavedThisBatch });
       }
     }
+
+    console.info(`[processResearchRun] Batch ${batchIndex}/${totalBatches} done: newSaved=${newLeadsSavedThisBatch} totalSaved=${totalLeadsSaved} done=${isDone}`);
 
     const newStatus = isDone ? 'completed' : 'running';
     const newStep = isDone
@@ -1160,7 +1220,7 @@ Deno.serve(async (req) => {
       ...(isDone && zeroResultCause ? { zero_result_cause: zeroResultCause } : {}),
     });
 
-    console.info(`[processResearchRun] Batch ${batchIndex} done: newSaved=${newLeadsSavedThisBatch} totalSaved=${totalLeadsSaved} done=${isDone} engine=${SEARCH_ENGINE_VERSION}`);
+
 
     // ── AUDIT: Run-Batch-Complete (nicht-blockierend, aber await + Catch) ─────
     // Non-blocking: Fehler werden gefangen, aber Aufruf wird erwartet (kein Fire-and-Forget)

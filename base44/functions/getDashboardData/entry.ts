@@ -134,9 +134,16 @@ Deno.serve(async (req) => {
 
     const recentActivities = companies.slice(0, 5);
 
-    // Nur wirklich neue Leads aus den letzten 24h für den Banner
-    const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const newLeadsFromResearch = companies.filter(c => c.research_run_id && c.created_date >= last24h);
+    // PUNKT 7: newLeadsFromResearch run_id-basiert — nur letzter abgeschlossener Run
+    // Verhindert, dass alte + neue Runs zusammengezählt werden.
+    const recentRuns = await base44.asServiceRole.entities.ResearchRun.filter(
+      { organization_id: orgId }, '-created_date', 5
+    );
+    const latestDoneRun = recentRuns.find(r => ['completed', 'partial'].includes(r.status));
+    const latestRunId = latestDoneRun?.id || null;
+    const newLeadsFromResearch = latestRunId
+      ? companies.filter(c => c.research_run_id === latestRunId)
+      : [];
 
     // ── Actionable Leads für "Heute wichtig" ────────────────────────────────
     // WHY: Dashboard soll konkrete tagesaktuelle Handlungen zeigen, nicht nur Zahlen.
